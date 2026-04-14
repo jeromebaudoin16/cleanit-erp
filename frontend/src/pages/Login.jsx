@@ -2,105 +2,149 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 
+const DEMO = [
+  { email:'admin@cleanit.cm', password:'Admin123!', role:'Administrateur', color:'#4f8ef7' },
+  { email:'jerome@cleanit.cm', password:'Jerome123!', role:'Admin (Jérôme Bell)', color:'#4f8ef7' },
+  { email:'pm@cleanit.cm', password:'PM123!', role:'Project Manager', color:'#34c97e' },
+  { email:'tech@cleanit.cm', password:'Tech123!', role:'Technicien', color:'#f59e0b' },
+];
+
 export default function Login() {
   const nav = useNavigate();
-  const [form, setForm] = useState({ email: 'admin@cleanit.cm', password: 'Admin123!' });
+  const [form, setForm] = useState({ email:'admin@cleanit.cm', password:'Admin123!' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [remember, setRemember] = useState(true);
 
   const submit = async e => {
     e.preventDefault(); setLoading(true); setError('');
     try {
       const res = await api.post('/auth/login', form);
-      const store = remember ? localStorage : sessionStorage;
-      store.setItem('token', res.data.token);
-      store.setItem('user', JSON.stringify(res.data.user));
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
       nav('/dashboard');
-    } catch { setError('Email ou mot de passe incorrect'); }
+    } catch { setError('Email ou mot de passe incorrect. Vérifiez vos identifiants.'); }
     finally { setLoading(false); }
   };
 
   return (
-    <div style={{ minHeight:'100vh', background:'linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#0078d4 100%)', display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
-      <div style={{ width:'100%', maxWidth:420 }}>
+    <div style={{minHeight:'100vh', display:'flex', fontFamily:"'Segoe UI', Arial, sans-serif"}}>
 
-        {/* Logo */}
-        <div style={{ textAlign:'center', marginBottom:32 }}>
-          <div style={{ width:72, height:72, borderRadius:20, background:'linear-gradient(135deg,#0078d4,#00bcf2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', boxShadow:'0 8px 32px rgba(0,120,212,0.4)' }}>
-            <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-            </svg>
-          </div>
-          <h1 style={{ fontSize:28, fontWeight:800, color:'white', marginBottom:4, letterSpacing:'-0.5px' }}>CleanIT ERP</h1>
-          <p style={{ color:'#93c5fd', fontSize:14 }}>ERP Télécom · Huawei Partner Cameroun</p>
+      {/* LEFT — Branding */}
+      <div style={{flex:1, background:'linear-gradient(135deg, #0f1b2d 0%, #162032 50%, #1a2a45 100%)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:48, position:'relative', overflow:'hidden'}}>
+
+        {/* Background pattern */}
+        <div style={{position:'absolute', inset:0, opacity:0.03}}>
+          {Array.from({length:20}).map((_,i) => (
+            <div key={i} style={{position:'absolute', width: 200+i*30, height: 200+i*30, borderRadius:'50%', border:'1px solid white', top:'50%', left:'50%', transform:'translate(-50%,-50%)'}} />
+          ))}
         </div>
 
-        {/* Card */}
-        <div style={{ background:'white', borderRadius:20, padding:32, boxShadow:'0 24px 64px rgba(0,0,0,0.3)' }}>
-          <h2 style={{ fontSize:20, fontWeight:700, color:'#1e293b', marginBottom:4 }}>Connexion</h2>
-          <p style={{ color:'#64748b', fontSize:13, marginBottom:24 }}>Accédez à votre espace de travail</p>
+        <div style={{position:'relative', textAlign:'center', maxWidth:400}}>
+          {/* Logo */}
+          <div style={{width:80, height:80, borderRadius:20, background:'linear-gradient(135deg,#4f8ef7,#6ea8fe)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 24px', boxShadow:'0 12px 40px rgba(79,142,247,0.4)'}}>
+            <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
 
+          <h1 style={{fontSize:36, fontWeight:900, color:'white', margin:'0 0 8px', letterSpacing:'-1px'}}>CleanIT ERP</h1>
+          <p style={{fontSize:15, color:'#4f8ef7', fontWeight:600, marginBottom:16}}>ERP Télécom · Huawei Partner Cameroun</p>
+          <p style={{fontSize:13, color:'#64748b', lineHeight:1.7, marginBottom:40}}>
+            Plateforme de gestion intégrée pour les opérations télécom, la gestion des sites, des interventions et des approbations financières.
+          </p>
+
+          {/* Features */}
+          <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, textAlign:'left'}}>
+            {[
+              {icon:'📡', label:'Gestion des Sites'},
+              {icon:'🔧', label:'Interventions Terrain'},
+              {icon:'📦', label:'Inventaire OEM Huawei'},
+              {icon:'✅', label:'Workflow Approvals'},
+              {icon:'💰', label:'Finance & Paiements'},
+              {icon:'🤖', label:'Agent IA Intégré'},
+            ].map(f => (
+              <div key={f.label} style={{display:'flex', alignItems:'center', gap:8, padding:'8px 12px', borderRadius:8, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)'}}>
+                <span style={{fontSize:16}}>{f.icon}</span>
+                <span style={{fontSize:12, color:'#94a3b8', fontWeight:500}}>{f.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT — Login Form */}
+      <div style={{width:480, background:'#f8fafc', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:48}}>
+
+        <div style={{width:'100%', maxWidth:380}}>
+
+          {/* Header */}
+          <div style={{marginBottom:32}}>
+            <h2 style={{fontSize:26, fontWeight:800, color:'#0f1b2d', margin:'0 0 6px', letterSpacing:'-0.5px'}}>Connexion</h2>
+            <p style={{fontSize:13, color:'#64748b', margin:0}}>Accédez à votre espace de travail CleanIT</p>
+          </div>
+
+          {/* Error */}
           {error && (
-            <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:8, padding:'10px 14px', marginBottom:16, color:'#dc2626', fontSize:13 }}>
-              ⚠ {error}
+            <div style={{background:'#fef2f2', border:'1px solid #fecaca', borderRadius:8, padding:'10px 14px', marginBottom:16, color:'#dc2626', fontSize:13, display:'flex', gap:8, alignItems:'center'}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+              {error}
             </div>
           )}
 
+          {/* Form */}
           <form onSubmit={submit}>
-            {[
-              { label:'EMAIL', key:'email', type:'email', placeholder:'votre@email.com' },
-              { label:'MOT DE PASSE', key:'password', type:'password', placeholder:'••••••••' },
-            ].map(f => (
-              <div key={f.key} style={{ marginBottom:16 }}>
-                <label style={{ fontSize:11, fontWeight:700, color:'#64748b', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>{f.label}</label>
-                <input
-                  type={f.type} placeholder={f.placeholder} value={form[f.key]}
-                  onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))} required
-                  style={{ width:'100%', padding:'11px 14px', border:'1.5px solid #e2e8f0', borderRadius:10, fontSize:14, outline:'none', boxSizing:'border-box', transition:'border-color .2s' }}
-                  onFocus={e => e.target.style.borderColor='#0078d4'}
-                  onBlur={e => e.target.style.borderColor='#e2e8f0'}
-                />
-              </div>
-            ))}
+            <div style={{marginBottom:16}}>
+              <label style={{fontSize:12, fontWeight:700, color:'#374151', display:'block', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.5px'}}>Adresse Email</label>
+              <input type="email" value={form.email} onChange={e => setForm(p => ({...p, email:e.target.value}))} required placeholder="votre@email.com"
+                style={{width:'100%', padding:'11px 14px', border:'1.5px solid #e2e8f0', borderRadius:8, fontSize:14, outline:'none', boxSizing:'border-box', background:'white', color:'#1e293b', transition:'border-color .2s'}}
+                onFocus={e => e.target.style.borderColor='#4f8ef7'}
+                onBlur={e => e.target.style.borderColor='#e2e8f0'} />
+            </div>
 
-            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:24 }}>
-              <input type="checkbox" id="rem" checked={remember} onChange={e => setRemember(e.target.checked)} style={{ width:15, height:15, cursor:'pointer' }} />
-              <label htmlFor="rem" style={{ fontSize:13, color:'#64748b', cursor:'pointer' }}>Se souvenir de moi</label>
+            <div style={{marginBottom:24}}>
+              <label style={{fontSize:12, fontWeight:700, color:'#374151', display:'block', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.5px'}}>Mot de passe</label>
+              <input type="password" value={form.password} onChange={e => setForm(p => ({...p, password:e.target.value}))} required placeholder="••••••••"
+                style={{width:'100%', padding:'11px 14px', border:'1.5px solid #e2e8f0', borderRadius:8, fontSize:14, outline:'none', boxSizing:'border-box', background:'white', color:'#1e293b', transition:'border-color .2s'}}
+                onFocus={e => e.target.style.borderColor='#4f8ef7'}
+                onBlur={e => e.target.style.borderColor='#e2e8f0'} />
             </div>
 
             <button type="submit" disabled={loading}
-              style={{ width:'100%', padding:'13px', borderRadius:10, border:'none', background: loading ? '#94a3b8' : 'linear-gradient(135deg,#0078d4,#00bcf2)', color:'white', fontSize:15, fontWeight:700, cursor: loading ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all .2s' }}>
+              style={{width:'100%', padding:'13px', borderRadius:8, border:'none', background: loading?'#94a3b8':'linear-gradient(135deg,#4f8ef7,#6ea8fe)', color:'white', fontSize:15, fontWeight:700, cursor: loading?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, boxShadow: loading?'none':'0 4px 16px rgba(79,142,247,0.35)', transition:'all .2s'}}>
               {loading
-                ? <><div style={{ width:18, height:18, borderRadius:'50%', border:'2px solid white', borderTopColor:'transparent', animation:'spin 1s linear infinite' }} /> Connexion...</>
-                : '→ Se connecter'
+                ? <><div style={{width:18, height:18, borderRadius:'50%', border:'2px solid white', borderTopColor:'transparent', animation:'spin 1s linear infinite'}} />Connexion...</>
+                : 'Se connecter →'
               }
             </button>
           </form>
 
-          <div style={{ marginTop:20, padding:'12px 14px', background:'#f8fafc', borderRadius:10, border:'1px solid #f1f5f9' }}>
-            <div style={{ fontSize:11, fontWeight:700, color:'#64748b', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.5px' }}>Comptes de démonstration</div>
-            {[
-              { email:'admin@cleanit.cm', pass:'Admin123!', role:'Administrateur' },
-              { email:'jerome@cleanit.cm', pass:'Jerome123!', role:'Admin (Jérôme Bell)' },
-              { email:'pm@cleanit.cm', pass:'PM123!', role:'Project Manager' },
-              { email:'tech@cleanit.cm', pass:'Tech123!', role:'Technicien' },
-            ].map(u => (
-              <div key={u.email} onClick={() => setForm({ email: u.email, password: u.pass })}
-                style={{ fontSize:12, color:'#374151', padding:'4px 0', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid #f1f5f9' }}
-                onMouseEnter={e => e.currentTarget.style.color='#0078d4'}
-                onMouseLeave={e => e.currentTarget.style.color='#374151'}>
-                <span><b>{u.email}</b> / {u.pass}</span>
-                <span style={{ fontSize:10, color:'#94a3b8' }}>{u.role}</span>
-              </div>
+          {/* Divider */}
+          <div style={{display:'flex', alignItems:'center', gap:12, margin:'24px 0'}}>
+            <div style={{flex:1, height:1, background:'#e2e8f0'}} />
+            <span style={{fontSize:12, color:'#94a3b8', fontWeight:500}}>Comptes de démonstration</span>
+            <div style={{flex:1, height:1, background:'#e2e8f0'}} />
+          </div>
+
+          {/* Demo accounts */}
+          <div style={{display:'flex', flexDirection:'column', gap:6}}>
+            {DEMO.map(u => (
+              <button key={u.email} onClick={() => setForm({email:u.email, password:u.password})}
+                style={{padding:'9px 14px', borderRadius:8, border:'1px solid #e2e8f0', background:'white', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', transition:'all .15s'}}
+                onMouseEnter={e => {e.currentTarget.style.borderColor=u.color; e.currentTarget.style.background=`${u.color}08`;}}
+                onMouseLeave={e => {e.currentTarget.style.borderColor='#e2e8f0'; e.currentTarget.style.background='white';}}>
+                <div style={{textAlign:'left'}}>
+                  <div style={{fontSize:12, fontWeight:700, color:'#1e293b'}}>{u.email}</div>
+                  <div style={{fontSize:11, color:'#94a3b8', marginTop:1}}>{u.password}</div>
+                </div>
+                <span style={{padding:'2px 8px', borderRadius:10, fontSize:10, fontWeight:700, background:`${u.color}15`, color:u.color}}>{u.role}</span>
+              </button>
             ))}
           </div>
-        </div>
 
-        <p style={{ textAlign:'center', color:'#475569', fontSize:12, marginTop:20 }}>
-          © 2026 CleanIT ERP · Huawei Partner Cameroun
-        </p>
+          <p style={{textAlign:'center', color:'#94a3b8', fontSize:11, marginTop:24}}>
+            © 2026 CleanIT ERP · Huawei Partner Cameroun
+          </p>
+        </div>
       </div>
+
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );

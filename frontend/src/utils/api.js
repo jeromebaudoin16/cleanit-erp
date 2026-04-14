@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE = 'http://localhost:3000';
+const BASE = import.meta.env.VITE_API_URL || 'https://cleanit-erp-production.up.railway.app';
 
 export const api = axios.create({ baseURL: BASE });
 
