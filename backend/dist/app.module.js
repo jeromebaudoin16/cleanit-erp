@@ -38,18 +38,23 @@ const meteo_module_1 = require("./meteo/meteo.module");
 const reports_module_1 = require("./reports/reports.module");
 const purchase_orders_module_1 = require("./purchase-orders/purchase-orders.module");
 const notifications_module_1 = require("./notifications/notifications.module");
+const approvals_module_1 = require("./approvals/approvals.module");
 const users_service_1 = require("./users/users.service");
 const sites_service_1 = require("./sites/sites.service");
+const approvals_service_1 = require("./approvals/approvals.service");
 let AppModule = class AppModule {
     usersService;
     sitesService;
-    constructor(usersService, sitesService) {
+    approvalsService;
+    constructor(usersService, sitesService, approvalsService) {
         this.usersService = usersService;
         this.sitesService = sitesService;
+        this.approvalsService = approvalsService;
     }
     async onModuleInit() {
         await this.usersService.seedAdmin();
         await this.sitesService.seedSites();
+        await this.approvalsService.seedApprovals();
     }
 };
 exports.AppModule = AppModule;
@@ -61,11 +66,8 @@ exports.AppModule = AppModule = __decorate([
                 imports: [config_1.ConfigModule],
                 useFactory: (cfg) => ({
                     type: 'postgres',
-                    host: cfg.get('DB_HOST', 'localhost'),
-                    port: +cfg.get('DB_PORT', 5432),
-                    username: cfg.get('DB_USER', 'cleanit'),
-                    password: cfg.get('DB_PASS', 'cleanit2024'),
-                    database: cfg.get('DB_NAME', 'cleanit_erp'),
+                    url: cfg.get('DATABASE_URL'),
+                    ssl: { rejectUnauthorized: false },
                     entities: [__dirname + '/**/*.entity{.ts,.js}'],
                     synchronize: true,
                     logging: false,
@@ -78,10 +80,11 @@ exports.AppModule = AppModule = __decorate([
             planning_module_1.PlanningModule, inventaire_module_1.InventaireModule, contrats_module_1.ContratsModule, mediation_module_1.MediationModule,
             provisioning_module_1.ProvisioningModule, evidence_module_1.EvidenceModule, finance_module_1.FinanceModule, rh_module_1.RhModule, crm_module_1.CrmModule,
             analytics_module_1.AnalyticsModule, bi_module_1.BiModule, ai_module_1.AiModule, messaging_module_1.MessagingModule, meteo_module_1.MeteoModule,
-            reports_module_1.ReportsModule, purchase_orders_module_1.PurchaseOrdersModule, notifications_module_1.NotificationsModule,
+            reports_module_1.ReportsModule, purchase_orders_module_1.PurchaseOrdersModule, notifications_module_1.NotificationsModule, approvals_module_1.ApprovalsModule,
         ],
     }),
     __metadata("design:paramtypes", [users_service_1.UsersService,
-        sites_service_1.SitesService])
+        sites_service_1.SitesService,
+        approvals_service_1.ApprovalsService])
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

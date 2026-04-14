@@ -26,8 +26,10 @@ import { MeteoModule } from './meteo/meteo.module';
 import { ReportsModule } from './reports/reports.module';
 import { PurchaseOrdersModule } from './purchase-orders/purchase-orders.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ApprovalsModule } from './approvals/approvals.module';
 import { UsersService } from './users/users.service';
 import { SitesService } from './sites/sites.service';
+import { ApprovalsService } from './approvals/approvals.service';
 
 @Module({
   imports: [
@@ -36,11 +38,8 @@ import { SitesService } from './sites/sites.service';
       imports: [ConfigModule],
       useFactory: (cfg: ConfigService) => ({
         type: 'postgres',
-        host: cfg.get('DB_HOST', 'localhost'),
-        port: +cfg.get('DB_PORT', 5432),
-        username: cfg.get('DB_USER', 'cleanit'),
-        password: cfg.get('DB_PASS', 'cleanit2024'),
-        database: cfg.get('DB_NAME', 'cleanit_erp'),
+        url: cfg.get('DATABASE_URL'),
+        ssl: { rejectUnauthorized: false },
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: true,
         logging: false,
@@ -53,16 +52,18 @@ import { SitesService } from './sites/sites.service';
     PlanningModule, InventaireModule, ContratsModule, MediationModule,
     ProvisioningModule, EvidenceModule, FinanceModule, RhModule, CrmModule,
     AnalyticsModule, BiModule, AiModule, MessagingModule, MeteoModule,
-    ReportsModule, PurchaseOrdersModule, NotificationsModule,
+    ReportsModule, PurchaseOrdersModule, NotificationsModule, ApprovalsModule,
   ],
 })
 export class AppModule implements OnModuleInit {
   constructor(
     private usersService: UsersService,
     private sitesService: SitesService,
+    private approvalsService: ApprovalsService,
   ) {}
   async onModuleInit() {
     await this.usersService.seedAdmin();
     await this.sitesService.seedSites();
+    await this.approvalsService.seedApprovals();
   }
 }
