@@ -59,11 +59,11 @@ export default function App() {
           <Route path="analytics"       element={<Analytics />} />
           <Route path="bi"              element={<BI />} />
           <Route path="ai"              element={<AI />} />
-          <Route path="map"             element={<Soon title="Carte Digital Twin" color="#0891b2" />} />
+          <Route path="map" element={<MapPage />} />
           <Route path="meteo"           element={<Soon title="Météo Sites" color="#0891b2" />} />
           <Route path="messaging"       element={<Soon title="Messagerie Interne" color="#7c3aed" />} />
           <Route path="provisioning"    element={<Soon title="Provisioning Réseau" color="#4f8ef7" />} />
-          <Route path="evidence"        element={<Soon title="Evidence Packs" color="#ea580c" />} />
+          <Route path="evidence" element={<Evidence />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
