@@ -19,6 +19,8 @@ import PurchaseOrders from './pages/PurchaseOrders';
 import BI from './pages/BI';
 import AI from './pages/AI';
 import Profile from './pages/Profile';
+import Evidence from './pages/Evidence';
+import Map from './pages/Map';
 
 const Guard = ({ children }) =>
   (localStorage.getItem('token') || sessionStorage.getItem('token'))
@@ -59,11 +61,10 @@ export default function App() {
           <Route path="analytics"       element={<Analytics />} />
           <Route path="bi"              element={<BI />} />
           <Route path="ai"              element={<AI />} />
-          <Route path="map" element={<MapPage />} />
-          <Route path="meteo"           element={<Soon title="Météo Sites" color="#0891b2" />} />
+          <Route path="map"             element={<Map />} />
+          <Route path="evidence"        element={<Evidence />} />
           <Route path="messaging"       element={<Soon title="Messagerie Interne" color="#7c3aed" />} />
           <Route path="provisioning"    element={<Soon title="Provisioning Réseau" color="#4f8ef7" />} />
-          <Route path="evidence" element={<Evidence />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
