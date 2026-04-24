@@ -782,7 +782,7 @@ export default function Projets() {
                       <div style={{width:44,height:44,borderRadius:13,background:`${st.color}12`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22}}>📁</div>
                       <div style={{flex:1}}>
                         <div style={{fontSize:13,fontWeight:700,color:'#111827'}}>{p.reference} — {p.titre}</div>
-                        <div style={{fontSize:11,color:'#6b7280',marginTop:3'}}>👤 {p.chefProjet} · 🏢 {p.client} · 💰 {fmtN(p.montantTotal)} FCFA</div>
+                        <div style={{fontSize:11,color:'#6b7280',marginTop:3}}>👤 {p.chefProjet} · 🏢 {p.client} · 💰 {fmtN(p.montantTotal)} FCFA</div>
                       </div>
                       <div style={{textAlign:'right'}}>
                         <div style={{fontSize:12,color:'#9ca3af'}}>Créé le {fmtDate(p.dateCreation)}</div>
@@ -816,7 +816,7 @@ export default function Projets() {
                         </div>
                         <div style={{textAlign:'right'}}>
                           <span style={{padding:'3px 8px',borderRadius:8,background:STATUS_PHASE[ph.status]?.bg,color:STATUS_PHASE[ph.status]?.color,fontSize:10,fontWeight:700}}>{STATUS_PHASE[ph.status]?.label}</span>
-                          {ph.datePaiement&&<div style={{fontSize:9,color:'#9ca3af',marginTop:2'}}>{fmtDate(ph.datePaiement)}</div>}
+                          {ph.datePaiement&&<div style={{fontSize:9,color:'#9ca3af',marginTop:2}}>{fmtDate(ph.datePaiement)}</div>}
                         </div>
                       </div>
                     ))}
