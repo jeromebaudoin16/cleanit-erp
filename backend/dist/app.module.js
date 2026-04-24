@@ -28,6 +28,7 @@ const mediation_module_1 = require("./mediation/mediation.module");
 const provisioning_module_1 = require("./provisioning/provisioning.module");
 const evidence_module_1 = require("./evidence/evidence.module");
 const finance_module_1 = require("./finance/finance.module");
+const pointage_module_1 = require("./pointage/pointage.module");
 const rh_module_1 = require("./rh/rh.module");
 const crm_module_1 = require("./crm/crm.module");
 const analytics_module_1 = require("./analytics/analytics.module");
@@ -78,7 +79,8 @@ exports.AppModule = AppModule = __decorate([
             auth_module_1.AuthModule, users_module_1.UsersModule, dashboard_module_1.DashboardModule,
             sites_module_1.SitesModule, tickets_module_1.TicketsModule, technicians_module_1.TechniciansModule, interventions_module_1.InterventionsModule,
             planning_module_1.PlanningModule, inventaire_module_1.InventaireModule, contrats_module_1.ContratsModule, mediation_module_1.MediationModule,
-            provisioning_module_1.ProvisioningModule, evidence_module_1.EvidenceModule, finance_module_1.FinanceModule, rh_module_1.RhModule, crm_module_1.CrmModule,
+            provisioning_module_1.ProvisioningModule, evidence_module_1.EvidenceModule, finance_module_1.FinanceModule, pointage_module_1.PointageModule,
+            rh_module_1.RhModule, crm_module_1.CrmModule,
             analytics_module_1.AnalyticsModule, bi_module_1.BiModule, ai_module_1.AiModule, messaging_module_1.MessagingModule, meteo_module_1.MeteoModule,
             reports_module_1.ReportsModule, purchase_orders_module_1.PurchaseOrdersModule, notifications_module_1.NotificationsModule, approvals_module_1.ApprovalsModule,
         ],

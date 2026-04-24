@@ -10,6 +10,7 @@ import Planning from './pages/Planning';
 import Inventaire from './pages/Inventaire';
 import Finance from './pages/Finance';
 import RH from './pages/RH';
+import Pointage from './pages/Pointage';
 import Approvals from './pages/Approvals';
 import CRM from './pages/CRM';
 import Analytics from './pages/Analytics';
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="purchase-orders" element={<PurchaseOrders />} />
           <Route path="approvals"       element={<Approvals />} />
           <Route path="finance"         element={<Finance />} />
+          <Route path="pointage" element={<Pointage />} />
           <Route path="rh"              element={<RH />} />
           <Route path="crm"             element={<CRM />} />
           <Route path="analytics"       element={<Analytics />} />

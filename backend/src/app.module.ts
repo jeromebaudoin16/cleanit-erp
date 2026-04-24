@@ -16,6 +16,7 @@ import { MediationModule } from './mediation/mediation.module';
 import { ProvisioningModule } from './provisioning/provisioning.module';
 import { EvidenceModule } from './evidence/evidence.module';
 import { FinanceModule } from './finance/finance.module';
+import { PointageModule } from './pointage/pointage.module';
 import { RhModule } from './rh/rh.module';
 import { CrmModule } from './crm/crm.module';
 import { AnalyticsModule } from './analytics/analytics.module';
@@ -50,7 +51,8 @@ import { ApprovalsService } from './approvals/approvals.service';
     AuthModule, UsersModule, DashboardModule,
     SitesModule, TicketsModule, TechniciansModule, InterventionsModule,
     PlanningModule, InventaireModule, ContratsModule, MediationModule,
-    ProvisioningModule, EvidenceModule, FinanceModule, RhModule, CrmModule,
+    ProvisioningModule, EvidenceModule, FinanceModule, PointageModule,
+    RhModule, CrmModule,
     AnalyticsModule, BiModule, AiModule, MessagingModule, MeteoModule,
     ReportsModule, PurchaseOrdersModule, NotificationsModule, ApprovalsModule,
   ],
