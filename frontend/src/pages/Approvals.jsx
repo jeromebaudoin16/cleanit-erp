@@ -291,12 +291,16 @@ const NouvelleDemandeModal = ({ onClose, onSave }) => {
                     </F>
                   </>
                 )}
-                <F label="Site concerné">
-                  <Select value={form.site} onChange={v=>upd('site',v)} options={['DLA-001','DLA-003','YDE-001','KRI-001','GAR-001','LIM-001','Bureau principal']} placeholder="Aucun"/>
-                </F>
-                <F label="Projet lié">
-                  <Input value={form.project} onChange={v=>upd('project',v)} placeholder="Ex: PROJ-2024-001"/>
-                </F>
+                {['payment_request','purchase_request','mission_request','equipment_request'].includes(type)&&(
+                  <>
+                    <F label="Site concerné">
+                      <Select value={form.site} onChange={v=>upd('site',v)} options={['DLA-001','DLA-003','YDE-001','KRI-001','GAR-001','LIM-001','Bureau principal']} placeholder="Aucun"/>
+                    </F>
+                    <F label="Projet lié">
+                      <Input value={form.project} onChange={v=>upd('project',v)} placeholder="Ex: PROJ-2024-001"/>
+                    </F>
+                  </>
+                )}
               </div>
               <F label="Justification" required>
                 <textarea value={form.justification} onChange={e=>upd('justification',e.target.value)} rows={4}
@@ -348,7 +352,9 @@ const NouvelleDemandeModal = ({ onClose, onSave }) => {
                   {[
                     {l:'Type',v:selectedType?.label},{l:'Titre',v:form.title},
                     {l:'Priorité',v:form.priority},{l:'Montant',v:needsAmount?`${fmtN(Number(form.amount)||0)} ${form.currency}`:'N/A'},
-                    {l:'Bénéficiaire',v:form.beneficiaryName||'—'},{l:'Site',v:form.site||'—'},
+                    {l:'Bénéficiaire',v:form.beneficiaryName||'—'},
+                    ...(form.site?[{l:'Site',v:form.site}]:[]),
+                    ...(form.project?[{l:'Projet',v:form.project}]:[]),
                   ].map(item=>(
                     <div key={item.l} style={{ background:'white', borderRadius:9, padding:'8px 12px' }}>
                       <div style={{ fontSize:9, color:'#9ca3af', textTransform:'uppercase', letterSpacing:0.4, marginBottom:2 }}>{item.l}</div>
@@ -463,7 +469,8 @@ const DetailModal = ({ item, onClose, onUpdate }) => {
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                   {[
                     {l:'Type',v:t?.label},{l:'Priorité',v:item.priority},
-                    {l:'Site',v:item.site||'—'},{l:'Projet',v:item.project||'—'},
+                    ...(item.site?[{l:'Site',v:item.site}]:[]),
+                    ...(item.project?[{l:'Projet',v:item.project}]:[]),
                     ...(item.dateDebut?[{l:'Date début',v:fmtD(item.dateDebut)},{l:'Date fin',v:fmtD(item.dateFin)}]:[]),
                     ...(item.destination?[{l:'Destination',v:item.destination},{l:'Transport',v:item.transportMode||'—'}]:[]),
                   ].map(info=>(
