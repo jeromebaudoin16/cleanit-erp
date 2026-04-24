@@ -1,1379 +1,1186 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
+import { api } from '../utils/api';
 
-// ============================================================
-// CONSTANTES & DONNÉES
-// ============================================================
-const TVA = 0.1925;
+// ===== DESIGN TOKENS QUICKBOOKS EXACT =====
+const C = {
+  green:   '#2CA01C',
+  green2:  '#1a7a0e',
+  green_bg:'#f0faf0',
+  blue:    '#0077C5',
+  blue_bg: '#e8f1f9',
+  red:     '#d52b1e',
+  red_bg:  '#fdf0ef',
+  orange:  '#e27000',
+  orange_bg:'#fef5e7',
+  gray:    '#6b6b6b',
+  gray_bg: '#f4f4f6',
+  border:  '#d4d4d8',
+  border2: '#e8e8ec',
+  text:    '#1a1a1a',
+  text2:   '#3d3d3d',
+  muted:   '#6b6b6b',
+  light:   '#9b9b9b',
+  bg:      '#f4f5f7',
+  white:   '#ffffff',
+  sidebar: '#ffffff',
+  sidebar_active: '#f0faf0',
+  sidebar_border: '#e8e8ec',
+};
+
+const fmtN = n => new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
+const fmtD = d => d ? new Date(d).toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'}) : '—';
 const TVA_RATE = 0.1925;
 const DEVISES_RATES = { FCFA:1, USD:600, EUR:655, CNY:83 };
-const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR') : '—';
-const DEVISES = { FCFA: 1, USD: 620, EUR: 655, CNY: 85 };
-const CLIENTS = [
-  { id:1, nom:'MTN Cameroun',          email:'finance@mtn.cm',        tel:'+237 222 222 222', ville:'Douala' },
-  { id:2, nom:'Orange Cameroun',       email:'comptabilite@orange.cm', tel:'+237 233 333 333', ville:'Yaoundé' },
-  { id:3, nom:'Huawei Technologies',   email:'ap@huawei.com',          tel:'+237 244 444 444', ville:'Douala' },
-  { id:4, nom:'Nexttel Cameroun',      email:'finance@nexttel.cm',     tel:'+237 255 555 555', ville:'Yaoundé' },
-  { id:5, nom:'Gouvernement Cameroun', email:'tresor@finances.cm',     tel:'+237 222 234 567', ville:'Yaoundé' },
-  { id:6, nom:'CAMTEL',                email:'achat@camtel.cm',        tel:'+237 222 345 678', ville:'Yaoundé' },
-];
-const PROJETS = [
-  'DLA-001 · Site Akwa Douala','DLA-003 · Site Bonabéri',
-  'YDE-001 · Site Centre Yaoundé','KRI-001 · Kribi Port',
-  'GAR-001 · Site Garoua','LIM-001 · Site Limbé',
-  'BFN-001 · Site Bafoussam','Infrastructure nationale',
-];
-const PRESTATIONS = [
-  { libelle:'Installation antennes 5G NR',           pu:8500000,  unite:'Forfait' },
-  { libelle:'Installation antennes 4G LTE',           pu:4200000,  unite:'Forfait' },
-  { libelle:'Main d\'œuvre technicien senior',        pu:450000,   unite:'Jour' },
-  { libelle:'Main d\'œuvre technicien',               pu:280000,   unite:'Jour' },
-  { libelle:'Survey & étude de site',                 pu:1200000,  unite:'Forfait' },
-  { libelle:'Maintenance préventive',                 pu:850000,   unite:'Forfait' },
-  { libelle:'Configuration équipements réseau',       pu:650000,   unite:'Forfait' },
-  { libelle:'Déplacement & transport (km)',           pu:800,      unite:'km' },
-  { libelle:'Per diem technicien',                    pu:35000,    unite:'Jour' },
-  { libelle:'Matériel consommable câblage',           pu:1,        unite:'FCFA' },
-];
-const MODES_PAIEMENT = [
-  'Virement bancaire BICEC','Virement bancaire SGC','Virement bancaire UBC',
-  'Chèque certifié','Espèces','Mobile Money MTN','Mobile Money Orange Money',
-  'Virement international SWIFT','Lettre de crédit documentaire',
-];
-const CONDITIONS_PAIEMENT = [
-  '30 jours net','60 jours net','90 jours net',
-  'Paiement immédiat','30% acompte + 70% livraison',
-  'Paiement en 3 fois (30-40-30)','Sur présentation de facture',
-];
 
-const fmtN  = (n, d='') => `${new Intl.NumberFormat('fr-FR').format(Math.round(n||0))}${d?' '+d:''}`;
-const fmtD  = (d) => d ? new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
-const today = () => new Date().toISOString().split('T')[0];
-const addDays = (n) => new Date(Date.now()+n*86400000).toISOString().split('T')[0];
-const genNum = (prefix) => `${prefix}-${new Date().getFullYear()}-${String(Math.floor(Math.random()*9000)+1000)}`;
-
-const SEED_DEVIS = [
-  { id:1, numero:'DEV-2024-0001', client:CLIENTS[0], projet:PROJETS[0], dateCreation:'2024-01-10', dateValidite:'2024-02-10', devise:'FCFA', conditions:'30 jours net', modePaiement:'Virement bancaire BICEC', objet:'Installation infrastructure 5G Phase 1 — Site Akwa Douala', lignes:[{id:1,libelle:'Installation antennes 5G NR',qte:2,pu:8500000,remise:0,tva:true,unite:'Forfait'},{id:2,libelle:'Main d\'œuvre technicien senior',qte:20,pu:450000,remise:5,tva:true,unite:'Jour'},{id:3,libelle:'Survey & étude de site',qte:1,pu:1200000,remise:0,tva:false,unite:'Forfait'}], status:'accepte', notes:'Devis accepté le 15/01/2024. Travaux démarrent le 01/02/2024.', factureId:null, acomptes:[], historique:[{date:'2024-01-10',action:'Devis créé',user:'Jérôme Bell'},{date:'2024-01-12',action:'Envoyé au client',user:'Jérôme Bell'},{date:'2024-01-15',action:'Accepté par MTN',user:'Système'}] },
-  { id:2, numero:'DEV-2024-0002', client:CLIENTS[1], projet:PROJETS[2], dateCreation:'2024-01-20', dateValidite:'2024-02-20', devise:'FCFA', conditions:'60 jours net', modePaiement:'Virement bancaire SGC', objet:'Maintenance préventive Q1 2024 — Sites Yaoundé', lignes:[{id:1,libelle:'Maintenance préventive',qte:3,pu:850000,remise:10,tva:true,unite:'Forfait'},{id:2,libelle:'Main d\'œuvre technicien',qte:9,pu:280000,remise:0,tva:true,unite:'Jour'}], status:'envoye', notes:'En attente de validation direction achats Orange.', factureId:null, acomptes:[], historique:[{date:'2024-01-20',action:'Devis créé',user:'Marie Kamga'},{date:'2024-01-22',action:'Envoyé au client',user:'Marie Kamga'}] },
-  { id:3, numero:'DEV-2024-0003', client:CLIENTS[3], projet:PROJETS[5], dateCreation:'2024-02-01', dateValidite:'2024-03-01', devise:'FCFA', conditions:'30% acompte + 70% livraison', modePaiement:'Virement bancaire BICEC', objet:'Déploiement 4G LTE — Site Limbé', lignes:[{id:1,libelle:'Installation antennes 4G LTE',qte:1,pu:4200000,remise:0,tva:true,unite:'Forfait'},{id:2,libelle:'Configuration équipements réseau',qte:1,pu:650000,remise:0,tva:true,unite:'Forfait'},{id:3,libelle:'Per diem technicien',qte:10,pu:35000,remise:0,tva:false,unite:'Jour'}], status:'brouillon', notes:'', factureId:null, acomptes:[], historique:[{date:'2024-02-01',action:'Devis créé',user:'Jérôme Bell'}] },
-];
-
-const SEED_FACTURES = [
-  { id:101, numero:'FAC-2024-0001', devisId:1, client:CLIENTS[0], projet:PROJETS[0], dateEmission:'2024-01-16', dateEcheance:'2024-02-15', devise:'FCFA', conditions:'30 jours net', modePaiement:'Virement bancaire BICEC', objet:'Installation infrastructure 5G Phase 1 — Site Akwa Douala', lignes:[{id:1,libelle:'Installation antennes 5G NR',qte:2,pu:8500000,remise:0,tva:true,unite:'Forfait'},{id:2,libelle:'Main d\'œuvre technicien senior',qte:20,pu:450000,remise:5,tva:true,unite:'Jour'},{id:3,libelle:'Survey & étude de site',qte:1,pu:1200000,remise:0,tva:false,unite:'Forfait'}], status:'paye', notes:'Facture réglée par virement le 12/02/2024. Réf: VIR-BICEC-2024-0234', acomptes:[{id:1,date:'2024-01-20',montant:5000000,mode:'Virement bancaire BICEC',ref:'VIR-2024-001',note:'Acompte 30%'}], paiements:[{id:1,date:'2024-02-12',montant:0,mode:'Virement bancaire BICEC',ref:'VIR-BICEC-2024-0234',note:'Solde total réglé'}], historique:[{date:'2024-01-16',action:'Facture créée depuis DEV-2024-0001',user:'Jérôme Bell'},{date:'2024-01-16',action:'Envoyée par email',user:'Jérôme Bell'},{date:'2024-01-20',action:'Acompte reçu: 5 000 000 FCFA',user:'Système'},{date:'2024-02-12',action:'Paiement total reçu — Facture soldée',user:'Système'}] },
-  { id:102, numero:'FAC-2024-0002', devisId:null, client:CLIENTS[4], projet:PROJETS[7], dateEmission:'2024-02-01', dateEcheance:'2024-04-01', devise:'FCFA', conditions:'Paiement en 3 fois (30-40-30)', modePaiement:'Virement bancaire BICEC', objet:'Déploiement infrastructure télécom zones rurales — Marché public', lignes:[{id:1,libelle:'Installation antennes 5G NR',qte:4,pu:8500000,remise:0,tva:true,unite:'Forfait'},{id:2,libelle:'Installation antennes 4G LTE',qte:6,pu:4200000,remise:5,tva:true,unite:'Forfait'},{id:3,libelle:'Main d\'œuvre technicien senior',qte:60,pu:450000,remise:0,tva:true,unite:'Jour'},{id:4,libelle:'Survey & étude de site',qte:4,pu:1200000,remise:0,tva:false,unite:'Forfait'}], status:'partiel', notes:'Marché public n°2024-INF-0012. Paiement échelonné selon avancement travaux.', acomptes:[{id:1,date:'2024-02-15',montant:15000000,mode:'Virement bancaire BICEC',ref:'TRESOR-2024-001',note:'1ère tranche 30%'}], paiements:[], historique:[{date:'2024-02-01',action:'Facture créée',user:'Jérôme Bell'},{date:'2024-02-01',action:'Envoyée au Trésor public',user:'Jérôme Bell'},{date:'2024-02-15',action:'1ère tranche reçue: 15 000 000 FCFA',user:'Système'}] },
-  { id:103, numero:'FAC-2024-0003', devisId:null, client:CLIENTS[2], projet:PROJETS[3], dateEmission:'2024-02-10', dateEcheance:'2024-03-15', devise:'USD', conditions:'Sur présentation de facture', modePaiement:'Virement international SWIFT', objet:'Engineering & Technical Supervision Services — Kribi Port 5G', lignes:[{id:1,libelle:'Engineering services 5G NR',qte:40,pu:950,remise:0,tva:false,unite:'Jour'},{id:2,libelle:'Main d\'œuvre technicien senior',qte:15,pu:1200,remise:0,tva:false,unite:'Jour'}], status:'en_retard', notes:'Relance envoyée le 20/03/2024. Contact: Mr. Zhang Wei +86 138 0013 8000', acomptes:[], paiements:[], historique:[{date:'2024-02-10',action:'Facture créée',user:'Jérôme Bell'},{date:'2024-02-10',action:'Envoyée par email',user:'Jérôme Bell'},{date:'2024-03-20',action:'Relance envoyée',user:'Marie Kamga'}] },
-];
-
-// ============================================================
-// CALCULS
-// ============================================================
-const calcLigne = (l) => {
-  const ht = l.qte * l.pu * (1 - (l.remise||0)/100);
-  const tvaAmt = l.tva ? ht * TVA : 0;
-  return { ht, tvaAmt, ttc: ht + tvaAmt };
+// ===== ICÔNES SVG QUICKBOOKS =====
+const Ico = ({ name, size=18, color='currentColor' }) => {
+  const icons = {
+    home: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10',
+    invoice: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8',
+    expense: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z',
+    report: 'M18 20V10 M12 20V4 M6 20v-6',
+    tax: 'M9 14l2 2 4-4 M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2z',
+    bank: 'M3 21h18 M3 10h18 M5 6l7-3 7 3 M4 10v11 M20 10v11 M8 14v3 M12 14v3 M16 14v3',
+    chart: 'M18 20V10 M12 20V4 M6 20v-6',
+    profit: 'M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6',
+    vendor: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M9 11a4 4 0 100-8 4 4 0 000 8z',
+    plus: 'M12 5v14 M5 12h14',
+    search: 'M21 21l-4.35-4.35 M17 11A6 6 0 115 11a6 6 0 0112 0z',
+    close: 'M18 6L6 18 M6 6l12 12',
+    chevron_right: 'M9 18l6-6-6-6',
+    chevron_down: 'M6 9l6 6 6-6',
+    check: 'M20 6L9 17l-5-5',
+    dots: 'M5 12h.01 M12 12h.01 M19 12h.01',
+    download: 'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4 M7 10l5 5 5-5 M12 15V3',
+    edit: 'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7 M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z',
+    filter: 'M22 3H2l8 9.46V19l4 2v-8.54L22 3z',
+    calendar: 'M8 2v4 M16 2v4 M3 10h18 M3 6a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2z',
+    mail: 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z M22 6l-10 7L2 6',
+    print: 'M6 9V2h12v7 M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2 M6 14h12v8H6z',
+    project: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z',
+  };
+  const d = icons[name];
+  if (!d) return null;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {d.split(' M ').map((seg, i) => <path key={i} d={i===0?seg:`M ${seg}`}/>)}
+    </svg>
+  );
 };
 
-const calcTotaux = (lignes=[]) => {
-  const rows = lignes.map(calcLigne);
-  const totalHT  = rows.reduce((s,r) => s+r.ht, 0);
-  const totalTVA = rows.reduce((s,r) => s+r.tvaAmt, 0);
-  return { totalHT, totalTVA, totalTTC: totalHT + totalTVA, rows };
-};
-
-const getStatutPaiement = (doc) => {
-  const { totalTTC } = calcTotaux(doc.lignes);
-  const totalAcomptes = (doc.acomptes||[]).reduce((s,a) => s+a.montant, 0);
-  const totalPaiements = (doc.paiements||[]).reduce((s,p) => s+p.montant, 0);
-  const encaisse = totalAcomptes + totalPaiements;
-  const reste = totalTTC - encaisse;
-  return { totalTTC, encaisse, reste, pct: totalTTC>0 ? Math.round(encaisse/totalTTC*100) : 0 };
-};
-
-// ============================================================
-// COMPOSANTS UI
-// ============================================================
+// ===== BADGE STATUT =====
 const Badge = ({ status }) => {
-  const MAP = {
-    brouillon:  ['Brouillon',  '#6b7280','#f3f4f6'],
-    envoye:     ['Envoyé',     '#1d4ed8','#eff6ff'],
-    accepte:    ['Accepté',    '#16a34a','#f0fdf4'],
-    refuse:     ['Refusé',     '#dc2626','#fef2f2'],
-    expire:     ['Expiré',     '#d97706','#fff7ed'],
-    brouillon_f:['Brouillon',  '#6b7280','#f3f4f6'],
-    paye:       ['Payée',      '#16a34a','#f0fdf4'],
-    partiel:    ['Partiel',    '#d97706','#fefce8'],
-    en_retard:  ['En retard',  '#dc2626','#fef2f2'],
-    annule:     ['Annulée',    '#7c3aed','#f5f3ff'],
-    avoir:      ['Avoir',      '#0891b2','#ecfeff'],
-  };
-  const [l,c,bg] = MAP[status]||['?','#6b7280','#f3f4f6'];
-  return <span style={{padding:'3px 10px',borderRadius:20,background:bg,color:c,fontSize:11,fontWeight:700,whiteSpace:'nowrap'}}>{l}</span>;
-};
-
-const DevBadge = ({ d }) => {
-  const MAP = {FCFA:['#1d4ed8','#eff6ff'],USD:['#16a34a','#f0fdf4'],EUR:['#7c3aed','#f5f3ff'],CNY:['#d97706','#fff7ed']};
-  const [c,bg] = MAP[d]||['#6b7280','#f3f4f6'];
-  return <span style={{padding:'2px 7px',borderRadius:6,background:bg,color:c,fontSize:11,fontWeight:700}}>{d}</span>;
-};
-
-const Th = ({ch,right}) => <th style={{padding:'11px 14px',textAlign:right?'right':'left',fontSize:11,fontWeight:800,color:'#6b7280',textTransform:'uppercase',letterSpacing:.5,background:'#f8fafc',borderBottom:'2px solid #e5e7eb',whiteSpace:'nowrap'}}>{ch}</th>;
-const Td = ({ch,style,onClick}) => <td onClick={onClick} style={{padding:'12px 14px',fontSize:13,color:'#374151',verticalAlign:'middle',...style}}>{ch}</td>;
-
-const Input = ({label,value,onChange,type='text',required,placeholder,disabled}) => (
-  <div>
-    <label style={{fontSize:11,fontWeight:700,color:'#6b7280',textTransform:'uppercase',letterSpacing:.5,display:'block',marginBottom:5}}>
-      {label}{required&&<span style={{color:'#dc2626',marginLeft:2}}>*</span>}
-    </label>
-    <input type={type} value={value||''} onChange={e=>onChange(e.target.value)} placeholder={placeholder} disabled={disabled}
-      style={{width:'100%',padding:'9px 12px',borderRadius:10,border:'1.5px solid #e5e7eb',fontSize:13,color:'#111827',background:disabled?'#f9fafb':'white',boxSizing:'border-box',outline:'none'}}
-      onFocus={e=>!disabled&&(e.target.style.borderColor='#1d4ed8')}
-      onBlur={e=>e.target.style.borderColor='#e5e7eb'}/>
-  </div>
-);
-
-const Select = ({label,value,onChange,options,required,disabled}) => (
-  <div>
-    <label style={{fontSize:11,fontWeight:700,color:'#6b7280',textTransform:'uppercase',letterSpacing:.5,display:'block',marginBottom:5}}>
-      {label}{required&&<span style={{color:'#dc2626',marginLeft:2}}>*</span>}
-    </label>
-    <select value={value||''} onChange={e=>onChange(e.target.value)} disabled={disabled}
-      style={{width:'100%',padding:'9px 12px',borderRadius:10,border:'1.5px solid #e5e7eb',fontSize:13,color:'#111827',background:disabled?'#f9fafb':'white',boxSizing:'border-box',outline:'none'}}>
-      <option value=''>— Sélectionner —</option>
-      {options.map(o => typeof o==='object'
-        ? <option key={o.id||o.nom} value={typeof o==='string'?o:o.id}>{o.nom||o}</option>
-        : <option key={o} value={o}>{o}</option>
-      )}
-    </select>
-  </div>
-);
-
-const Btn = ({label,onClick,color='#1d4ed8',bg,outline,small,disabled,icon}) => (
-  <button onClick={onClick} disabled={disabled}
-    style={{padding:small?'7px 12px':'10px 18px',borderRadius:10,border:outline?`1.5px solid ${color}`:'none',
-      background:disabled?'#e5e7eb':outline?'transparent':(bg||color),
-      color:disabled?'#9ca3af':outline?color:'white',
-      fontWeight:700,fontSize:small?12:13,cursor:disabled?'not-allowed':'pointer',
-      display:'flex',alignItems:'center',gap:6,whiteSpace:'nowrap',transition:'all .15s'}}
-    onMouseEnter={e=>{if(!disabled)e.currentTarget.style.opacity='.85';}}
-    onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
-    {icon&&<span>{icon}</span>}{label}
-  </button>
-);
-
-const Modal = ({title,subtitle,color='#1d4ed8',onClose,children,wide}) => (
-  <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.65)',zIndex:2000,display:'flex',alignItems:'flex-start',justifyContent:'center',padding:20,overflowY:'auto'}}>
-    <div style={{background:'white',borderRadius:20,width:'100%',maxWidth:wide?1100:800,marginTop:20,marginBottom:20,boxShadow:'0 32px 80px rgba(0,0,0,0.3)'}}>
-      <div style={{background:`linear-gradient(135deg,#0f172a,${color})`,padding:'22px 28px',borderRadius:'20px 20px 0 0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-        <div>
-          {subtitle&&<div style={{fontSize:10,color:'rgba(255,255,255,.45)',textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>{subtitle}</div>}
-          <div style={{fontSize:20,fontWeight:900,color:'white'}}>{title}</div>
-        </div>
-        <button onClick={onClose} style={{width:34,height:34,borderRadius:10,background:'rgba(255,255,255,.12)',border:'none',color:'white',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
-      </div>
-      <div style={{padding:28,maxHeight:'78vh',overflowY:'auto'}}>{children}</div>
-    </div>
-  </div>
-);
-
-const Section = ({title,children,action,actionLabel}) => (
-  <div style={{marginBottom:24}}>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-      <h4 style={{margin:0,fontSize:12,fontWeight:800,color:'#6b7280',textTransform:'uppercase',letterSpacing:.8}}>{title}</h4>
-      {action&&<button onClick={action} style={{fontSize:12,fontWeight:700,color:'#1d4ed8',background:'none',border:'none',cursor:'pointer'}}>{actionLabel||'Voir tout →'}</button>}
-    </div>
-    {children}
-  </div>
-);
-
-const Separator = () => <div style={{height:1,background:'#f3f4f6',margin:'16px 0'}}/>;
-
-const InfoGrid = ({items}) => (
-  <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,padding:18,background:'#f8fafc',borderRadius:14,marginBottom:20}}>
-    {items.map(i=>(
-      <div key={i.l}>
-        <div style={{fontSize:10,fontWeight:700,color:'#9ca3af',textTransform:'uppercase',letterSpacing:.5,marginBottom:3}}>{i.l}</div>
-        <div style={{fontSize:13,fontWeight:600,color:'#111827'}}>{i.v||'—'}</div>
-      </div>
-    ))}
-  </div>
-);
-
-// ============================================================
-// TABLEAU DE LIGNES (réutilisable)
-// ============================================================
-const LignesTable = ({lignes,setLignes,devise,readOnly}) => {
-  const [showCatalog,setShowCatalog] = useState(false);
-  const addLigne = () => setLignes(p=>[...p,{id:Date.now(),libelle:'',qte:1,pu:0,remise:0,tva:true,unite:'Forfait'}]);
-  const updLigne = (id,k,v) => setLignes(p=>p.map(l=>l.id===id?{...l,[k]:v}:l));
-  const delLigne = (id) => setLignes(p=>p.filter(l=>l.id!==id));
-  const addFromCatalog = (p) => { setLignes(prev=>[...prev,{id:Date.now(),...p,qte:1,remise:0,tva:true}]); setShowCatalog(false); };
-
-  const { totalHT, totalTVA, totalTTC } = calcTotaux(lignes);
-
+  const cfg = {
+    paye:       {l:'Payée',      c:C.green,  bg:C.green_bg},
+    envoye:     {l:'Envoyée',    c:C.blue,   bg:C.blue_bg},
+    en_retard:  {l:'En retard',  c:C.red,    bg:C.red_bg},
+    partiel:    {l:'Partiel',    c:C.orange, bg:C.orange_bg},
+    brouillon:  {l:'Brouillon',  c:C.gray,   bg:C.gray_bg},
+    annule:     {l:'Annulée',    c:C.gray,   bg:C.gray_bg},
+    en_attente: {l:'En attente', c:C.orange, bg:C.orange_bg},
+    valide:     {l:'Validée',    c:C.green,  bg:C.green_bg},
+    rejete:     {l:'Rejetée',    c:C.red,    bg:C.red_bg},
+  }[status] || {l:status,c:C.gray,bg:C.gray_bg};
   return (
-    <div>
-      {!readOnly&&(
-        <div style={{display:'flex',gap:8,marginBottom:10}}>
-          <Btn label="+ Ajouter une ligne" onClick={addLigne} outline color="#1d4ed8" small icon="➕"/>
-          <Btn label="📋 Catalogue prestations" onClick={()=>setShowCatalog(true)} outline color="#7c3aed" small/>
-        </div>
-      )}
-      <div style={{background:'white',borderRadius:14,border:'1px solid #e5e7eb',overflow:'hidden'}}>
-        <div style={{overflowX:'auto'}}>
-          <table style={{width:'100%',borderCollapse:'collapse',minWidth:900}}>
-            <thead>
-              <tr>
-                <Th ch="#" /><Th ch="Description / Prestation"/>
-                <Th ch="Unité"/><Th ch="Qté"/><Th ch="PU HT"/>
-                <Th ch="Remise %"/><Th ch="Total HT" right/>
-                <Th ch={`TVA ${(TVA*100).toFixed(2)}%`}/><Th ch="Total TTC" right/>
-                {!readOnly&&<Th ch=""/>}
-              </tr>
-            </thead>
-            <tbody>
-              {lignes.map((l,i)=>{
-                const {ht,tvaAmt,ttc} = calcLigne(l);
-                return (
-                  <tr key={l.id} style={{borderBottom:'1px solid #f3f4f6',background:i%2===0?'white':'#fafbfc'}}>
-                    <Td ch={<span style={{fontSize:11,fontWeight:700,color:'#9ca3af',width:24,height:24,borderRadius:7,background:'#f3f4f6',display:'flex',alignItems:'center',justifyContent:'center'}}>{i+1}</span>}/>
-                    <Td ch={readOnly?<span style={{fontWeight:500}}>{l.libelle}</span>:<input value={l.libelle} onChange={e=>updLigne(l.id,'libelle',e.target.value)} placeholder="Description de la prestation" style={{width:'100%',padding:'6px 10px',borderRadius:8,border:'1px solid #e5e7eb',fontSize:13,minWidth:220}}/>}/>
-                    <Td ch={readOnly?<span style={{fontSize:11,color:'#6b7280'}}>{l.unite}</span>:<select value={l.unite} onChange={e=>updLigne(l.id,'unite',e.target.value)} style={{padding:'6px 8px',borderRadius:8,border:'1px solid #e5e7eb',fontSize:12}}><option>Forfait</option><option>Jour</option><option>Heure</option><option>Unité</option><option>km</option><option>FCFA</option></select>}/>
-                    <Td ch={readOnly?l.qte:<input type="number" min="0" value={l.qte} onChange={e=>updLigne(l.id,'qte',+e.target.value)} style={{width:65,padding:'6px 8px',borderRadius:8,border:'1px solid #e5e7eb',fontSize:13,textAlign:'center'}}/>}/>
-                    <Td ch={readOnly?fmtN(l.pu,devise):<input type="number" min="0" value={l.pu} onChange={e=>updLigne(l.id,'pu',+e.target.value)} style={{width:120,padding:'6px 8px',borderRadius:8,border:'1px solid #e5e7eb',fontSize:13}}/>}/>
-                    <Td ch={readOnly?`${l.remise||0}%`:<input type="number" min="0" max="100" value={l.remise||0} onChange={e=>updLigne(l.id,'remise',+e.target.value)} style={{width:60,padding:'6px 8px',borderRadius:8,border:'1px solid #e5e7eb',fontSize:13,textAlign:'center'}}/>}/>
-                    <Td ch={<span style={{fontWeight:700}}>{fmtN(ht,devise)}</span>} style={{textAlign:'right'}}/>
-                    <Td ch={readOnly
-                      ?<span style={{color:l.tva?'#dc2626':'#9ca3af',fontSize:11,fontWeight:600}}>{l.tva?'Oui':'Exonéré'}</span>
-                      :<label style={{display:'flex',alignItems:'center',gap:5,cursor:'pointer'}}><input type="checkbox" checked={l.tva} onChange={e=>updLigne(l.id,'tva',e.target.checked)} style={{width:15,height:15}}/><span style={{fontSize:11}}>{l.tva?`+${fmtN(tvaAmt)}`:'Exonéré'}</span></label>
-                    }/>
-                    <Td ch={<span style={{fontWeight:800,color:'#1d4ed8'}}>{fmtN(ttc,devise)}</span>} style={{textAlign:'right'}}/>
-                    {!readOnly&&<Td ch={lignes.length>1&&<button onClick={()=>delLigne(l.id)} style={{width:26,height:26,borderRadius:7,border:'1px solid #fecaca',background:'#fef2f2',color:'#dc2626',cursor:'pointer',fontSize:13}}>✕</button>}/>}
-                  </tr>
-                );
-              })}
-            </tbody>
-            <tfoot>
-              <tr style={{background:'#f8fafc'}}>
-                <td colSpan={readOnly?6:7} style={{padding:'12px 14px',fontSize:12,fontWeight:600,color:'#6b7280',textAlign:'right'}}>Total HT</td>
-                <td colSpan={2} style={{padding:'12px 14px',textAlign:'right'}}><span style={{fontSize:14,fontWeight:800,color:'#374151'}}>{fmtN(totalHT,devise)}</span></td>
-                {!readOnly&&<td/>}
-              </tr>
-              <tr style={{background:'#f8fafc'}}>
-                <td colSpan={readOnly?6:7} style={{padding:'8px 14px',fontSize:12,fontWeight:600,color:'#dc2626',textAlign:'right'}}>TVA {(TVA*100).toFixed(2)}%</td>
-                <td colSpan={2} style={{padding:'8px 14px',textAlign:'right'}}><span style={{fontSize:14,fontWeight:700,color:'#dc2626'}}>+ {fmtN(totalTVA,devise)}</span></td>
-                {!readOnly&&<td/>}
-              </tr>
-              <tr style={{background:'#eff6ff'}}>
-                <td colSpan={readOnly?6:7} style={{padding:'14px',fontSize:14,fontWeight:800,color:'#1d4ed8',textAlign:'right'}}>TOTAL TTC</td>
-                <td colSpan={2} style={{padding:'14px',textAlign:'right'}}><span style={{fontSize:20,fontWeight:900,color:'#1d4ed8'}}>{fmtN(totalTTC,devise)}</span></td>
-                {!readOnly&&<td/>}
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-
-      {showCatalog&&(
-        <Modal title="Catalogue des prestations" subtitle="Sélectionner" color="#7c3aed" onClose={()=>setShowCatalog(false)}>
-          <div style={{display:'grid',gap:8}}>
-            {PRESTATIONS.map((p,i)=>(
-              <div key={i} onClick={()=>addFromCatalog(p)}
-                style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 16px',borderRadius:12,border:'1px solid #e5e7eb',cursor:'pointer',transition:'all .15s'}}
-                onMouseEnter={e=>{e.currentTarget.style.background='#f5f3ff';e.currentTarget.style.borderColor='#7c3aed';}}
-                onMouseLeave={e=>{e.currentTarget.style.background='white';e.currentTarget.style.borderColor='#e5e7eb';}}>
-                <div>
-                  <div style={{fontSize:14,fontWeight:600,color:'#111827'}}>{p.libelle}</div>
-                  <div style={{fontSize:11,color:'#9ca3af',marginTop:2}}>Unité: {p.unite}</div>
-                </div>
-                <div style={{textAlign:'right'}}>
-                  <div style={{fontSize:14,fontWeight:800,color:'#7c3aed'}}>{fmtN(p.pu)}</div>
-                  <div style={{fontSize:10,color:'#9ca3af'}}>FCFA / {p.unite}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-};
-
-// ============================================================
-// HISTORIQUE TIMELINE
-// ============================================================
-const Timeline = ({items}) => (
-  <div style={{position:'relative',paddingLeft:28}}>
-    <div style={{position:'absolute',left:9,top:6,bottom:6,width:2,background:'#e5e7eb'}}/>
-    {items.map((h,i)=>(
-      <div key={i} style={{position:'relative',marginBottom:16}}>
-        <div style={{position:'absolute',left:-19,top:2,width:12,height:12,borderRadius:6,background:i===0?'#1d4ed8':'#e5e7eb',border:'2px solid white',boxShadow:'0 0 0 1px '+(i===0?'#1d4ed8':'#d1d5db')}}/>
-        <div style={{fontSize:12,fontWeight:600,color:'#374151',marginBottom:2}}>{h.action}</div>
-        <div style={{fontSize:11,color:'#9ca3af'}}>{fmtD(h.date)} · {h.user}</div>
-      </div>
-    ))}
-  </div>
-);
-
-// ============================================================
-// ENREGISTRER PAIEMENT
-// ============================================================
-const PaiementModal = ({doc,onSave,onClose}) => {
-  const {totalTTC,encaisse,reste} = getStatutPaiement(doc);
-  const [date,setDate] = useState(today());
-  const [montant,setMontant] = useState(reste);
-  const [mode,setMode] = useState('Virement bancaire BICEC');
-  const [ref,setRef] = useState('');
-  const [note,setNote] = useState('');
-
-  const handleSave = () => {
-    if (!montant||!date) return;
-    onSave({id:Date.now(),date,montant:+montant,mode,ref,note});
-    onClose();
-  };
-
-  return (
-    <Modal title="Enregistrer un paiement" subtitle="Règlement" color="#16a34a" onClose={onClose}>
-      <div style={{background:'#f0fdf4',borderRadius:14,padding:16,marginBottom:20}}>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
-          {[
-            {l:'Montant total TTC',v:fmtN(totalTTC,doc.devise),c:'#374151'},
-            {l:'Déjà encaissé',v:fmtN(encaisse,doc.devise),c:'#16a34a'},
-            {l:'Reste à payer',v:fmtN(reste,doc.devise),c:'#dc2626'},
-          ].map(i=>(
-            <div key={i.l} style={{textAlign:'center'}}>
-              <div style={{fontSize:10,color:'#6b7280',textTransform:'uppercase',letterSpacing:.5,marginBottom:4}}>{i.l}</div>
-              <div style={{fontSize:18,fontWeight:900,color:i.c}}>{i.v}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:14}}>
-        <Input label="Date du paiement" value={date} onChange={setDate} type="date" required/>
-        <Input label={`Montant (${doc.devise})`} value={montant} onChange={setMontant} type="number" required/>
-        <Select label="Mode de paiement" value={mode} onChange={setMode} options={MODES_PAIEMENT}/>
-        <Input label="Référence / N° transaction" value={ref} onChange={setRef} placeholder="Ex: VIR-BICEC-2024-0234"/>
-      </div>
-      <div style={{marginBottom:20}}>
-        <label style={{fontSize:11,fontWeight:700,color:'#6b7280',textTransform:'uppercase',letterSpacing:.5,display:'block',marginBottom:5}}>Note</label>
-        <textarea value={note} onChange={e=>setNote(e.target.value)} rows={2} placeholder="Note optionnelle..." style={{width:'100%',padding:'9px 12px',borderRadius:10,border:'1.5px solid #e5e7eb',fontSize:13,resize:'vertical',boxSizing:'border-box'}}/>
-      </div>
-      {+montant > reste && <div style={{marginBottom:14,padding:10,background:'#fef2f2',borderRadius:10,color:'#dc2626',fontSize:12,fontWeight:600}}>⚠️ Le montant saisi ({fmtN(+montant,doc.devise)}) dépasse le reste à payer ({fmtN(reste,doc.devise)})</div>}
-      <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
-        <Btn label="Annuler" onClick={onClose} outline color="#6b7280"/>
-        <Btn label="✅ Enregistrer le paiement" onClick={handleSave} disabled={!montant||!date||+montant<=0} color="#16a34a"/>
-      </div>
-    </Modal>
-  );
-};
-
-// ============================================================
-// MODAL DEVIS / FACTURE (création & édition)
-// ============================================================
-const DocEditor = ({type,doc,onSave,onClose}) => {
-  const isDevis = type==='devis';
-  const [clientId,setClientId] = useState(doc?.client?.id||'');
-  const [projet,setProjet] = useState(doc?.projet||'');
-  const [objet,setObjet] = useState(doc?.objet||'');
-  const [devise,setDevise] = useState(doc?.devise||'FCFA');
-  const [conditions,setConditions] = useState(doc?.conditions||'30 jours net');
-  const [modePaiement,setModePaiement] = useState(doc?.modePaiement||'Virement bancaire BICEC');
-  const [dateCreation,setDateCreation] = useState(doc?.dateCreation||today());
-  const [dateEch,setDateEch] = useState(doc?.dateEcheance||doc?.dateValidite||addDays(30));
-  const [lignes,setLignes] = useState(doc?.lignes?.length>0?doc.lignes:[{id:Date.now(),libelle:'',qte:1,pu:0,remise:0,tva:true,unite:'Forfait'}]);
-  const [notes,setNotes] = useState(doc?.notes||'');
-  const [saving,setSaving] = useState(false);
-
-  const client = CLIENTS.find(c=>c.id===+clientId);
-  const {totalHT,totalTVA,totalTTC} = calcTotaux(lignes);
-
-  const handleSave = (status) => {
-    if (!clientId||!objet) return alert('Client et objet sont obligatoires');
-    setSaving(true);
-    const numero = doc?.numero || genNum(isDevis?'DEV':'FAC');
-    const saved = {
-      id: doc?.id||Date.now(),
-      numero,
-      client,
-      projet,objet,devise,conditions,modePaiement,notes,lignes,
-      status: status||'brouillon',
-      acomptes: doc?.acomptes||[],
-      paiements: doc?.paiements||[],
-      historique: [...(doc?.historique||[]),{date:today(),action:doc?'Document modifié':'Document créé',user:'Jérôme Bell'}],
-      ...(isDevis ? {
-        dateCreation,
-        dateValidite:dateEch,
-        factureId: doc?.factureId||null,
-      } : {
-        devisId: doc?.devisId||null,
-        dateEmission: dateCreation,
-        dateEcheance: dateEch,
-      }),
-    };
-    setTimeout(()=>{onSave(saved);setSaving(false);onClose();},400);
-  };
-
-  return (
-    <Modal title={doc?`Modifier ${doc.numero}`:`Nouveau ${isDevis?'devis':'facture'}`} subtitle={isDevis?'Document commercial':'Document comptable'} color={isDevis?'#7c3aed':'#059669'} onClose={onClose} wide>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14,marginBottom:20}}>
-        <Select label="Client" value={clientId} onChange={setClientId} options={CLIENTS} required/>
-        <Select label="Projet associé" value={projet} onChange={setProjet} options={PROJETS}/>
-        <Select label="Devise" value={devise} onChange={setDevise} options={Object.keys(DEVISES)}/>
-        <Input label="Objet" value={objet} onChange={setObjet} placeholder="Objet de la prestation" required/>
-        <Select label="Conditions de paiement" value={conditions} onChange={setConditions} options={CONDITIONS_PAIEMENT}/>
-        <Select label="Mode de paiement" value={modePaiement} onChange={setModePaiement} options={MODES_PAIEMENT}/>
-        <Input label={isDevis?'Date du devis':'Date d\'émission'} value={dateCreation} onChange={setDateCreation} type="date"/>
-        <Input label={isDevis?'Date de validité':'Date d\'échéance'} value={dateEch} onChange={setDateEch} type="date"/>
-        {client&&<div style={{padding:12,background:'#eff6ff',borderRadius:10,gridColumn:'1/-1'}}>
-          <div style={{fontSize:11,fontWeight:700,color:'#1d4ed8',marginBottom:4}}>CLIENT SÉLECTIONNÉ</div>
-          <div style={{display:'flex',gap:20,fontSize:13}}>
-            <span><strong>{client.nom}</strong></span>
-            <span>📧 {client.email}</span>
-            <span>📞 {client.tel}</span>
-            <span>📍 {client.ville}</span>
-          </div>
-        </div>}
-      </div>
-
-      <Section title="Lignes de prestation">
-        <LignesTable lignes={lignes} setLignes={setLignes} devise={devise}/>
-      </Section>
-
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
-        <div>
-          <label style={{fontSize:11,fontWeight:700,color:'#6b7280',textTransform:'uppercase',letterSpacing:.5,display:'block',marginBottom:5}}>Notes & conditions particulières</label>
-          <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={4}
-            placeholder="Conditions particulières, remarques, délais de livraison..."
-            style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1.5px solid #e5e7eb',fontSize:13,resize:'vertical',boxSizing:'border-box',fontFamily:'inherit'}}/>
-        </div>
-        <div style={{background:'#f8fafc',borderRadius:14,padding:18}}>
-          {[
-            {l:'Montant HT',v:fmtN(totalHT,devise),c:'#374151'},
-            {l:`TVA (${(TVA*100).toFixed(2)}%)`,v:`+ ${fmtN(totalTVA,devise)}`,c:'#dc2626'},
-            {l:'TOTAL TTC',v:fmtN(totalTTC,devise),c:'#1d4ed8',big:true},
-          ].map(t=>(
-            <div key={t.l} style={{display:'flex',justifyContent:'space-between',padding:'9px 0',borderBottom:t.big?'none':'1px solid #e5e7eb'}}>
-              <span style={{fontSize:t.big?14:12,fontWeight:t.big?700:400,color:'#6b7280'}}>{t.l}</span>
-              <span style={{fontSize:t.big?22:14,fontWeight:t.big?900:700,color:t.c}}>{t.v}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <Separator/>
-      <div style={{display:'flex',gap:10,justifyContent:'flex-end',flexWrap:'wrap'}}>
-        <Btn label="Annuler" onClick={onClose} outline color="#6b7280"/>
-        <Btn label="💾 Sauvegarder brouillon" onClick={()=>handleSave('brouillon')} outline color="#374151" disabled={saving}/>
-        {isDevis&&<Btn label="📤 Créer et envoyer" onClick={()=>handleSave('envoye')} color="#7c3aed" disabled={saving}/>}
-        {!isDevis&&<Btn label="📤 Émettre la facture" onClick={()=>handleSave('envoye')} color="#059669" disabled={saving}/>}
-      </div>
-    </Modal>
-  );
-};
-
-// ============================================================
-// DETAIL DEVIS
-// ============================================================
-const DevisDetail = ({devis,onClose,onEdit,onConvertToFacture,onStatusChange}) => {
-  const {totalHT,totalTVA,totalTTC} = calcTotaux(devis.lignes);
-  return (
-    <Modal title={devis.numero} subtitle="Devis commercial" color="#7c3aed" onClose={onClose} wide>
-      <div style={{display:'flex',gap:10,marginBottom:20,flexWrap:'wrap'}}>
-        <Badge status={devis.status}/> <DevBadge d={devis.devise}/>
-        {devis.status==='envoye'&&<><Btn label="✅ Marquer accepté" onClick={()=>{onStatusChange(devis.id,'accepte');onClose();}} color="#16a34a" small/><Btn label="❌ Marquer refusé" onClick={()=>{onStatusChange(devis.id,'refuse');onClose();}} color="#dc2626" small/></>}
-        {devis.status==='accepte'&&!devis.factureId&&<Btn label="🧾 Convertir en facture" onClick={()=>{onConvertToFacture(devis);onClose();}} color="#059669"/>}
-        <Btn label="✏️ Modifier" onClick={()=>{onEdit(devis);onClose();}} outline color="#374151" small/>
-        <Btn label="🖨 Imprimer" onClick={()=>window.print()} outline color="#374151" small/>
-        <Btn label="📤 Envoyer par email" onClick={()=>alert('Email envoyé !')} outline color="#1d4ed8" small/>
-      </div>
-
-      <InfoGrid items={[
-        {l:'Client',v:devis.client?.nom},
-        {l:'Projet',v:devis.projet},
-        {l:'Date du devis',v:fmtD(devis.dateCreation)},
-        {l:'Date de validité',v:fmtD(devis.dateValidite)},
-        {l:'Conditions',v:devis.conditions},
-        {l:'Mode de paiement',v:devis.modePaiement},
-      ]}/>
-
-      <div style={{padding:14,background:'#f8fafc',borderRadius:12,marginBottom:16}}>
-        <div style={{fontSize:11,fontWeight:700,color:'#9ca3af',marginBottom:3,textTransform:'uppercase',letterSpacing:.5}}>Objet</div>
-        <div style={{fontSize:14,fontWeight:500,color:'#111827'}}>{devis.objet}</div>
-      </div>
-
-      <Section title="Détail des prestations">
-        <LignesTable lignes={devis.lignes} setLignes={()=>{}} devise={devis.devise} readOnly/>
-      </Section>
-
-      {devis.notes&&<div style={{padding:14,background:'#fefce8',borderRadius:12,border:'1px solid #fde68a',marginBottom:16}}>
-        <div style={{fontSize:11,fontWeight:700,color:'#92400e',marginBottom:4}}>Notes</div>
-        <div style={{fontSize:13,color:'#78350f'}}>{devis.notes}</div>
-      </div>}
-
-      <Section title="Historique">
-        <Timeline items={devis.historique||[]}/>
-      </Section>
-    </Modal>
-  );
-};
-
-// ============================================================
-// DETAIL FACTURE
-// ============================================================
-const FactureDetail = ({facture,onClose,onEdit,onPaiement,onStatusChange}) => {
-  const {totalHT,totalTVA,totalTTC} = calcTotaux(facture.lignes);
-  const {encaisse,reste,pct} = getStatutPaiement(facture);
-  const [showPaiement,setShowPaiement] = useState(false);
-
-  return (
-    <>
-      <Modal title={facture.numero} subtitle="Facture client" color="#059669" onClose={onClose} wide>
-        <div style={{display:'flex',gap:10,marginBottom:20,flexWrap:'wrap'}}>
-          <Badge status={facture.status}/> <DevBadge d={facture.devise}/>
-          {['envoye','partiel'].includes(facture.status)&&<Btn label="💳 Enregistrer paiement" onClick={()=>setShowPaiement(true)} color="#16a34a"/>}
-          <Btn label="✏️ Modifier" onClick={()=>{onEdit(facture);onClose();}} outline color="#374151" small/>
-          <Btn label="🖨 Imprimer" onClick={()=>window.print()} outline color="#374151" small/>
-          <Btn label="📤 Email" onClick={()=>alert('Email envoyé !')} outline color="#1d4ed8" small/>
-          <Btn label="📥 PDF" onClick={()=>alert('PDF généré !')} outline color="#7c3aed" small/>
-          {facture.status==='paye'&&<Btn label="📋 Générer avoir" onClick={()=>alert('Avoir généré !')} outline color="#0891b2" small/>}
-        </div>
-
-        {/* Barre de paiement */}
-        <div style={{background:'#f8fafc',borderRadius:14,padding:16,marginBottom:20}}>
-          <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
-            <span style={{fontSize:13,fontWeight:600,color:'#374151'}}>Avancement du paiement</span>
-            <span style={{fontSize:14,fontWeight:800,color:'#059669'}}>{pct}% encaissé</span>
-          </div>
-          <div style={{background:'#e5e7eb',borderRadius:8,height:12,overflow:'hidden',marginBottom:10}}>
-            <div style={{width:`${pct}%`,height:'100%',background:pct>=100?'#16a34a':pct>0?'#d97706':'#e5e7eb',borderRadius:8,transition:'width .5s'}}/>
-          </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
-            {[
-              {l:'Total TTC',v:fmtN(totalTTC,facture.devise),c:'#374151'},
-              {l:'Encaissé',v:fmtN(encaisse,facture.devise),c:'#16a34a'},
-              {l:'Reste à payer',v:fmtN(reste,facture.devise),c:reste>0?'#dc2626':'#16a34a'},
-            ].map(i=>(
-              <div key={i.l} style={{textAlign:'center',background:'white',borderRadius:10,padding:'10px 12px'}}>
-                <div style={{fontSize:10,color:'#9ca3af',textTransform:'uppercase',letterSpacing:.5,marginBottom:3}}>{i.l}</div>
-                <div style={{fontSize:16,fontWeight:900,color:i.c}}>{i.v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <InfoGrid items={[
-          {l:'Client',v:facture.client?.nom},
-          {l:'Projet',v:facture.projet},
-          {l:'Date d\'émission',v:fmtD(facture.dateEmission)},
-          {l:'Date d\'échéance',v:fmtD(facture.dateEcheance)},
-          {l:'Conditions',v:facture.conditions},
-          {l:'Mode de paiement',v:facture.modePaiement},
-        ]}/>
-
-        <div style={{padding:14,background:'#f8fafc',borderRadius:12,marginBottom:16}}>
-          <div style={{fontSize:11,fontWeight:700,color:'#9ca3af',marginBottom:3,textTransform:'uppercase',letterSpacing:.5}}>Objet</div>
-          <div style={{fontSize:14,fontWeight:500,color:'#111827'}}>{facture.objet}</div>
-        </div>
-
-        <Section title="Détail des prestations">
-          <LignesTable lignes={facture.lignes} setLignes={()=>{}} devise={facture.devise} readOnly/>
-        </Section>
-
-        {/* Acomptes & Paiements */}
-        {(facture.acomptes?.length>0||facture.paiements?.length>0)&&(
-          <Section title="Paiements reçus">
-            <div style={{background:'white',borderRadius:12,border:'1px solid #e5e7eb',overflow:'hidden'}}>
-              <table style={{width:'100%',borderCollapse:'collapse'}}>
-                <thead><tr style={{background:'#f8fafc'}}>{['Date','Type','Mode','Référence','Montant','Note'].map(h=><Th key={h} ch={h}/>)}</tr></thead>
-                <tbody>
-                  {[...(facture.acomptes||[]).map(a=>({...a,type:'Acompte'})),
-                    ...(facture.paiements||[]).map(p=>({...p,type:'Paiement'}))
-                  ].sort((a,b)=>new Date(a.date)-new Date(b.date)).map((p,i)=>(
-                    <tr key={i} style={{borderBottom:'1px solid #f3f4f6'}}>
-                      <Td ch={fmtD(p.date)}/>
-                      <Td ch={<span style={{padding:'2px 8px',borderRadius:6,background:p.type==='Acompte'?'#fff7ed':'#f0fdf4',color:p.type==='Acompte'?'#d97706':'#16a34a',fontSize:11,fontWeight:700}}>{p.type}</span>}/>
-                      <Td ch={p.mode} style={{fontSize:12}}/>
-                      <Td ch={<span style={{fontFamily:'monospace',fontSize:12}}>{p.ref||'—'}</span>}/>
-                      <Td ch={<span style={{fontWeight:800,color:'#16a34a'}}>{fmtN(p.montant,facture.devise)}</span>} style={{textAlign:'right'}}/>
-                      <Td ch={p.note||'—'} style={{fontSize:12,color:'#6b7280'}}/>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Section>
-        )}
-
-        {facture.notes&&<div style={{padding:14,background:'#fefce8',borderRadius:12,border:'1px solid #fde68a',marginBottom:16}}>
-          <div style={{fontSize:11,fontWeight:700,color:'#92400e',marginBottom:4}}>Notes</div>
-          <div style={{fontSize:13,color:'#78350f'}}>{facture.notes}</div>
-        </div>}
-
-        <Section title="Historique">
-          <Timeline items={facture.historique||[]}/>
-        </Section>
-      </Modal>
-
-      {showPaiement&&<PaiementModal doc={facture} onClose={()=>setShowPaiement(false)} onSave={(p)=>onPaiement(facture.id,p)}/>}
-    </>
-  );
-};
-
-// ============================================================
-// VUE DEVIS (liste)
-// ============================================================
-const VueDevis = ({devis,setDevis,factures,setFactures}) => {
-  const [search,setSearch]   = useState('');
-  const [filterS,setFilterS] = useState('tous');
-  const [selected,setSelected] = useState(null);
-  const [editing,setEditing]   = useState(null);
-  const [creating,setCreating] = useState(false);
-
-  const filtered = devis.filter(d=>{
-    const ms = !search||d.client?.nom.toLowerCase().includes(search.toLowerCase())||d.numero.toLowerCase().includes(search.toLowerCase())||d.objet.toLowerCase().includes(search.toLowerCase());
-    const mf = filterS==='tous'||d.status===filterS;
-    return ms&&mf;
-  });
-
-  const handleSave = (d) => {
-    setDevis(p=>p.find(x=>x.id===d.id)?p.map(x=>x.id===d.id?d:x):[d,...p]);
-  };
-
-  const handleStatusChange = (id,status) => {
-    setDevis(p=>p.map(d=>d.id===id?{...d,status,historique:[...(d.historique||[]),{date:today(),action:`Statut changé → ${status}`,user:'Jérôme Bell'}]}:d));
-  };
-
-  const handleConvertToFacture = (dev) => {
-    const fac = {
-      id: Date.now(),
-      numero: genNum('FAC'),
-      devisId: dev.id,
-      client: dev.client,
-      projet: dev.projet,
-      objet: dev.objet,
-      devise: dev.devise,
-      conditions: dev.conditions,
-      modePaiement: dev.modePaiement,
-      notes: dev.notes,
-      lignes: dev.lignes,
-      status: 'brouillon',
-      dateEmission: today(),
-      dateEcheance: addDays(30),
-      acomptes: [],
-      paiements: [],
-      historique: [{date:today(),action:`Créée depuis ${dev.numero}`,user:'Jérôme Bell'}],
-    };
-    setFactures(p=>[fac,...p]);
-    setDevis(p=>p.map(d=>d.id===dev.id?{...d,factureId:fac.id,historique:[...(d.historique||[]),{date:today(),action:`Converti en facture ${fac.numero}`,user:'Jérôme Bell'}]}:d));
-    alert(`✅ Facture ${fac.numero} créée depuis ${dev.numero}`);
-  };
-
-  const stats = {
-    total: devis.length,
-    montantTotal: devis.reduce((s,d)=>s+calcTotaux(d.lignes).totalTTC,0),
-    acceptes: devis.filter(d=>d.status==='accepte').length,
-    enAttente: devis.filter(d=>d.status==='envoye').length,
-    tauxTransfo: devis.length>0?Math.round(devis.filter(d=>d.status==='accepte').length/devis.length*100):0,
-  };
-
-  return (
-    <div>
-      {/* KPIs */}
-      <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap'}}>
-        {[
-          {l:'Total devis',v:stats.total,c:'#374151',icon:'📋'},
-          {l:'Montant total',v:fmtN(stats.montantTotal,'FCFA'),c:'#1d4ed8',icon:'💰'},
-          {l:'Acceptés',v:stats.acceptes,c:'#16a34a',icon:'✅'},
-          {l:'En attente réponse',v:stats.enAttente,c:'#d97706',icon:'⏳'},
-          {l:'Taux de transformation',v:`${stats.tauxTransfo}%`,c:'#7c3aed',icon:'📈'},
-        ].map(k=>(
-          <div key={k.l} style={{flex:1,minWidth:150,background:'white',borderRadius:12,padding:'14px 16px',borderLeft:`3px solid ${k.c}`,boxShadow:'0 2px 8px rgba(0,0,0,.04)'}}>
-            <div style={{fontSize:11,color:'#9ca3af',marginBottom:4}}>{k.icon} {k.l}</div>
-            <div style={{fontSize:18,fontWeight:900,color:k.c}}>{k.v}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Toolbar */}
-      <div style={{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
-        <div style={{flex:1,minWidth:220,display:'flex',alignItems:'center',gap:8,background:'white',borderRadius:11,padding:'9px 13px',border:'1px solid #e5e7eb'}}>
-          <span style={{color:'#9ca3af'}}>🔍</span>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Client, numéro, objet..." style={{flex:1,border:'none',outline:'none',fontSize:13}}/>
-        </div>
-        <div style={{display:'flex',gap:4,background:'white',borderRadius:11,padding:3,border:'1px solid #e5e7eb'}}>
-          {['tous','brouillon','envoye','accepte','refuse','expire'].map(s=>(
-            <button key={s} onClick={()=>setFilterS(s)} style={{padding:'6px 12px',borderRadius:9,border:'none',background:filterS===s?'#7c3aed':'transparent',color:filterS===s?'white':'#6b7280',fontWeight:700,fontSize:11,cursor:'pointer',whiteSpace:'nowrap'}}>
-              {s==='tous'?'Tous':s==='brouillon'?'Brouillon':s==='envoye'?'Envoyés':s==='accepte'?'Acceptés':s==='refuse'?'Refusés':'Expirés'}
-            </button>
-          ))}
-        </div>
-        <Btn label="+ Nouveau devis" onClick={()=>setCreating(true)} color="#7c3aed" icon="📋"/>
-      </div>
-
-      {/* Table */}
-      <div style={{background:'white',borderRadius:16,border:'1px solid #e5e7eb',overflow:'hidden',boxShadow:'0 2px 8px rgba(0,0,0,.04)'}}>
-        <div style={{overflowX:'auto'}}>
-          <table style={{width:'100%',borderCollapse:'collapse',minWidth:900}}>
-            <thead><tr>{['Numéro','Client','Objet / Projet','Montant TTC','Devise','Créé le','Validité','Statut','Actions'].map(h=><Th key={h} ch={h}/>)}</tr></thead>
-            <tbody>
-              {filtered.map((d,i)=>{
-                const {totalTTC}=calcTotaux(d.lignes);
-                const expired = new Date(d.dateValidite)<new Date()&&!['accepte','refuse'].includes(d.status);
-                return (
-                  <tr key={d.id} style={{borderBottom:'1px solid #f3f4f6',background:i%2===0?'white':'#fafbfc',cursor:'pointer'}}
-                    onMouseEnter={e=>e.currentTarget.style.background='#f5f3ff'}
-                    onMouseLeave={e=>e.currentTarget.style.background=i%2===0?'white':'#fafbfc'}>
-                    <Td ch={<span style={{fontWeight:800,color:'#7c3aed',fontFamily:'monospace'}} onClick={()=>setSelected(d)}>{d.numero}</span>}/>
-                    <Td ch={<span style={{fontWeight:600}} onClick={()=>setSelected(d)}>{d.client?.nom}</span>}/>
-                    <Td ch={<div onClick={()=>setSelected(d)}><div style={{fontWeight:500,fontSize:13}}>{d.objet}</div><div style={{fontSize:11,color:'#9ca3af',marginTop:1}}>{d.projet}</div></div>}/>
-                    <Td ch={<span style={{fontWeight:800}}>{fmtN(totalTTC)}</span>} style={{textAlign:'right'}}/>
-                    <Td ch={<DevBadge d={d.devise}/>}/>
-                    <Td ch={fmtD(d.dateCreation)} style={{fontSize:12}}/>
-                    <Td ch={<span style={{color:expired?'#dc2626':'#374151',fontWeight:expired?700:400,fontSize:12}}>{fmtD(d.dateValidite)}{expired&&' ⚠️'}</span>}/>
-                    <Td ch={<Badge status={d.status}/>}/>
-                    <Td ch={
-                      <div style={{display:'flex',gap:4}}>
-                        {[['👁','Voir',()=>setSelected(d)],['✏️','Modifier',()=>setEditing(d)],['📤','Envoyer',()=>handleStatusChange(d.id,'envoye')],['🧾','→ Facture',()=>handleConvertToFacture(d)]].map(([icon,title,fn])=>(
-                          <button key={title} title={title} onClick={fn} style={{padding:'4px 8px',borderRadius:7,border:'1px solid #e5e7eb',background:'white',cursor:'pointer',fontSize:12,fontWeight:600,color:'#374151',whiteSpace:'nowrap'}}>{icon}</button>
-                        ))}
-                      </div>
-                    }/>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {filtered.length===0&&<div style={{padding:40,textAlign:'center',color:'#9ca3af'}}><div style={{fontSize:36,marginBottom:8}}>📋</div><div>Aucun devis trouvé</div></div>}
-        </div>
-      </div>
-
-      {selected&&<DevisDetail devis={selected} onClose={()=>setSelected(null)} onEdit={d=>{setEditing(d);}} onConvertToFacture={handleConvertToFacture} onStatusChange={handleStatusChange}/>}
-      {editing&&<DocEditor type="devis" doc={editing} onSave={handleSave} onClose={()=>setEditing(null)}/>}
-      {creating&&<DocEditor type="devis" onSave={handleSave} onClose={()=>setCreating(false)}/>}
-    </div>
-  );
-};
-
-// ============================================================
-// VUE FACTURES (liste)
-// ============================================================
-const VueFactures = ({factures,setFactures}) => {
-  const [search,setSearch]   = useState('');
-  const [filterS,setFilterS] = useState('tous');
-  const [selected,setSelected] = useState(null);
-  const [editing,setEditing]   = useState(null);
-  const [creating,setCreating] = useState(false);
-
-  const filtered = factures.filter(f=>{
-    const ms = !search||f.client?.nom.toLowerCase().includes(search.toLowerCase())||f.numero.toLowerCase().includes(search.toLowerCase());
-    const mf = filterS==='tous'||f.status===filterS;
-    return ms&&mf;
-  });
-
-  const handleSave = (f) => {
-    setFactures(p=>p.find(x=>x.id===f.id)?p.map(x=>x.id===f.id?f:x):[f,...p]);
-  };
-
-  const handlePaiement = (id, paiement) => {
-    setFactures(p=>p.map(f=>{
-      if (f.id!==id) return f;
-      const newPaiements = [...(f.paiements||[]), paiement];
-      const {totalTTC} = calcTotaux(f.lignes);
-      const totalAcomptes = (f.acomptes||[]).reduce((s,a)=>s+a.montant,0);
-      const totalPaiements = newPaiements.reduce((s,p)=>s+p.montant,0);
-      const encaisse = totalAcomptes + totalPaiements;
-      const newStatus = encaisse >= totalTTC ? 'paye' : encaisse > 0 ? 'partiel' : f.status;
-      return {
-        ...f,
-        paiements: newPaiements,
-        status: newStatus,
-        historique: [...(f.historique||[]),{date:today(),action:`Paiement reçu: ${fmtN(paiement.montant,f.devise)}`,user:'Jérôme Bell'}],
-      };
-    }));
-  };
-
-  const totaux = {
-    ca: filtered.reduce((s,f)=>s+calcTotaux(f.lignes).totalTTC,0),
-    encaisse: filtered.reduce((s,f)=>s+getStatutPaiement(f).encaisse,0),
-    reste: filtered.reduce((s,f)=>s+getStatutPaiement(f).reste,0),
-    retard: filtered.filter(f=>f.status==='en_retard').length,
-  };
-
-  return (
-    <div>
-      <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap'}}>
-        {[
-          {l:'Chiffre d\'affaires',v:fmtN(totaux.ca,'FCFA'),c:'#1d4ed8',icon:'📈'},
-          {l:'Encaissé',v:fmtN(totaux.encaisse,'FCFA'),c:'#16a34a',icon:'✅'},
-          {l:'À encaisser',v:fmtN(totaux.reste,'FCFA'),c:'#d97706',icon:'⏳'},
-          {l:'En retard',v:totaux.retard,c:'#dc2626',icon:'🚨'},
-        ].map(k=>(
-          <div key={k.l} style={{flex:1,minWidth:180,background:'white',borderRadius:12,padding:'14px 16px',borderLeft:`3px solid ${k.c}`,boxShadow:'0 2px 8px rgba(0,0,0,.04)'}}>
-            <div style={{fontSize:11,color:'#9ca3af',marginBottom:4}}>{k.icon} {k.l}</div>
-            <div style={{fontSize:17,fontWeight:900,color:k.c}}>{k.v}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
-        <div style={{flex:1,minWidth:220,display:'flex',alignItems:'center',gap:8,background:'white',borderRadius:11,padding:'9px 13px',border:'1px solid #e5e7eb'}}>
-          <span style={{color:'#9ca3af'}}>🔍</span>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Client, numéro..." style={{flex:1,border:'none',outline:'none',fontSize:13}}/>
-        </div>
-        <div style={{display:'flex',gap:4,background:'white',borderRadius:11,padding:3,border:'1px solid #e5e7eb'}}>
-          {['tous','brouillon','envoye','partiel','paye','en_retard','annule'].map(s=>(
-            <button key={s} onClick={()=>setFilterS(s)} style={{padding:'6px 11px',borderRadius:9,border:'none',background:filterS===s?'#059669':'transparent',color:filterS===s?'white':'#6b7280',fontWeight:700,fontSize:11,cursor:'pointer',whiteSpace:'nowrap'}}>
-              {s==='tous'?'Toutes':s==='brouillon'?'Brouillon':s==='envoye'?'Émises':s==='partiel'?'Partiel':s==='paye'?'Payées':s==='en_retard'?'En retard':'Annulées'}
-            </button>
-          ))}
-        </div>
-        <Btn label="+ Nouvelle facture" onClick={()=>setCreating(true)} color="#059669" icon="🧾"/>
-        <Btn label="📥 Exporter" onClick={()=>alert('Export Excel/PDF...')} outline color="#374151" small/>
-      </div>
-
-      <div style={{background:'white',borderRadius:16,border:'1px solid #e5e7eb',overflow:'hidden',boxShadow:'0 2px 8px rgba(0,0,0,.04)'}}>
-        <div style={{overflowX:'auto'}}>
-          <table style={{width:'100%',borderCollapse:'collapse',minWidth:1000}}>
-            <thead><tr>{['Numéro','Client','Objet','HT','TVA','TTC','Devise','Émission','Échéance','Encaissé','Statut','Actions'].map(h=><Th key={h} ch={h}/>)}</tr></thead>
-            <tbody>
-              {filtered.map((f,i)=>{
-                const {totalHT,totalTVA,totalTTC}=calcTotaux(f.lignes);
-                const {encaisse,pct}=getStatutPaiement(f);
-                const overdue = new Date(f.dateEcheance)<new Date()&&f.status!=='paye';
-                return (
-                  <tr key={f.id} style={{borderBottom:'1px solid #f3f4f6',background:i%2===0?'white':'#fafbfc',cursor:'pointer'}}
-                    onMouseEnter={e=>e.currentTarget.style.background='#f0fdf4'}
-                    onMouseLeave={e=>e.currentTarget.style.background=i%2===0?'white':'#fafbfc'}>
-                    <Td ch={<span style={{fontWeight:800,color:'#059669',fontFamily:'monospace'}} onClick={()=>setSelected(f)}>{f.numero}</span>}/>
-                    <Td ch={<span style={{fontWeight:600}} onClick={()=>setSelected(f)}>{f.client?.nom}</span>}/>
-                    <Td ch={<span style={{fontSize:12,color:'#6b7280'}} onClick={()=>setSelected(f)}>{f.objet?.substring(0,35)}{f.objet?.length>35?'…':''}</span>}/>
-                    <Td ch={fmtN(totalHT)} style={{textAlign:'right',fontSize:12}}/>
-                    <Td ch={<span style={{color:'#dc2626',fontSize:12}}>{fmtN(totalTVA)}</span>} style={{textAlign:'right'}}/>
-                    <Td ch={<span style={{fontWeight:800}}>{fmtN(totalTTC)}</span>} style={{textAlign:'right'}}/>
-                    <Td ch={<DevBadge d={f.devise}/>}/>
-                    <Td ch={fmtD(f.dateEmission)} style={{fontSize:12}}/>
-                    <Td ch={<span style={{color:overdue?'#dc2626':'#374151',fontWeight:overdue?700:400,fontSize:12}}>{fmtD(f.dateEcheance)}{overdue&&' ⚠️'}</span>}/>
-                    <Td ch={
-                      <div style={{display:'flex',alignItems:'center',gap:6}}>
-                        <div style={{width:50,height:6,background:'#e5e7eb',borderRadius:3,overflow:'hidden'}}>
-                          <div style={{width:`${pct}%`,height:'100%',background:pct>=100?'#16a34a':'#d97706',borderRadius:3}}/>
-                        </div>
-                        <span style={{fontSize:11,fontWeight:700,color:pct>=100?'#16a34a':'#d97706'}}>{pct}%</span>
-                      </div>
-                    }/>
-                    <Td ch={<Badge status={f.status}/>}/>
-                    <Td ch={
-                      <div style={{display:'flex',gap:4}}>
-                        {[['👁','Voir',()=>setSelected(f)],['✏️','Modifier',()=>setEditing(f)],['💳','Paiement',()=>{setSelected(f);}],['🖨','Imprimer',()=>window.print()]].map(([icon,title,fn])=>(
-                          <button key={title} title={title} onClick={fn} style={{padding:'4px 7px',borderRadius:7,border:'1px solid #e5e7eb',background:'white',cursor:'pointer',fontSize:12}}>{icon}</button>
-                        ))}
-                      </div>
-                    }/>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {filtered.length===0&&<div style={{padding:40,textAlign:'center',color:'#9ca3af'}}><div style={{fontSize:36,marginBottom:8}}>🧾</div><div>Aucune facture trouvée</div></div>}
-        </div>
-      </div>
-
-      {selected&&<FactureDetail facture={selected} onClose={()=>setSelected(null)} onEdit={f=>setEditing(f)} onPaiement={handlePaiement} onStatusChange={()=>{}}/>}
-      {editing&&<DocEditor type="facture" doc={editing} onSave={handleSave} onClose={()=>setEditing(null)}/>}
-      {creating&&<DocEditor type="facture" onSave={handleSave} onClose={()=>setCreating(false)}/>}
-    </div>
-  );
-};
-
-// ============================================================
-// COMPOSANT RACINE
-// ============================================================
-const CASHFLOW = [
-  { mois:'Oct', entrees:18500000, sorties:12000000 },
-  { mois:'Nov', entrees:22000000, sorties:14500000 },
-  { mois:'Dec', entrees:28000000, sorties:16000000 },
-  { mois:'Jan', entrees:25000000, sorties:18000000 },
-  { mois:'Fev', entrees:31000000, sorties:19500000 },
-  { mois:'Mar', entrees:35000000, sorties:21000000 },
-];
-
-const TVA_DATA = { collectee:12819500, deductible:4250000, aVerser:8569500, echeance:'2024-03-31' };
-
-const PLAN_COMPTABLE = [
-  { classe:'1', libelle:'Comptes de capitaux', comptes:[
-    { num:'101000', libelle:'Capital social', solde:50000000, type:'passif' },
-    { num:'106000', libelle:'Reserves', solde:12500000, type:'passif' },
-    { num:'120000', libelle:'Resultat exercice', solde:8340000, type:'passif' },
-  ]},
-  { classe:'2', libelle:'Actif immobilise', comptes:[
-    { num:'215000', libelle:'Materiel et equipements', solde:45000000, type:'actif' },
-    { num:'218000', libelle:'Vehicules', solde:18500000, type:'actif' },
-    { num:'282000', libelle:'Amortissements', solde:-12000000, type:'actif' },
-  ]},
-  { classe:'4', libelle:'Comptes de tiers', comptes:[
-    { num:'411000', libelle:'Clients MTN Cameroun', solde:10195875, type:'actif' },
-    { num:'411001', libelle:'Clients Orange Cameroun', solde:5127750, type:'actif' },
-    { num:'401000', libelle:'Fournisseurs Huawei', solde:-8500000, type:'passif' },
-    { num:'445000', libelle:'TVA collectee', solde:-12819500, type:'passif' },
-    { num:'445200', libelle:'TVA deductible', solde:4250000, type:'actif' },
-  ]},
-  { classe:'5', libelle:'Tresorerie', comptes:[
-    { num:'521000', libelle:'Banque BICEC', solde:28450000, type:'actif' },
-    { num:'521001', libelle:'Banque SGC', solde:12800000, type:'actif' },
-    { num:'571000', libelle:'Caisse', solde:1250000, type:'actif' },
-  ]},
-  { classe:'6', libelle:'Charges', comptes:[
-    { num:'601000', libelle:'Achats matieres', solde:15200000, type:'charge' },
-    { num:'621000', libelle:'Personnel externe', solde:24500000, type:'charge' },
-    { num:'641000', libelle:'Salaires', solde:18200000, type:'charge' },
-    { num:'645000', libelle:'Charges sociales', solde:2184000, type:'charge' },
-  ]},
-  { classe:'7', libelle:'Produits', comptes:[
-    { num:'701000', libelle:'Chiffre affaires', solde:85000000, type:'produit' },
-    { num:'706000', libelle:'Prestations services', solde:12500000, type:'produit' },
-  ]},
-];
-
-const DEPENSES_DATA = [
-  { id:1, numero:'DEP-2024-001', fournisseur:'Huawei Technologies', description:'Équipements 5G NR DLA-001', categorie:'Équipements', montant:28500000, devise:'FCFA', date:'2024-01-15', status:'paye', projet:'DLA-001', bc:'BC-2024-001', lignes:[] },
-  { id:2, numero:'DEP-2024-002', fournisseur:'Nokia Networks', description:'Antennes 4G LTE x12', categorie:'Équipements', montant:15200, devise:'USD', date:'2024-02-01', status:'en_attente', projet:'LIM-001', bc:'BC-2024-002', lignes:[] },
-  { id:3, numero:'DEP-2024-003', fournisseur:'Total Énergies', description:'Carburant véhicules janvier', categorie:'Transport', montant:850000, devise:'FCFA', date:'2024-01-31', status:'paye', projet:'Général', bc:'', lignes:[] },
-  { id:4, numero:'DEP-2024-004', fournisseur:'CAMTEL', description:'Liaisons fibre optique Q1', categorie:'Télécoms', montant:1200000, devise:'FCFA', date:'2024-02-15', status:'en_attente', projet:'Général', bc:'', lignes:[] },
-  { id:5, numero:'DEP-2024-005', fournisseur:'Ericsson Cameroun', description:'Maintenance équipements 3G/4G', categorie:'Maintenance', montant:8500, devise:'EUR', date:'2024-02-20', status:'paye', projet:'GAR-001', bc:'BC-2024-003', lignes:[] },
-];
-
-const TABS = [
-  {id:'dashboard',    label:'Tableau de bord', icon:'📊'},
-  {id:'factures',     label:'Factures',        icon:'🧾'},
-  {id:'devis',        label:'Devis',           icon:'📋'},
-  {id:'depenses',     label:'Dépenses',        icon:'💸'},
-  {id:'fournisseurs', label:'Fournisseurs',    icon:'🏭'},
-  {id:'tva',          label:'TVA',             icon:'🏛'},
-  {id:'cashflow',     label:'Trésorerie',      icon:'💰'},
-  {id:'comptable',    label:'Plan comptable',  icon:'📚'},
-  {id:'rapports',     label:'Rapports',        icon:'📈'},
-];
-
-const Dashboard = ({devis,factures,onNavigate}) => {
-  const totalCA      = factures.reduce((s,f)=>s+calcTotaux(f.lignes).totalTTC,0);
-  const totalEncaisse= factures.reduce((s,f)=>s+getStatutPaiement(f).encaisse,0);
-  const totalReste   = factures.reduce((s,f)=>s+getStatutPaiement(f).reste,0);
-  const totalDevis   = devis.reduce((s,d)=>s+calcTotaux(d.lignes).totalTTC,0);
-
-  const maxCF        = Math.max(...CASHFLOW.map(c=>Math.max(c.e,c.s)));
-
-  return (
-    <div>
-      <div style={{display:'flex',gap:14,marginBottom:24,flexWrap:'wrap'}}>
-        {[
-          {l:'Chiffre d\'affaires',v:fmtN(totalCA,'FCFA'),c:'#1d4ed8',icon:'📈',trend:'+12%',onClick:()=>onNavigate('factures')},
-          {l:'Encaissé',v:fmtN(totalEncaisse,'FCFA'),c:'#16a34a',icon:'✅',trend:'+8%',onClick:()=>onNavigate('factures')},
-          {l:'À encaisser',v:fmtN(totalReste,'FCFA'),c:'#d97706',icon:'⏳',trend:'-3%',onClick:()=>onNavigate('factures')},
-          {l:'Devis en cours',v:fmtN(totalDevis,'FCFA'),c:'#7c3aed',icon:'📋',trend:'+5%',onClick:()=>onNavigate('devis')},
-          {l:'Bénéfice estimé',v:fmtN(totalEncaisse*0.35,'FCFA'),c:'#059669',icon:'💎',trend:'+15%'},
-        ].map(k=>(
-          <div key={k.l} onClick={k.onClick} style={{flex:1,minWidth:150,background:'white',borderRadius:14,padding:'16px 18px',borderLeft:`4px solid ${k.c}`,boxShadow:'0 2px 10px rgba(0,0,0,.05)',cursor:k.onClick?'pointer':'default',transition:'all .2s'}}
-            onMouseEnter={e=>k.onClick&&(e.currentTarget.style.transform='translateY(-2px)')}
-            onMouseLeave={e=>e.currentTarget.style.transform='translateY(0)'}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-              <div style={{width:36,height:36,borderRadius:10,background:`${k.c}12`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>{k.icon}</div>
-              <span style={{fontSize:11,fontWeight:700,padding:'2px 7px',borderRadius:6,background:k.trend?.startsWith('+')?'#dcfce7':'#fef2f2',color:k.trend?.startsWith('+')?'#16a34a':'#dc2626'}}>{k.trend}</span>
-            </div>
-            <div style={{fontSize:17,fontWeight:900,color:k.c,letterSpacing:-.3,marginBottom:3}}>{k.v}</div>
-            <div style={{fontSize:12,fontWeight:600,color:'#374151'}}>{k.l}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:18,marginBottom:20}}>
-        <div style={{background:'white',borderRadius:16,padding:22,border:'1px solid #e5e7eb',boxShadow:'0 2px 8px rgba(0,0,0,.04)'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-            <h3 style={{margin:0,fontSize:14,fontWeight:800,color:'#111827'}}>Flux de trésorerie</h3>
-            <div style={{display:'flex',gap:10,fontSize:11,color:'#6b7280'}}>
-              <span><span style={{display:'inline-block',width:10,height:10,borderRadius:2,background:'#1d4ed8',marginRight:4,verticalAlign:'middle'}}/>Entrées</span>
-              <span><span style={{display:'inline-block',width:10,height:10,borderRadius:2,background:'#ef4444',marginRight:4,verticalAlign:'middle'}}/>Sorties</span>
-            </div>
-          </div>
-          <div style={{display:'flex',alignItems:'flex-end',gap:8,height:130}}>
-            {CASHFLOW.map((c,i)=>(
-              <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-                <div style={{width:'100%',display:'flex',gap:2,alignItems:'flex-end',height:100}}>
-                  <div style={{flex:1,height:`${(c.e/maxCF)*100}px`,background:'#1d4ed8',borderRadius:'3px 3px 0 0'}}/>
-                  <div style={{flex:1,height:`${(c.s/maxCF)*100}px`,background:'#ef4444',borderRadius:'3px 3px 0 0',opacity:.75}}/>
-                </div>
-                <span style={{fontSize:9,color:'#9ca3af',fontWeight:600}}>{c.m}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{background:'white',borderRadius:16,padding:22,border:'1px solid #e5e7eb',boxShadow:'0 2px 8px rgba(0,0,0,.04)'}}>
-          <h3 style={{margin:'0 0 14px',fontSize:14,fontWeight:800,color:'#111827'}}>TVA — {(TVA*100).toFixed(2)}%</h3>
-          {[{l:'Collectée',v:12819500,c:'#dc2626'},{l:'Déductible',v:4250000,c:'#16a34a'},{l:'À verser DGI',v:8569500,c:'#d97706',big:true}].map(t=>(
-            <div key={t.l} style={{display:'flex',justifyContent:'space-between',padding:'10px 0',borderBottom:t.big?'none':'1px solid #f3f4f6'}}>
-              <span style={{fontSize:t.big?13:12,fontWeight:t.big?700:400,color:'#6b7280'}}>{t.l}</span>
-              <span style={{fontSize:t.big?16:13,fontWeight:t.big?900:700,color:t.c}}>{fmtN(t.v,'FCFA')}</span>
-            </div>
-          ))}
-          <div style={{marginTop:12,padding:10,background:'#fff7ed',borderRadius:9,border:'1px solid #fed7aa'}}>
-            <div style={{fontSize:10,fontWeight:700,color:'#d97706'}}>⚠️ Prochaine déclaration TVA</div>
-            <div style={{fontSize:13,fontWeight:700,color:'#92400e',marginTop:2}}>31 Mars 2024</div>
-          </div>
-          <button onClick={()=>onNavigate('tva')} style={{marginTop:12,width:'100%',padding:10,borderRadius:10,border:'none',background:'#1d4ed8',color:'white',fontWeight:700,cursor:'pointer',fontSize:13}}>
-            Générer déclaration TVA →
-          </button>
-        </div>
-      </div>
-
-      {/* Factures récentes */}
-      <div style={{background:'white',borderRadius:16,border:'1px solid #e5e7eb',overflow:'hidden',boxShadow:'0 2px 8px rgba(0,0,0,.04)'}}>
-        <div style={{padding:'14px 18px',borderBottom:'1px solid #e5e7eb',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <h3 style={{margin:0,fontSize:14,fontWeight:800,color:'#111827'}}>Factures récentes</h3>
-          <button onClick={()=>onNavigate('factures')} style={{fontSize:12,fontWeight:700,color:'#1d4ed8',background:'none',border:'none',cursor:'pointer'}}>Voir toutes →</button>
-        </div>
-        <div style={{overflowX:'auto'}}>
-          <table style={{width:'100%',borderCollapse:'collapse',minWidth:700}}>
-            <thead><tr style={{background:'#f8fafc'}}>{['Numéro','Client','Montant TTC','Encaissé','Devise','Échéance','Statut'].map(h=><Th key={h} ch={h}/>)}</tr></thead>
-            <tbody>
-              {factures.slice(0,5).map((f,i)=>{
-                const {totalTTC}=calcTotaux(f.lignes);
-                const {encaisse,pct}=getStatutPaiement(f);
-                return (
-                  <tr key={f.id} style={{borderBottom:'1px solid #f3f4f6',background:i%2===0?'white':'#fafbfc'}}>
-                    <Td ch={<span style={{fontWeight:800,color:'#059669',fontFamily:'monospace'}}>{f.numero}</span>}/>
-                    <Td ch={<span style={{fontWeight:500}}>{f.client?.nom}</span>}/>
-                    <Td ch={<span style={{fontWeight:800}}>{fmtN(totalTTC)}</span>} style={{textAlign:'right'}}/>
-                    <Td ch={
-                      <div style={{display:'flex',alignItems:'center',gap:6}}>
-                        <div style={{width:50,height:5,background:'#e5e7eb',borderRadius:3,overflow:'hidden'}}><div style={{width:`${pct}%`,height:'100%',background:pct>=100?'#16a34a':'#d97706',borderRadius:3}}/></div>
-                        <span style={{fontSize:11,fontWeight:700,color:pct>=100?'#16a34a':'#d97706'}}>{pct}%</span>
-                      </div>
-                    }/>
-                    <Td ch={<DevBadge d={f.devise}/>}/>
-                    <Td ch={fmtD(f.dateEcheance)} style={{fontSize:12}}/>
-                    <Td ch={<Badge status={f.status}/>}/>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-
-
-
-
-const StatusBadge = ({ status }) => {
-  const configs = {
-    paye:       { l:'Payée',      bg:'#f0fdf4', c:'#16a34a' },
-    envoye:     { l:'Envoyée',    bg:'#eff6ff', c:'#1d4ed8' },
-    en_retard:  { l:'En retard',  bg:'#fef2f2', c:'#dc2626' },
-    partiel:    { l:'Partiel',    bg:'#fefce8', c:'#d97706' },
-    brouillon:  { l:'Brouillon',  bg:'#f3f4f6', c:'#6b7280' },
-    annule:     { l:'Annulée',    bg:'#fdf4ff', c:'#7c3aed' },
-    en_attente: { l:'En attente', bg:'#fff7ed', c:'#d97706' },
-    accepte:    { l:'Accepté',    bg:'#f0fdf4', c:'#16a34a' },
-    refuse:     { l:'Refusé',     bg:'#fef2f2', c:'#dc2626' },
-    valide:     { l:'Validée',    bg:'#f0fdf4', c:'#16a34a' },
-    rejete:     { l:'Rejetée',    bg:'#fef2f2', c:'#dc2626' },
-    actif:      { l:'Actif',      bg:'#f0fdf4', c:'#16a34a' },
-    a_declarer: { l:'À déclarer', bg:'#fff7ed', c:'#d97706' },
-    declare:    { l:'Déclarée',   bg:'#eff6ff', c:'#1d4ed8' },
-  };
-  const cfg = configs[status] || configs.brouillon;
-  return (
-    <span style={{ padding:'4px 10px', borderRadius:20, background:cfg.bg, color:cfg.c, fontSize:11, fontWeight:700, whiteSpace:'nowrap' }}>
+    <span style={{
+      display:'inline-flex', alignItems:'center', gap:5,
+      padding:'3px 10px', borderRadius:20,
+      background:cfg.bg, color:cfg.c,
+      fontSize:12, fontWeight:600, whiteSpace:'nowrap',
+    }}>
+      <span style={{width:6,height:6,borderRadius:'50%',background:cfg.c,flexShrink:0}}/>
       {cfg.l}
     </span>
   );
 };
 
-const DeviseTag = ({ devise }) => {
-  const colors = { FCFA:{bg:'#eff6ff',c:'#1d4ed8'}, USD:{bg:'#f0fdf4',c:'#16a34a'}, EUR:{bg:'#faf5ff',c:'#7c3aed'}, CNY:{bg:'#fff7ed',c:'#d97706'} };
-  const cl = colors[devise] || colors.FCFA;
-  return <span style={{ padding:'2px 8px', borderRadius:6, background:cl.bg, color:cl.c, fontSize:11, fontWeight:700 }}>{devise}</span>;
+// ===== DONNÉES =====
+const CLIENTS = ['MTN Cameroun','Orange Cameroun','Huawei Technologies','Nexttel Cameroun','Gouvernement Cameroun','CAMTEL','Entreprise Privée'];
+const DEVISES_LIST = ['FCFA','USD','EUR','CNY'];
+const PROJETS_LIST = ['PROJ-2024-001 · DLA-001','PROJ-2024-002 · YDE-001','PROJ-2024-003 · GAR-001','PROJ-2024-004 · LIM-001'];
+const FOURNISSEURS_LIST = ['Huawei Technologies','Nokia Networks','Ericsson','Total Énergies','CAMTEL','Fournisseur local'];
+const CATEGORIES_DEP = ['Équipements','Transport','Hébergement','Matériel','Télécoms','Maintenance','Per diem','Sous-traitance','Autres'];
+const MODES_PAI = ['Virement bancaire','Mobile Money MTN','Mobile Money Orange','Chèque','Espèces','Virement international'];
+const BANQUES = ['BICEC','Société Générale Cameroun','Afriland First Bank','UBA','Ecobank'];
+
+const SEED_FACTURES = [
+  {id:1,numero:'FAC-2024-001',client:'MTN Cameroun',projet:'PROJ-2024-001 · DLA-001',lignes:[{desc:'Installation antennes 5G NR',qte:1,pu:8500000,tva:true},{desc:'Main d\'œuvre techniciens',qte:15,pu:350000,tva:true},{desc:'Matériel consommable',qte:1,pu:450000,tva:false}],montantHT:14050000,tva:2509625,montantTTC:16559625,status:'paye',dateEmission:'2024-01-15',dateEcheance:'2024-02-15',devise:'FCFA',modePaiement:'Virement bancaire',notes:'Paiement reçu le 12/02/2024',acomptes:[{date:'2024-01-20',montant:5000000,ref:'VIR-001'}]},
+  {id:2,numero:'FAC-2024-002',client:'Orange Cameroun',projet:'PROJ-2024-002 · YDE-001',lignes:[{desc:'Déploiement 4G LTE',qte:1,pu:7200000,tva:true},{desc:'Configuration équipements',qte:1,pu:1350000,tva:true}],montantHT:8550000,tva:1645875,montantTTC:10195875,status:'en_retard',dateEmission:'2024-01-28',dateEcheance:'2024-03-01',devise:'FCFA',modePaiement:'Chèque',notes:'Relance envoyée',acomptes:[]},
+  {id:3,numero:'FAC-2024-003',client:'Huawei Technologies',projet:'PROJ-2024-001 · DLA-001',lignes:[{desc:'Engineering services 5G',qte:40,pu:850,tva:false},{desc:'Technical supervision',qte:10,pu:1200,tva:false}],montantHT:46000,tva:0,montantTTC:46000,status:'envoye',dateEmission:'2024-02-10',dateEcheance:'2024-03-15',devise:'USD',modePaiement:'Virement international',notes:'',acomptes:[]},
+  {id:4,numero:'FAC-2024-004',client:'Gouvernement Cameroun',projet:'PROJ-2024-003 · GAR-001',lignes:[{desc:'Infrastructure télécom',qte:1,pu:27000000,tva:true},{desc:'Maintenance annuelle',qte:1,pu:5000000,tva:true}],montantHT:32000000,tva:6160000,montantTTC:38160000,status:'partiel',dateEmission:'2024-02-01',dateEcheance:'2024-04-01',devise:'FCFA',modePaiement:'Virement bancaire',notes:'Acompte 30% reçu',acomptes:[{date:'2024-02-15',montant:11448000,ref:'TRESOR-001'}]},
+  {id:5,numero:'DEV-2024-001',client:'Nexttel Cameroun',projet:'PROJ-2024-004 · LIM-001',lignes:[{desc:'Survey réseau',qte:1,pu:3500000,tva:true},{desc:'Rapport technique',qte:1,pu:800000,tva:true}],montantHT:4300000,tva:827750,montantTTC:5127750,status:'brouillon',dateEmission:'2024-03-01',dateEcheance:'2024-04-01',devise:'FCFA',modePaiement:'Virement bancaire',notes:'',acomptes:[]},
+];
+
+const SEED_DEPENSES = [
+  {id:1,numero:'DEP-2024-001',fournisseur:'Huawei Technologies',description:'Équipements 5G NR DLA-001',categorie:'Équipements',montant:28500000,devise:'FCFA',date:'2024-01-15',status:'paye',projet:'PROJ-2024-001 · DLA-001',bc:'BC-001'},
+  {id:2,numero:'DEP-2024-002',fournisseur:'Nokia Networks',description:'Antennes 4G LTE x12',categorie:'Équipements',montant:15200,devise:'USD',date:'2024-02-01',status:'en_attente',projet:'PROJ-2024-004 · LIM-001',bc:'BC-002'},
+  {id:3,numero:'DEP-2024-003',fournisseur:'Total Énergies',description:'Carburant véhicules janvier',categorie:'Transport',montant:850000,devise:'FCFA',date:'2024-01-31',status:'paye',projet:'Général',bc:''},
+  {id:4,numero:'DEP-2024-004',fournisseur:'CAMTEL',description:'Liaisons fibre optique Q1',categorie:'Télécoms',montant:1200000,devise:'FCFA',date:'2024-02-15',status:'en_attente',projet:'Général',bc:''},
+  {id:5,numero:'DEP-2024-005',fournisseur:'Ericsson Cameroun',description:'Maintenance 3G/4G',categorie:'Maintenance',montant:8500,devise:'EUR',date:'2024-02-20',status:'paye',projet:'PROJ-2024-003 · GAR-001',bc:'BC-003'},
+];
+
+const CASHFLOW = [
+  {mois:'Oct',e:18500000,s:12000000},{mois:'Nov',e:22000000,s:14500000},
+  {mois:'Déc',e:28000000,s:16000000},{mois:'Jan',e:25000000,s:18000000},
+  {mois:'Fév',e:31000000,s:19500000},{mois:'Mar',e:35000000,s:21000000},
+];
+
+// ===== FORMULAIRE FIELD =====
+const Field = ({label, children, required, col1}) => (
+  <div style={{gridColumn:col1?'1/-1':'auto'}}>
+    <label style={{display:'block',fontSize:13,fontWeight:600,color:C.text2,marginBottom:6}}>
+      {label}{required&&<span style={{color:C.red,marginLeft:2}}>*</span>}
+    </label>
+    {children}
+  </div>
+);
+const Input = ({type='text',value,onChange,placeholder,min,disabled,small}) => (
+  <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder||''} min={min} disabled={disabled}
+    style={{width:'100%',padding:small?'7px 10px':'9px 12px',borderRadius:4,border:`1px solid ${C.border}`,fontSize:13,color:C.text,background:disabled?C.bg:C.white,boxSizing:'border-box',outline:'none',fontFamily:'inherit'}}
+    onFocus={e=>e.target.style.borderColor=C.blue} onBlur={e=>e.target.style.borderColor=C.border}/>
+);
+const Select = ({value,onChange,options,placeholder,small}) => (
+  <select value={value} onChange={e=>onChange(e.target.value)}
+    style={{width:'100%',padding:small?'7px 10px':'9px 12px',borderRadius:4,border:`1px solid ${C.border}`,fontSize:13,color:value?C.text:C.light,background:C.white,cursor:'pointer',outline:'none',fontFamily:'inherit'}}
+    onFocus={e=>e.target.style.borderColor=C.blue} onBlur={e=>e.target.style.borderColor=C.border}>
+    <option value="">{placeholder||'Sélectionner...'}</option>
+    {options.map(o=><option key={o.v||o} value={o.v||o}>{o.l||o}</option>)}
+  </select>
+);
+const Textarea = ({value,onChange,placeholder,rows=4}) => (
+  <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder||''} rows={rows}
+    style={{width:'100%',padding:'9px 12px',borderRadius:4,border:`1px solid ${C.border}`,fontSize:13,color:C.text,background:C.white,resize:'vertical',boxSizing:'border-box',outline:'none',fontFamily:'inherit'}}
+    onFocus={e=>e.target.style.borderColor=C.blue} onBlur={e=>e.target.style.borderColor=C.border}/>
+);
+const Btn = ({label,onClick,primary,danger,ghost,disabled,sm,icon}) => (
+  <button onClick={onClick} disabled={disabled} style={{
+    display:'inline-flex',alignItems:'center',gap:6,
+    padding:sm?'6px 12px':'9px 16px',
+    borderRadius:4,border:danger?`1px solid ${C.red}`:primary?'none':ghost?`1px solid ${C.border}`:'none',
+    background:disabled?'#e4e4e4':danger?C.red:primary?C.green:ghost?C.white:C.white,
+    color:disabled?C.light:danger||primary?C.white:C.green,
+    fontWeight:600,fontSize:sm?12:13,cursor:disabled?'not-allowed':'pointer',
+    whiteSpace:'nowrap',fontFamily:'inherit',transition:'opacity .1s',
+  }} onMouseEnter={e=>{if(!disabled)e.currentTarget.style.opacity='0.88'}}
+     onMouseLeave={e=>{if(!disabled)e.currentTarget.style.opacity='1'}}>
+    {icon&&<Ico name={icon} size={14} color={disabled?C.light:danger||primary?C.white:C.green}/>}
+    {label}
+  </button>
+);
+
+// ===== PANEL LATÉRAL (style QuickBooks) =====
+const SidePanel = ({title, subtitle, onClose, children, width=620}) => (
+  <div style={{position:'fixed',inset:0,zIndex:200,display:'flex',justifyContent:'flex-end'}}>
+    <div onClick={onClose} style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.35)'}}/>
+    <div style={{position:'relative',width,maxWidth:'95vw',height:'100vh',background:C.white,boxShadow:'-4px 0 24px rgba(0,0,0,0.15)',display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      {/* Header panel */}
+      <div style={{padding:'16px 24px',borderBottom:`1px solid ${C.border2}`,display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
+        <div>
+          {subtitle&&<div style={{fontSize:11,color:C.muted,textTransform:'uppercase',letterSpacing:0.5,marginBottom:2}}>{subtitle}</div>}
+          <h2 style={{margin:0,fontSize:17,fontWeight:700,color:C.text}}>{title}</h2>
+        </div>
+        <button onClick={onClose} style={{width:32,height:32,borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <Ico name="close" size={16} color={C.muted}/>
+        </button>
+      </div>
+      {/* Contenu scrollable */}
+      <div style={{flex:1,overflow:'auto',padding:'20px 24px'}}>{children}</div>
+    </div>
+  </div>
+);
+
+// ===== TABLEAU QB =====
+const QBTable = ({cols, rows, onRowClick, empty='Aucune donnée'}) => (
+  <div style={{border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden',background:C.white}}>
+    <div style={{overflowX:'auto'}}>
+      <table style={{width:'100%',borderCollapse:'collapse',minWidth:500}}>
+        <thead>
+          <tr style={{background:C.bg,borderBottom:`2px solid ${C.border}`}}>
+            {cols.map(col=>(
+              <th key={col} style={{padding:'9px 14px',textAlign:'left',fontSize:12,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:0.4,whiteSpace:'nowrap'}}>{col}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length===0&&(
+            <tr><td colSpan={cols.length} style={{padding:'40px 14px',textAlign:'center',color:C.light,fontSize:14}}>{empty}</td></tr>
+          )}
+          {rows.map((row,i)=>(
+            <tr key={i} onClick={()=>onRowClick&&onRowClick(i)}
+              style={{borderBottom:`1px solid ${C.border2}`,background:i%2===0?C.white:'#fafafa',cursor:onRowClick?'pointer':'default',transition:'background .1s'}}
+              onMouseEnter={e=>{if(onRowClick)e.currentTarget.style.background='#f0faf0'}}
+              onMouseLeave={e=>{if(onRowClick)e.currentTarget.style.background=i%2===0?C.white:'#fafafa'}}>
+              {row.map((cell,j)=>(
+                <td key={j} style={{padding:'11px 14px',fontSize:13,color:C.text,verticalAlign:'middle'}}>{cell}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
+
+// ===== SPARKLINE =====
+const Sparkline = ({data, color, height=40, width=120}) => {
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const pts = data.map((v,i)=>{
+    const x = (i/(data.length-1))*width;
+    const y = height - ((v-min)/range)*(height-4) - 2;
+    return `${x},${y}`;
+  }).join(' ');
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx={pts.split(' ').pop().split(',')[0]} cy={pts.split(' ').pop().split(',')[1]} r="3" fill={color}/>
+    </svg>
+  );
 };
 
-// ===== NOUVELLE DÉPENSE MODAL =====
-const NouvelleDepenseModal = ({ onClose, onSave }) => {
+// ===== KPI CARD QB =====
+const KpiCard = ({title, amount, sub, trend, color, sparkData, onClick}) => (
+  <div onClick={onClick} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,padding:'18px 20px',flex:1,minWidth:160,cursor:onClick?'pointer':'default',transition:'box-shadow .15s'}}
+    onMouseEnter={e=>{if(onClick)e.currentTarget.style.boxShadow='0 2px 12px rgba(0,0,0,0.1)'}}
+    onMouseLeave={e=>{if(onClick)e.currentTarget.style.boxShadow='none'}}>
+    <div style={{fontSize:12,fontWeight:600,color:C.muted,marginBottom:8,textTransform:'uppercase',letterSpacing:0.4}}>{title}</div>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end'}}>
+      <div>
+        <div style={{fontSize:22,fontWeight:700,color:color||C.text,marginBottom:4}}>{amount}</div>
+        {sub&&<div style={{fontSize:12,color:C.muted}}>{sub}</div>}
+        {trend!==undefined&&(
+          <div style={{fontSize:12,fontWeight:600,color:trend>=0?C.green:C.red,marginTop:4,display:'flex',alignItems:'center',gap:3}}>
+            <span>{trend>=0?'↑':'↓'}</span> {Math.abs(trend)}% vs mois dernier
+          </div>
+        )}
+      </div>
+      {sparkData&&<Sparkline data={sparkData} color={color||C.blue}/>}
+    </div>
+  </div>
+);
+
+// ===== FORMULAIRE FACTURE =====
+const FormulaireFacture = ({onClose, onSave}) => {
+  const [client, setClient] = useState('');
+  const [projet, setProjet] = useState('');
+  const [devise, setDevise] = useState('FCFA');
+  const [dateEcheance, setDateEcheance] = useState('');
+  const [modePaiement, setModePaiement] = useState('Virement bancaire');
+  const [notes, setNotes] = useState('');
+  const [lignes, setLignes] = useState([{desc:'',qte:1,pu:0,tva:true}]);
+  const [saving, setSaving] = useState(false);
+
+  const addL = () => setLignes(p=>[...p,{desc:'',qte:1,pu:0,tva:true}]);
+  const updL = (i,k,v) => setLignes(p=>p.map((l,idx)=>idx===i?{...l,[k]:v}:l));
+  const delL = (i) => setLignes(p=>p.filter((_,idx)=>idx!==i));
+  const ht = lignes.reduce((s,l)=>s+l.qte*l.pu,0);
+  const tvaTotal = lignes.reduce((s,l)=>s+(l.tva?l.qte*l.pu*TVA_RATE:0),0);
+  const ttc = ht+tvaTotal;
+
+  const save = (submit) => {
+    if (!client) { alert('Client obligatoire'); return; }
+    onSave({id:Date.now(),numero:`FAC-${new Date().getFullYear()}-${String(Math.floor(Math.random()*900+100))}`,client,projet,devise,dateEcheance,dateEmission:new Date().toISOString().split('T')[0],modePaiement,notes,lignes,montantHT:ht,tva:tvaTotal,montantTTC:ttc,status:submit?'envoye':'brouillon',acomptes:[]});
+    onClose();
+  };
+
+  return (
+    <SidePanel title="Nouvelle facture" subtitle="Créer" onClose={onClose} width={720}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
+        <Field label="Client" required col1>
+          <Select value={client} onChange={setClient} options={CLIENTS} placeholder="Sélectionner un client"/>
+        </Field>
+        <Field label="Projet associé">
+          <Select value={projet} onChange={setProjet} options={PROJETS_LIST} placeholder="Aucun"/>
+        </Field>
+        <Field label="Devise">
+          <Select value={devise} onChange={setDevise} options={DEVISES_LIST}/>
+        </Field>
+        <Field label="Date échéance">
+          <Input type="date" value={dateEcheance} onChange={setDateEcheance}/>
+        </Field>
+        <Field label="Mode de paiement">
+          <Select value={modePaiement} onChange={setModePaiement} options={MODES_PAI}/>
+        </Field>
+      </div>
+
+      {/* Lignes */}
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:12,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:0.5,marginBottom:10}}>Prestations</div>
+        <div style={{border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden'}}>
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead>
+              <tr style={{background:C.bg,borderBottom:`1px solid ${C.border}`}}>
+                {['Description','Qté','Prix unitaire',`TVA ${(TVA_RATE*100).toFixed(2)}%`,'Total TTC',''].map(h=>(
+                  <th key={h} style={{padding:'8px 12px',textAlign:'left',fontSize:11,fontWeight:700,color:C.muted,textTransform:'uppercase'}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {lignes.map((l,i)=>{
+                const total = l.qte*l.pu*(l.tva?1+TVA_RATE:1);
+                return (
+                  <tr key={i} style={{borderBottom:`1px solid ${C.border2}`}}>
+                    <td style={{padding:'6px 8px'}}><Input value={l.desc} onChange={v=>updL(i,'desc',v)} placeholder="Description de la prestation" small/></td>
+                    <td style={{padding:'6px 8px',width:60}}><Input type="number" value={l.qte} onChange={v=>updL(i,'qte',+v)} small/></td>
+                    <td style={{padding:'6px 8px',width:130}}><Input type="number" value={l.pu} onChange={v=>updL(i,'pu',+v)} small/></td>
+                    <td style={{padding:'6px 12px',width:80,textAlign:'center'}}><input type="checkbox" checked={l.tva} onChange={e=>updL(i,'tva',e.target.checked)} style={{width:16,height:16,cursor:'pointer',accentColor:C.green}}/></td>
+                    <td style={{padding:'6px 12px',fontSize:13,fontWeight:600,color:C.blue,width:130}}>{fmtN(Math.round(total))} {devise}</td>
+                    <td style={{padding:'6px 8px',width:30}}>
+                      {lignes.length>1&&<button onClick={()=>delL(i)} style={{width:24,height:24,borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><Ico name="close" size={12} color={C.muted}/></button>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div style={{padding:'8px 12px',borderTop:`1px solid ${C.border2}`}}>
+            <Btn label="+ Ajouter une ligne" onClick={addL} ghost sm/>
+          </div>
+        </div>
+      </div>
+
+      {/* Totaux */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
+        <Field label="Notes">
+          <Textarea value={notes} onChange={setNotes} placeholder="Conditions, notes..." rows={3}/>
+        </Field>
+        <div style={{background:C.bg,borderRadius:6,padding:'14px 16px'}}>
+          {[
+            {l:'Montant HT',v:`${fmtN(ht)} ${devise}`,c:C.text},
+            {l:`TVA (${(TVA_RATE*100).toFixed(2)}%)`,v:`${fmtN(Math.round(tvaTotal))} ${devise}`,c:C.red},
+            {l:'Montant TTC',v:`${fmtN(Math.round(ttc))} ${devise}`,c:C.blue,big:true},
+          ].map(t=>(
+            <div key={t.l} style={{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:t.big?'none':`1px solid ${C.border2}`}}>
+              <span style={{fontSize:t.big?14:12,color:C.muted,fontWeight:t.big?600:400}}>{t.l}</span>
+              <span style={{fontSize:t.big?18:13,fontWeight:t.big?800:600,color:t.c}}>{t.v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{display:'flex',gap:10,justifyContent:'flex-end',paddingTop:16,borderTop:`1px solid ${C.border2}`}}>
+        <Btn label="Annuler" onClick={onClose} ghost/>
+        <Btn label="Enregistrer brouillon" onClick={()=>save(false)} ghost icon="download"/>
+        <Btn label="Créer et envoyer" onClick={()=>save(true)} primary icon="mail"/>
+      </div>
+    </SidePanel>
+  );
+};
+
+// ===== DÉTAIL FACTURE =====
+const DetailFacture = ({facture, onClose}) => {
+  const totalPaye = facture.acomptes?.reduce((s,a)=>s+a.montant,0)||0;
+  const reste = facture.montantTTC - totalPaye;
+  return (
+    <SidePanel title={facture.numero} subtitle={facture.client} onClose={onClose} width={660}>
+      {/* Status + montant */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20,padding:'14px 16px',background:C.bg,borderRadius:6}}>
+        <div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:4}}>Montant TTC</div>
+          <div style={{fontSize:26,fontWeight:700,color:C.blue}}>{fmtN(facture.montantTTC)} {facture.devise}</div>
+        </div>
+        <Badge status={facture.status}/>
+      </div>
+
+      {/* Infos */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:20}}>
+        {[
+          {l:'Client',v:facture.client},{l:'Projet',v:facture.projet||'—'},
+          {l:'Émission',v:fmtD(facture.dateEmission)},{l:'Échéance',v:fmtD(facture.dateEcheance)},
+          {l:'Devise',v:facture.devise},{l:'Paiement',v:facture.modePaiement},
+        ].map(item=>(
+          <div key={item.l} style={{padding:'10px 12px',background:C.bg,borderRadius:4}}>
+            <div style={{fontSize:10,color:C.muted,textTransform:'uppercase',letterSpacing:0.5,marginBottom:3}}>{item.l}</div>
+            <div style={{fontSize:13,fontWeight:600,color:C.text}}>{item.v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Lignes */}
+      <div style={{marginBottom:20}}>
+        <div style={{fontSize:12,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:0.5,marginBottom:10}}>Prestations</div>
+        <QBTable
+          cols={['Description','Qté','P.U.','TVA','Total TTC']}
+          rows={facture.lignes.map(l=>{
+            const ht = l.qte*l.pu;
+            const tva = l.tva?ht*TVA_RATE:0;
+            return [l.desc, l.qte, `${fmtN(l.pu)} ${facture.devise}`, l.tva?`${(TVA_RATE*100).toFixed(2)}%`:'Exonéré', <strong style={{color:C.blue}}>{fmtN(ht+tva)} {facture.devise}</strong>];
+          })}
+        />
+      </div>
+
+      {/* Totaux */}
+      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:20}}>
+        <div style={{width:280,background:C.bg,borderRadius:6,padding:'14px 16px'}}>
+          {[
+            {l:'Montant HT',v:`${fmtN(facture.montantHT)} ${facture.devise}`,c:C.text},
+            {l:`TVA (${(TVA_RATE*100).toFixed(2)}%)`,v:`${fmtN(facture.tva)} ${facture.devise}`,c:C.red},
+            {l:'Montant TTC',v:`${fmtN(facture.montantTTC)} ${facture.devise}`,c:C.blue,big:true},
+            ...(totalPaye>0?[
+              {l:'Acomptes reçus',v:`- ${fmtN(totalPaye)} ${facture.devise}`,c:C.green},
+              {l:'Reste à payer',v:`${fmtN(reste)} ${facture.devise}`,c:C.orange,big:true},
+            ]:[]),
+          ].map(t=>(
+            <div key={t.l} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:t.big?'none':`1px solid ${C.border2}`}}>
+              <span style={{fontSize:t.big?13:12,fontWeight:t.big?600:400,color:C.muted}}>{t.l}</span>
+              <span style={{fontSize:t.big?17:13,fontWeight:t.big?800:600,color:t.c}}>{t.v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {facture.notes&&(
+        <div style={{marginBottom:16,padding:12,background:'#fffbf0',borderRadius:4,border:`1px solid ${C.border2}`,fontSize:13,color:C.text2}}>{facture.notes}</div>
+      )}
+
+      {facture.acomptes?.length>0&&(
+        <div style={{marginBottom:16,padding:12,background:C.green_bg,borderRadius:4,border:`1px solid ${C.border2}`}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.green,marginBottom:6}}>Acomptes reçus</div>
+          {facture.acomptes.map((a,i)=>(
+            <div key={i} style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
+              <span>{fmtD(a.date)} — {a.ref}</span>
+              <strong style={{color:C.green}}>{fmtN(a.montant)} {facture.devise}</strong>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{display:'flex',gap:8,flexWrap:'wrap',paddingTop:16,borderTop:`1px solid ${C.border2}`}}>
+        <Btn label="Imprimer" onClick={()=>{}} ghost icon="print" sm/>
+        <Btn label="Envoyer" onClick={()=>{}} ghost icon="mail" sm/>
+        <Btn label="Télécharger PDF" onClick={()=>{}} ghost icon="download" sm/>
+        <Btn label="Enreg. paiement" onClick={()=>{}} primary icon="check" sm/>
+        <Btn label="Dupliquer" onClick={()=>{}} ghost icon="edit" sm/>
+        <Btn label="Annuler" onClick={()=>{}} danger sm/>
+      </div>
+    </SidePanel>
+  );
+};
+
+// ===== FORMULAIRE DÉPENSE =====
+const FormulaireDépense = ({onClose, onSave}) => {
   const [fournisseur, setFournisseur] = useState('');
   const [description, setDescription] = useState('');
-  const [categorie, setCategorie] = useState('Équipements');
+  const [categorie, setCategorie] = useState('');
   const [montant, setMontant] = useState('');
   const [devise, setDevise] = useState('FCFA');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [projet, setProjet] = useState('');
   const [bc, setBc] = useState('');
-  const [notes, setNotes] = useState('');
-  const [lignes, setLignes] = useState([{ desc: '', qte: 1, pu: 0 }]);
+  const [lignes, setLignes] = useState([{desc:'',qte:1,pu:0}]);
 
-  const FOURNISSEURS = ['Huawei Technologies','Nokia Networks','Ericsson','Total Énergies','CAMTEL','MTN Cameroun','Orange Cameroun','Fournisseur local'];
-  const CATEGORIES = ['Équipements','Transport','Hébergement','Matériel','Télécoms','Maintenance','Per diem','Sous-traitance','Loyer','Autres'];
-  const PROJETS_LIST = ['DLA-001','YDE-001','KRI-001','GAR-001','LIM-001','BFN-001','Général'];
+  const addL = () => setLignes(p=>[...p,{desc:'',qte:1,pu:0}]);
+  const updL = (i,k,v) => setLignes(p=>p.map((l,idx)=>idx===i?{...l,[k]:v}:l));
+  const delL = (i) => setLignes(p=>p.filter((_,idx)=>idx!==i));
+  const total = lignes.reduce((s,l)=>s+l.qte*l.pu,0);
 
-  const addLigne = () => setLignes(p => [...p, { desc: '', qte: 1, pu: 0 }]);
-  const updLigne = (i, k, v) => setLignes(p => p.map((l, idx) => idx === i ? { ...l, [k]: v } : l));
-  const delLigne = (i) => setLignes(p => p.filter((_, idx) => idx !== i));
-  const total = lignes.reduce((s, l) => s + l.qte * l.pu, 0);
-
-  const handleSave = () => {
+  const save = () => {
     if (!fournisseur) { alert('Fournisseur obligatoire'); return; }
-    onSave({
-      id: Date.now(),
-      numero: 'DEP-' + new Date().getFullYear() + '-' + String(Math.floor(Math.random() * 900 + 100)),
-      fournisseur, description, categorie,
-      montant: total || Number(montant),
-      devise, date, projet, bc, notes,
-      status: 'en_attente',
-      lignes,
-    });
+    onSave({id:Date.now(),numero:`DEP-${new Date().getFullYear()}-${String(Math.floor(Math.random()*900+100))}`,fournisseur,description,categorie,montant:total||Number(montant)||0,devise,date,projet,bc,status:'en_attente',lignes});
     onClose();
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 860, maxHeight: '92vh', overflow: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
-        <div style={{ background: 'linear-gradient(135deg,#0f172a,#dc2626)', padding: '22px 28px', borderRadius: '20px 20px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 1 }}>Nouveau document</div>
-            <div style={{ fontSize: 22, fontWeight: 900, color: 'white' }}>Enregistrer une dépense</div>
-          </div>
-          <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', cursor: 'pointer', fontSize: 18 }}>✕</button>
-        </div>
-        <div style={{ padding: 28 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 22 }}>
-            {[
-              { label: 'Fournisseur *', type: 'select', value: fournisseur, set: setFournisseur, options: FOURNISSEURS },
-              { label: 'Catégorie *', type: 'select', value: categorie, set: setCategorie, options: CATEGORIES },
-              { label: 'Devise', type: 'select', value: devise, set: setDevise, options: ['FCFA','USD','EUR','CNY'] },
-              { label: 'Date *', type: 'date', value: date, set: setDate },
-              { label: 'Projet', type: 'select', value: projet, set: setProjet, options: PROJETS_LIST },
-              { label: 'Bon de commande', type: 'text', value: bc, set: setBc, placeholder: 'BC-2024-XXX' },
-            ].map(f => (
-              <div key={f.label}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>{f.label}</label>
-                {f.type === 'select' ? (
-                  <select value={f.value} onChange={e => f.set(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 13, color: '#111827', background: '#f9fafb' }}>
-                    <option value="">Sélectionner...</option>
-                    {f.options.map(o => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                ) : (
-                  <input type={f.type} value={f.value} onChange={e => f.set(e.target.value)} placeholder={f.placeholder || ''} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 13, color: '#111827', background: '#f9fafb', boxSizing: 'border-box' }} />
-                )}
-              </div>
-            ))}
-          </div>
+    <SidePanel title="Nouvelle dépense" subtitle="Enregistrer" onClose={onClose} width={700}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
+        <Field label="Fournisseur" required>
+          <Select value={fournisseur} onChange={setFournisseur} options={FOURNISSEURS_LIST} placeholder="Sélectionner"/>
+        </Field>
+        <Field label="Catégorie" required>
+          <Select value={categorie} onChange={setCategorie} options={CATEGORIES_DEP} placeholder="Catégorie"/>
+        </Field>
+        <Field label="Date" required>
+          <Input type="date" value={date} onChange={setDate}/>
+        </Field>
+        <Field label="Devise">
+          <Select value={devise} onChange={setDevise} options={DEVISES_LIST}/>
+        </Field>
+        <Field label="Projet lié">
+          <Select value={projet} onChange={setProjet} options={[...PROJETS_LIST,'Général']} placeholder="Aucun"/>
+        </Field>
+        <Field label="Bon de commande">
+          <Input value={bc} onChange={setBc} placeholder="BC-2024-XXX"/>
+        </Field>
+        <Field label="Description" col1>
+          <Input value={description} onChange={setDescription} placeholder="Description de la dépense"/>
+        </Field>
+      </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>Description</label>
-            <input value={description} onChange={e => setDescription(e.target.value)} placeholder="Description de la dépense" style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 13, boxSizing: 'border-box' }} />
-          </div>
-
-          <h4 style={{ fontSize: 12, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 }}>Lignes de dépense</h4>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 10 }}>
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:12,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:0.5,marginBottom:10}}>Lignes de dépense</div>
+        <div style={{border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden'}}>
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
             <thead>
-              <tr style={{ background: '#f8fafc' }}>
-                {['Description', 'Qté', 'Prix unitaire', 'Total', ''].map(h => <Th key={h}>{h}</Th>)}
+              <tr style={{background:C.bg,borderBottom:`1px solid ${C.border}`}}>
+                {['Description','Qté','Prix unitaire','Total',''].map(h=>(
+                  <th key={h} style={{padding:'8px 12px',textAlign:'left',fontSize:11,fontWeight:700,color:C.muted,textTransform:'uppercase'}}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {lignes.map((l, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <Td><input value={l.desc} onChange={e => updLigne(i, 'desc', e.target.value)} placeholder="Description" style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13 }} /></Td>
-                  <Td><input type="number" min="0" value={l.qte} onChange={e => updLigne(i, 'qte', +e.target.value)} style={{ width: 65, padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13, textAlign: 'center' }} /></Td>
-                  <Td><input type="number" min="0" value={l.pu} onChange={e => updLigne(i, 'pu', +e.target.value)} style={{ width: 130, padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13 }} /></Td>
-                  <Td style={{ fontWeight: 700, color: '#dc2626' }}>{fmtN(l.qte * l.pu)} {devise}</Td>
-                  <Td>{lignes.length > 1 && <button onClick={() => delLigne(i)} style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', fontSize: 14 }}>✕</button>}</Td>
+              {lignes.map((l,i)=>(
+                <tr key={i} style={{borderBottom:`1px solid ${C.border2}`}}>
+                  <td style={{padding:'6px 8px'}}><Input value={l.desc} onChange={v=>updL(i,'desc',v)} placeholder="Description" small/></td>
+                  <td style={{padding:'6px 8px',width:60}}><Input type="number" value={l.qte} onChange={v=>updL(i,'qte',+v)} small/></td>
+                  <td style={{padding:'6px 8px',width:130}}><Input type="number" value={l.pu} onChange={v=>updL(i,'pu',+v)} small/></td>
+                  <td style={{padding:'6px 12px',fontSize:13,fontWeight:600,color:C.red,width:130}}>{fmtN(l.qte*l.pu)} {devise}</td>
+                  <td style={{padding:'6px 8px',width:30}}>
+                    {lignes.length>1&&<button onClick={()=>delL(i)} style={{width:24,height:24,borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><Ico name="close" size={12} color={C.muted}/></button>}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <button onClick={addLigne} style={{ padding: '8px 16px', borderRadius: 10, border: '1px dashed #dc2626', background: '#fef2f2', color: '#dc2626', fontWeight: 700, fontSize: 13, cursor: 'pointer', marginBottom: 20 }}>+ Ajouter une ligne</button>
+          <div style={{padding:'8px 12px',borderTop:`1px solid ${C.border2}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <Btn label="+ Ajouter une ligne" onClick={addL} ghost sm/>
+            <span style={{fontSize:14,fontWeight:700,color:C.red}}>{fmtN(total||Number(montant)||0)} {devise}</span>
+          </div>
+        </div>
+      </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 22 }}>
-            <div>
-              <label style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 6 }}>Notes</label>
-              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Notes, justification..." style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e5e7eb', fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+      {total===0&&(
+        <div style={{marginBottom:16}}>
+          <Field label="Montant direct (si pas de lignes)">
+            <Input type="number" value={montant} onChange={setMontant} placeholder="0"/>
+          </Field>
+        </div>
+      )}
+
+      <div style={{display:'flex',gap:10,justifyContent:'flex-end',paddingTop:16,borderTop:`1px solid ${C.border2}`}}>
+        <Btn label="Annuler" onClick={onClose} ghost/>
+        <Btn label="Enregistrer dépense" onClick={save} primary icon="check"/>
+      </div>
+    </SidePanel>
+  );
+};
+
+// ===== DASHBOARD QB =====
+const Dashboard = ({factures, depenses, onNavigate}) => {
+  const totalCA = factures.reduce((s,f)=>s+f.montantTTC,0);
+  const totalPaye = factures.filter(f=>f.status==='paye').reduce((s,f)=>s+f.montantTTC,0);
+  const totalImpaye = factures.filter(f=>['envoye','partiel','en_retard'].includes(f.status)).reduce((s,f)=>s+f.montantTTC,0);
+  const totalDep = depenses.reduce((s,d)=>s+(d.devise==='FCFA'?d.montant:d.montant*DEVISES_RATES[d.devise]||d.montant),0);
+  const benefice = totalPaye - totalDep;
+  const maxFlow = Math.max(...CASHFLOW.map(c=>Math.max(c.e,c.s)));
+
+  return (
+    <div>
+      {/* KPI Cards */}
+      <div style={{display:'flex',gap:14,marginBottom:24,flexWrap:'wrap'}}>
+        <KpiCard title="Revenus (facturé)" amount={`${fmtN(totalCA)} FCFA`} sub={`${fmtN(totalPaye)} FCFA encaissé`} trend={12} color={C.blue} sparkData={CASHFLOW.map(c=>c.e)} onClick={()=>onNavigate('factures')}/>
+        <KpiCard title="Dépenses" amount={`${fmtN(totalDep)} FCFA`} sub={`${depenses.filter(d=>d.status==='en_attente').length} en attente`} trend={5} color={C.red} sparkData={CASHFLOW.map(c=>c.s)} onClick={()=>onNavigate('depenses')}/>
+        <KpiCard title="Bénéfice net" amount={`${fmtN(benefice)} FCFA`} sub={`${Math.round(benefice/totalCA*100)}% de marge`} trend={15} color={benefice>=0?C.green:C.red} sparkData={CASHFLOW.map((c,i)=>c.e-c.s)}/>
+        <KpiCard title="À encaisser" amount={`${fmtN(totalImpaye)} FCFA`} sub={`${factures.filter(f=>f.status==='en_retard').length} en retard`} color={C.orange} onClick={()=>onNavigate('factures')}/>
+      </div>
+
+      {/* Graphiques */}
+      <div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:18,marginBottom:24}}>
+        {/* Profit & Loss */}
+        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,padding:20}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+            <h3 style={{margin:0,fontSize:15,fontWeight:700,color:C.text}}>Profit & Loss — 6 mois</h3>
+            <div style={{display:'flex',gap:14,fontSize:12,color:C.muted}}>
+              <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:10,background:C.blue,borderRadius:2,display:'inline-block'}}/>Revenus</span>
+              <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:10,background:C.red,borderRadius:2,display:'inline-block'}}/>Dépenses</span>
+              <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:10,background:C.green,borderRadius:2,display:'inline-block'}}/>Bénéfice</span>
             </div>
-            <div style={{ background: '#fef2f2', borderRadius: 14, padding: 18 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Total dépense</div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: '#dc2626' }}>{fmtN(total || Number(montant))} {devise}</div>
-              {total === 0 && (
-                <div style={{ marginTop: 10 }}>
-                  <label style={{ fontSize: 11, color: '#6b7280', display: 'block', marginBottom: 5 }}>Ou saisir montant direct</label>
-                  <input type="number" value={montant} onChange={e => setMontant(e.target.value)} placeholder="0" style={{ width: '100%', padding: '9px 12px', borderRadius: 9, border: '1.5px solid #e5e7eb', fontSize: 15, fontWeight: 700, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{display:'flex',alignItems:'flex-end',gap:8,height:150}}>
+            {CASHFLOW.map((c,i)=>{
+              const marge = c.e-c.s;
+              return (
+                <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+                  <div style={{width:'100%',display:'flex',gap:2,alignItems:'flex-end',height:120}}>
+                    <div style={{flex:1,height:`${(c.e/maxFlow)*120}px`,background:C.blue,borderRadius:'2px 2px 0 0',opacity:0.85}}/>
+                    <div style={{flex:1,height:`${(c.s/maxFlow)*120}px`,background:C.red,borderRadius:'2px 2px 0 0',opacity:0.75}}/>
+                    <div style={{flex:1,height:`${Math.max(0,(marge/maxFlow)*120)}px`,background:C.green,borderRadius:'2px 2px 0 0',opacity:0.85}}/>
+                  </div>
+                  <span style={{fontSize:10,color:C.muted,fontWeight:600}}>{c.mois}</span>
                 </div>
-              )}
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Comptes bancaires */}
+        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden'}}>
+          <div style={{padding:'14px 18px',borderBottom:`1px solid ${C.border2}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <h3 style={{margin:0,fontSize:14,fontWeight:700,color:C.text}}>Comptes bancaires</h3>
+            <button onClick={()=>onNavigate('tresorerie')} style={{fontSize:12,color:C.green,background:'none',border:'none',cursor:'pointer',fontWeight:600}}>Voir tout</button>
+          </div>
+          {[
+            {nom:'BICEC Principal',solde:28450000},
+            {nom:'SGC Secondaire',solde:12800000},
+            {nom:'Caisse',solde:1250000},
+          ].map((b,i)=>(
+            <div key={i} style={{padding:'12px 18px',borderBottom:`1px solid ${C.border2}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <div style={{width:34,height:34,borderRadius:4,background:C.blue_bg,display:'flex',alignItems:'center',justifyContent:'center'}}><Ico name="bank" size={16} color={C.blue}/></div>
+                <span style={{fontSize:13,fontWeight:500,color:C.text}}>{b.nom}</span>
+              </div>
+              <span style={{fontSize:14,fontWeight:700,color:C.green}}>{fmtN(b.solde)} FCFA</span>
+            </div>
+          ))}
+          <div style={{padding:'12px 18px',background:C.green_bg,borderTop:`2px solid ${C.green}`}}>
+            <div style={{display:'flex',justifyContent:'space-between'}}>
+              <span style={{fontSize:13,fontWeight:700,color:C.green}}>Solde total</span>
+              <span style={{fontSize:16,fontWeight:800,color:C.green}}>{fmtN(42500000)} FCFA</span>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button onClick={onClose} style={{ padding: '12px 24px', borderRadius: 12, border: '1.5px solid #e5e7eb', background: 'white', color: '#6b7280', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Annuler</button>
-            <button onClick={handleSave} style={{ padding: '12px 24px', borderRadius: 12, border: 'none', background: '#dc2626', color: 'white', fontWeight: 800, fontSize: 14, cursor: 'pointer' }}>💾 Enregistrer dépense</button>
+      {/* Factures récentes + Dépenses récentes */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18}}>
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <h3 style={{margin:0,fontSize:14,fontWeight:700,color:C.text}}>Factures récentes</h3>
+            <button onClick={()=>onNavigate('factures')} style={{fontSize:12,color:C.green,background:'none',border:'none',cursor:'pointer',fontWeight:600}}>Voir tout</button>
           </div>
+          <QBTable
+            cols={['Client','Montant','Échéance','Statut']}
+            rows={factures.slice(0,4).map(f=>[
+              <span style={{fontWeight:500}}>{f.client}</span>,
+              <span style={{fontWeight:600,color:C.blue}}>{fmtN(f.montantTTC)}</span>,
+              <span style={{fontSize:12,color:new Date(f.dateEcheance)<new Date()&&f.status!=='paye'?C.red:C.muted}}>{fmtD(f.dateEcheance)}</span>,
+              <Badge status={f.status}/>
+            ])}
+            onRowClick={()=>onNavigate('factures')}
+          />
+        </div>
+        <div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+            <h3 style={{margin:0,fontSize:14,fontWeight:700,color:C.text}}>Dépenses récentes</h3>
+            <button onClick={()=>onNavigate('depenses')} style={{fontSize:12,color:C.green,background:'none',border:'none',cursor:'pointer',fontWeight:600}}>Voir tout</button>
+          </div>
+          <QBTable
+            cols={['Fournisseur','Catégorie','Montant','Statut']}
+            rows={depenses.slice(0,4).map(d=>[
+              <span style={{fontWeight:500}}>{d.fournisseur}</span>,
+              <span style={{fontSize:12,color:C.muted}}>{d.categorie}</span>,
+              <span style={{fontWeight:600,color:C.red}}>{fmtN(d.montant)}</span>,
+              <Badge status={d.status}/>
+            ])}
+            onRowClick={()=>onNavigate('depenses')}
+          />
         </div>
       </div>
     </div>
   );
 };
 
-// ===== VUE DÉPENSES COMPLÈTE =====
-const VueDepenses = ({ depenses, setDepenses }) => {
+// ===== VUE FACTURES =====
+const VueFactures = ({factures, setFactures}) => {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('tous');
-  const [filterCategorie, setFilterCategorie] = useState('tous');
-  const [showNew, setShowNew] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [showNew, setShowNew] = useState(false);
 
-  const categories = [...new Set(depenses.map(d => d.categorie))];
-  const filtered = depenses.filter(d => {
-    const ms = !search || d.fournisseur.toLowerCase().includes(search.toLowerCase()) || d.description.toLowerCase().includes(search.toLowerCase()) || d.numero.toLowerCase().includes(search.toLowerCase());
-    const mf = filterStatus === 'tous' || d.status === filterStatus;
-    const mc = filterCategorie === 'tous' || d.categorie === filterCategorie;
-    return ms && mf && mc;
+  const filtered = factures.filter(f=>{
+    const ms = !search||f.client.toLowerCase().includes(search.toLowerCase())||f.numero.toLowerCase().includes(search.toLowerCase());
+    const mf = filterStatus==='tous'||f.status===filterStatus;
+    return ms&&mf;
   });
 
-  const totalPaye = filtered.filter(d => d.status === 'paye').reduce((s, d) => s + (d.devise === 'FCFA' ? d.montant : d.montant * DEVISES_RATES[d.devise]), 0);
-  const totalAttente = filtered.filter(d => d.status === 'en_attente').reduce((s, d) => s + (d.devise === 'FCFA' ? d.montant : d.montant * DEVISES_RATES[d.devise]), 0);
-  const totalGeneral = filtered.reduce((s, d) => s + (d.devise === 'FCFA' ? d.montant : d.montant * DEVISES_RATES[d.devise]), 0);
+  const stats = {
+    total: filtered.reduce((s,f)=>s+f.montantTTC,0),
+    paye: filtered.filter(f=>f.status==='paye').reduce((s,f)=>s+f.montantTTC,0),
+    retard: filtered.filter(f=>f.status==='en_retard').reduce((s,f)=>s+f.montantTTC,0),
+    attente: filtered.filter(f=>['envoye','partiel'].includes(f.status)).length,
+  };
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        {[
-          { l: 'Total dépenses', v: fmtN(totalGeneral) + ' FCFA', c: '#dc2626' },
-          { l: 'Payées', v: fmtN(totalPaye) + ' FCFA', c: '#16a34a' },
-          { l: 'En attente', v: fmtN(totalAttente) + ' FCFA', c: '#d97706' },
-          { l: 'Nombre total', v: filtered.length + ' dépenses', c: '#6b7280' },
-        ].map(k => (
-          <div key={k.l} style={{ flex: 1, minWidth: 160, background: 'white', borderRadius: 12, padding: '14px 16px', borderLeft: '3px solid ' + k.c, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-            <div style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{k.l}</div>
-            <div style={{ fontSize: 17, fontWeight: 900, color: k.c }}>{k.v}</div>
+      <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap'}}>
+        <KpiCard title="Total TTC" amount={`${fmtN(stats.total)} FCFA`} color={C.blue}/>
+        <KpiCard title="Encaissé" amount={`${fmtN(stats.paye)} FCFA`} color={C.green}/>
+        <KpiCard title="En retard" amount={`${fmtN(stats.retard)} FCFA`} color={C.red}/>
+        <KpiCard title="En attente" amount={stats.attente} sub="factures" color={C.orange}/>
+      </div>
+
+      <div style={{display:'flex',gap:10,marginBottom:16,alignItems:'center',flexWrap:'wrap'}}>
+        <div style={{flex:1,minWidth:220,display:'flex',alignItems:'center',gap:8,background:C.white,border:`1px solid ${C.border}`,borderRadius:4,padding:'8px 12px'}}>
+          <Ico name="search" size={16} color={C.muted}/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Client, numéro de facture..."
+            style={{flex:1,border:'none',outline:'none',fontSize:13,color:C.text,background:'transparent',fontFamily:'inherit'}}/>
+        </div>
+        <div style={{display:'flex',background:C.white,border:`1px solid ${C.border}`,borderRadius:4,padding:2,gap:2}}>
+          {['tous','brouillon','envoye','partiel','paye','en_retard'].map(s=>(
+            <button key={s} onClick={()=>setFilterStatus(s)} style={{padding:'6px 12px',borderRadius:3,border:'none',background:filterStatus===s?C.green:'transparent',color:filterStatus===s?C.white:C.muted,fontWeight:filterStatus===s?700:400,fontSize:12,cursor:'pointer',whiteSpace:'nowrap',fontFamily:'inherit'}}>
+              {s==='tous'?'Toutes':s==='brouillon'?'Brouillon':s==='envoye'?'Envoyées':s==='partiel'?'Partielles':s==='paye'?'Payées':'En retard'}
+            </button>
+          ))}
+        </div>
+        <Btn label="Exporter" onClick={()=>{}} ghost icon="download" sm/>
+        <Btn label="Nouvelle facture" onClick={()=>setShowNew(true)} primary icon="plus"/>
+      </div>
+
+      <QBTable
+        cols={['Numéro','Client','Projet','Montant HT','TVA','Montant TTC','Devise','Émission','Échéance','Statut','']}
+        rows={filtered.map(f=>[
+          <span style={{fontWeight:700,color:C.blue,fontFamily:'monospace',cursor:'pointer'}} onClick={()=>setSelected(f)}>{f.numero}</span>,
+          <span style={{fontWeight:500}}>{f.client}</span>,
+          <span style={{fontSize:12,color:C.muted}}>{f.projet||'—'}</span>,
+          fmtN(f.montantHT),
+          <span style={{color:C.red}}>{fmtN(f.tva)}</span>,
+          <strong style={{color:C.text}}>{fmtN(f.montantTTC)}</strong>,
+          <span style={{padding:'2px 7px',borderRadius:10,background:f.devise==='FCFA'?C.blue_bg:f.devise==='USD'?C.green_bg:C.orange_bg,color:f.devise==='FCFA'?C.blue:f.devise==='USD'?C.green:C.orange,fontSize:11,fontWeight:700}}>{f.devise}</span>,
+          <span style={{fontSize:12,color:C.muted}}>{fmtD(f.dateEmission)}</span>,
+          <span style={{fontSize:12,fontWeight:new Date(f.dateEcheance)<new Date()&&f.status!=='paye'?700:400,color:new Date(f.dateEcheance)<new Date()&&f.status!=='paye'?C.red:C.muted}}>{fmtD(f.dateEcheance)}</span>,
+          <Badge status={f.status}/>,
+          <div style={{display:'flex',gap:4}}>
+            {[{n:'eye',a:()=>setSelected(f)},{n:'edit',a:()=>{}},{n:'mail',a:()=>{}},{n:'print',a:()=>{}}].map(({n,a})=>(
+              <button key={n} onClick={a} style={{width:28,height:28,borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><Ico name={n} size={13} color={C.muted}/></button>
+            ))}
           </div>
-        ))}
-      </div>
+        ])}
+        onRowClick={i=>setSelected(filtered[i])}
+      />
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ flex: 1, minWidth: 220, display: 'flex', alignItems: 'center', gap: 8, background: 'white', borderRadius: 11, padding: '9px 13px', border: '1px solid #e5e7eb' }}>
-          <span style={{ color: '#9ca3af' }}>🔍</span>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Fournisseur, référence, description..." style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13, color: '#111827' }} />
-        </div>
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ padding: '9px 13px', borderRadius: 11, border: '1px solid #e5e7eb', fontSize: 13, color: '#374151', background: 'white', cursor: 'pointer' }}>
-          <option value="tous">Tous statuts</option>
-          <option value="paye">Payées</option>
-          <option value="en_attente">En attente</option>
-          <option value="valide">Validées</option>
-          <option value="rejete">Rejetées</option>
-        </select>
-        <select value={filterCategorie} onChange={e => setFilterCategorie(e.target.value)} style={{ padding: '9px 13px', borderRadius: 11, border: '1px solid #e5e7eb', fontSize: 13, color: '#374151', background: 'white', cursor: 'pointer' }}>
-          <option value="tous">Toutes catégories</option>
-          {categories.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <button style={{ padding: '9px 14px', borderRadius: 11, border: '1px solid #e5e7eb', background: 'white', color: '#374151', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>📥 Exporter</button>
-        <button onClick={() => setShowNew(true)} style={{ padding: '10px 18px', borderRadius: 11, border: 'none', background: '#dc2626', color: 'white', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>+ Nouvelle dépense</button>
-      </div>
-
-      <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e5e7eb', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
-            <thead>
-              <tr>{['Référence', 'Fournisseur', 'Description', 'Catégorie', 'Projet', 'Montant', 'Devise', 'Date', 'BC', 'Statut', 'Actions'].map(h => <Th key={h}>{h}</Th>)}</tr>
-            </thead>
-            <tbody>
-              {filtered.map((d, i) => (
-                <tr key={d.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? 'white' : '#fafbfc', cursor: 'pointer' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
-                  onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? 'white' : '#fafbfc'}>
-                  <Td style={{ fontWeight: 700, color: '#dc2626', fontFamily: 'monospace' }}>{d.numero}</Td>
-                  <Td style={{ fontWeight: 600 }}>{d.fournisseur}</Td>
-                  <Td style={{ color: '#6b7280', fontSize: 12 }}>{d.description}</Td>
-                  <Td><span style={{ padding: '2px 8px', borderRadius: 6, background: '#f3f4f6', fontSize: 11, fontWeight: 600 }}>{d.categorie}</span></Td>
-                  <Td style={{ color: '#1d4ed8', fontWeight: 600 }}>{d.projet}</Td>
-                  <Td style={{ fontWeight: 800, color: '#111827' }}>{fmtN(d.montant)}</Td>
-                  <Td><DeviseTag devise={d.devise} /></Td>
-                  <Td style={{ fontSize: 12 }}>{fmtDate(d.date)}</Td>
-                  <Td style={{ fontSize: 11, color: '#6b7280', fontFamily: 'monospace' }}>{d.bc || '—'}</Td>
-                  <Td><StatusBadge status={d.status} /></Td>
-                  <Td>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {[['👁', 'Voir'], ['✏️', 'Modifier'], ['✅', 'Valider'], ['❌', 'Rejeter']].map(([icon, title]) => (
-                        <button key={title} title={title}
-                          onClick={() => { if (icon === '✅') setDepenses(p => p.map(dep => dep.id === d.id ? { ...dep, status: 'paye' } : dep)); if (icon === '❌') setDepenses(p => p.map(dep => dep.id === d.id ? { ...dep, status: 'rejete' } : dep)); }}
-                          style={{ width: 28, height: 28, borderRadius: 7, border: '1px solid #e5e7eb', background: 'white', cursor: 'pointer', fontSize: 13 }}>{icon}</button>
-                      ))}
-                    </div>
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af' }}><div style={{ fontSize: 36, marginBottom: 8 }}>💸</div><div>Aucune dépense trouvée</div></div>}
-        </div>
-      </div>
-      {showNew && <NouvelleDepenseModal onClose={() => setShowNew(false)} onSave={d => setDepenses(p => [d, ...p])} />}
+      {selected&&<DetailFacture facture={selected} onClose={()=>setSelected(null)}/>}
+      {showNew&&<FormulaireFacture onClose={()=>setShowNew(false)} onSave={f=>setFactures(p=>[f,...p])}/>}
     </div>
   );
 };
 
-// ===== VUE FOURNISSEURS COMPLÈTE =====
-const FOURNISSEURS_DATA = [
-  { id: 1, nom: 'Huawei Technologies', pays: 'Chine', contact: 'Li Wei', email: 'lwei@huawei.com', telephone: '+86 755 2878 0808', devise: 'CNY', categorie: 'Équipements télécoms', totalAchats: 85000000, solde: -8500000, status: 'actif', projets: ['DLA-001', 'KRI-001'], siret: 'HW-CM-001', rib: 'CN89 ICBC 1234 5678 9012' },
-  { id: 2, nom: 'Nokia Networks', pays: 'Finlande', contact: 'Mikael Virtanen', email: 'm.virtanen@nokia.com', telephone: '+358 10 448 8000', devise: 'EUR', categorie: 'Équipements télécoms', totalAchats: 45000000, solde: -12000000, status: 'actif', projets: ['YDE-001', 'LIM-001'], siret: 'NK-CM-002', rib: 'FI21 1234 5600 0007 85' },
-  { id: 3, nom: 'Ericsson Cameroun', pays: 'Cameroun', contact: 'Paul Biya Jr', email: 'p.biya@ericsson.cm', telephone: '+237 222 200 001', devise: 'FCFA', categorie: 'Équipements télécoms', totalAchats: 32000000, solde: 0, status: 'actif', projets: ['GAR-001'], siret: 'ER-CM-003', rib: 'CM21 1001 2345 6789 0123' },
-  { id: 4, nom: 'Total Énergies', pays: 'Cameroun', contact: 'Jean Mfou', email: 'j.mfou@total.cm', telephone: '+237 222 300 200', devise: 'FCFA', categorie: 'Transport & Carburant', totalAchats: 8500000, solde: 0, status: 'actif', projets: ['Général'], siret: 'TE-CM-004', rib: 'CM21 1001 9876 5432 1098' },
-  { id: 5, nom: 'CAMTEL', pays: 'Cameroun', contact: 'David Minlo', email: 'd.minlo@camtel.cm', telephone: '+237 222 400 000', devise: 'FCFA', categorie: 'Télécommunications', totalAchats: 12000000, solde: -1200000, status: 'actif', projets: ['Général'], siret: 'CT-CM-005', rib: 'CM21 2001 1111 2222 3333' },
-];
+// ===== VUE DÉPENSES =====
+const VueDepenses = ({depenses, setDepenses}) => {
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('tous');
+  const [showNew, setShowNew] = useState(false);
 
+  const filtered = depenses.filter(d=>{
+    const ms = !search||d.fournisseur.toLowerCase().includes(search.toLowerCase())||d.description.toLowerCase().includes(search.toLowerCase());
+    const mf = filterStatus==='tous'||d.status===filterStatus;
+    return ms&&mf;
+  });
 
-const VuePlanComptable = () => {
-  const [expanded, setExpanded] = useState({});
-  const toggle = (k) => setExpanded(p => ({...p,[k]:!p[k]}));
+  const totalFCFA = filtered.reduce((s,d)=>s+(d.devise==='FCFA'?d.montant:d.montant*DEVISES_RATES[d.devise]||d.montant),0);
+
   return (
     <div>
-      <div style={{ background:'white', borderRadius:16, border:'1px solid #e5e7eb', overflow:'hidden', boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
-        <div style={{ padding:'16px 20px', borderBottom:'1px solid #e5e7eb', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <h3 style={{ margin:0, fontSize:15, fontWeight:800, color:'#111827' }}>Plan Comptable OHADA — CleanIT ERP</h3>
-          <div style={{ display:'flex', gap:8 }}>
-            <button style={{ padding:'7px 14px', borderRadius:9, border:'1px solid #e5e7eb', background:'white', color:'#374151', fontWeight:700, fontSize:12, cursor:'pointer' }}>Exporter Excel</button>
-            <button style={{ padding:'7px 14px', borderRadius:9, border:'none', background:'#1d4ed8', color:'white', fontWeight:700, fontSize:12, cursor:'pointer' }}>+ Nouveau compte</button>
+      <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap'}}>
+        <KpiCard title="Total dépenses" amount={`${fmtN(totalFCFA)} FCFA`} color={C.red}/>
+        <KpiCard title="Payées" amount={`${fmtN(filtered.filter(d=>d.status==='paye').reduce((s,d)=>s+(d.devise==='FCFA'?d.montant:d.montant*DEVISES_RATES[d.devise]||d.montant),0))} FCFA`} color={C.green}/>
+        <KpiCard title="En attente" amount={filtered.filter(d=>d.status==='en_attente').length} sub="dépenses" color={C.orange}/>
+        <KpiCard title="Fournisseurs" amount={new Set(filtered.map(d=>d.fournisseur)).size} sub="actifs" color={C.blue}/>
+      </div>
+
+      <div style={{display:'flex',gap:10,marginBottom:16,alignItems:'center',flexWrap:'wrap'}}>
+        <div style={{flex:1,minWidth:220,display:'flex',alignItems:'center',gap:8,background:C.white,border:`1px solid ${C.border}`,borderRadius:4,padding:'8px 12px'}}>
+          <Ico name="search" size={16} color={C.muted}/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Fournisseur, description..."
+            style={{flex:1,border:'none',outline:'none',fontSize:13,color:C.text,background:'transparent',fontFamily:'inherit'}}/>
+        </div>
+        <div style={{display:'flex',background:C.white,border:`1px solid ${C.border}`,borderRadius:4,padding:2,gap:2}}>
+          {[{v:'tous',l:'Toutes'},{v:'paye',l:'Payées'},{v:'en_attente',l:'En attente'},{v:'rejete',l:'Rejetées'}].map(s=>(
+            <button key={s.v} onClick={()=>setFilterStatus(s.v)} style={{padding:'6px 12px',borderRadius:3,border:'none',background:filterStatus===s.v?C.green:'transparent',color:filterStatus===s.v?C.white:C.muted,fontWeight:filterStatus===s.v?700:400,fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>{s.l}</button>
+          ))}
+        </div>
+        <Btn label="Exporter" onClick={()=>{}} ghost icon="download" sm/>
+        <Btn label="Nouvelle dépense" onClick={()=>setShowNew(true)} primary icon="plus"/>
+      </div>
+
+      <QBTable
+        cols={['Référence','Fournisseur','Description','Catégorie','Projet','Montant','Devise','Date','Statut','']}
+        rows={filtered.map(d=>[
+          <span style={{fontWeight:700,color:C.red,fontFamily:'monospace'}}>{d.numero}</span>,
+          <span style={{fontWeight:500}}>{d.fournisseur}</span>,
+          <span style={{fontSize:12,color:C.muted}}>{d.description}</span>,
+          <span style={{padding:'2px 8px',borderRadius:10,background:C.bg,fontSize:11,fontWeight:600,color:C.text2}}>{d.categorie}</span>,
+          <span style={{fontSize:12,color:C.blue,fontWeight:500}}>{d.projet}</span>,
+          <strong style={{color:C.text}}>{fmtN(d.montant)}</strong>,
+          <span style={{padding:'2px 7px',borderRadius:10,background:C.green_bg,color:C.green,fontSize:11,fontWeight:700}}>{d.devise}</span>,
+          <span style={{fontSize:12,color:C.muted}}>{fmtD(d.date)}</span>,
+          <Badge status={d.status}/>,
+          <div style={{display:'flex',gap:4}}>
+            <button onClick={()=>setDepenses(p=>p.map(dep=>dep.id===d.id?{...dep,status:'paye'}:dep))} style={{width:28,height:28,borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><Ico name="check" size={13} color={C.green}/></button>
+            <button onClick={()=>setDepenses(p=>p.map(dep=>dep.id===d.id?{...dep,status:'rejete'}:dep))} style={{width:28,height:28,borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><Ico name="close" size={13} color={C.red}/></button>
+          </div>
+        ])}
+      />
+
+      {showNew&&<FormulaireDépense onClose={()=>setShowNew(false)} onSave={d=>setDepenses(p=>[d,...p])}/>}
+    </div>
+  );
+};
+
+// ===== VUE RAPPORTS P&L =====
+const VueRapports = ({factures, depenses}) => {
+  const [periode, setPeriode] = useState('2024');
+  const totalCA = factures.reduce((s,f)=>s+f.montantHT,0);
+  const totalCharges = depenses.reduce((s,d)=>s+(d.devise==='FCFA'?d.montant:d.montant*DEVISES_RATES[d.devise]||d.montant),0);
+  const salaires = 18200000;
+  const loyers = 3600000;
+  const amort = 3200000;
+  const autresProduits = 2500000;
+  const totalProduits = totalCA + autresProduits;
+  const totalChargesTotal = totalCharges + salaires + loyers + amort;
+  const resultat = totalProduits - totalChargesTotal;
+
+  const PRODUITS = [
+    {compte:'701',libelle:'Chiffre d\'affaires prestations',montant:totalCA},
+    {compte:'706',libelle:'Autres produits exploitation',montant:autresProduits},
+  ];
+  const CHARGES = [
+    {compte:'601',libelle:'Achats matières et sous-traitance',montant:Math.round(totalCharges*0.6)},
+    {compte:'613',libelle:'Services extérieurs',montant:Math.round(totalCharges*0.25)},
+    {compte:'624',libelle:'Transports et déplacements',montant:Math.round(totalCharges*0.15)},
+    {compte:'641',libelle:'Charges de personnel',montant:salaires},
+    {compte:'613',libelle:'Charges locatives',montant:loyers},
+    {compte:'681',libelle:'Dotations amortissements',montant:amort},
+  ];
+
+  const TVA_collectee = factures.reduce((s,f)=>s+f.tva,0);
+  const TVA_deductible = depenses.filter(d=>d.devise==='FCFA'&&d.status==='paye').reduce((s,d)=>s+d.montant*TVA_RATE,0);
+
+  return (
+    <div>
+      {/* Sélecteur période */}
+      <div style={{display:'flex',gap:10,marginBottom:20,alignItems:'center'}}>
+        <div style={{fontSize:13,color:C.muted}}>Période :</div>
+        <div style={{display:'flex',gap:4,background:C.white,border:`1px solid ${C.border}`,borderRadius:4,padding:2}}>
+          {['2024','T1 2024','T4 2023'].map(p=>(
+            <button key={p} onClick={()=>setPeriode(p)} style={{padding:'6px 14px',borderRadius:3,border:'none',background:periode===p?C.green:'transparent',color:periode===p?C.white:C.muted,fontWeight:periode===p?700:400,fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>{p}</button>
+          ))}
+        </div>
+        <div style={{marginLeft:'auto',display:'flex',gap:8}}>
+          <Btn label="Imprimer" onClick={()=>{}} ghost icon="print" sm/>
+          <Btn label="Exporter PDF" onClick={()=>{}} ghost icon="download" sm/>
+          <Btn label="Exporter Excel" onClick={()=>{}} primary icon="download" sm/>
+        </div>
+      </div>
+
+      {/* KPIs P&L */}
+      <div style={{display:'flex',gap:12,marginBottom:24}}>
+        <KpiCard title="Total produits" amount={`${fmtN(totalProduits)} FCFA`} color={C.green} trend={12}/>
+        <KpiCard title="Total charges" amount={`${fmtN(totalChargesTotal)} FCFA`} color={C.red} trend={5}/>
+        <KpiCard title="Résultat net" amount={`${resultat>=0?'+':''}${fmtN(resultat)} FCFA`} color={resultat>=0?C.green:C.red} trend={15}/>
+        <KpiCard title="Marge nette" amount={`${Math.round(resultat/totalProduits*100)}%`} color={resultat>=0?C.green:C.red}/>
+      </div>
+
+      <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden',marginBottom:20}}>
+        {/* En-tête rapport */}
+        <div style={{padding:'16px 20px',background:C.green,color:C.white}}>
+          <div style={{fontSize:16,fontWeight:700}}>Compte de Résultat — {periode}</div>
+          <div style={{fontSize:12,color:'rgba(255,255,255,0.75)',marginTop:2}}>Conforme au Plan Comptable OHADA · CleanIT ERP Télécom</div>
+        </div>
+
+        {/* Produits */}
+        <div style={{padding:'16px 20px'}}>
+          <div style={{fontSize:12,fontWeight:800,color:C.green,textTransform:'uppercase',letterSpacing:0.8,marginBottom:8,paddingBottom:6,borderBottom:`2px solid ${C.green}`}}>
+            Produits d'exploitation
+          </div>
+          {PRODUITS.map((p,i)=>(
+            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 10px',background:i%2===0?C.white:'#fafafa',borderRadius:3,marginBottom:2}}>
+              <div style={{display:'flex',gap:12,alignItems:'center'}}>
+                <span style={{fontSize:11,fontFamily:'monospace',color:C.muted,width:36}}>{p.compte}</span>
+                <span style={{fontSize:13,color:C.text}}>{p.libelle}</span>
+              </div>
+              <span style={{fontSize:13,fontWeight:600,color:C.green}}>{fmtN(p.montant)} FCFA</span>
+            </div>
+          ))}
+          <div style={{display:'flex',justifyContent:'space-between',padding:'11px 10px',background:C.green_bg,borderRadius:4,marginTop:6,border:`1px solid ${C.border2}`}}>
+            <span style={{fontSize:14,fontWeight:700,color:C.green}}>TOTAL PRODUITS</span>
+            <span style={{fontSize:16,fontWeight:900,color:C.green}}>{fmtN(totalProduits)} FCFA</span>
           </div>
         </div>
-        {PLAN_COMPTABLE.map(cls => (
-          <div key={cls.classe}>
-            <div onClick={()=>toggle(cls.classe)} style={{ padding:'14px 20px', background:'#f8fafc', borderBottom:'1px solid #e5e7eb', cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}
-              onMouseEnter={e=>e.currentTarget.style.background='#eff6ff'}
-              onMouseLeave={e=>e.currentTarget.style.background='#f8fafc'}>
-              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <div style={{ width:28, height:28, borderRadius:8, background:'#1d4ed815', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:900, color:'#1d4ed8' }}>{cls.classe}</div>
-                <span style={{ fontSize:14, fontWeight:700, color:'#111827' }}>Classe {cls.classe} — {cls.libelle}</span>
-                <span style={{ padding:'2px 8px', borderRadius:6, background:'#e5e7eb', fontSize:11, color:'#6b7280' }}>{cls.comptes.length} comptes</span>
+
+        {/* Charges */}
+        <div style={{padding:'0 20px 16px'}}>
+          <div style={{fontSize:12,fontWeight:800,color:C.red,textTransform:'uppercase',letterSpacing:0.8,marginBottom:8,paddingBottom:6,borderBottom:`2px solid ${C.red}`}}>
+            Charges d'exploitation
+          </div>
+          {CHARGES.map((c,i)=>(
+            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 10px',background:i%2===0?C.white:'#fafafa',borderRadius:3,marginBottom:2}}>
+              <div style={{display:'flex',gap:12,alignItems:'center'}}>
+                <span style={{fontSize:11,fontFamily:'monospace',color:C.muted,width:36}}>{c.compte}</span>
+                <span style={{fontSize:13,color:C.text}}>{c.libelle}</span>
               </div>
-              <span style={{ color:'#9ca3af', fontSize:16 }}>{expanded[cls.classe]?'▼':'▶'}</span>
+              <span style={{fontSize:13,fontWeight:600,color:C.red}}>{fmtN(c.montant)} FCFA</span>
             </div>
-            {expanded[cls.classe]&&(
-              <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          ))}
+          <div style={{display:'flex',justifyContent:'space-between',padding:'11px 10px',background:C.red_bg,borderRadius:4,marginTop:6,border:`1px solid ${C.border2}`}}>
+            <span style={{fontSize:14,fontWeight:700,color:C.red}}>TOTAL CHARGES</span>
+            <span style={{fontSize:16,fontWeight:900,color:C.red}}>{fmtN(totalChargesTotal)} FCFA</span>
+          </div>
+        </div>
+
+        {/* Résultat */}
+        <div style={{padding:'16px 20px',background:resultat>=0?C.green_bg:C.red_bg,borderTop:`2px solid ${resultat>=0?C.green:C.red}`}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontSize:16,fontWeight:800,color:resultat>=0?C.green:C.red}}>RÉSULTAT NET DE L'EXERCICE</span>
+            <span style={{fontSize:28,fontWeight:900,color:resultat>=0?C.green:C.red}}>{resultat>=0?'+':''}{fmtN(resultat)} FCFA</span>
+          </div>
+        </div>
+      </div>
+
+      {/* TVA */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18}}>
+        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden'}}>
+          <div style={{padding:'12px 16px',background:C.bg,borderBottom:`1px solid ${C.border}`,fontSize:14,fontWeight:700,color:C.text}}>TVA — Taux {(TVA_RATE*100).toFixed(2)}%</div>
+          <div style={{padding:16}}>
+            {[
+              {l:'TVA collectée',v:TVA_collectee,c:C.red},
+              {l:'TVA déductible',v:TVA_deductible,c:C.green},
+              {l:'TVA nette à verser',v:TVA_collectee-TVA_deductible,c:C.orange,big:true},
+            ].map(t=>(
+              <div key={t.l} style={{display:'flex',justifyContent:'space-between',padding:'10px 0',borderBottom:t.big?'none':`1px solid ${C.border2}`}}>
+                <span style={{fontSize:t.big?13:12,fontWeight:t.big?600:400,color:C.muted}}>{t.l}</span>
+                <span style={{fontSize:t.big?18:13,fontWeight:t.big?800:600,color:t.c}}>{fmtN(Math.round(t.v))} FCFA</span>
+              </div>
+            ))}
+            <div style={{marginTop:12,padding:'8px 12px',background:'#fffbf0',borderRadius:4,border:`1px solid ${C.border2}`,fontSize:12,color:C.orange,fontWeight:600}}>
+              ⚠️ Prochaine déclaration : 31/03/2024
+            </div>
+          </div>
+        </div>
+
+        {/* Balance âgée */}
+        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden'}}>
+          <div style={{padding:'12px 16px',background:C.bg,borderBottom:`1px solid ${C.border}`,fontSize:14,fontWeight:700,color:C.text}}>Balance âgée des créances</div>
+          <QBTable
+            cols={['Client','Total','0-30j','+30j']}
+            rows={[
+              ['Orange Cameroun',<span style={{fontWeight:700}}>{fmtN(10195875)}</span>,<span style={{color:C.orange,fontWeight:700}}>{fmtN(10195875)}</span>,'—'],
+              ['Gouvernement',<span style={{fontWeight:700}}>{fmtN(26712000)}</span>,<span style={{color:C.green,fontWeight:700}}>{fmtN(26712000)}</span>,'—'],
+            ]}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ===== NAVIGATION LATÉRALE QB =====
+const NAV = [
+  {id:'dashboard',  label:'Tableau de bord', icon:'home'},
+  {id:'factures',   label:'Factures',         icon:'invoice'},
+  {id:'depenses',   label:'Dépenses',          icon:'expense'},
+  {id:'rapports',   label:'Rapports',          icon:'report'},
+  {id:'tva',        label:'TVA',              icon:'tax'},
+  {id:'tresorerie', label:'Trésorerie',        icon:'bank'},
+  {id:'comptable',  label:'Plan comptable',    icon:'chart'},
+  {id:'fournisseurs',label:'Fournisseurs',     icon:'vendor'},
+  {id:'rentabilite',label:'Rentabilité',       icon:'profit'},
+];
+
+// ===== RENTABILITÉ PROJETS =====
+const VueRentabilite = ({factures, depenses}) => {
+  const projets = [
+    {code:'PROJ-2024-001',titre:'Installation 5G NR DLA-001',client:'MTN Cameroun',contrat:45000000},
+    {code:'PROJ-2024-002',titre:'Maintenance Orange Q1',client:'Orange Cameroun',contrat:12000000},
+    {code:'PROJ-2024-003',titre:'Survey Garoua Nord',client:'Gouvernement',contrat:8500000},
+    {code:'PROJ-2024-004',titre:'Déploiement 4G LTE Limbé',client:'MTN Cameroun',contrat:18500000},
+  ].map(p=>{
+    const code = PROJETS_LIST.find(pl=>pl.startsWith(p.code));
+    const dep = depenses.filter(d=>d.projet===code).reduce((s,d)=>s+(d.devise==='FCFA'?d.montant:d.montant*DEVISES_RATES[d.devise]||d.montant),0);
+    const fac = factures.filter(f=>f.projet===code).reduce((s,f)=>s+f.montantTTC,0);
+    const marge = p.contrat - dep;
+    const pct = Math.round(marge/p.contrat*100);
+    return {...p, dep, fac, marge, pct};
+  });
+
+  return (
+    <div>
+      <div style={{display:'flex',gap:12,marginBottom:20}}>
+        <KpiCard title="CA total" amount={`${fmtN(projets.reduce((s,p)=>s+p.contrat,0))} FCFA`} color={C.blue}/>
+        <KpiCard title="Dépenses" amount={`${fmtN(projets.reduce((s,p)=>s+p.dep,0))} FCFA`} color={C.red}/>
+        <KpiCard title="Marge globale" amount={`${fmtN(projets.reduce((s,p)=>s+p.marge,0))} FCFA`} color={C.green}/>
+        <KpiCard title="Marge %" amount={`${Math.round(projets.reduce((s,p)=>s+p.marge,0)/projets.reduce((s,p)=>s+p.contrat,0)*100)}%`} color={C.green}/>
+      </div>
+      <QBTable
+        cols={['Projet','Client','Contrat','Dépenses engagées','Marge réelle','%','Indicateur']}
+        rows={projets.map(p=>[
+          <div><div style={{fontWeight:600,fontSize:13,color:C.text}}>{p.code}</div><div style={{fontSize:11,color:C.muted}}>{p.titre}</div></div>,
+          p.client,
+          <span style={{fontWeight:600,color:C.blue}}>{fmtN(p.contrat)}</span>,
+          <span style={{fontWeight:600,color:C.red}}>{fmtN(p.dep)}</span>,
+          <span style={{fontWeight:700,color:p.marge>=0?C.green:C.red}}>{p.marge>=0?'+':''}{fmtN(p.marge)}</span>,
+          <span style={{padding:'3px 8px',borderRadius:10,background:p.pct>=20?C.green_bg:p.pct>=0?C.orange_bg:C.red_bg,color:p.pct>=20?C.green:p.pct>=0?C.orange:C.red,fontSize:12,fontWeight:700}}>{p.pct}%</span>,
+          <div style={{width:80,height:6,background:C.border2,borderRadius:3,overflow:'hidden'}}><div style={{height:'100%',width:`${Math.max(0,Math.min(100,p.pct))}%`,background:p.pct>=20?C.green:p.pct>=0?C.orange:C.red,borderRadius:3}}/></div>,
+        ])}
+      />
+    </div>
+  );
+};
+
+// ===== TVA =====
+const VueTVA = ({factures, depenses}) => {
+  const coll = factures.reduce((s,f)=>s+f.tva,0);
+  const deduct = depenses.filter(d=>d.devise==='FCFA'&&d.status==='paye').reduce((s,d)=>s+d.montant*TVA_RATE,0);
+  const verser = coll-deduct;
+  return (
+    <div>
+      <div style={{display:'flex',gap:12,marginBottom:20}}>
+        <KpiCard title="TVA collectée" amount={`${fmtN(Math.round(coll))} FCFA`} color={C.red} sub="Sur vos ventes"/>
+        <KpiCard title="TVA déductible" amount={`${fmtN(Math.round(deduct))} FCFA`} color={C.green} sub="Sur vos achats"/>
+        <KpiCard title="TVA nette à verser" amount={`${fmtN(Math.round(verser))} FCFA`} color={C.orange} sub="DGI Cameroun"/>
+        <KpiCard title="Taux appliqué" amount={`${(TVA_RATE*100).toFixed(2)}%`} color={C.blue} sub="Cameroun OHADA"/>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18}}>
+        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden'}}>
+          <div style={{padding:'14px 18px',background:C.green,color:C.white,fontSize:14,fontWeight:700}}>TVA du mois</div>
+          <div style={{padding:18}}>
+            {[{l:'TVA collectée (ventes)',v:coll,c:C.red,icon:'expense'},{l:'TVA déductible (achats)',v:deduct,c:C.green,icon:'invoice'},{l:'TVA nette à verser DGI',v:verser,c:C.orange,icon:'bank',big:true}].map(t=>(
+              <div key={t.l} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 0',borderBottom:t.big?'none':`1px solid ${C.border2}`}}>
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  <div style={{width:32,height:32,borderRadius:4,background:t.c===C.red?C.red_bg:t.c===C.green?C.green_bg:C.orange_bg,display:'flex',alignItems:'center',justifyContent:'center'}}><Ico name={t.icon} size={15} color={t.c}/></div>
+                  <span style={{fontSize:t.big?14:13,fontWeight:t.big?600:400,color:C.text}}>{t.l}</span>
+                </div>
+                <span style={{fontSize:t.big?20:14,fontWeight:t.big?800:600,color:t.c}}>{fmtN(Math.round(t.v))} FCFA</span>
+              </div>
+            ))}
+            <div style={{marginTop:14,display:'flex',gap:8}}>
+              <Btn label="Générer déclaration DGI" onClick={()=>{}} primary icon="report"/>
+              <Btn label="Exporter" onClick={()=>{}} ghost icon="download"/>
+            </div>
+          </div>
+        </div>
+        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden'}}>
+          <div style={{padding:'14px 18px',background:C.bg,borderBottom:`1px solid ${C.border}`,fontSize:14,fontWeight:700,color:C.text}}>Historique déclarations</div>
+          <QBTable
+            cols={['Mois','TVA à verser','Statut']}
+            rows={[
+              ['Mars 2024',`${fmtN(Math.round(verser))} FCFA`,<Badge status="en_attente"/>],
+              ['Février 2024','6 700 000 FCFA',<Badge status="paye"/>],
+              ['Janvier 2024','6 100 000 FCFA',<Badge status="paye"/>],
+              ['Décembre 2023','9 300 000 FCFA',<Badge status="paye"/>],
+            ]}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ===== TRÉSORERIE =====
+const VueTresorerie = () => {
+  const BANQUES_DATA = [
+    {nom:'BICEC — Compte principal',numero:'CM21 1001 2345 6789',solde:28450000,devise:'FCFA',type:'Courant'},
+    {nom:'Société Générale Cameroun',numero:'CM21 2001 8765 4321',solde:12800000,devise:'FCFA',type:'Courant'},
+    {nom:'Afriland First Bank',numero:'CM21 3001 1111 2222',solde:5200000,devise:'FCFA',type:'Épargne'},
+    {nom:'Compte USD BICEC',numero:'USD 9876 5432',solde:45000,devise:'USD',type:'Devises'},
+  ];
+  const totalFCFA = BANQUES_DATA.filter(b=>b.devise==='FCFA').reduce((s,b)=>s+b.solde,0);
+  const maxFlow = Math.max(...CASHFLOW.map(c=>Math.max(c.e,c.s)));
+  return (
+    <div>
+      <div style={{display:'flex',gap:12,marginBottom:20}}>
+        <KpiCard title="Solde bancaire total" amount={`${fmtN(totalFCFA)} FCFA`} color={C.green}/>
+        <KpiCard title="Total entrées (6 mois)" amount={`${fmtN(CASHFLOW.reduce((s,c)=>s+c.e,0))} FCFA`} color={C.blue}/>
+        <KpiCard title="Total sorties (6 mois)" amount={`${fmtN(CASHFLOW.reduce((s,c)=>s+c.s,0))} FCFA`} color={C.red}/>
+        <KpiCard title="Marge nette" amount={`${fmtN(CASHFLOW.reduce((s,c)=>s+(c.e-c.s),0))} FCFA`} color={C.green}/>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:18,marginBottom:20}}>
+        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden'}}>
+          <div style={{padding:'14px 18px',background:C.bg,borderBottom:`1px solid ${C.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontSize:14,fontWeight:700,color:C.text}}>Flux de trésorerie — 6 mois</span>
+            <div style={{display:'flex',gap:12,fontSize:12,color:C.muted}}>
+              {[{c:C.blue,l:'Entrées'},{c:C.red,l:'Sorties'},{c:C.green,l:'Bénéfice'}].map(x=>(
+                <span key={x.l} style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:10,height:10,background:x.c,borderRadius:2,display:'inline-block'}}/>  {x.l}</span>
+              ))}
+            </div>
+          </div>
+          <div style={{padding:'16px 20px'}}>
+            <div style={{display:'flex',alignItems:'flex-end',gap:10,height:150}}>
+              {CASHFLOW.map((c,i)=>(
+                <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+                  <div style={{width:'100%',display:'flex',gap:2,alignItems:'flex-end',height:120}}>
+                    <div style={{flex:1,height:`${(c.e/maxFlow)*120}px`,background:C.blue,borderRadius:'2px 2px 0 0'}}/>
+                    <div style={{flex:1,height:`${(c.s/maxFlow)*120}px`,background:C.red,borderRadius:'2px 2px 0 0',opacity:0.8}}/>
+                    <div style={{flex:1,height:`${Math.max(0,((c.e-c.s)/maxFlow)*120)}px`,background:C.green,borderRadius:'2px 2px 0 0'}}/>
+                  </div>
+                  <span style={{fontSize:10,color:C.muted,fontWeight:600}}>{c.mois}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden'}}>
+          <div style={{padding:'14px 18px',background:C.bg,borderBottom:`1px solid ${C.border}`,display:'flex',justifyContent:'space-between'}}>
+            <span style={{fontSize:14,fontWeight:700,color:C.text}}>Comptes bancaires</span>
+            <Btn label="+ Ajouter" onClick={()=>{}} ghost sm/>
+          </div>
+          {BANQUES_DATA.map((b,i)=>(
+            <div key={i} style={{padding:'12px 16px',borderBottom:`1px solid ${C.border2}`,display:'flex',justifyContent:'space-between',alignItems:'center',background:i%2===0?C.white:'#fafafa'}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:600,color:C.text}}>{b.nom}</div>
+                <div style={{fontSize:10,fontFamily:'monospace',color:C.muted,marginTop:1}}>{b.numero}</div>
+                <span style={{padding:'1px 6px',borderRadius:10,background:C.bg,fontSize:10,color:C.muted,marginTop:2,display:'inline-block'}}>{b.type}</span>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontSize:14,fontWeight:700,color:C.green}}>{fmtN(b.solde)}</div>
+                <div style={{fontSize:10,color:C.muted}}>{b.devise}</div>
+              </div>
+            </div>
+          ))}
+          <div style={{padding:'12px 16px',background:C.green_bg,borderTop:`2px solid ${C.green}`}}>
+            <div style={{display:'flex',justifyContent:'space-between'}}>
+              <span style={{fontSize:13,fontWeight:700,color:C.green}}>Solde total FCFA</span>
+              <span style={{fontSize:16,fontWeight:800,color:C.green}}>{fmtN(totalFCFA)} FCFA</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ===== PLAN COMPTABLE =====
+const VuePlanComptable = () => {
+  const [expanded, setExpanded] = useState({});
+  const PLAN = [
+    {cl:'1',lib:'Capitaux',comptes:[{n:'101000',l:'Capital social',s:50000000,t:'passif'},{n:'106000',l:'Réserves',s:12500000,t:'passif'},{n:'120000',l:'Résultat exercice',s:8340000,t:'passif'}]},
+    {cl:'2',lib:'Actif immobilisé',comptes:[{n:'215000',l:'Matériel et équipements',s:45000000,t:'actif'},{n:'218000',l:'Véhicules',s:18500000,t:'actif'},{n:'282000',l:'Amortissements',s:-12000000,t:'actif'}]},
+    {cl:'4',lib:'Comptes de tiers',comptes:[{n:'411000',l:'Clients MTN',s:10195875,t:'actif'},{n:'401000',l:'Fournisseurs Huawei',s:-8500000,t:'passif'},{n:'445000',l:'TVA collectée',s:-12819500,t:'passif'},{n:'445200',l:'TVA déductible',s:4250000,t:'actif'}]},
+    {cl:'5',lib:'Trésorerie',comptes:[{n:'521000',l:'Banque BICEC',s:28450000,t:'actif'},{n:'521001',l:'Banque SGC',s:12800000,t:'actif'},{n:'571000',l:'Caisse',s:1250000,t:'actif'}]},
+    {cl:'6',lib:'Charges',comptes:[{n:'601000',l:'Achats matières',s:15200000,t:'charge'},{n:'621000',l:'Personnel externe',s:24500000,t:'charge'},{n:'641000',l:'Salaires',s:18200000,t:'charge'},{n:'645000',l:'Charges sociales',s:2184000,t:'charge'}]},
+    {cl:'7',lib:'Produits',comptes:[{n:'701000',l:'Chiffre affaires',s:85000000,t:'produit'},{n:'706000',l:'Prestations services',s:12500000,t:'produit'}]},
+  ];
+  const tColors = {actif:{c:C.blue,bg:C.blue_bg},passif:{c:C.red,bg:C.red_bg},charge:{c:C.orange,bg:C.orange_bg},produit:{c:C.green,bg:C.green_bg}};
+  return (
+    <div>
+      <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginBottom:14}}>
+        <Btn label="Exporter Excel" onClick={()=>{}} ghost icon="download"/>
+        <Btn label="+ Nouveau compte" onClick={()=>{}} primary icon="plus"/>
+      </div>
+      <div style={{border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden',background:C.white}}>
+        {PLAN.map(cls=>(
+          <div key={cls.cl}>
+            <div onClick={()=>setExpanded(p=>({...p,[cls.cl]:!p[cls.cl]}))}
+              style={{padding:'12px 18px',background:C.bg,borderBottom:`1px solid ${C.border}`,cursor:'pointer',display:'flex',justifyContent:'space-between',alignItems:'center'}}
+              onMouseEnter={e=>e.currentTarget.style.background=C.green_bg}
+              onMouseLeave={e=>e.currentTarget.style.background=C.bg}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <div style={{width:26,height:26,borderRadius:4,background:C.green,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800,color:C.white}}>{cls.cl}</div>
+                <span style={{fontSize:14,fontWeight:600,color:C.text}}>Classe {cls.cl} — {cls.lib}</span>
+                <span style={{padding:'1px 8px',borderRadius:10,background:C.border2,fontSize:11,color:C.muted}}>{cls.comptes.length} comptes</span>
+              </div>
+              <Ico name={expanded[cls.cl]?'chevron_down':'chevron_right'} size={16} color={C.muted}/>
+            </div>
+            {expanded[cls.cl]&&(
+              <table style={{width:'100%',borderCollapse:'collapse'}}>
                 <thead>
-                  <tr style={{ background:'#fafbfc' }}>
-                    {['N° Compte','Libelle','Type','Solde'].map(h=>(
-                      <th key={h} style={{ padding:'9px 20px', textAlign:'left', fontSize:11, fontWeight:700, color:'#9ca3af', textTransform:'uppercase', letterSpacing:0.5, borderBottom:'1px solid #f3f4f6' }}>{h}</th>
+                  <tr style={{background:'#fafafa',borderBottom:`1px solid ${C.border2}`}}>
+                    {['N° Compte','Libellé','Type','Solde'].map(h=>(
+                      <th key={h} style={{padding:'8px 18px',textAlign:'left',fontSize:11,fontWeight:700,color:C.muted,textTransform:'uppercase'}}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {cls.comptes.map((c,i)=>(
-                    <tr key={c.num} style={{ borderBottom:'1px solid #f9fafb', background:i%2===0?'white':'#fafbfc' }}>
-                      <td style={{ padding:'11px 20px', fontSize:13, fontWeight:700, color:'#1d4ed8', fontFamily:'monospace' }}>{c.num}</td>
-                      <td style={{ padding:'11px 20px', fontSize:13, color:'#374151' }}>{c.libelle}</td>
-                      <td style={{ padding:'11px 20px' }}>
-                        <span style={{ padding:'2px 9px', borderRadius:6, background:c.type==='actif'?'#eff6ff':c.type==='passif'?'#fef2f2':c.type==='charge'?'#fff7ed':'#f0fdf4', color:c.type==='actif'?'#1d4ed8':c.type==='passif'?'#dc2626':c.type==='charge'?'#d97706':'#16a34a', fontSize:11, fontWeight:700 }}>
-                          {c.type.charAt(0).toUpperCase()+c.type.slice(1)}
-                        </span>
-                      </td>
-                      <td style={{ padding:'11px 20px', fontSize:13, fontWeight:700, color:c.solde>=0?'#16a34a':'#dc2626', textAlign:'right' }}>{fmtN(Math.abs(c.solde))} FCFA</td>
-                    </tr>
-                  ))}
+                  {cls.comptes.map((c,i)=>{
+                    const tc = tColors[c.t]||tColors.actif;
+                    return (
+                      <tr key={c.n} style={{borderBottom:`1px solid ${C.border2}`,background:i%2===0?C.white:'#fafafa'}}>
+                        <td style={{padding:'10px 18px',fontSize:13,fontWeight:700,color:C.blue,fontFamily:'monospace'}}>{c.n}</td>
+                        <td style={{padding:'10px 18px',fontSize:13,color:C.text}}>{c.l}</td>
+                        <td style={{padding:'10px 18px'}}><span style={{padding:'2px 8px',borderRadius:10,background:tc.bg,color:tc.c,fontSize:11,fontWeight:600}}>{c.t.charAt(0).toUpperCase()+c.t.slice(1)}</span></td>
+                        <td style={{padding:'10px 18px',fontSize:13,fontWeight:700,color:c.s>=0?C.green:C.red,textAlign:'right'}}>{fmtN(Math.abs(c.s))} FCFA</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -1384,522 +1191,169 @@ const VuePlanComptable = () => {
   );
 };
 
+// ===== FOURNISSEURS =====
 const VueFournisseurs = () => {
-  const [fournisseurs, setFournisseurs] = useState(FOURNISSEURS_DATA);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
-  const [showNew, setShowNew] = useState(false);
-
-  const filtered = fournisseurs.filter(f =>
-    !search || f.nom.toLowerCase().includes(search.toLowerCase()) || f.contact.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-        {[
-          { l: 'Total fournisseurs', v: fournisseurs.length, c: '#1d4ed8', suffix: '' },
-          { l: 'Total achats', v: fmtN(fournisseurs.reduce((s, f) => s + f.totalAchats, 0)), c: '#dc2626', suffix: ' FCFA' },
-          { l: 'Soldes dus', v: fmtN(Math.abs(fournisseurs.reduce((s, f) => s + f.solde, 0))), c: '#d97706', suffix: ' FCFA' },
-          { l: 'Actifs', v: fournisseurs.filter(f => f.status === 'actif').length, c: '#16a34a', suffix: '' },
-        ].map(k => (
-          <div key={k.l} style={{ flex: 1, minWidth: 160, background: 'white', borderRadius: 12, padding: '14px 16px', borderLeft: '3px solid ' + k.c, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-            <div style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{k.l}</div>
-            <div style={{ fontSize: 17, fontWeight: 900, color: k.c }}>{k.v}{k.suffix}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8, background: 'white', borderRadius: 11, padding: '9px 13px', border: '1px solid #e5e7eb' }}>
-          <span style={{ color: '#9ca3af' }}>🔍</span>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Nom, contact, catégorie..." style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13 }} />
-        </div>
-        <button onClick={() => setShowNew(true)} style={{ padding: '10px 18px', borderRadius: 11, border: 'none', background: '#0891b2', color: 'white', fontWeight: 800, fontSize: 13, cursor: 'pointer' }}>+ Nouveau fournisseur</button>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16, marginBottom: 20 }}>
-        {filtered.map(f => (
-          <div key={f.id} onClick={() => setSelected(f)} style={{ background: 'white', borderRadius: 16, padding: 20, border: '1px solid #e5e7eb', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', transition: 'all .2s' }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(8,145,178,0.15)'; e.currentTarget.style.borderColor = '#0891b2'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'; e.currentTarget.style.borderColor = '#e5e7eb'; }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 46, height: 46, borderRadius: 14, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 900, color: '#1d4ed8' }}>
-                  {f.nom[0]}
-                </div>
-                <div>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: '#111827' }}>{f.nom}</div>
-                  <div style={{ fontSize: 12, color: '#6b7280' }}>{f.pays} · {f.categorie}</div>
-                </div>
-              </div>
-              <span style={{ padding: '3px 9px', borderRadius: 20, background: '#f0fdf4', color: '#16a34a', fontSize: 11, fontWeight: 700 }}>{f.status}</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-              {[
-                { l: 'Contact', v: f.contact },
-                { l: 'Devise', v: f.devise },
-                { l: 'Total achats', v: fmtN(f.totalAchats) + ' FCFA' },
-                { l: 'Solde', v: fmtN(Math.abs(f.solde)) + ' FCFA', color: f.solde < 0 ? '#dc2626' : '#16a34a' },
-              ].map(item => (
-                <div key={item.l}>
-                  <div style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 }}>{item.l}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: item.color || '#374151' }}>{item.v}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {f.projets.map(p => (
-                <span key={p} style={{ padding: '2px 8px', borderRadius: 6, background: '#eff6ff', color: '#1d4ed8', fontSize: 11, fontWeight: 600 }}>{p}</span>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-              {[['📧', 'Email'], ['📞', 'Appel'], ['📋', 'Commande'], ['💳', 'Paiement']].map(([icon, label]) => (
-                <button key={label} title={label} style={{ flex: 1, padding: '7px 0', borderRadius: 9, border: '1px solid #e5e7eb', background: 'white', color: '#374151', cursor: 'pointer', fontSize: 14 }}>{icon}</button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {selected && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 700, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.25)' }}>
-            <div style={{ background: 'linear-gradient(135deg,#0f172a,#0891b2)', padding: '22px 28px', borderRadius: '20px 20px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 1 }}>Fournisseur</div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: 'white' }}>{selected.nom}</div>
-              </div>
-              <button onClick={() => setSelected(null)} style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', cursor: 'pointer', fontSize: 18 }}>✕</button>
-            </div>
-            <div style={{ padding: 28 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 22, padding: 18, background: '#f8fafc', borderRadius: 14 }}>
-                {[
-                  { l: 'Pays', v: selected.pays },
-                  { l: 'Contact', v: selected.contact },
-                  { l: 'Email', v: selected.email },
-                  { l: 'Téléphone', v: selected.telephone },
-                  { l: 'Devise', v: selected.devise },
-                  { l: 'Catégorie', v: selected.categorie },
-                  { l: 'SIRET/Réf', v: selected.siret },
-                  { l: 'RIB/IBAN', v: selected.rib },
-                  { l: 'Statut', v: selected.status },
-                ].map(item => (
-                  <div key={item.l}>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>{item.l}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', wordBreak: 'break-all' }}>{item.v}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
-                {[
-                  { l: 'Total achats', v: fmtN(selected.totalAchats) + ' FCFA', c: '#1d4ed8' },
-                  { l: 'Solde actuel', v: fmtN(Math.abs(selected.solde)) + ' FCFA', c: selected.solde < 0 ? '#dc2626' : '#16a34a' },
-                ].map(k => (
-                  <div key={k.l} style={{ background: '#f8fafc', borderRadius: 12, padding: '14px 18px', borderLeft: '3px solid ' + k.c }}>
-                    <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4 }}>{k.l}</div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: k.c }}>{k.v}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {[['📧 Envoyer email', '#1d4ed8', '#eff6ff'], ['📋 Nouveau BC', '#d97706', '#fefce8'], ['💳 Enregistrer paiement', '#16a34a', '#f0fdf4'], ['📊 Historique achats', '#7c3aed', '#f5f3ff'], ['✏️ Modifier', '#374151', '#f3f4f6']].map(([l, c, bg]) => (
-                  <button key={l} style={{ padding: '9px 14px', borderRadius: 10, border: '1px solid ' + c + '30', background: bg, color: c, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>{l}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ===== VUE TVA COMPLÈTE =====
-const VueTVA = () => {
-  const [mois, setMois] = useState('Mars 2024');
-  const HISTORIQUE = [
-    { mois: 'Mars 2024', collectee: 12819500, deductible: 4250000, aVerser: 8569500, status: 'a_declarer' },
-    { mois: 'Février 2024', collectee: 10500000, deductible: 3800000, aVerser: 6700000, status: 'declare' },
-    { mois: 'Janvier 2024', collectee: 9200000, deductible: 3100000, aVerser: 6100000, status: 'paye' },
-    { mois: 'Décembre 2023', collectee: 14500000, deductible: 5200000, aVerser: 9300000, status: 'paye' },
-    { mois: 'Novembre 2023', collectee: 8900000, deductible: 2900000, aVerser: 6000000, status: 'paye' },
+  const FDATA = [
+    {id:1,nom:'Huawei Technologies',pays:'Chine',contact:'Li Wei',email:'lwei@huawei.com',tel:'+86 755 2878 0808',devise:'CNY',cat:'Équipements télécoms',achats:85000000,solde:-8500000},
+    {id:2,nom:'Nokia Networks',pays:'Finlande',contact:'Mikael Virtanen',email:'m.virtanen@nokia.com',tel:'+358 10 448 8000',devise:'EUR',cat:'Équipements télécoms',achats:45000000,solde:-12000000},
+    {id:3,nom:'Ericsson Cameroun',pays:'Cameroun',contact:'Paul Biya Jr',email:'p.biya@ericsson.cm',tel:'+237 222 200 001',devise:'FCFA',cat:'Équipements télécoms',achats:32000000,solde:0},
+    {id:4,nom:'Total Énergies',pays:'Cameroun',contact:'Jean Mfou',email:'j.mfou@total.cm',tel:'+237 222 300 200',devise:'FCFA',cat:'Transport',achats:8500000,solde:0},
+    {id:5,nom:'CAMTEL',pays:'Cameroun',contact:'David Minlo',email:'d.minlo@camtel.cm',tel:'+237 222 400 000',devise:'FCFA',cat:'Télécoms',achats:12000000,solde:-1200000},
   ];
-  const current = HISTORIQUE.find(h => h.mois === mois) || HISTORIQUE[0];
-
+  const filtered = FDATA.filter(f=>!search||f.nom.toLowerCase().includes(search.toLowerCase()));
   return (
     <div>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'center' }}>
-        <select value={mois} onChange={e => setMois(e.target.value)} style={{ padding: '9px 13px', borderRadius: 11, border: '1px solid #e5e7eb', fontSize: 13, background: 'white', cursor: 'pointer' }}>
-          {HISTORIQUE.map(h => <option key={h.mois} value={h.mois}>{h.mois}</option>)}
-        </select>
-        <button style={{ padding: '9px 16px', borderRadius: 11, border: 'none', background: '#1d4ed8', color: 'white', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>📋 Générer déclaration DGI</button>
-        <button style={{ padding: '9px 16px', borderRadius: 11, border: '1px solid #e5e7eb', background: 'white', color: '#374151', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>📥 Exporter PDF</button>
+      <div style={{display:'flex',gap:12,marginBottom:20}}>
+        <KpiCard title="Fournisseurs" amount={FDATA.length} color={C.blue} sub="actifs"/>
+        <KpiCard title="Total achats" amount={`${fmtN(FDATA.reduce((s,f)=>s+f.achats,0))} FCFA`} color={C.red}/>
+        <KpiCard title="Soldes dus" amount={`${fmtN(Math.abs(FDATA.reduce((s,f)=>s+f.solde,0)))} FCFA`} color={C.orange}/>
       </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 20 }}>
-        <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid #e5e7eb', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-          <h3 style={{ margin: '0 0 18px', fontSize: 15, fontWeight: 800, color: '#111827' }}>TVA — {mois} · Taux: {(TVA_RATE * 100).toFixed(2)}%</h3>
-          {[
-            { l: 'TVA collectée (ventes)', v: current.collectee, c: '#dc2626', icon: '📤', desc: 'Sur vos factures clients' },
-            { l: 'TVA déductible (achats)', v: current.deductible, c: '#16a34a', icon: '📥', desc: 'Sur vos achats fournisseurs' },
-            { l: 'TVA nette à verser DGI', v: current.aVerser, c: '#d97706', icon: '🏛', desc: 'Collectée - Déductible', big: true },
-          ].map(t => (
-            <div key={t.l} style={{ padding: '14px 0', borderBottom: t.big ? 'none' : '1px solid #f3f4f6' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: t.c + '12', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{t.icon}</div>
-                  <div>
-                    <div style={{ fontSize: t.big ? 14 : 13, fontWeight: t.big ? 700 : 500, color: '#374151' }}>{t.l}</div>
-                    <div style={{ fontSize: 11, color: '#9ca3af' }}>{t.desc}</div>
-                  </div>
-                </div>
-                <div style={{ fontSize: t.big ? 22 : 16, fontWeight: t.big ? 900 : 700, color: t.c }}>{fmtN(t.v)} FCFA</div>
-              </div>
-            </div>
-          ))}
-          <div style={{ marginTop: 16, padding: 14, background: current.status === 'paye' ? '#f0fdf4' : '#fff7ed', borderRadius: 12, border: '1px solid ' + (current.status === 'paye' ? '#bbf7d0' : '#fed7aa') }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: current.status === 'paye' ? '#16a34a' : '#d97706' }}>
-                  {current.status === 'paye' ? '✅ Déclarée et payée' : current.status === 'declare' ? '📋 Déclarée — En attente paiement' : '⚠️ À déclarer avant le 15 du mois'}
-                </div>
-              </div>
-              {current.status !== 'paye' && (
-                <button style={{ padding: '8px 14px', borderRadius: 9, border: 'none', background: '#d97706', color: 'white', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Marquer payée</button>
-              )}
-            </div>
-          </div>
+      <div style={{display:'flex',gap:10,marginBottom:14,alignItems:'center'}}>
+        <div style={{flex:1,display:'flex',alignItems:'center',gap:8,background:C.white,border:`1px solid ${C.border}`,borderRadius:4,padding:'8px 12px'}}>
+          <Ico name="search" size={16} color={C.muted}/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nom, contact..." style={{flex:1,border:'none',outline:'none',fontSize:13,color:C.text,background:'transparent',fontFamily:'inherit'}}/>
         </div>
-
-        <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid #e5e7eb', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 800, color: '#111827' }}>Historique TVA</h3>
-          {HISTORIQUE.map((h, i) => (
-            <div key={h.mois} onClick={() => setMois(h.mois)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderRadius: 10, marginBottom: 6, cursor: 'pointer', background: mois === h.mois ? '#eff6ff' : 'transparent', border: mois === h.mois ? '1px solid #bfdbfe' : '1px solid transparent' }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{h.mois}</div>
-                <div style={{ fontSize: 11, color: '#9ca3af' }}>À verser: {fmtN(h.aVerser)} FCFA</div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: '#374151' }}>{fmtN(h.aVerser)} FCFA</span>
-                <span style={{ padding: '2px 8px', borderRadius: 6, background: h.status === 'paye' ? '#f0fdf4' : h.status === 'declare' ? '#eff6ff' : '#fff7ed', color: h.status === 'paye' ? '#16a34a' : h.status === 'declare' ? '#1d4ed8' : '#d97706', fontSize: 10, fontWeight: 700 }}>
-                  {h.status === 'paye' ? 'Payée' : h.status === 'declare' ? 'Déclarée' : 'À déclarer'}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+        <Btn label="+ Nouveau fournisseur" onClick={()=>{}} primary icon="plus"/>
       </div>
-
-      <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid #e5e7eb', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-        <h3 style={{ margin: '0 0 16px', fontSize: 15, fontWeight: 800, color: '#111827' }}>Formulaire de déclaration TVA — {mois}</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
-          {[
-            { code: 'CA-001', libelle: "Chiffre d\'affaires taxable", montant: fmtN(current.collectee / TVA_RATE), taux: '19.25%', tva: fmtN(current.collectee) },
-            { code: 'CA-002', libelle: 'Prestations exonérées', montant: '0', taux: '0%', tva: '0' },
-            { code: 'TVA-DEP', libelle: 'TVA sur achats déductible', montant: fmtN(current.deductible / TVA_RATE), taux: '19.25%', tva: fmtN(current.deductible) },
-          ].map(r => (
-            <div key={r.code} style={{ background: '#f8fafc', borderRadius: 12, padding: '14px 16px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', marginBottom: 8 }}>{r.code}</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 10 }}>{r.libelle}</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div><div style={{ fontSize: 10, color: '#9ca3af' }}>Base HT</div><div style={{ fontSize: 13, fontWeight: 700 }}>{r.montant} FCFA</div></div>
-                <div><div style={{ fontSize: 10, color: '#9ca3af' }}>Taux</div><div style={{ fontSize: 13, fontWeight: 700, color: '#1d4ed8' }}>{r.taux}</div></div>
-                <div><div style={{ fontSize: 10, color: '#9ca3af' }}>TVA</div><div style={{ fontSize: 13, fontWeight: 700, color: '#dc2626' }}>{r.tva} FCFA</div></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ===== VUE CASHFLOW COMPLÈTE =====
-const VueCashflow = () => {
-  const maxFlow = Math.max(...CASHFLOW.map(c => Math.max(c.entrees, c.sorties)));
-  const totalEntrees = CASHFLOW.reduce((s, c) => s + c.entrees, 0);
-  const totalSorties = CASHFLOW.reduce((s, c) => s + c.sorties, 0);
-  const marge = totalEntrees - totalSorties;
-
-  const BANQUES = [
-    { nom: 'BICEC — Compte principal', numero: 'CM21 1001 2345 6789 0123', solde: 28450000, devise: 'FCFA', type: 'Courant' },
-    { nom: 'Société Générale Cameroun', numero: 'CM21 2001 8765 4321 0987', solde: 12800000, devise: 'FCFA', type: 'Courant' },
-    { nom: 'Afriland First Bank', numero: 'CM21 3001 1111 2222 3333', solde: 5200000, devise: 'FCFA', type: 'Épargne' },
-    { nom: 'Compte USD — BICEC', numero: 'CM21 1001 USD 9876 5432', solde: 45000, devise: 'USD', type: 'Devises' },
-  ];
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 14, marginBottom: 22, flexWrap: 'wrap' }}>
-        {[
-          { l: 'Total entrées (6 mois)', v: fmtN(totalEntrees) + ' FCFA', c: '#1d4ed8' },
-          { l: 'Total sorties (6 mois)', v: fmtN(totalSorties) + ' FCFA', c: '#ef4444' },
-          { l: 'Marge (6 mois)', v: fmtN(marge) + ' FCFA', c: '#22c55e' },
-          { l: 'Solde total banques', v: fmtN(BANQUES.filter(b => b.devise === 'FCFA').reduce((s, b) => s + b.solde, 0)) + ' FCFA', c: '#7c3aed' },
-        ].map(k => (
-          <div key={k.l} style={{ flex: 1, minWidth: 180, background: 'white', borderRadius: 12, padding: '14px 16px', borderLeft: '3px solid ' + k.c, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-            <div style={{ fontSize: 10, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{k.l}</div>
-            <div style={{ fontSize: 17, fontWeight: 900, color: k.c }}>{k.v}</div>
-          </div>
-        ))}
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 18, marginBottom: 20 }}>
-        <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid #e5e7eb', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#111827' }}>Flux de trésorerie — 6 derniers mois</h3>
-            <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#6b7280' }}>
-              <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#1d4ed8', marginRight: 4, verticalAlign: 'middle' }} />Entrées</span>
-              <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#ef4444', marginRight: 4, verticalAlign: 'middle' }} />Sorties</span>
-              <span><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: '#22c55e', marginRight: 4, verticalAlign: 'middle' }} />Marge</span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, height: 180, paddingBottom: 24, position: 'relative' }}>
-            {[100, 75, 50, 25].map(p => (
-              <div key={p} style={{ position: 'absolute', left: 0, right: 0, bottom: 24 + (p / 100) * 156, borderTop: '1px dashed #f3f4f6', display: 'flex', alignItems: 'center' }}>
-                <span style={{ fontSize: 9, color: '#d1d5db', marginRight: 4, whiteSpace: 'nowrap' }}>{fmtN(maxFlow * p / 100 / 1000000)}M</span>
+      <QBTable
+        cols={['Fournisseur','Pays','Catégorie','Devise','Total achats','Solde','']}
+        rows={filtered.map(f=>[
+          <span style={{fontWeight:600}}>{f.nom}</span>,
+          f.pays, f.cat, f.devise,
+          <span style={{fontWeight:600,color:C.blue}}>{fmtN(f.achats)} FCFA</span>,
+          <span style={{fontWeight:600,color:f.solde<0?C.red:C.green}}>{fmtN(Math.abs(f.solde))} FCFA</span>,
+          <button onClick={()=>setSelected(f)} style={{padding:'5px 10px',borderRadius:4,border:`1px solid ${C.border}`,background:C.white,cursor:'pointer',fontSize:12,color:C.muted,display:'flex',alignItems:'center',gap:4}}><Ico name="eye" size={13} color={C.muted}/> Voir</button>
+        ])}
+        onRowClick={i=>setSelected(filtered[i])}
+      />
+      {selected&&(
+        <SidePanel title={selected.nom} subtitle="Fournisseur" onClose={()=>setSelected(null)}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:20}}>
+            {[{l:'Pays',v:selected.pays},{l:'Contact',v:selected.contact},{l:'Email',v:selected.email},{l:'Téléphone',v:selected.tel},{l:'Devise',v:selected.devise},{l:'Catégorie',v:selected.cat}].map(item=>(
+              <div key={item.l} style={{padding:'10px 12px',background:C.bg,borderRadius:4}}>
+                <div style={{fontSize:10,color:C.muted,textTransform:'uppercase',letterSpacing:0.5,marginBottom:3}}>{item.l}</div>
+                <div style={{fontSize:13,fontWeight:600,color:C.text}}>{item.v}</div>
               </div>
             ))}
-            {CASHFLOW.map((c, i) => {
-              const marge = c.entrees - c.sorties;
-              return (
-                <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <div style={{ width: '100%', display: 'flex', gap: 3, alignItems: 'flex-end', height: 156 }}>
-                    <div style={{ flex: 1, height: (c.entrees / maxFlow) * 156, background: '#1d4ed8', borderRadius: '4px 4px 0 0', transition: 'height .4s' }} />
-                    <div style={{ flex: 1, height: (c.sorties / maxFlow) * 156, background: '#ef4444', borderRadius: '4px 4px 0 0', opacity: 0.8 }} />
-                    <div style={{ flex: 1, height: Math.max(0, marge / maxFlow) * 156, background: '#22c55e', borderRadius: '4px 4px 0 0', opacity: 0.85 }} />
-                  </div>
-                  <span style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600, marginTop: 6 }}>{c.mois}</span>
-                </div>
-              );
-            })}
           </div>
-        </div>
-
-        <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid #e5e7eb', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#111827' }}>Comptes bancaires</h3>
-            <button style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer' }}>+ Ajouter</button>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:20}}>
+            <KpiCard title="Total achats" amount={`${fmtN(selected.achats)} FCFA`} color={C.blue}/>
+            <KpiCard title="Solde" amount={`${fmtN(Math.abs(selected.solde))} FCFA`} color={selected.solde<0?C.red:C.green}/>
           </div>
-          {BANQUES.map((b, i) => (
-            <div key={i} style={{ padding: '12px 0', borderBottom: i < BANQUES.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{b.nom}</div>
-                  <div style={{ fontSize: 10, color: '#9ca3af', fontFamily: 'monospace', marginTop: 2 }}>{b.numero}</div>
-                  <span style={{ padding: '1px 6px', borderRadius: 4, background: '#f3f4f6', fontSize: 10, color: '#6b7280', marginTop: 3, display: 'inline-block' }}>{b.type}</span>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: '#16a34a' }}>{fmtN(b.solde)}</div>
-                  <div style={{ fontSize: 10, color: '#9ca3af' }}>{b.devise}</div>
-                </div>
-              </div>
-            </div>
-          ))}
-          <div style={{ marginTop: 14, padding: '12px 14px', background: '#f0fdf4', borderRadius: 10, border: '1px solid #bbf7d0' }}>
-            <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 700 }}>Solde total consolidé</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: '#16a34a', marginTop: 4 }}>{fmtN(BANQUES.filter(b => b.devise === 'FCFA').reduce((s, b) => s + b.solde, 0))} FCFA</div>
+          <div style={{display:'flex',gap:8}}>
+            <Btn label="Envoyer email" onClick={()=>{}} ghost icon="mail" sm/>
+            <Btn label="Nouveau BC" onClick={()=>{}} ghost icon="edit" sm/>
+            <Btn label="Enreg. paiement" onClick={()=>{}} primary icon="check" sm/>
           </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ===== VUE RAPPORTS COMPLÈTE =====
-const VueRapports = ({ factures, depenses }) => {
-  const [rapport, setRapport] = useState('pl');
-  const totalCA = factures.reduce((s, f) => s + f.montantHT, 0);
-  const totalTVA = factures.reduce((s, f) => s + f.tva, 0);
-  const totalCharges = depenses.reduce((s, d) => s + (d.devise === 'FCFA' ? d.montant : d.montant * DEVISES_RATES[d.devise]), 0);
-  const chargesSalaires = 18200000;
-  const chargesLocations = 3600000;
-  const resultat = totalCA - totalCharges - chargesSalaires - chargesLocations;
-
-  const RAPPORTS = [
-    { id: 'pl', label: 'Compte de résultat', icon: '📊' },
-    { id: 'bilan', label: 'Bilan OHADA', icon: '⚖️' },
-    { id: 'tva', label: 'Récapitulatif TVA', icon: '🏛' },
-    { id: 'aged', label: 'Balance âgée', icon: '📅' },
-  ];
-
-  return (
-    <div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-        {RAPPORTS.map(r => (
-          <button key={r.id} onClick={() => setRapport(r.id)} style={{ padding: '10px 18px', borderRadius: 11, border: rapport === r.id ? 'none' : '1px solid #e5e7eb', background: rapport === r.id ? '#1d4ed8' : 'white', color: rapport === r.id ? 'white' : '#374151', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>{r.icon}</span> {r.label}
-          </button>
-        ))}
-        <button style={{ marginLeft: 'auto', padding: '10px 16px', borderRadius: 11, border: '1px solid #e5e7eb', background: 'white', color: '#374151', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>📥 Exporter PDF</button>
-        <button style={{ padding: '10px 16px', borderRadius: 11, border: '1px solid #e5e7eb', background: 'white', color: '#374151', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>📊 Exporter Excel</button>
-      </div>
-
-      {rapport === 'pl' && (
-        <div style={{ background: 'white', borderRadius: 16, overflow: 'hidden', border: '1px solid #e5e7eb', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-          <div style={{ padding: '18px 24px', borderBottom: '2px solid #e5e7eb', background: '#f8fafc' }}>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 900, color: '#111827' }}>Compte de Résultat — Exercice 2024</h3>
-            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#6b7280' }}>Conforme au Plan Comptable OHADA révisé</p>
-          </div>
-          <div style={{ padding: 24 }}>
-            {[
-              { section: 'PRODUITS D\'EXPLOITATION', items: [
-                { l: 'Chiffre d\'affaires prestations', v: totalCA, color: '#16a34a' },
-                { l: 'Autres produits d\'exploitation', v: 2500000, color: '#16a34a' },
-              ], total: totalCA + 2500000, totalColor: '#16a34a', totalLabel: "TOTAL PRODUITS" },
-              { section: 'CHARGES D\'EXPLOITATION', items: [
-                { l: 'Achats matières et fournitures', v: totalCharges * 0.6, color: '#dc2626' },
-                { l: 'Services extérieurs (sous-traitance)', v: totalCharges * 0.25, color: '#dc2626' },
-                { l: 'Transports et déplacements', v: totalCharges * 0.15, color: '#dc2626' },
-                { l: 'Charges de personnel (internes)', v: chargesSalaires, color: '#dc2626' },
-                { l: 'Charges locatives', v: chargesLocations, color: '#dc2626' },
-                { l: 'Dotations aux amortissements', v: 3200000, color: '#dc2626' },
-              ], total: totalCharges + chargesSalaires + chargesLocations + 3200000, totalColor: '#dc2626', totalLabel: "TOTAL CHARGES" },
-            ].map((section, si) => (
-              <div key={si} style={{ marginBottom: 24 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10, paddingBottom: 6, borderBottom: '2px solid #f3f4f6' }}>{section.section}</div>
-                {section.items.map((item, ii) => (
-                  <div key={ii} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 8, marginBottom: 4, background: ii % 2 === 0 ? '#fafbfc' : 'white' }}>
-                    <span style={{ fontSize: 13, color: '#374151' }}>{item.l}</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: item.color }}>{fmtN(Math.round(item.v))} FCFA</span>
-                  </div>
-                ))}
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 14px', background: section.totalColor + '10', borderRadius: 8, marginTop: 6, border: '1px solid ' + section.totalColor + '20' }}>
-                  <span style={{ fontSize: 14, fontWeight: 800, color: section.totalColor }}>{section.totalLabel}</span>
-                  <span style={{ fontSize: 16, fontWeight: 900, color: section.totalColor }}>{fmtN(Math.round(section.total))} FCFA</span>
-                </div>
-              </div>
-            ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 18px', background: resultat >= 0 ? '#f0fdf4' : '#fef2f2', borderRadius: 12, border: '2px solid ' + (resultat >= 0 ? '#16a34a' : '#dc2626') }}>
-              <span style={{ fontSize: 16, fontWeight: 900, color: resultat >= 0 ? '#16a34a' : '#dc2626' }}>RÉSULTAT NET DE L\'EXERCICE</span>
-              <span style={{ fontSize: 24, fontWeight: 900, color: resultat >= 0 ? '#16a34a' : '#dc2626' }}>{resultat >= 0 ? '+' : ''}{fmtN(Math.round(resultat))} FCFA</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {rapport === 'bilan' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
-          {[
-            { title: 'ACTIF', color: '#1d4ed8', items: [
-              { section: "Actif immobilisé", rows: [{ l: 'Immobilisations corporelles', v: 63500000 }, { l: 'Amortissements (-)' , v: -12000000 }] },
-              { section: "Actif circulant", rows: [{ l: 'Créances clients', v: factures.filter(f => f.status !== 'paye').reduce((s, f) => s + f.montantTTC, 0) }, { l: 'Autres créances', v: 2800000 }] },
-              { section: 'Trésorerie', rows: [{ l: 'Disponibilités bancaires', v: 46450000 }, { l: 'Caisse', v: 1250000 }] },
-            ]},
-            { title: 'PASSIF', color: '#dc2626', items: [
-              { section: 'Capitaux propres', rows: [{ l: 'Capital social', v: 50000000 }, { l: 'Réserves', v: 12500000 }, { l: 'Résultat de l\'exercice', v: Math.round(resultat) }] },
-              { section: 'Dettes financières', rows: [{ l: 'Emprunts bancaires', v: 15000000 }, { l: 'Dettes fournisseurs', v: Math.round(totalCharges * 0.3) }] },
-              { section: 'Dettes fiscales', rows: [{ l: 'TVA à verser', v: TVA_DATA.aVerser }, { l: 'Impôts et taxes', v: 1850000 }] },
-            ]},
-          ].map(side => (
-            <div key={side.title} style={{ background: 'white', borderRadius: 16, border: '1px solid #e5e7eb', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-              <div style={{ padding: '14px 20px', background: side.color + '10', borderBottom: '2px solid ' + side.color + '20' }}>
-                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: side.color }}>{side.title}</h3>
-              </div>
-              <div style={{ padding: '16px 20px' }}>
-                {side.items.map((block, bi) => (
-                  <div key={bi} style={{ marginBottom: 18 }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>{block.section}</div>
-                    {block.rows.map((r, ri) => (
-                      <div key={ri} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 10px', borderRadius: 7, background: ri % 2 === 0 ? '#fafbfc' : 'white', marginBottom: 3 }}>
-                        <span style={{ fontSize: 13, color: '#374151' }}>{r.l}</span>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: r.v < 0 ? '#dc2626' : '#374151' }}>{fmtN(Math.abs(r.v))} FCFA</span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-                <div style={{ borderTop: '2px solid ' + side.color + '30', paddingTop: 12, display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 14, fontWeight: 800, color: side.color }}>TOTAL {side.title}</span>
-                  <span style={{ fontSize: 16, fontWeight: 900, color: side.color }}>
-                    {fmtN(Math.abs(side.items.reduce((s, b) => s + b.rows.reduce((ss, r) => ss + r.v, 0), 0)))} FCFA
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {rapport === 'aged' && (
-        <div style={{ background: 'white', borderRadius: 16, border: '1px solid #e5e7eb', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-          <div style={{ padding: '14px 20px', borderBottom: '2px solid #e5e7eb', background: '#f8fafc' }}>
-            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: '#111827' }}>Balance âgée des créances clients</h3>
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
-              <thead>
-                <tr style={{ background: '#f8fafc' }}>
-                  {['Client', 'Total dû', 'Non échu', '0-30j', '31-60j', '61-90j', '+90j'].map(h => <Th key={h}>{h}</Th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { client: 'Orange Cameroun', total: 10195875, nonEchu: 0, j30: 10195875, j60: 0, j90: 0, sup90: 0 },
-                  { client: 'Gouvernement Cameroun', total: 26712000, nonEchu: 26712000, j30: 0, j60: 0, j90: 0, sup90: 0 },
-                  { client: 'Nexttel Cameroun', total: 5127750, nonEchu: 5127750, j30: 0, j60: 0, j90: 0, sup90: 0 },
-                ].map((r, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    <Td style={{ fontWeight: 600 }}>{r.client}</Td>
-                    <Td style={{ fontWeight: 800, color: '#111827' }}>{fmtN(r.total)} FCFA</Td>
-                    <Td style={{ color: '#16a34a', fontWeight: r.nonEchu ? 700 : 400 }}>{r.nonEchu ? fmtN(r.nonEchu) : '—'}</Td>
-                    <Td style={{ color: r.j30 ? '#d97706' : '#9ca3af', fontWeight: r.j30 ? 700 : 400 }}>{r.j30 ? fmtN(r.j30) : '—'}</Td>
-                    <Td style={{ color: r.j60 ? '#ef4444' : '#9ca3af' }}>{r.j60 ? fmtN(r.j60) : '—'}</Td>
-                    <Td style={{ color: r.j90 ? '#dc2626' : '#9ca3af' }}>{r.j90 ? fmtN(r.j90) : '—'}</Td>
-                    <Td style={{ color: r.sup90 ? '#7f1d1d' : '#9ca3af', fontWeight: r.sup90 ? 800 : 400 }}>{r.sup90 ? fmtN(r.sup90) : '—'}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        </SidePanel>
       )}
     </div>
   );
 };
 
-
+// ===== COMPOSANT PRINCIPAL =====
 export default function Finance() {
-  const [tab,setTab]         = useState('dashboard');
-  const [devis,setDevis]       = useState(SEED_DEVIS);
-  const [factures,setFactures] = useState(SEED_FACTURES);
-  const [depenses,setDepenses] = useState(DEPENSES_DATA);
+  const [nav, setNav] = useState('dashboard');
+  const [factures, setFactures] = useState(SEED_FACTURES);
+  const [depenses, setDepenses] = useState(SEED_DEPENSES);
+
+  const SCREENS = {
+    dashboard:   <Dashboard factures={factures} depenses={depenses} onNavigate={setNav}/>,
+    factures:    <VueFactures factures={factures} setFactures={setFactures}/>,
+    depenses:    <VueDepenses depenses={depenses} setDepenses={setDepenses}/>,
+    rapports:    <VueRapports factures={factures} depenses={depenses}/>,
+    tva:         <VueTVA factures={factures} depenses={depenses}/>,
+    tresorerie:  <VueTresorerie/>,
+    comptable:   <VuePlanComptable/>,
+    fournisseurs:<VueFournisseurs/>,
+    rentabilite: <VueRentabilite factures={factures} depenses={depenses}/>,
+  };
+
+  const currentNav = NAV.find(n=>n.id===nav);
+  const totalCA = factures.reduce((s,f)=>s+f.montantTTC,0);
+  const totalDep = depenses.reduce((s,d)=>s+(d.devise==='FCFA'?d.montant:d.montant*DEVISES_RATES[d.devise]||d.montant),0);
 
   return (
-    <div style={{minHeight:'100vh',background:'#f0f4ff',fontFamily:"'Segoe UI',Arial,sans-serif"}}>
-      <div style={{background:'linear-gradient(135deg,#0f172a,#1e3a5f)',borderBottom:'1px solid rgba(255,255,255,.05)'}}>
-        <div style={{maxWidth:1400,margin:'0 auto',padding:'20px 28px'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+    <div style={{minHeight:'100vh',display:'flex',fontFamily:'Segoe UI,Arial,sans-serif',background:C.bg}}>
+
+      {/* SIDEBAR QUICKBOOKS — fond blanc, bordure droite */}
+      <div style={{width:210,background:C.sidebar,borderRight:`1px solid ${C.sidebar_border}`,display:'flex',flexDirection:'column',flexShrink:0}}>
+
+        {/* Logo */}
+        <div style={{padding:'18px 16px 14px',borderBottom:`1px solid ${C.border2}`}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+            <div style={{width:30,height:30,borderRadius:6,background:C.green,display:'flex',alignItems:'center',justifyContent:'center'}}><Ico name="chart" size={16} color={C.white}/></div>
             <div>
-              <h1 style={{fontSize:22,fontWeight:900,color:'white',margin:'0 0 4px',letterSpacing:-.3}}>💼 Finance & Comptabilité</h1>
-              <p style={{color:'#64748b',margin:0,fontSize:12}}>OHADA · TVA {(TVA*100).toFixed(2)}% · FCFA / USD / EUR / CNY · CleanIT ERP</p>
-            </div>
-            <div style={{display:'flex',gap:8}}>
-              {['📊 Bilan','📋 P&L','🏛 DGI-TVA'].map(b=>(
-                <button key={b} style={{padding:'8px 14px',borderRadius:9,border:'1px solid rgba(255,255,255,.15)',background:'rgba(255,255,255,.06)',color:'white',fontWeight:600,fontSize:12,cursor:'pointer'}}>{b}</button>
-              ))}
+              <div style={{fontSize:14,fontWeight:800,color:C.text}}>CLEAN<span style={{color:C.green}}>IT</span></div>
+              <div style={{fontSize:9,color:C.muted,letterSpacing:0.3}}>Finance</div>
             </div>
           </div>
-          <div style={{display:'flex',gap:2,overflowX:'auto',paddingBottom:1}}>
-            {TABS.map(t=>(
-              <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'9px 16px',borderRadius:'9px 9px 0 0',border:'none',background:tab===t.id?'#f0f4ff':'transparent',color:tab===t.id?'#1d4ed8':'rgba(255,255,255,.5)',fontWeight:tab===t.id?800:500,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',gap:6,whiteSpace:'nowrap',transition:'all .15s',flexShrink:0}}>
-                {t.icon} {t.label}
-              </button>
+          {/* Mini stats */}
+          <div style={{display:'flex',flexDirection:'column',gap:4}}>
+            {[
+              {l:'CA',v:`${fmtN(Math.round(totalCA/1000))}K`,c:C.blue},
+              {l:'Charges',v:`${fmtN(Math.round(totalDep/1000))}K`,c:C.red},
+              {l:'Bénéfice',v:`${fmtN(Math.round((totalCA-totalDep)/1000))}K`,c:C.green},
+            ].map(s=>(
+              <div key={s.l} style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <span style={{fontSize:10,color:C.muted}}>{s.l}</span>
+                <span style={{fontSize:11,fontWeight:700,color:s.c}}>{s.v} FCFA</span>
+              </div>
             ))}
           </div>
         </div>
+
+        {/* Navigation */}
+        <nav style={{flex:1,padding:'8px 0',overflowY:'auto'}}>
+          {NAV.map(item=>{
+            const active = nav===item.id;
+            return (
+              <button key={item.id} onClick={()=>setNav(item.id)}
+                style={{width:'100%',padding:'9px 14px',border:'none',background:active?C.sidebar_active:'transparent',cursor:'pointer',display:'flex',alignItems:'center',gap:10,textAlign:'left',transition:'background .1s',borderLeft:active?`3px solid ${C.green}`:'3px solid transparent',fontFamily:'inherit'}}>
+                <Ico name={item.icon} size={17} color={active?C.green:C.muted}/>
+                <span style={{fontSize:13,fontWeight:active?700:400,color:active?C.green:C.text2}}>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Bouton New */}
+        <div style={{padding:'12px 14px',borderTop:`1px solid ${C.border2}`}}>
+          <button style={{width:'100%',padding:'9px 12px',borderRadius:4,border:'none',background:C.green,color:C.white,fontWeight:700,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8,fontFamily:'inherit'}}>
+            <Ico name="plus" size={16} color={C.white}/>
+            Nouvelle transaction
+          </button>
+          <div style={{marginTop:10,fontSize:10,color:C.muted,textAlign:'center'}}>OHADA · TVA {(TVA_RATE*100).toFixed(2)}% · Cameroun</div>
+        </div>
       </div>
 
-      <div style={{maxWidth:1400,margin:'0 auto',padding:'24px 28px'}}>
-        {tab==='dashboard' && <Dashboard devis={devis} factures={factures} onNavigate={setTab}/>}
-        {tab==='devis'     && <VueDevis devis={devis} setDevis={setDevis} factures={factures} setFactures={setFactures}/>}
-        {tab==='factures'  && <VueFactures factures={factures} setFactures={setFactures}/>}
-        {tab==='depenses'    && <VueDepenses depenses={depenses} setDepenses={setDepenses}/>}
-        {tab==='fournisseurs' && <VueFournisseurs/>}
-        {tab==='tva'          && <VueTVA/>}
-        {tab==='cashflow'     && <VueCashflow/>}
-        {tab==='comptable'    && <VuePlanComptable/>}
-        {tab==='rapports'     && <VueRapports factures={factures} depenses={depenses}/>}
+      {/* CONTENU PRINCIPAL */}
+      <div style={{flex:1,overflow:'auto',minWidth:0}}>
+        {/* Header page */}
+        <div style={{background:C.white,borderBottom:`1px solid ${C.border}`,padding:'12px 24px',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:0,zIndex:100}}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <div style={{width:34,height:34,borderRadius:4,background:C.green_bg,display:'flex',alignItems:'center',justifyContent:'center'}}><Ico name={currentNav?.icon||'home'} size={18} color={C.green}/></div>
+            <div>
+              <div style={{fontSize:11,color:C.muted,textTransform:'uppercase',letterSpacing:0.5}}>Finance & Comptabilité</div>
+              <h1 style={{margin:0,fontSize:16,fontWeight:700,color:C.text}}>{currentNav?.label}</h1>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,background:C.bg,border:`1px solid ${C.border}`,borderRadius:4,padding:'7px 12px'}}>
+              <Ico name="search" size={14} color={C.muted}/>
+              <input placeholder="Rechercher..." style={{border:'none',outline:'none',fontSize:13,color:C.text,background:'transparent',width:160,fontFamily:'inherit'}}/>
+            </div>
+            <Btn label="Clôture" onClick={()=>{}} ghost sm icon="calendar"/>
+            <Btn label="Exporter" onClick={()=>{}} ghost sm icon="download"/>
+          </div>
+        </div>
+
+        {/* Contenu */}
+        <div style={{padding:'22px 24px',maxWidth:1400}}>
+          {SCREENS[nav]||SCREENS.dashboard}
+        </div>
       </div>
     </div>
   );
