@@ -555,112 +555,372 @@ const FormulaireDépense = ({onClose, onSave}) => {
   );
 };
 
-// ===== DASHBOARD QB =====
+// ===== DONUT CHART =====
+const DonutChart = ({ value, total, color, size=120 }) => {
+  const pct = total > 0 ? value / total : 0;
+  const r = 44;
+  const circ = 2 * Math.PI * r;
+  const dash = pct * circ;
+  const cx = size / 2;
+  const cy = size / 2;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {/* Fond gris */}
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f0f0f0" strokeWidth="10"/>
+      {/* Arc coloré */}
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="10"
+        strokeDasharray={`${dash} ${circ - dash}`}
+        strokeDashoffset={circ / 4}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${cx} ${cy})`}
+        style={{transition:'stroke-dasharray .6s ease'}}/>
+    </svg>
+  );
+};
+
+// ===== COURBE SPARKLINE =====
+const CurveChart = ({ dataIn, dataOut, width=280, height=80 }) => {
+  const allVals = [...dataIn, ...dataOut];
+  const max = Math.max(...allVals) * 1.1;
+  const min = 0;
+  const range = max - min;
+  const pts = (data) => data.map((v, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((v - min) / range) * height;
+    return [x, y];
+  });
+  const toPath = (pts) => pts.map((p, i) => {
+    if (i === 0) return `M ${p[0]} ${p[1]}`;
+    const prev = pts[i-1];
+    const cpx = (prev[0] + p[0]) / 2;
+    return `C ${cpx} ${prev[1]} ${cpx} ${p[1]} ${p[0]} ${p[1]}`;
+  }).join(' ');
+  const inPts = pts(dataIn);
+  const outPts = pts(dataOut);
+  const inPath = toPath(inPts);
+  const outPath = toPath(outPts);
+  // Zone remplie sous la courbe
+  const inArea = inPath + ` L ${width} ${height} L 0 ${height} Z`;
+  const outArea = outPath + ` L ${width} ${height} L 0 ${height} Z`;
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      <defs>
+        <linearGradient id="inGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#2CA01C" stopOpacity="0.15"/>
+          <stop offset="100%" stopColor="#2CA01C" stopOpacity="0"/>
+        </linearGradient>
+        <linearGradient id="outGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#d52b1e" stopOpacity="0.12"/>
+          <stop offset="100%" stopColor="#d52b1e" stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      {/* Zones remplies */}
+      <path d={inArea} fill="url(#inGrad)"/>
+      <path d={outArea} fill="url(#outGrad)"/>
+      {/* Courbes */}
+      <path d={inPath} fill="none" stroke="#2CA01C" strokeWidth="2.5" strokeLinecap="round"/>
+      <path d={outPath} fill="none" stroke="#d52b1e" strokeWidth="2.5" strokeLinecap="round"/>
+      {/* Points finaux */}
+      {[inPts, outPts].map((p, si) => (
+        <circle key={si} cx={p[p.length-1][0]} cy={p[p.length-1][1]} r="4"
+          fill={si===0?'#2CA01C':'#d52b1e'} stroke="white" strokeWidth="2"/>
+      ))}
+    </svg>
+  );
+};
+
+// ===== BARRE HORIZONTALE =====
+const HBar = ({ label, value, max, color, total, percent }) => (
+  <div style={{marginBottom:10}}>
+    <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+      <span style={{fontSize:12,color:C.text2,fontWeight:500}}>{label}</span>
+      <div style={{display:'flex',gap:10,alignItems:'center'}}>
+        <span style={{fontSize:12,fontWeight:700,color}}>{fmtN(value)} FCFA</span>
+        <span style={{fontSize:11,color:C.muted}}>{percent}%</span>
+      </div>
+    </div>
+    <div style={{height:8,background:'#f0f0f0',borderRadius:4,overflow:'hidden'}}>
+      <div style={{height:'100%',width:`${(value/max)*100}%`,background:color,borderRadius:4,transition:'width .5s ease'}}/>
+    </div>
+  </div>
+);
+
+// ===== CARD QB AVEC DONUT =====
+const QBDonutCard = ({title, amount, sub, color, pct, trend, trendLabel, onClick, icon, details}) => (
+  <div onClick={onClick} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,padding:'20px',flex:1,minWidth:200,cursor:onClick?'pointer':'default',transition:'box-shadow .15s',position:'relative',overflow:'hidden'}}
+    onMouseEnter={e=>{if(onClick)e.currentTarget.style.boxShadow='0 4px 16px rgba(0,0,0,0.1)'}}
+    onMouseLeave={e=>{if(onClick)e.currentTarget.style.boxShadow='none'}}>
+    {/* Accent bar */}
+    <div style={{position:'absolute',top:0,left:0,right:0,height:3,background:color,borderRadius:'8px 8px 0 0'}}/>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+      <div style={{flex:1}}>
+        <div style={{fontSize:12,fontWeight:600,color:C.muted,textTransform:'uppercase',letterSpacing:0.5,marginBottom:8}}>{title}</div>
+        <div style={{fontSize:26,fontWeight:800,color:C.text,letterSpacing:-0.5,marginBottom:4}}>{amount}</div>
+        {sub&&<div style={{fontSize:12,color:C.muted,marginBottom:8}}>{sub}</div>}
+        {trend!==undefined&&(
+          <div style={{display:'inline-flex',alignItems:'center',gap:5,padding:'3px 8px',borderRadius:20,background:trend>=0?'#e8f5e2':'#fdf0ef'}}>
+            <span style={{fontSize:14,color:trend>=0?C.green:C.red}}>{trend>=0?'↑':'↓'}</span>
+            <span style={{fontSize:12,fontWeight:700,color:trend>=0?C.green:C.red}}>{Math.abs(trend)}%</span>
+            {trendLabel&&<span style={{fontSize:11,color:C.muted}}>{trendLabel}</span>}
+          </div>
+        )}
+        {details&&(
+          <div style={{marginTop:12,display:'flex',flexDirection:'column',gap:4}}>
+            {details.map(d=>(
+              <div key={d.l} style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div style={{display:'flex',alignItems:'center',gap:5}}>
+                  <span style={{width:8,height:8,borderRadius:2,background:d.c,flexShrink:0,display:'inline-block'}}/>
+                  <span style={{fontSize:11,color:C.muted}}>{d.l}</span>
+                </div>
+                <span style={{fontSize:12,fontWeight:600,color:d.c}}>{fmtN(d.v)} FCFA</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* Donut */}
+      <div style={{position:'relative',flexShrink:0,marginLeft:12}}>
+        <DonutChart value={pct||0} total={100} color={color} size={110}/>
+        <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',textAlign:'center'}}>
+          <div style={{fontSize:16,fontWeight:800,color}}>{pct||0}%</div>
+          {icon&&<div style={{fontSize:18}}>{icon}</div>}
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// ===== DASHBOARD QUICKBOOKS EXACT =====
 const Dashboard = ({factures, depenses, onNavigate}) => {
   const totalCA = factures.reduce((s,f)=>s+f.montantTTC,0);
   const totalPaye = factures.filter(f=>f.status==='paye').reduce((s,f)=>s+f.montantTTC,0);
   const totalImpaye = factures.filter(f=>['envoye','partiel','en_retard'].includes(f.status)).reduce((s,f)=>s+f.montantTTC,0);
+  const totalRetard = factures.filter(f=>f.status==='en_retard').reduce((s,f)=>s+f.montantTTC,0);
   const totalDep = depenses.reduce((s,d)=>s+(d.devise==='FCFA'?d.montant:d.montant*DEVISES_RATES[d.devise]||d.montant),0);
+  const totalDepPaye = depenses.filter(d=>d.status==='paye').reduce((s,d)=>s+(d.devise==='FCFA'?d.montant:d.montant*DEVISES_RATES[d.devise]||d.montant),0);
+  const totalDepAttente = depenses.filter(d=>d.status==='en_attente').reduce((s,d)=>s+(d.devise==='FCFA'?d.montant:d.montant*DEVISES_RATES[d.devise]||d.montant),0);
   const benefice = totalPaye - totalDep;
-  const maxFlow = Math.max(...CASHFLOW.map(c=>Math.max(c.e,c.s)));
+  const pctPaye = totalCA>0?Math.round(totalPaye/totalCA*100):0;
+  const pctDep = totalCA>0?Math.round(totalDep/totalCA*100):0;
+  const pctBenef = totalCA>0?Math.round(benefice/totalCA*100):0;
+  const MOIS = ['Oct','Nov','Déc','Jan','Fév','Mar'];
 
   return (
     <div>
-      {/* KPI Cards */}
-      <div style={{display:'flex',gap:14,marginBottom:24,flexWrap:'wrap'}}>
-        <KpiCard title="Revenus (facturé)" amount={`${fmtN(totalCA)} FCFA`} sub={`${fmtN(totalPaye)} FCFA encaissé`} trend={12} color={C.blue} sparkData={CASHFLOW.map(c=>c.e)} onClick={()=>onNavigate('factures')}/>
-        <KpiCard title="Dépenses" amount={`${fmtN(totalDep)} FCFA`} sub={`${depenses.filter(d=>d.status==='en_attente').length} en attente`} trend={5} color={C.red} sparkData={CASHFLOW.map(c=>c.s)} onClick={()=>onNavigate('depenses')}/>
-        <KpiCard title="Bénéfice net" amount={`${fmtN(benefice)} FCFA`} sub={`${Math.round(benefice/totalCA*100)}% de marge`} trend={15} color={benefice>=0?C.green:C.red} sparkData={CASHFLOW.map((c,i)=>c.e-c.s)}/>
-        <KpiCard title="À encaisser" amount={`${fmtN(totalImpaye)} FCFA`} sub={`${factures.filter(f=>f.status==='en_retard').length} en retard`} color={C.orange} onClick={()=>onNavigate('factures')}/>
+      {/* === ROW 1 : 3 CARDS AVEC DONUTS === */}
+      <div style={{display:'flex',gap:16,marginBottom:20,flexWrap:'wrap'}}>
+        <QBDonutCard
+          title="Invoices"
+          amount={`${fmtN(totalCA)} FCFA`}
+          sub="Total facturé"
+          color={C.blue}
+          pct={pctPaye}
+          trend={12}
+          trendLabel="vs mois dernier"
+          onClick={()=>onNavigate('factures')}
+          details={[
+            {l:'Encaissé',v:totalPaye,c:C.green},
+            {l:'En attente',v:totalImpaye-totalRetard,c:C.orange},
+            {l:'En retard',v:totalRetard,c:C.red},
+          ]}
+        />
+        <QBDonutCard
+          title="Expenses"
+          amount={`${fmtN(totalDep)} FCFA`}
+          sub="Total dépenses"
+          color={C.red}
+          pct={pctDep}
+          trend={5}
+          trendLabel="vs mois dernier"
+          onClick={()=>onNavigate('depenses')}
+          details={[
+            {l:'Payées',v:totalDepPaye,c:C.green},
+            {l:'En attente',v:totalDepAttente,c:C.orange},
+          ]}
+        />
+        <QBDonutCard
+          title="Profit & Loss"
+          amount={`${benefice>=0?'+':''}${fmtN(benefice)} FCFA`}
+          sub="Bénéfice net"
+          color={benefice>=0?C.green:C.red}
+          pct={Math.abs(pctBenef)}
+          trend={15}
+          trendLabel="vs mois dernier"
+          details={[
+            {l:'Revenus',v:totalCA,c:C.blue},
+            {l:'Charges',v:totalDep,c:C.red},
+            {l:'Net',v:benefice,c:benefice>=0?C.green:C.red},
+          ]}
+        />
       </div>
 
-      {/* Graphiques */}
-      <div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:18,marginBottom:24}}>
-        {/* Profit & Loss */}
-        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,padding:20}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
-            <h3 style={{margin:0,fontSize:15,fontWeight:700,color:C.text}}>Profit & Loss — 6 mois</h3>
-            <div style={{display:'flex',gap:14,fontSize:12,color:C.muted}}>
-              <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:10,background:C.blue,borderRadius:2,display:'inline-block'}}/>Revenus</span>
-              <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:10,background:C.red,borderRadius:2,display:'inline-block'}}/>Dépenses</span>
-              <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:10,background:C.green,borderRadius:2,display:'inline-block'}}/>Bénéfice</span>
+      {/* === ROW 2 : Money In vs Money Out + TVA === */}
+      <div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr',gap:16,marginBottom:20}}>
+
+        {/* Graphique courbes QB */}
+        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,padding:'20px'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:16}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:2}}>Money In vs Money Out</div>
+              <div style={{fontSize:12,color:C.muted}}>6 derniers mois</div>
+            </div>
+            <div style={{display:'flex',gap:16}}>
+              {[{c:C.green,l:'Entrées'},{c:C.red,l:'Sorties'}].map(x=>(
+                <div key={x.l} style={{display:'flex',alignItems:'center',gap:5}}>
+                  <span style={{width:24,height:3,background:x.c,borderRadius:2,display:'inline-block'}}/>
+                  <span style={{fontSize:11,color:C.muted}}>{x.l}</span>
+                </div>
+              ))}
             </div>
           </div>
-          <div style={{display:'flex',alignItems:'flex-end',gap:8,height:150}}>
-            {CASHFLOW.map((c,i)=>{
-              const marge = c.e-c.s;
-              return (
-                <div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-                  <div style={{width:'100%',display:'flex',gap:2,alignItems:'flex-end',height:120}}>
-                    <div style={{flex:1,height:`${(c.e/maxFlow)*120}px`,background:C.blue,borderRadius:'2px 2px 0 0',opacity:0.85}}/>
-                    <div style={{flex:1,height:`${(c.s/maxFlow)*120}px`,background:C.red,borderRadius:'2px 2px 0 0',opacity:0.75}}/>
-                    <div style={{flex:1,height:`${Math.max(0,(marge/maxFlow)*120)}px`,background:C.green,borderRadius:'2px 2px 0 0',opacity:0.85}}/>
-                  </div>
-                  <span style={{fontSize:10,color:C.muted,fontWeight:600}}>{c.mois}</span>
-                </div>
-              );
-            })}
+          {/* Labels mois */}
+          <CurveChart
+            dataIn={CASHFLOW.map(c=>c.e)}
+            dataOut={CASHFLOW.map(c=>c.s)}
+            width={360} height={100}
+          />
+          <div style={{display:'flex',justifyContent:'space-between',marginTop:6,paddingLeft:2}}>
+            {MOIS.map(m=><span key={m} style={{fontSize:10,color:C.muted,fontWeight:500}}>{m}</span>)}
           </div>
+          {/* Totaux sous le graphe */}
+          <div style={{display:'flex',gap:0,marginTop:14,borderTop:`1px solid ${C.border2}`,paddingTop:14}}>
+            {[
+              {l:'Total entrées',v:CASHFLOW.reduce((s,c)=>s+c.e,0),c:C.green},
+              {l:'Total sorties',v:CASHFLOW.reduce((s,c)=>s+c.s,0),c:C.red},
+              {l:'Marge nette',v:CASHFLOW.reduce((s,c)=>s+(c.e-c.s),0),c:C.blue},
+            ].map((k,i)=>(
+              <div key={k.l} style={{flex:1,textAlign:'center',borderRight:i<2?`1px solid ${C.border2}`:'none'}}>
+                <div style={{fontSize:11,color:C.muted,marginBottom:3}}>{k.l}</div>
+                <div style={{fontSize:14,fontWeight:700,color:k.c}}>{fmtN(k.v)} <span style={{fontSize:10,fontWeight:400}}>FCFA</span></div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* TVA Card */}
+        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,padding:'20px'}}>
+          <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:4}}>TVA — {(TVA_RATE*100).toFixed(2)}%</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Déclaration DGI Cameroun</div>
+
+          {/* Donut TVA */}
+          <div style={{display:'flex',alignItems:'center',gap:16,marginBottom:16}}>
+            <div style={{position:'relative'}}>
+              <DonutChart value={8569500} total={12819500} color={C.orange} size={100}/>
+              <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',textAlign:'center'}}>
+                <div style={{fontSize:13,fontWeight:800,color:C.orange}}>67%</div>
+                <div style={{fontSize:9,color:C.muted}}>à verser</div>
+              </div>
+            </div>
+            <div style={{flex:1}}>
+              {[
+                {l:'Collectée',v:12819500,c:C.red},
+                {l:'Déductible',v:4250000,c:C.green},
+                {l:'À verser',v:8569500,c:C.orange},
+              ].map(t=>(
+                <div key={t.l} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                  <div style={{display:'flex',alignItems:'center',gap:5}}>
+                    <span style={{width:8,height:8,borderRadius:2,background:t.c,display:'inline-block'}}/>
+                    <span style={{fontSize:11,color:C.muted}}>{t.l}</span>
+                  </div>
+                  <span style={{fontSize:12,fontWeight:700,color:t.c}}>{fmtN(t.v)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{padding:'10px 12px',background:'#fff8f0',borderRadius:6,border:`1px solid ${C.orange}30`,marginBottom:12}}>
+            <div style={{fontSize:11,fontWeight:700,color:C.orange,marginBottom:2}}>⚠️ Prochaine déclaration</div>
+            <div style={{fontSize:13,fontWeight:700,color:C.text}}>31 Mars 2024</div>
+          </div>
+          <button onClick={()=>onNavigate('tva')} style={{width:'100%',padding:'9px',borderRadius:4,border:`1px solid ${C.green}`,background:C.white,color:C.green,fontWeight:700,fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>
+            Gérer la TVA →
+          </button>
+        </div>
+      </div>
+
+      {/* === ROW 3 : P&L barres + Comptes bancaires === */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
+
+        {/* P&L Barres horizontales */}
+        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,padding:'20px'}}>
+          <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:4}}>Profit & Loss — Répartition</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Revenus vs Charges — 2024</div>
+          {[
+            {l:'Prestations clients',v:totalCA,max:totalCA,c:C.blue,pct:100},
+            {l:'Équipements & matériel',v:Math.round(totalDep*0.6),max:totalCA,c:C.red,pct:Math.round(totalDep*0.6/totalCA*100)},
+            {l:'Personnel & sous-traitance',v:18200000,max:totalCA,c:C.orange,pct:Math.round(18200000/totalCA*100)},
+            {l:'Transport & divers',v:Math.round(totalDep*0.15),max:totalCA,c:'#8764b8',pct:Math.round(totalDep*0.15/totalCA*100)},
+            {l:'Bénéfice net',v:Math.max(0,benefice),max:totalCA,c:C.green,pct:Math.max(0,pctBenef)},
+          ].map(b=>(
+            <HBar key={b.l} {...b}/>
+          ))}
         </div>
 
         {/* Comptes bancaires */}
-        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden'}}>
-          <div style={{padding:'14px 18px',borderBottom:`1px solid ${C.border2}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <h3 style={{margin:0,fontSize:14,fontWeight:700,color:C.text}}>Comptes bancaires</h3>
-            <button onClick={()=>onNavigate('tresorerie')} style={{fontSize:12,color:C.green,background:'none',border:'none',cursor:'pointer',fontWeight:600}}>Voir tout</button>
+        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,overflow:'hidden'}}>
+          <div style={{padding:'16px 20px',borderBottom:`1px solid ${C.border2}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,color:C.text}}>Comptes bancaires</div>
+              <div style={{fontSize:11,color:C.muted}}>Soldes en temps réel</div>
+            </div>
+            <button onClick={()=>onNavigate('tresorerie')} style={{fontSize:12,color:C.green,background:'none',border:'none',cursor:'pointer',fontWeight:600,fontFamily:'inherit'}}>Voir tout →</button>
           </div>
           {[
-            {nom:'BICEC Principal',solde:28450000},
-            {nom:'SGC Secondaire',solde:12800000},
-            {nom:'Caisse',solde:1250000},
+            {nom:'BICEC Principal',numero:'CM21 1001 2345',solde:28450000,color:C.blue},
+            {nom:'SGC Secondaire',numero:'CM21 2001 8765',solde:12800000,color:C.green},
+            {nom:'Afriland Épargne',numero:'CM21 3001 1111',solde:5200000,color:C.orange},
+            {nom:'Caisse',numero:'Espèces bureau',solde:1250000,color:C.muted},
           ].map((b,i)=>(
-            <div key={i} style={{padding:'12px 18px',borderBottom:`1px solid ${C.border2}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div key={i} style={{padding:'13px 20px',borderBottom:`1px solid ${C.border2}`,display:'flex',justifyContent:'space-between',alignItems:'center',background:i%2===0?C.white:'#fafafa'}}>
               <div style={{display:'flex',alignItems:'center',gap:10}}>
-                <div style={{width:34,height:34,borderRadius:4,background:C.blue_bg,display:'flex',alignItems:'center',justifyContent:'center'}}><Ico name="bank" size={16} color={C.blue}/></div>
-                <span style={{fontSize:13,fontWeight:500,color:C.text}}>{b.nom}</span>
+                <div style={{width:8,height:36,background:b.color,borderRadius:4,flexShrink:0}}/>
+                <div>
+                  <div style={{fontSize:13,fontWeight:600,color:C.text}}>{b.nom}</div>
+                  <div style={{fontSize:10,color:C.muted,fontFamily:'monospace'}}>{b.numero}</div>
+                </div>
               </div>
-              <span style={{fontSize:14,fontWeight:700,color:C.green}}>{fmtN(b.solde)} FCFA</span>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontSize:15,fontWeight:700,color:C.green}}>{fmtN(b.solde)}</div>
+                <div style={{fontSize:10,color:C.muted}}>FCFA</div>
+              </div>
             </div>
           ))}
-          <div style={{padding:'12px 18px',background:C.green_bg,borderTop:`2px solid ${C.green}`}}>
-            <div style={{display:'flex',justifyContent:'space-between'}}>
-              <span style={{fontSize:13,fontWeight:700,color:C.green}}>Solde total</span>
-              <span style={{fontSize:16,fontWeight:800,color:C.green}}>{fmtN(42500000)} FCFA</span>
-            </div>
+          <div style={{padding:'13px 20px',background:C.green_bg,borderTop:`2px solid ${C.green}`,display:'flex',justifyContent:'space-between'}}>
+            <span style={{fontSize:13,fontWeight:700,color:C.green}}>Solde total consolidé</span>
+            <span style={{fontSize:16,fontWeight:800,color:C.green}}>{fmtN(47700000)} FCFA</span>
           </div>
         </div>
       </div>
 
-      {/* Factures récentes + Dépenses récentes */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18}}>
+      {/* === ROW 4 : Factures + Dépenses récentes === */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
         <div>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-            <h3 style={{margin:0,fontSize:14,fontWeight:700,color:C.text}}>Factures récentes</h3>
-            <button onClick={()=>onNavigate('factures')} style={{fontSize:12,color:C.green,background:'none',border:'none',cursor:'pointer',fontWeight:600}}>Voir tout</button>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+            <span style={{fontSize:13,fontWeight:700,color:C.text}}>Factures récentes</span>
+            <button onClick={()=>onNavigate('factures')} style={{fontSize:12,color:C.green,background:'none',border:'none',cursor:'pointer',fontWeight:600,fontFamily:'inherit'}}>Voir tout →</button>
           </div>
           <QBTable
             cols={['Client','Montant','Échéance','Statut']}
-            rows={factures.slice(0,4).map(f=>[
-              <span style={{fontWeight:500}}>{f.client}</span>,
-              <span style={{fontWeight:600,color:C.blue}}>{fmtN(f.montantTTC)}</span>,
+            rows={factures.slice(0,5).map(f=>[
+              <span style={{fontWeight:500,fontSize:13}}>{f.client}</span>,
+              <span style={{fontWeight:700,color:C.blue,fontSize:13}}>{fmtN(f.montantTTC)}</span>,
               <span style={{fontSize:12,color:new Date(f.dateEcheance)<new Date()&&f.status!=='paye'?C.red:C.muted}}>{fmtD(f.dateEcheance)}</span>,
-              <Badge status={f.status}/>
+              <Badge status={f.status}/>,
             ])}
             onRowClick={()=>onNavigate('factures')}
           />
         </div>
         <div>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-            <h3 style={{margin:0,fontSize:14,fontWeight:700,color:C.text}}>Dépenses récentes</h3>
-            <button onClick={()=>onNavigate('depenses')} style={{fontSize:12,color:C.green,background:'none',border:'none',cursor:'pointer',fontWeight:600}}>Voir tout</button>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+            <span style={{fontSize:13,fontWeight:700,color:C.text}}>Dépenses récentes</span>
+            <button onClick={()=>onNavigate('depenses')} style={{fontSize:12,color:C.green,background:'none',border:'none',cursor:'pointer',fontWeight:600,fontFamily:'inherit'}}>Voir tout →</button>
           </div>
           <QBTable
             cols={['Fournisseur','Catégorie','Montant','Statut']}
-            rows={depenses.slice(0,4).map(d=>[
-              <span style={{fontWeight:500}}>{d.fournisseur}</span>,
+            rows={depenses.slice(0,5).map(d=>[
+              <span style={{fontWeight:500,fontSize:13}}>{d.fournisseur}</span>,
               <span style={{fontSize:12,color:C.muted}}>{d.categorie}</span>,
-              <span style={{fontWeight:600,color:C.red}}>{fmtN(d.montant)}</span>,
-              <Badge status={d.status}/>
+              <span style={{fontWeight:700,color:C.red,fontSize:13}}>{fmtN(d.montant)}</span>,
+              <Badge status={d.status}/>,
             ])}
             onRowClick={()=>onNavigate('depenses')}
           />
@@ -677,32 +937,66 @@ const VueFactures = ({factures, setFactures}) => {
   const [selected, setSelected] = useState(null);
   const [showNew, setShowNew] = useState(false);
 
-  const filtered = factures.filter(f=>{
-    const ms = !search||f.client.toLowerCase().includes(search.toLowerCase())||f.numero.toLowerCase().includes(search.toLowerCase());
-    const mf = filterStatus==='tous'||f.status===filterStatus;
-    return ms&&mf;
+  const filtered = factures.filter(f => {
+    const ms = !search || f.client.toLowerCase().includes(search.toLowerCase()) || f.numero.toLowerCase().includes(search.toLowerCase());
+    const mf = filterStatus === 'tous' || f.status === filterStatus;
+    return ms && mf;
   });
 
-  const stats = {
-    total: filtered.reduce((s,f)=>s+f.montantTTC,0),
-    paye: filtered.filter(f=>f.status==='paye').reduce((s,f)=>s+f.montantTTC,0),
-    retard: filtered.filter(f=>f.status==='en_retard').reduce((s,f)=>s+f.montantTTC,0),
-    attente: filtered.filter(f=>['envoye','partiel'].includes(f.status)).length,
-  };
+  const totalTTC = filtered.reduce((s,f) => s+f.montantTTC, 0);
+  const totalPaye = filtered.filter(f=>f.status==='paye').reduce((s,f) => s+f.montantTTC, 0);
+  const totalRetard = filtered.filter(f=>f.status==='en_retard').reduce((s,f) => s+f.montantTTC, 0);
+  const totalAttente = filtered.filter(f=>['envoye','partiel'].includes(f.status)).reduce((s,f) => s+f.montantTTC, 0);
+  const pctPaye = totalTTC > 0 ? Math.round(totalPaye/totalTTC*100) : 0;
+  const pctRetard = totalTTC > 0 ? Math.round(totalRetard/totalTTC*100) : 0;
 
   return (
     <div>
-      <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap'}}>
-        <KpiCard title="Total TTC" amount={`${fmtN(stats.total)} FCFA`} color={C.blue}/>
-        <KpiCard title="Encaissé" amount={`${fmtN(stats.paye)} FCFA`} color={C.green}/>
-        <KpiCard title="En retard" amount={`${fmtN(stats.retard)} FCFA`} color={C.red}/>
-        <KpiCard title="En attente" amount={stats.attente} sub="factures" color={C.orange}/>
+      {/* Cards QB avec donuts */}
+      <div style={{display:'flex',gap:16,marginBottom:20,flexWrap:'wrap'}}>
+        <QBDonutCard title="Total facturé" amount={`${fmtN(totalTTC)} FCFA`}
+          sub={`${filtered.length} factures`} color={C.blue} pct={pctPaye}
+          trend={12} trendLabel="vs mois dernier" onClick={()=>setFilterStatus('tous')}
+          details={[{l:'Encaissé',v:totalPaye,c:C.green},{l:'En attente',v:totalAttente,c:C.orange},{l:'En retard',v:totalRetard,c:C.red}]}/>
+        <QBDonutCard title="Encaissé" amount={`${fmtN(totalPaye)} FCFA`}
+          sub={`${pctPaye}% du total`} color={C.green} pct={pctPaye}
+          trend={8} onClick={()=>setFilterStatus('paye')}
+          details={[{l:'Payées',v:filtered.filter(f=>f.status==='paye').length,c:C.green},{l:'Restant',v:totalTTC-totalPaye,c:C.muted}]}/>
+        <QBDonutCard title="En retard" amount={`${fmtN(totalRetard)} FCFA`}
+          sub={`${filtered.filter(f=>f.status==='en_retard').length} factures`} color={C.red} pct={pctRetard}
+          trend={-5} onClick={()=>setFilterStatus('en_retard')}
+          details={[{l:'Montant dû',v:totalRetard,c:C.red},{l:'Nb factures',v:filtered.filter(f=>f.status==='en_retard').length,c:C.red}]}/>
       </div>
 
-      <div style={{display:'flex',gap:10,marginBottom:16,alignItems:'center',flexWrap:'wrap'}}>
+      {/* Barre P&L factures */}
+      <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,padding:'20px',marginBottom:20}}>
+        <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:4}}>Répartition du chiffre d'affaires</div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Par statut de facturation</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+          <div>
+            {[
+              {l:'Encaissé',v:totalPaye,max:totalTTC,c:C.green,pct:pctPaye},
+              {l:'En attente',v:totalAttente,max:totalTTC,c:C.orange,pct:totalTTC>0?Math.round(totalAttente/totalTTC*100):0},
+              {l:'En retard',v:totalRetard,max:totalTTC,c:C.red,pct:pctRetard},
+              {l:'Brouillon',v:filtered.filter(f=>f.status==='brouillon').reduce((s,f)=>s+f.montantTTC,0),max:totalTTC,c:C.muted,pct:0},
+            ].map(b => <HBar key={b.l} {...b}/>)}
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            {CLIENTS.map(client => {
+              const v = filtered.filter(f=>f.client===client).reduce((s,f)=>s+f.montantTTC,0);
+              if (!v) return null;
+              const pct = totalTTC > 0 ? Math.round(v/totalTTC*100) : 0;
+              return <HBar key={client} label={client} value={v} max={totalTTC} color={C.blue} pct={pct}/>;
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Filtres + tableau */}
+      <div style={{display:'flex',gap:10,marginBottom:14,alignItems:'center',flexWrap:'wrap'}}>
         <div style={{flex:1,minWidth:220,display:'flex',alignItems:'center',gap:8,background:C.white,border:`1px solid ${C.border}`,borderRadius:4,padding:'8px 12px'}}>
           <Ico name="search" size={16} color={C.muted}/>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Client, numéro de facture..."
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Client, numéro..."
             style={{flex:1,border:'none',outline:'none',fontSize:13,color:C.text,background:'transparent',fontFamily:'inherit'}}/>
         </div>
         <div style={{display:'flex',background:C.white,border:`1px solid ${C.border}`,borderRadius:4,padding:2,gap:2}}>
@@ -717,7 +1011,7 @@ const VueFactures = ({factures, setFactures}) => {
       </div>
 
       <QBTable
-        cols={['Numéro','Client','Projet','Montant HT','TVA','Montant TTC','Devise','Émission','Échéance','Statut','']}
+        cols={['Numéro','Client','Projet','Montant HT','TVA','TTC','Devise','Émission','Échéance','Statut','']}
         rows={filtered.map(f=>[
           <span style={{fontWeight:700,color:C.blue,fontFamily:'monospace',cursor:'pointer'}} onClick={()=>setSelected(f)}>{f.numero}</span>,
           <span style={{fontWeight:500}}>{f.client}</span>,
@@ -737,37 +1031,89 @@ const VueFactures = ({factures, setFactures}) => {
         ])}
         onRowClick={i=>setSelected(filtered[i])}
       />
-
       {selected&&<DetailFacture facture={selected} onClose={()=>setSelected(null)}/>}
       {showNew&&<FormulaireFacture onClose={()=>setShowNew(false)} onSave={f=>setFactures(p=>[f,...p])}/>}
     </div>
   );
 };
 
-// ===== VUE DÉPENSES =====
 const VueDepenses = ({depenses, setDepenses}) => {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('tous');
+  const [filterCat, setFilterCat] = useState('tous');
   const [showNew, setShowNew] = useState(false);
 
-  const filtered = depenses.filter(d=>{
-    const ms = !search||d.fournisseur.toLowerCase().includes(search.toLowerCase())||d.description.toLowerCase().includes(search.toLowerCase());
-    const mf = filterStatus==='tous'||d.status===filterStatus;
-    return ms&&mf;
+  const filtered = depenses.filter(d => {
+    const ms = !search || d.fournisseur.toLowerCase().includes(search.toLowerCase()) || d.description.toLowerCase().includes(search.toLowerCase());
+    const mf = filterStatus==='tous' || d.status===filterStatus;
+    const mc = filterCat==='tous' || d.categorie===filterCat;
+    return ms && mf && mc;
   });
 
-  const totalFCFA = filtered.reduce((s,d)=>s+(d.devise==='FCFA'?d.montant:d.montant*DEVISES_RATES[d.devise]||d.montant),0);
+  const toFCFA = d => d.devise==='FCFA' ? d.montant : d.montant*(DEVISES_RATES[d.devise]||1);
+  const total = filtered.reduce((s,d)=>s+toFCFA(d),0);
+  const totalPaye = filtered.filter(d=>d.status==='paye').reduce((s,d)=>s+toFCFA(d),0);
+  const totalAttente = filtered.filter(d=>d.status==='en_attente').reduce((s,d)=>s+toFCFA(d),0);
+  const pctPaye = total>0?Math.round(totalPaye/total*100):0;
+  const categories = [...new Set(depenses.map(d=>d.categorie))];
+
+  // Dépenses par catégorie pour barres
+  const depParCat = categories.map(cat => ({
+    cat,
+    v: depenses.filter(d=>d.categorie===cat).reduce((s,d)=>s+toFCFA(d),0)
+  })).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+  const maxCat = Math.max(...depParCat.map(x=>x.v));
+
+  // Dépenses par projet
+  const depParProjet = PROJETS_LIST.map(p => ({
+    p, v: depenses.filter(d=>d.projet===p).reduce((s,d)=>s+toFCFA(d),0)
+  })).filter(x=>x.v>0);
+  const maxProjet = Math.max(...depParProjet.map(x=>x.v), 1);
 
   return (
     <div>
-      <div style={{display:'flex',gap:12,marginBottom:20,flexWrap:'wrap'}}>
-        <KpiCard title="Total dépenses" amount={`${fmtN(totalFCFA)} FCFA`} color={C.red}/>
-        <KpiCard title="Payées" amount={`${fmtN(filtered.filter(d=>d.status==='paye').reduce((s,d)=>s+(d.devise==='FCFA'?d.montant:d.montant*DEVISES_RATES[d.devise]||d.montant),0))} FCFA`} color={C.green}/>
-        <KpiCard title="En attente" amount={filtered.filter(d=>d.status==='en_attente').length} sub="dépenses" color={C.orange}/>
-        <KpiCard title="Fournisseurs" amount={new Set(filtered.map(d=>d.fournisseur)).size} sub="actifs" color={C.blue}/>
+      {/* Cards QB donuts */}
+      <div style={{display:'flex',gap:16,marginBottom:20,flexWrap:'wrap'}}>
+        <QBDonutCard title="Total dépenses" amount={`${fmtN(total)} FCFA`}
+          sub={`${filtered.length} dépenses`} color={C.red} pct={pctPaye}
+          trend={5} trendLabel="vs mois dernier"
+          details={[{l:'Payées',v:totalPaye,c:C.green},{l:'En attente',v:totalAttente,c:C.orange}]}/>
+        <QBDonutCard title="Payées" amount={`${fmtN(totalPaye)} FCFA`}
+          sub={`${pctPaye}% du total`} color={C.green} pct={pctPaye}
+          trend={3} onClick={()=>setFilterStatus('paye')}
+          details={[{l:'Fournisseurs',v:new Set(filtered.filter(d=>d.status==='paye').map(d=>d.fournisseur)).size,c:C.green}]}/>
+        <QBDonutCard title="En attente" amount={`${fmtN(totalAttente)} FCFA`}
+          sub={`${filtered.filter(d=>d.status==='en_attente').length} dépenses`} color={C.orange}
+          pct={total>0?Math.round(totalAttente/total*100):0}
+          onClick={()=>setFilterStatus('en_attente')}
+          details={[{l:'À valider',v:filtered.filter(d=>d.status==='en_attente').length,c:C.orange}]}/>
       </div>
 
-      <div style={{display:'flex',gap:10,marginBottom:16,alignItems:'center',flexWrap:'wrap'}}>
+      {/* Analyse dépenses */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
+        {/* Par catégorie */}
+        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,padding:'20px'}}>
+          <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:4}}>Dépenses par catégorie</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Répartition des charges</div>
+          {depParCat.slice(0,6).map(({cat,v})=>(
+            <HBar key={cat} label={cat} value={v} max={maxCat} color={C.red}
+              pct={total>0?Math.round(v/total*100):0}/>
+          ))}
+        </div>
+        {/* Par projet */}
+        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,padding:'20px'}}>
+          <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:4}}>Dépenses par projet</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Impact sur la rentabilité</div>
+          {depParProjet.map(({p,v})=>(
+            <HBar key={p} label={p.split(' · ')[0]} value={v} max={maxProjet} color={C.orange}
+              pct={total>0?Math.round(v/total*100):0}/>
+          ))}
+          {depParProjet.length===0&&<div style={{color:C.muted,fontSize:13}}>Aucune dépense liée à un projet</div>}
+        </div>
+      </div>
+
+      {/* Filtres */}
+      <div style={{display:'flex',gap:10,marginBottom:14,alignItems:'center',flexWrap:'wrap'}}>
         <div style={{flex:1,minWidth:220,display:'flex',alignItems:'center',gap:8,background:C.white,border:`1px solid ${C.border}`,borderRadius:4,padding:'8px 12px'}}>
           <Ico name="search" size={16} color={C.muted}/>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Fournisseur, description..."
@@ -778,6 +1124,11 @@ const VueDepenses = ({depenses, setDepenses}) => {
             <button key={s.v} onClick={()=>setFilterStatus(s.v)} style={{padding:'6px 12px',borderRadius:3,border:'none',background:filterStatus===s.v?C.green:'transparent',color:filterStatus===s.v?C.white:C.muted,fontWeight:filterStatus===s.v?700:400,fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>{s.l}</button>
           ))}
         </div>
+        <select value={filterCat} onChange={e=>setFilterCat(e.target.value)}
+          style={{padding:'8px 12px',borderRadius:4,border:`1px solid ${C.border}`,fontSize:13,color:C.text,background:C.white,cursor:'pointer',fontFamily:'inherit'}}>
+          <option value="tous">Toutes catégories</option>
+          {categories.map(c=><option key={c} value={c}>{c}</option>)}
+        </select>
         <Btn label="Exporter" onClick={()=>{}} ghost icon="download" sm/>
         <Btn label="Nouvelle dépense" onClick={()=>setShowNew(true)} primary icon="plus"/>
       </div>
@@ -790,7 +1141,7 @@ const VueDepenses = ({depenses, setDepenses}) => {
           <span style={{fontSize:12,color:C.muted}}>{d.description}</span>,
           <span style={{padding:'2px 8px',borderRadius:10,background:C.bg,fontSize:11,fontWeight:600,color:C.text2}}>{d.categorie}</span>,
           <span style={{fontSize:12,color:C.blue,fontWeight:500}}>{d.projet}</span>,
-          <strong style={{color:C.text}}>{fmtN(d.montant)}</strong>,
+          <strong>{fmtN(d.montant)}</strong>,
           <span style={{padding:'2px 7px',borderRadius:10,background:C.green_bg,color:C.green,fontSize:11,fontWeight:700}}>{d.devise}</span>,
           <span style={{fontSize:12,color:C.muted}}>{fmtD(d.date)}</span>,
           <Badge status={d.status}/>,
@@ -800,17 +1151,18 @@ const VueDepenses = ({depenses, setDepenses}) => {
           </div>
         ])}
       />
-
       {showNew&&<FormulaireDépense onClose={()=>setShowNew(false)} onSave={d=>setDepenses(p=>[d,...p])}/>}
     </div>
   );
 };
 
-// ===== VUE RAPPORTS P&L =====
 const VueRapports = ({factures, depenses}) => {
+  const [rapport, setRapport] = useState('pl');
   const [periode, setPeriode] = useState('2024');
+
+  const toFCFA = d => d.devise==='FCFA' ? d.montant : d.montant*(DEVISES_RATES[d.devise]||1);
   const totalCA = factures.reduce((s,f)=>s+f.montantHT,0);
-  const totalCharges = depenses.reduce((s,d)=>s+(d.devise==='FCFA'?d.montant:d.montant*DEVISES_RATES[d.devise]||d.montant),0);
+  const totalCharges = depenses.reduce((s,d)=>s+toFCFA(d),0);
   const salaires = 18200000;
   const loyers = 3600000;
   const amort = 3200000;
@@ -818,155 +1170,228 @@ const VueRapports = ({factures, depenses}) => {
   const totalProduits = totalCA + autresProduits;
   const totalChargesTotal = totalCharges + salaires + loyers + amort;
   const resultat = totalProduits - totalChargesTotal;
+  const margeNet = totalProduits>0?Math.round(resultat/totalProduits*100):0;
 
-  const PRODUITS = [
-    {compte:'701',libelle:'Chiffre d\'affaires prestations',montant:totalCA},
-    {compte:'706',libelle:'Autres produits exploitation',montant:autresProduits},
-  ];
-  const CHARGES = [
-    {compte:'601',libelle:'Achats matières et sous-traitance',montant:Math.round(totalCharges*0.6)},
-    {compte:'613',libelle:'Services extérieurs',montant:Math.round(totalCharges*0.25)},
-    {compte:'624',libelle:'Transports et déplacements',montant:Math.round(totalCharges*0.15)},
-    {compte:'641',libelle:'Charges de personnel',montant:salaires},
-    {compte:'613',libelle:'Charges locatives',montant:loyers},
-    {compte:'681',libelle:'Dotations amortissements',montant:amort},
-  ];
+  const TVA_coll = factures.reduce((s,f)=>s+f.tva,0);
+  const TVA_ded = depenses.filter(d=>d.devise==='FCFA'&&d.status==='paye').reduce((s,d)=>s+d.montant*TVA_RATE,0);
 
-  const TVA_collectee = factures.reduce((s,f)=>s+f.tva,0);
-  const TVA_deductible = depenses.filter(d=>d.devise==='FCFA'&&d.status==='paye').reduce((s,d)=>s+d.montant*TVA_RATE,0);
+  const PRODUITS_ITEMS = [
+    {compte:'701',libelle:"Chiffre d'affaires prestations",montant:totalCA,color:C.blue},
+    {compte:'706',libelle:'Autres produits exploitation',montant:autresProduits,color:C.blue},
+  ];
+  const CHARGES_ITEMS = [
+    {compte:'601',libelle:'Achats matières & sous-traitance',montant:Math.round(totalCharges*0.6),color:C.red},
+    {compte:'613',libelle:'Services extérieurs',montant:Math.round(totalCharges*0.25),color:C.red},
+    {compte:'624',libelle:'Transports & déplacements',montant:Math.round(totalCharges*0.15),color:C.red},
+    {compte:'641',libelle:'Charges de personnel internes',montant:salaires,color:C.red},
+    {compte:'613',libelle:'Charges locatives',montant:loyers,color:C.red},
+    {compte:'681',libelle:'Dotations aux amortissements',montant:amort,color:C.red},
+  ];
 
   return (
     <div>
-      {/* Sélecteur période */}
-      <div style={{display:'flex',gap:10,marginBottom:20,alignItems:'center'}}>
-        <div style={{fontSize:13,color:C.muted}}>Période :</div>
-        <div style={{display:'flex',gap:4,background:C.white,border:`1px solid ${C.border}`,borderRadius:4,padding:2}}>
-          {['2024','T1 2024','T4 2023'].map(p=>(
-            <button key={p} onClick={()=>setPeriode(p)} style={{padding:'6px 14px',borderRadius:3,border:'none',background:periode===p?C.green:'transparent',color:periode===p?C.white:C.muted,fontWeight:periode===p?700:400,fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>{p}</button>
+      {/* Sélecteur rapport + période */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20,flexWrap:'wrap',gap:10}}>
+        <div style={{display:'flex',gap:8}}>
+          {[{id:'pl',l:'Compte de résultat'},{id:'bilan',l:'Bilan OHADA'},{id:'aged',l:'Balance âgée'},{id:'tva_recap',l:'Récap TVA'}].map(r=>(
+            <button key={r.id} onClick={()=>setRapport(r.id)} style={{padding:'8px 16px',borderRadius:4,border:`1px solid ${rapport===r.id?C.green:C.border}`,background:rapport===r.id?C.green:C.white,color:rapport===r.id?C.white:C.text2,fontWeight:rapport===r.id?700:400,fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>{r.l}</button>
           ))}
         </div>
-        <div style={{marginLeft:'auto',display:'flex',gap:8}}>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <div style={{display:'flex',background:C.white,border:`1px solid ${C.border}`,borderRadius:4,padding:2}}>
+            {['2024','T1 2024','T4 2023'].map(p=>(
+              <button key={p} onClick={()=>setPeriode(p)} style={{padding:'6px 12px',borderRadius:3,border:'none',background:periode===p?C.blue:'transparent',color:periode===p?C.white:C.muted,fontWeight:periode===p?700:400,fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>{p}</button>
+            ))}
+          </div>
           <Btn label="Imprimer" onClick={()=>{}} ghost icon="print" sm/>
           <Btn label="Exporter PDF" onClick={()=>{}} ghost icon="download" sm/>
-          <Btn label="Exporter Excel" onClick={()=>{}} primary icon="download" sm/>
+          <Btn label="Excel" onClick={()=>{}} primary icon="download" sm/>
         </div>
       </div>
 
-      {/* KPIs P&L */}
-      <div style={{display:'flex',gap:12,marginBottom:24}}>
-        <KpiCard title="Total produits" amount={`${fmtN(totalProduits)} FCFA`} color={C.green} trend={12}/>
-        <KpiCard title="Total charges" amount={`${fmtN(totalChargesTotal)} FCFA`} color={C.red} trend={5}/>
-        <KpiCard title="Résultat net" amount={`${resultat>=0?'+':''}${fmtN(resultat)} FCFA`} color={resultat>=0?C.green:C.red} trend={15}/>
-        <KpiCard title="Marge nette" amount={`${Math.round(resultat/totalProduits*100)}%`} color={resultat>=0?C.green:C.red}/>
-      </div>
-
-      <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden',marginBottom:20}}>
-        {/* En-tête rapport */}
-        <div style={{padding:'16px 20px',background:C.green,color:C.white}}>
-          <div style={{fontSize:16,fontWeight:700}}>Compte de Résultat — {periode}</div>
-          <div style={{fontSize:12,color:'rgba(255,255,255,0.75)',marginTop:2}}>Conforme au Plan Comptable OHADA · CleanIT ERP Télécom</div>
-        </div>
-
-        {/* Produits */}
-        <div style={{padding:'16px 20px'}}>
-          <div style={{fontSize:12,fontWeight:800,color:C.green,textTransform:'uppercase',letterSpacing:0.8,marginBottom:8,paddingBottom:6,borderBottom:`2px solid ${C.green}`}}>
-            Produits d'exploitation
+      {rapport==='pl' && (
+        <div>
+          {/* KPIs P&L avec donuts */}
+          <div style={{display:'flex',gap:16,marginBottom:20,flexWrap:'wrap'}}>
+            <QBDonutCard title="Produits totaux" amount={`${fmtN(totalProduits)} FCFA`}
+              sub="Revenus d'exploitation" color={C.green} pct={100} trend={12}
+              details={[{l:'CA prestations',v:totalCA,c:C.blue},{l:'Autres produits',v:autresProduits,c:C.green}]}/>
+            <QBDonutCard title="Charges totales" amount={`${fmtN(totalChargesTotal)} FCFA`}
+              sub="Charges d'exploitation" color={C.red} pct={Math.round(totalChargesTotal/totalProduits*100)} trend={5}
+              details={[{l:'Achats & services',v:totalCharges,c:C.red},{l:'Personnel',v:salaires,c:C.orange},{l:'Autres',v:loyers+amort,c:C.muted}]}/>
+            <QBDonutCard title="Résultat net" amount={`${resultat>=0?'+':''}${fmtN(resultat)} FCFA`}
+              sub={`Marge nette ${margeNet}%`} color={resultat>=0?C.green:C.red}
+              pct={Math.abs(margeNet)} trend={15}
+              details={[{l:'Marge brute',v:totalCA-totalCharges,c:C.blue},{l:'Résultat net',v:resultat,c:resultat>=0?C.green:C.red}]}/>
           </div>
-          {PRODUITS.map((p,i)=>(
-            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 10px',background:i%2===0?C.white:'#fafafa',borderRadius:3,marginBottom:2}}>
-              <div style={{display:'flex',gap:12,alignItems:'center'}}>
-                <span style={{fontSize:11,fontFamily:'monospace',color:C.muted,width:36}}>{p.compte}</span>
-                <span style={{fontSize:13,color:C.text}}>{p.libelle}</span>
-              </div>
-              <span style={{fontSize:13,fontWeight:600,color:C.green}}>{fmtN(p.montant)} FCFA</span>
+
+          {/* Graphique répartition charges */}
+          <div style={{display:'grid',gridTemplateColumns:'1.2fr 1fr',gap:16,marginBottom:20}}>
+            <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,padding:'20px'}}>
+              <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:4}}>Répartition Produits vs Charges</div>
+              <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Barres comparatives — {periode}</div>
+              <HBar label="Chiffre d'affaires" value={totalCA} max={totalProduits} color={C.blue} pct={Math.round(totalCA/totalProduits*100)}/>
+              <HBar label="Achats & sous-traitance" value={Math.round(totalCharges*0.85)} max={totalProduits} color={C.red} pct={Math.round(totalCharges*0.85/totalProduits*100)}/>
+              <HBar label="Charges personnel" value={salaires} max={totalProduits} color={C.orange} pct={Math.round(salaires/totalProduits*100)}/>
+              <HBar label="Charges fixes" value={loyers+amort} max={totalProduits} color={'#8764b8'} pct={Math.round((loyers+amort)/totalProduits*100)}/>
+              <HBar label="Résultat net" value={Math.max(0,resultat)} max={totalProduits} color={C.green} pct={Math.max(0,margeNet)}/>
             </div>
-          ))}
-          <div style={{display:'flex',justifyContent:'space-between',padding:'11px 10px',background:C.green_bg,borderRadius:4,marginTop:6,border:`1px solid ${C.border2}`}}>
-            <span style={{fontSize:14,fontWeight:700,color:C.green}}>TOTAL PRODUITS</span>
-            <span style={{fontSize:16,fontWeight:900,color:C.green}}>{fmtN(totalProduits)} FCFA</span>
-          </div>
-        </div>
-
-        {/* Charges */}
-        <div style={{padding:'0 20px 16px'}}>
-          <div style={{fontSize:12,fontWeight:800,color:C.red,textTransform:'uppercase',letterSpacing:0.8,marginBottom:8,paddingBottom:6,borderBottom:`2px solid ${C.red}`}}>
-            Charges d'exploitation
-          </div>
-          {CHARGES.map((c,i)=>(
-            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 10px',background:i%2===0?C.white:'#fafafa',borderRadius:3,marginBottom:2}}>
-              <div style={{display:'flex',gap:12,alignItems:'center'}}>
-                <span style={{fontSize:11,fontFamily:'monospace',color:C.muted,width:36}}>{c.compte}</span>
-                <span style={{fontSize:13,color:C.text}}>{c.libelle}</span>
+            <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,padding:'20px'}}>
+              <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:4}}>Évolution mensuelle</div>
+              <div style={{fontSize:11,color:C.muted,marginBottom:12}}>Money In vs Money Out</div>
+              <CurveChart dataIn={CASHFLOW.map(c=>c.e)} dataOut={CASHFLOW.map(c=>c.s)} width={240} height={90}/>
+              <div style={{display:'flex',justifyContent:'space-between',marginTop:6}}>
+                {CASHFLOW.map(c=><span key={c.mois} style={{fontSize:9,color:C.muted}}>{c.mois}</span>)}
               </div>
-              <span style={{fontSize:13,fontWeight:600,color:C.red}}>{fmtN(c.montant)} FCFA</span>
+              <div style={{marginTop:14,display:'flex',gap:0,borderTop:`1px solid ${C.border2}`,paddingTop:12}}>
+                {[
+                  {l:'Entrées',v:CASHFLOW.reduce((s,c)=>s+c.e,0),c:C.green},
+                  {l:'Sorties',v:CASHFLOW.reduce((s,c)=>s+c.s,0),c:C.red},
+                ].map((k,i)=>(
+                  <div key={k.l} style={{flex:1,textAlign:'center',borderRight:i<1?`1px solid ${C.border2}`:'none'}}>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:2}}>{k.l}</div>
+                    <div style={{fontSize:13,fontWeight:700,color:k.c}}>{fmtN(k.v)}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-          <div style={{display:'flex',justifyContent:'space-between',padding:'11px 10px',background:C.red_bg,borderRadius:4,marginTop:6,border:`1px solid ${C.border2}`}}>
-            <span style={{fontSize:14,fontWeight:700,color:C.red}}>TOTAL CHARGES</span>
-            <span style={{fontSize:16,fontWeight:900,color:C.red}}>{fmtN(totalChargesTotal)} FCFA</span>
+          </div>
+
+          {/* Compte de résultat détaillé */}
+          <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,overflow:'hidden'}}>
+            <div style={{padding:'16px 20px',background:C.green,color:C.white}}>
+              <div style={{fontSize:15,fontWeight:700}}>Compte de Résultat — {periode}</div>
+              <div style={{fontSize:11,color:'rgba(255,255,255,0.75)',marginTop:2}}>Plan Comptable OHADA · CleanIT ERP Télécom</div>
+            </div>
+            <div style={{padding:'16px 20px'}}>
+              {[
+                {title:"PRODUITS D'EXPLOITATION",color:C.green,bg:'#f0faf0',items:PRODUITS_ITEMS,total:totalProduits,totalLabel:'TOTAL PRODUITS'},
+                {title:"CHARGES D'EXPLOITATION",color:C.red,bg:'#fdf0ef',items:CHARGES_ITEMS,total:totalChargesTotal,totalLabel:'TOTAL CHARGES'},
+              ].map((section,si)=>(
+                <div key={si} style={{marginBottom:20}}>
+                  <div style={{fontSize:11,fontWeight:800,color:section.color,textTransform:'uppercase',letterSpacing:0.8,marginBottom:10,padding:'6px 10px',background:section.bg,borderRadius:4}}>{section.title}</div>
+                  {section.items.map((item,ii)=>(
+                    <div key={ii} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 10px',background:ii%2===0?C.white:'#fafafa',borderRadius:3,marginBottom:2}}>
+                      <div style={{display:'flex',gap:12,alignItems:'center'}}>
+                        <span style={{fontSize:11,fontFamily:'monospace',color:C.muted,width:36}}>{item.compte}</span>
+                        <span style={{fontSize:13,color:C.text}}>{item.libelle}</span>
+                      </div>
+                      <div style={{display:'flex',alignItems:'center',gap:12}}>
+                        <div style={{width:80,height:5,background:'#f0f0f0',borderRadius:3,overflow:'hidden'}}>
+                          <div style={{height:'100%',width:`${Math.round(item.montant/section.total*100)}%`,background:section.color,borderRadius:3}}/>
+                        </div>
+                        <span style={{fontSize:13,fontWeight:600,color:section.color,width:120,textAlign:'right'}}>{fmtN(item.montant)} FCFA</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{display:'flex',justifyContent:'space-between',padding:'11px 10px',background:section.bg,borderRadius:4,marginTop:6,border:`1px solid ${section.color}25`}}>
+                    <span style={{fontSize:14,fontWeight:700,color:section.color}}>{section.totalLabel}</span>
+                    <span style={{fontSize:16,fontWeight:900,color:section.color}}>{fmtN(section.total)} FCFA</span>
+                  </div>
+                </div>
+              ))}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'16px 18px',background:resultat>=0?C.green_bg:C.red_bg,borderRadius:6,border:`2px solid ${resultat>=0?C.green:C.red}`}}>
+                <div>
+                  <div style={{fontSize:16,fontWeight:900,color:resultat>=0?C.green:C.red}}>RÉSULTAT NET DE L'EXERCICE</div>
+                  <div style={{fontSize:12,color:C.muted,marginTop:2}}>Marge nette : {margeNet}%</div>
+                </div>
+                <span style={{fontSize:28,fontWeight:900,color:resultat>=0?C.green:C.red}}>{resultat>=0?'+':''}{fmtN(resultat)} FCFA</span>
+              </div>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Résultat */}
-        <div style={{padding:'16px 20px',background:resultat>=0?C.green_bg:C.red_bg,borderTop:`2px solid ${resultat>=0?C.green:C.red}`}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <span style={{fontSize:16,fontWeight:800,color:resultat>=0?C.green:C.red}}>RÉSULTAT NET DE L'EXERCICE</span>
-            <span style={{fontSize:28,fontWeight:900,color:resultat>=0?C.green:C.red}}>{resultat>=0?'+':''}{fmtN(resultat)} FCFA</span>
+      {rapport==='bilan' && (
+        <div>
+          <div style={{display:'flex',gap:12,marginBottom:20}}>
+            <QBDonutCard title="Total Actif" amount={`${fmtN(107196625)} FCFA`} color={C.blue} pct={100}
+              details={[{l:'Actif immobilisé',v:51500000,c:C.blue},{l:'Actif circulant',v:14196625,c:C.orange},{l:'Trésorerie',v:41500000,c:C.green}]}/>
+            <QBDonutCard title="Total Passif" amount={`${fmtN(107196625)} FCFA`} color={C.red} pct={100}
+              details={[{l:'Capitaux propres',v:70840000,c:C.green},{l:'Dettes financières',v:15000000,c:C.orange},{l:'Dettes fiscales',v:21356625,c:C.red}]}/>
           </div>
-        </div>
-      </div>
-
-      {/* TVA */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18}}>
-        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden'}}>
-          <div style={{padding:'12px 16px',background:C.bg,borderBottom:`1px solid ${C.border}`,fontSize:14,fontWeight:700,color:C.text}}>TVA — Taux {(TVA_RATE*100).toFixed(2)}%</div>
-          <div style={{padding:16}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
             {[
-              {l:'TVA collectée',v:TVA_collectee,c:C.red},
-              {l:'TVA déductible',v:TVA_deductible,c:C.green},
-              {l:'TVA nette à verser',v:TVA_collectee-TVA_deductible,c:C.orange,big:true},
-            ].map(t=>(
-              <div key={t.l} style={{display:'flex',justifyContent:'space-between',padding:'10px 0',borderBottom:t.big?'none':`1px solid ${C.border2}`}}>
-                <span style={{fontSize:t.big?13:12,fontWeight:t.big?600:400,color:C.muted}}>{t.l}</span>
-                <span style={{fontSize:t.big?18:13,fontWeight:t.big?800:600,color:t.c}}>{fmtN(Math.round(t.v))} FCFA</span>
+              {title:'ACTIF',color:C.blue,items:[
+                {section:'Actif immobilisé',rows:[{l:'Immobilisations corporelles',v:63500000},{l:'Amortissements (-)',v:-12000000}]},
+                {section:'Actif circulant',rows:[{l:'Créances clients',v:14196625},{l:'Autres créances',v:2800000}]},
+                {section:'Trésorerie',rows:[{l:'Disponibilités bancaires',v:42450000},{l:'Caisse',v:1250000}]},
+              ]},
+              {title:'PASSIF',color:C.red,items:[
+                {section:'Capitaux propres',rows:[{l:'Capital social',v:50000000},{l:'Réserves',v:12500000},{l:'Résultat exercice',v:Math.round(resultat)}]},
+                {section:'Dettes financières',rows:[{l:'Emprunts bancaires',v:15000000},{l:'Dettes fournisseurs',v:Math.round(totalCharges*0.3)}]},
+                {section:'Dettes fiscales',rows:[{l:'TVA à verser',v:Math.round(TVA_coll-TVA_ded)},{l:'Impôts et taxes',v:1850000}]},
+              ]},
+            ].map(side=>(
+              <div key={side.title} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,overflow:'hidden'}}>
+                <div style={{padding:'12px 18px',background:side.color,color:C.white,fontSize:14,fontWeight:700}}>{side.title}</div>
+                <div style={{padding:'16px 18px'}}>
+                  {side.items.map((block,bi)=>(
+                    <div key={bi} style={{marginBottom:16}}>
+                      <div style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:'uppercase',letterSpacing:0.5,marginBottom:8}}>{block.section}</div>
+                      {block.rows.map((r,ri)=>(
+                        <div key={ri} style={{display:'flex',justifyContent:'space-between',padding:'8px 10px',background:ri%2===0?C.white:'#fafafa',borderRadius:3,marginBottom:2}}>
+                          <span style={{fontSize:13,color:C.text}}>{r.l}</span>
+                          <span style={{fontSize:13,fontWeight:600,color:r.v<0?C.red:C.text}}>{fmtN(Math.abs(r.v))} FCFA</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                  <div style={{borderTop:`2px solid ${side.color}`,paddingTop:10,display:'flex',justifyContent:'space-between'}}>
+                    <span style={{fontSize:14,fontWeight:700,color:side.color}}>TOTAL {side.title}</span>
+                    <span style={{fontSize:16,fontWeight:900,color:side.color}}>{fmtN(107196625)} FCFA</span>
+                  </div>
+                </div>
               </div>
             ))}
-            <div style={{marginTop:12,padding:'8px 12px',background:'#fffbf0',borderRadius:4,border:`1px solid ${C.border2}`,fontSize:12,color:C.orange,fontWeight:600}}>
-              ⚠️ Prochaine déclaration : 31/03/2024
-            </div>
           </div>
         </div>
+      )}
 
-        {/* Balance âgée */}
-        <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:6,overflow:'hidden'}}>
-          <div style={{padding:'12px 16px',background:C.bg,borderBottom:`1px solid ${C.border}`,fontSize:14,fontWeight:700,color:C.text}}>Balance âgée des créances</div>
+      {rapport==='aged' && (
+        <div>
+          <div style={{display:'flex',gap:12,marginBottom:20}}>
+            <QBDonutCard title="Total créances" amount={`${fmtN(42035625)} FCFA`} color={C.orange} pct={60}
+              details={[{l:'Non échu',v:31839750,c:C.green},{l:'0-30j',v:10195875,c:C.orange},{l:'+30j',v:0,c:C.red}]}/>
+            <QBDonutCard title="Taux recouvrement" amount="73%" color={C.green} pct={73} trend={5}/>
+            <QBDonutCard title="En retard" amount={`${fmtN(10195875)} FCFA`} color={C.red} pct={27} trend={-3}/>
+          </div>
+          <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,overflow:'hidden'}}>
+            <div style={{padding:'14px 18px',background:C.bg,borderBottom:`1px solid ${C.border}`,fontSize:14,fontWeight:700,color:C.text}}>Balance âgée des créances clients</div>
+            <QBTable
+              cols={['Client','Total dû','Non échu','0-30j','31-60j','61-90j','+90j']}
+              rows={[
+                ['Orange Cameroun',<strong>{fmtN(10195875)} FCFA</strong>,'—',<span style={{color:C.orange,fontWeight:700}}>{fmtN(10195875)}</span>,'—','—','—'],
+                ['Gouvernement Cameroun',<strong>{fmtN(26712000)} FCFA</strong>,<span style={{color:C.green,fontWeight:700}}>{fmtN(26712000)}</span>,'—','—','—','—'],
+                ['Nexttel Cameroun',<strong>{fmtN(5127750)} FCFA</strong>,<span style={{color:C.green,fontWeight:700}}>{fmtN(5127750)}</span>,'—','—','—','—'],
+              ]}
+            />
+          </div>
+        </div>
+      )}
+
+      {rapport==='tva_recap' && (
+        <div>
+          <div style={{display:'flex',gap:12,marginBottom:20}}>
+            <QBDonutCard title="TVA collectée" amount={`${fmtN(Math.round(TVA_coll))} FCFA`} color={C.red} pct={100}/>
+            <QBDonutCard title="TVA déductible" amount={`${fmtN(Math.round(TVA_ded))} FCFA`} color={C.green} pct={Math.round(TVA_ded/TVA_coll*100)}/>
+            <QBDonutCard title="À verser DGI" amount={`${fmtN(Math.round(TVA_coll-TVA_ded))} FCFA`} color={C.orange} pct={Math.round((TVA_coll-TVA_ded)/TVA_coll*100)}/>
+          </div>
           <QBTable
-            cols={['Client','Total','0-30j','+30j']}
+            cols={['Mois','TVA collectée','TVA déductible','TVA nette','Statut']}
             rows={[
-              ['Orange Cameroun',<span style={{fontWeight:700}}>{fmtN(10195875)}</span>,<span style={{color:C.orange,fontWeight:700}}>{fmtN(10195875)}</span>,'—'],
-              ['Gouvernement',<span style={{fontWeight:700}}>{fmtN(26712000)}</span>,<span style={{color:C.green,fontWeight:700}}>{fmtN(26712000)}</span>,'—'],
+              ['Mars 2024',`${fmtN(Math.round(TVA_coll))} FCFA`,`${fmtN(Math.round(TVA_ded))} FCFA`,`${fmtN(Math.round(TVA_coll-TVA_ded))} FCFA`,<Badge status="en_attente"/>],
+              ['Février 2024','10 500 000 FCFA','3 800 000 FCFA','6 700 000 FCFA',<Badge status="paye"/>],
+              ['Janvier 2024','9 200 000 FCFA','3 100 000 FCFA','6 100 000 FCFA',<Badge status="paye"/>],
+              ['Décembre 2023','14 500 000 FCFA','5 200 000 FCFA','9 300 000 FCFA',<Badge status="paye"/>],
             ]}
           />
         </div>
-      </div>
+      )}
     </div>
   );
 };
 
-// ===== NAVIGATION LATÉRALE QB =====
-const NAV = [
-  {id:'dashboard',  label:'Tableau de bord', icon:'home'},
-  {id:'factures',   label:'Factures',         icon:'invoice'},
-  {id:'depenses',   label:'Dépenses',          icon:'expense'},
-  {id:'rapports',   label:'Rapports',          icon:'report'},
-  {id:'tva',        label:'TVA',              icon:'tax'},
-  {id:'tresorerie', label:'Trésorerie',        icon:'bank'},
-  {id:'comptable',  label:'Plan comptable',    icon:'chart'},
-  {id:'fournisseurs',label:'Fournisseurs',     icon:'vendor'},
-  {id:'rentabilite',label:'Rentabilité',       icon:'profit'},
-];
-
-// ===== RENTABILITÉ PROJETS =====
 const VueRentabilite = ({factures, depenses}) => {
   const projets = [
     {code:'PROJ-2024-001',titre:'Installation 5G NR DLA-001',client:'MTN Cameroun',contrat:45000000},
@@ -1254,6 +1679,19 @@ const VueFournisseurs = () => {
 };
 
 // ===== COMPOSANT PRINCIPAL =====
+
+const NAV = [
+  {id:'dashboard',   label:'Tableau de bord', icon:'home'},
+  {id:'factures',    label:'Factures',         icon:'invoice'},
+  {id:'depenses',    label:'Dépenses',          icon:'expense'},
+  {id:'rapports',    label:'Rapports',          icon:'report'},
+  {id:'tva',         label:'TVA',              icon:'tax'},
+  {id:'tresorerie',  label:'Trésorerie',        icon:'bank'},
+  {id:'comptable',   label:'Plan comptable',    icon:'chart'},
+  {id:'fournisseurs',label:'Fournisseurs',      icon:'vendor'},
+  {id:'rentabilite', label:'Rentabilité',       icon:'profit'},
+];
+
 export default function Finance() {
   const [nav, setNav] = useState('dashboard');
   const [factures, setFactures] = useState(SEED_FACTURES);

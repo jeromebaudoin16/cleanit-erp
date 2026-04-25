@@ -9,6 +9,7 @@ import Interventions from './pages/Interventions';
 import Planning from './pages/Planning';
 import Inventaire from './pages/Inventaire';
 import Finance from './pages/Finance';
+import BonsCommande from './pages/BonsCommande';
 import Projets from './pages/Projets';
 import RH from './pages/RH';
 import Pointage from './pages/Pointage';
@@ -57,6 +58,7 @@ export default function App() {
           <Route path="mediation"       element={<Mediation />} />
           <Route path="purchase-orders" element={<PurchaseOrders />} />
           <Route path="approvals"       element={<Approvals />} />
+          <Route path="bons-commande" element={<BonsCommande />} />
           <Route path="finance"         element={<Finance />} />
           <Route path="projets" element={<Projets />} />
           <Route path="pointage" element={<Pointage />} />
