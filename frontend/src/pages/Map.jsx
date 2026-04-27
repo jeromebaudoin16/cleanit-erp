@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
 const MAPTILER_KEY = "r30VkE2cM55t67KloPhg";
+const CESIUM_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzZGExN2M4OC0yZGVmLTRlMjgtOTEwZC00ZmU5YjY4YzI2ZWYiLCJpZCI6NDI0NDUxLCJpYXQiOjE3NzczMjIzMzB9.Gtd46BjdZa0mmuY3J4CKY5Tm5CN0c6mHfGLZveKA-Ag";
 
 const PHOTOS = {
   "EE001":"https://i.pravatar.cc/150?img=15",
@@ -59,6 +60,208 @@ const MAP_STYLES = [
   {id:"topo",label:"Topographique",url:`https://api.maptiler.com/maps/topo/style.json?key=${MAPTILER_KEY}`},
   {id:"outdoor",label:"Terrain",url:`https://api.maptiler.com/maps/outdoor/style.json?key=${MAPTILER_KEY}`},
 ];
+
+
+// ===== COMPOSANT CESIUM GLOBE =====
+const CesiumGlobe = ({ token, sites, techniciens }) => {
+  const cesiumRef = useRef(null);
+  const viewerRef = useRef(null);
+  const [cesiumLoaded, setCesiumLoaded] = useState(false);
+  const [cesiumError, setCesiumError] = useState(null);
+
+  useEffect(() => {
+    const loadCesium = async () => {
+      try {
+        // Charger CSS Cesium
+        if(!document.getElementById("cesium-css")) {
+          const link = document.createElement("link");
+          link.id = "cesium-css"; link.rel = "stylesheet";
+          link.href = "https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Widgets/widgets.css";
+          document.head.appendChild(link);
+        }
+        // Charger JS Cesium
+        if(!window.Cesium) {
+          await new Promise((res, rej) => {
+            const s = document.createElement("script");
+            s.src = "https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Cesium.js";
+            s.onload = res; s.onerror = rej;
+            document.head.appendChild(s);
+          });
+        }
+        setCesiumLoaded(true);
+      } catch(e) {
+        setCesiumError("Erreur chargement Cesium: " + e.message);
+      }
+    };
+    loadCesium();
+  }, []);
+
+  useEffect(() => {
+    if(!cesiumLoaded || !cesiumRef.current || viewerRef.current) return;
+    const Cesium = window.Cesium;
+    Cesium.Ion.defaultAccessToken = token;
+
+    try {
+      const viewer = new Cesium.Viewer(cesiumRef.current, {
+        terrainProvider: Cesium.createWorldTerrain({requestWaterMask:true, requestVertexNormals:true}),
+        imageryProvider: new Cesium.IonImageryProvider({assetId:3}),
+        baseLayerPicker: true,
+        geocoder: true,
+        homeButton: true,
+        sceneModePicker: true,
+        navigationHelpButton: true,
+        animation: false,
+        timeline: false,
+        fullscreenButton: true,
+        vrButton: false,
+        shadows: true,
+        shouldAnimate: true,
+      });
+
+      // Activer éclairage atmosphérique
+      viewer.scene.globe.enableLighting = true;
+      viewer.scene.atmosphere.dynamicLighting = Cesium.DynamicAtmosphereLightingType.SUNLIGHT;
+
+      // Ajouter marqueurs Sites sur le globe
+      sites.forEach(site => {
+        const cfg = STATUS_SITES[site.status] || STATUS_SITES.planifie;
+        const colorCesium = Cesium.Color.fromCssColorString(cfg.color);
+
+        viewer.entities.add({
+          name: site.name,
+          position: Cesium.Cartesian3.fromDegrees(site.lng, site.lat, 50),
+          billboard: {
+            image: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
+              <svg width="60" height="70" viewBox="0 0 60 70" xmlns="http://www.w3.org/2000/svg">
+                <rect x="5" y="5" width="50" height="50" rx="12" fill="${cfg.color}" stroke="white" stroke-width="3"/>
+                <text x="30" y="28" font-family="Arial" font-size="14" font-weight="bold" fill="white" text-anchor="middle">${site.type.includes("5G")?"5G":site.type.includes("4G")?"4G":"3G"}</text>
+                <text x="30" y="44" font-family="Arial" font-size="9" fill="rgba(255,255,255,0.8)" text-anchor="middle">${site.code}</text>
+                <polygon points="30,58 22,55 38,55" fill="${cfg.color}"/>
+              </svg>
+            `)}`,
+            width: 60, height: 70,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+          },
+          label: {
+            text: site.name,
+            font: "bold 12px Arial",
+            fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 2,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            pixelOffset: new Cesium.Cartesian2(0, -75),
+            heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+          description: `
+            <table style="font-family:Arial;font-size:12px;width:220px">
+              <tr><td><b>Site:</b></td><td>${site.name}</td></tr>
+              <tr><td><b>Type:</b></td><td>${site.type}</td></tr>
+              <tr><td><b>Client:</b></td><td>${site.client}</td></tr>
+              <tr><td><b>Statut:</b></td><td style="color:${cfg.color}">${cfg.label}</td></tr>
+              <tr><td><b>Progression:</b></td><td>${site.progression}%</td></tr>
+              <tr><td><b>Budget:</b></td><td>${site.budget}M FCFA</td></tr>
+            </table>
+          `,
+        });
+
+        // Cylindre pulsant sous chaque site
+        if(site.status === "en_cours" || site.status === "en_retard") {
+          viewer.entities.add({
+            position: Cesium.Cartesian3.fromDegrees(site.lng, site.lat, 0),
+            cylinder: {
+              length: 200,
+              topRadius: 500,
+              bottomRadius: 500,
+              material: Cesium.Color.fromCssColorString(cfg.color).withAlpha(0.15),
+              outline: true,
+              outlineColor: Cesium.Color.fromCssColorString(cfg.color).withAlpha(0.4),
+            },
+          });
+        }
+      });
+
+      // Ajouter techniciens sur le globe
+      techniciens.forEach(tech => {
+        const st = STATUS_TECH[tech.status] || STATUS_TECH.disponible;
+        viewer.entities.add({
+          name: tech.nom,
+          position: Cesium.Cartesian3.fromDegrees(tech.lng, tech.lat, 50),
+          point: {
+            pixelSize: 14,
+            color: Cesium.Color.fromCssColorString(tech.color),
+            outlineColor: Cesium.Color.WHITE,
+            outlineWidth: 2,
+            heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+          label: {
+            text: tech.nom.split(" ")[0],
+            font: "bold 11px Arial",
+            fillColor: Cesium.Color.WHITE,
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 2,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+            pixelOffset: new Cesium.Cartesian2(0, -20),
+            heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+          description: `
+            <table style="font-family:Arial;font-size:12px;width:200px">
+              <tr><td><b>Technicien:</b></td><td>${tech.nom}</td></tr>
+              <tr><td><b>Statut:</b></td><td style="color:${st.color}">${st.label}</td></tr>
+              <tr><td><b>Site:</b></td><td>${tech.site}</td></tr>
+              <tr><td><b>Batterie:</b></td><td>${tech.battery}%</td></tr>
+              <tr><td><b>Signal:</b></td><td>${tech.signal}/5</td></tr>
+            </table>
+          `,
+        });
+      });
+
+      // Voler vers le Cameroun
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(12.0, 5.5, 800000),
+        orientation: {
+          heading: Cesium.Math.toRadians(0),
+          pitch: Cesium.Math.toRadians(-45),
+          roll: 0,
+        },
+        duration: 3,
+      });
+
+      viewerRef.current = viewer;
+    } catch(e) {
+      setCesiumError("Erreur: " + e.message);
+    }
+
+    return () => {
+      if(viewerRef.current && !viewerRef.current.isDestroyed()) {
+        viewerRef.current.destroy();
+        viewerRef.current = null;
+      }
+    };
+  }, [cesiumLoaded, token, sites, techniciens]);
+
+  if(cesiumError) return (
+    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"rgba(255,255,255,.5)"}}>
+      <div style={{fontSize:40}}>⚠️</div>
+      <div style={{fontSize:13}}>{cesiumError}</div>
+    </div>
+  );
+
+  if(!cesiumLoaded) return (
+    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12}}>
+      <div style={{width:48,height:48,borderRadius:"50%",border:"3px solid #10B981",borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>
+      <div style={{color:"rgba(255,255,255,.5)",fontSize:13}}>Chargement Cesium Ion...</div>
+      <div style={{color:"rgba(255,255,255,.3)",fontSize:11}}>Satellite NASA · ESA · Données terrain 3D</div>
+    </div>
+  );
+
+  return <div ref={cesiumRef} style={{flex:1,width:"100%"}}/>;
+};
 
 export default function MapPage() {
   const mapRef = useRef(null);
@@ -645,26 +848,24 @@ export default function MapPage() {
           </>
         )}
 
-        {/* Globe Cesium overlay */}
+        {/* Globe Cesium overlay - Vraie intégration */}
         {showCesium&&(
-          <div style={{position:"absolute",inset:0,zIndex:500,background:"rgba(0,0,0,.7)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <div style={{background:"#0D1117",borderRadius:16,padding:"20px",width:"90%",maxWidth:700,border:"1px solid rgba(255,255,255,.1)",boxShadow:"0 24px 80px rgba(0,0,0,.5)"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-                <div>
-                  <div style={{fontSize:16,fontWeight:700,color:"white"}}>🌍 Globe 3D Cesium</div>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,.35)",marginTop:2}}>Visualisation globe terrestre NASA/ESA</div>
+          <div style={{position:"fixed",inset:0,zIndex:600,background:"rgba(0,0,0,.85)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <div style={{background:"#0D1117",borderRadius:16,width:"95%",maxWidth:1000,height:"88vh",border:"1px solid rgba(255,255,255,.1)",boxShadow:"0 24px 80px rgba(0,0,0,.6)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+              <div style={{padding:"14px 20px",background:"linear-gradient(135deg,#0D1117,#1a2744)",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  <div style={{width:36,height:36,borderRadius:9,background:"linear-gradient(135deg,#10B981,#059669)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🌍</div>
+                  <div>
+                    <div style={{fontSize:15,fontWeight:700,color:"white"}}>Globe 3D Cesium Ion</div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,.35)",marginTop:1}}>Données satellite NASA · ESA · Beidou · GLONASS · Sites CleanIT</div>
+                  </div>
                 </div>
-                <button onClick={()=>setShowCesium(false)} style={{width:30,height:30,borderRadius:"50%",background:"rgba(255,255,255,.08)",border:"none",color:"rgba(255,255,255,.5)",cursor:"pointer",fontSize:16}}>✕</button>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <span style={{fontSize:10,color:"#34D399",background:"rgba(52,211,153,.12)",border:"1px solid rgba(52,211,153,.25)",borderRadius:20,padding:"3px 10px",fontWeight:600}}>● Connecté</span>
+                  <button onClick={()=>setShowCesium(false)} style={{width:30,height:30,borderRadius:"50%",background:"rgba(255,255,255,.08)",border:"none",color:"rgba(255,255,255,.5)",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+                </div>
               </div>
-              <iframe
-                src={`https://cesium.com/ion/stories/viewer/?id=3fbdc0a7-fc51-4327-8b7c-a3d6a7a0f1fb`}
-                style={{width:"100%",height:400,border:"none",borderRadius:10,background:"#000"}}
-                title="Cesium Globe"
-                allowFullScreen
-              />
-              <div style={{marginTop:12,padding:"10px 14px",background:"rgba(52,211,153,.08)",border:"1px solid rgba(52,211,153,.2)",borderRadius:8,fontSize:12,color:"rgba(255,255,255,.5)"}}>
-                💡 Pour une intégration Cesium complète avec vos données CleanIT, créez un compte gratuit sur <span style={{color:"#34D399"}}>cesium.com/ion</span>
-              </div>
+              <CesiumGlobe token={CESIUM_TOKEN} sites={SITES} techniciens={techniciens}/>
             </div>
           </div>
         )}
