@@ -530,6 +530,7 @@ const Dashboard = ({contacts,companies,deals,tasks,setTab,onDealClick}) => {
 };
 
 // ===== VUE CONTACTS =====
+// ===== VUE CONTACTS =====
 const VueContacts = ({contacts,deals,onSelect}) => {
   const [search,setSearch] = useState("");
   const [lead,setLead] = useState("tous");
@@ -539,28 +540,17 @@ const VueContacts = ({contacts,deals,onSelect}) => {
     const ml = lead==="tous"||c.lead===lead;
     return ms&&ml;
   });
-  const chaud=contacts.filter(c=>c.lead==="chaud").length;
-  const tiede=contacts.filter(c=>c.lead==="tiede").length;
   return (
     <div className="crm-page-enter">
-      {/* Stats rapides */}
-      <div className="crm-toolbar-stats">
-        {[
-          {l:"Total",v:contacts.length,c:"var(--hs-g1)"},
-          {l:"Chauds",v:chaud,c:"#FF7A59"},
-          {l:"Tièdes",v:tiede,c:"#C9A200"},
-          {l:"Deals actifs",v:contacts.reduce((s,c)=>s+c.deals,0),c:"#00BDA5"},
-        ].map(s=>(
+      <div className="crm-toolbar-stats" style={{marginBottom:14}}>
+        {[{l:"Total",v:contacts.length,c:"var(--hs-g1)"},{l:"Chauds",v:contacts.filter(c=>c.lead==="chaud").length,c:"#FF7A59"},{l:"Tièdes",v:contacts.filter(c=>c.lead==="tiede").length,c:"#C9A200"},{l:"Deals",v:contacts.reduce((s,c)=>s+c.deals,0),c:"#00BDA5"}].map(s=>(
           <div key={s.l} className="crm-toolbar-stat"><strong style={{color:s.c,fontSize:16}}>{s.v}</strong> {s.l}</div>
         ))}
       </div>
-
-      {/* Toolbar */}
       <div className="crm-toolbar">
         <div className="crm-page-search">
           <Ico n="search" s={14} c="var(--hs-g4)"/>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nom, entreprise, email..."
-            style={{border:"none",outline:"none",fontSize:13,color:"var(--hs-g1)",background:"transparent",flex:1,fontFamily:"inherit"}}/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Nom, entreprise, email..." style={{border:"none",outline:"none",fontSize:13,color:"var(--hs-g1)",background:"transparent",flex:1,fontFamily:"inherit"}}/>
         </div>
         <div className="crm-filter-tabs">
           {[{v:"tous",l:"Tous"},{v:"chaud",l:"🔥 Chaud"},{v:"tiede",l:"🌡 Tiède"},{v:"froid",l:"❄️ Froid"}].map(f=>(
@@ -568,31 +558,27 @@ const VueContacts = ({contacts,deals,onSelect}) => {
           ))}
         </div>
         <div className="crm-view-toggle">
-          <button className={`crm-view-btn${view==="list"?" active":""}`} onClick={()=>setView("list")}><Ico n="tasks" s={13} c="currentColor"/>Liste</button>
-          <button className={`crm-view-btn${view==="grid"?" active":""}`} onClick={()=>setView("grid")}><Ico n="reports" s={13} c="currentColor"/>Grille</button>
+          <button className={`crm-view-btn${view==="list"?" active":""}`} onClick={()=>setView("list")}><Ico n="tasks" s={13} c="currentColor"/> Liste</button>
+          <button className={`crm-view-btn${view==="grid"?" active":""}`} onClick={()=>setView("grid")}><Ico n="reports" s={13} c="currentColor"/> Grille</button>
         </div>
-        <Btn label="Exporter" icon="export" sm/>
         <div style={{marginLeft:"auto"}}><Btn label="+ Créer un contact" icon="add" variant="primary" sm/></div>
       </div>
-
-      <div style={{fontSize:12,color:"var(--hs-g3)",marginBottom:12}}><strong style={{color:"var(--hs-g1)"}}>{filtered.length}</strong> contact(s) trouvé(s)</div>
-
-      {/* Vue liste */}
+      <div style={{fontSize:12,color:"var(--hs-g3)",marginBottom:12}}><strong style={{color:"var(--hs-g1)"}}>{filtered.length}</strong> contact(s)</div>
       {view==="list"&&(
         <div className="crm-card">
           <Table
             cols={["Nom","Entreprise","Titre","Email","Téléphone","Lead","Propriétaire","Dernier contact","Deals"]}
             rows={filtered.map(ct=>[
               <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <Av name={ct.name} size={32}/>
+                <Av name={ct.name} size={34}/>
                 <div>
                   <div style={{fontSize:13,fontWeight:600,color:"#FF7A59",cursor:"pointer"}} onClick={()=>onSelect(ct)}>{ct.name}</div>
                   <div style={{fontSize:11,color:"var(--hs-g3)"}}>{ct.status==="actif"?"● Actif":"○ Inactif"}</div>
                 </div>
               </div>,
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
-                {COMPANIES.find(co=>co.name===ct.company)&&<CoLogo co={COMPANIES.find(co=>co.name===ct.company)} size={18}/>}
-                <span style={{fontSize:12,color:"var(--hs-g2)"}}>{ct.company}</span>
+              <div style={{display:"flex",alignItems:"center",gap:7}}>
+                {COMPANIES.find(co=>co.name===ct.company)&&<CoLogo co={COMPANIES.find(co=>co.name===ct.company)} size={20}/>}
+                <span style={{fontSize:12}}>{ct.company}</span>
               </div>,
               <span style={{fontSize:12,color:"var(--hs-g2)"}}>{ct.title}</span>,
               <a href={`mailto:${ct.email}`} style={{fontSize:12,color:"#0091AE",textDecoration:"none"}} onClick={e=>e.stopPropagation()}>{ct.email}</a>,
@@ -600,33 +586,34 @@ const VueContacts = ({contacts,deals,onSelect}) => {
               <Badge status={ct.lead}/>,
               <div style={{display:"flex",alignItems:"center",gap:6}}><Av name={ct.owner} size={22}/><span style={{fontSize:12,color:"var(--hs-g2)"}}>{ct.owner.split(" ")[0]}</span></div>,
               <span style={{fontSize:12,color:"var(--hs-g3)"}}>{fmtD(ct.lastContact)}</span>,
-              <span style={{fontSize:12,fontWeight:700,color:ct.deals>0?"#00BDA5":"var(--hs-g5)",padding:"2px 8px",borderRadius:10,background:ct.deals>0?"#E6F9F7":"transparent"}}>{ct.deals} deal{ct.deals>1?"s":""}</span>,
+              <span style={{fontSize:12,fontWeight:700,color:ct.deals>0?"#00BDA5":"var(--hs-g5)",padding:"2px 8px",borderRadius:10,background:ct.deals>0?"#E6F9F7":"transparent"}}>{ct.deals}</span>,
             ])}
             onRow={i=>onSelect(filtered[i])}
           />
         </div>
       )}
-
-      {/* Vue grille */}
       {view==="grid"&&(
-        <div className="crm-grid-4">
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}}>
           {filtered.map((ct,i)=>(
-            <div key={ct.id} className="crm-contact-card" onClick={()=>onSelect(ct)} style={{animationDelay:`${i*0.04}s`}}>
-              <div className="crm-contact-card-header">
-                <Av name={ct.name} size={44}/>
+            <div key={ct.id} className="crm-contact-card" onClick={()=>onSelect(ct)}>
+              <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:12,paddingBottom:12,borderBottom:"1px solid var(--hs-border2)"}}>
+                <Av name={ct.name} size={46}/>
                 <div style={{flex:1,minWidth:0}}>
-                  <div className="crm-contact-card-name">{ct.name}</div>
-                  <div className="crm-contact-card-title">{ct.title}</div>
-                  <div style={{marginTop:5,display:"flex",gap:5,flexWrap:"wrap"}}>
-                    <Badge status={ct.lead}/>
-                    <Badge status={ct.status}/>
-                  </div>
+                  <div style={{fontSize:14,fontWeight:700,color:"var(--hs-g1)",marginBottom:2}}>{ct.name}</div>
+                  <div style={{fontSize:12,color:"var(--hs-g3)",marginBottom:5}}>{ct.title}</div>
+                  <div style={{display:"flex",gap:5}}><Badge status={ct.lead}/></div>
                 </div>
               </div>
-              <div className="crm-contact-info-item"><Ico n="companies" s={12} c="var(--hs-g4)"/>{ct.company}</div>
-              <div className="crm-contact-info-item"><Ico n="mail" s={12} c="var(--hs-g4)"/>{ct.email}</div>
-              <div className="crm-contact-info-item"><Ico n="phone" s={12} c="var(--hs-g4)"/>{ct.phone}</div>
-              <div className="crm-contact-card-footer">
+              <div style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:"var(--hs-g2)",marginBottom:6,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                <Ico n="companies" s={12} c="var(--hs-g4)"/>{ct.company}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:"var(--hs-g2)",marginBottom:6}}>
+                <Ico n="mail" s={12} c="var(--hs-g4)"/>{ct.email}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:"var(--hs-g2)",marginBottom:12}}>
+                <Ico n="phone" s={12} c="var(--hs-g4)"/>{ct.phone}
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:10,borderTop:"1px solid var(--hs-border2)"}}>
                 <div style={{display:"flex",alignItems:"center",gap:5}}><Av name={ct.owner} size={20}/><span style={{fontSize:11,color:"var(--hs-g3)"}}>{ct.owner.split(" ")[0]}</span></div>
                 <span style={{fontSize:11,fontWeight:700,color:ct.deals>0?"#00BDA5":"var(--hs-g4)",padding:"2px 8px",borderRadius:10,background:ct.deals>0?"#E6F9F7":"transparent"}}>{ct.deals} deal{ct.deals>1?"s":""}</span>
               </div>
@@ -638,7 +625,6 @@ const VueContacts = ({contacts,deals,onSelect}) => {
   );
 };
 
-// ===== VUE ENTREPRISES =====
 const VueCompanies = ({companies,deals,onSelect}) => {
   const [search,setSearch] = useState("");
   const [view,setView] = useState("grid");
@@ -864,87 +850,65 @@ const VueTasks = ({tasks,setTasks}) => {
   const [filter,setFilter] = useState("tous");
   const filtered = tasks.filter(t=>filter==="tous"||t.status===filter||t.type===filter);
   const markDone = id => setTasks(p=>p.map(t=>t.id===id?{...t,status:"fait"}:t));
-  const urgent = tasks.filter(t=>t.status==="urgent").length;
-  const planifie = tasks.filter(t=>t.status==="planifie").length;
-  const fait = tasks.filter(t=>t.status==="fait").length;
-
+  const urgent=tasks.filter(t=>t.status==="urgent").length;
+  const planifie=tasks.filter(t=>t.status==="planifie").length;
+  const fait=tasks.filter(t=>t.status==="fait").length;
   return (
     <div className="crm-page-enter">
-      {/* Stats */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
-        {[
-          {l:"Total tâches",v:tasks.length,c:"var(--hs-g1)",bg:"var(--hs-g9)",border:"var(--hs-border)"},
-          {l:"Planifiées",v:planifie,c:"#0091AE",bg:"#E5F5F8",border:"#B3DDE5"},
-          {l:"Urgentes",v:urgent,c:"#F2545B",bg:"#FEF0F1",border:"#F8B4B6"},
-          {l:"Réalisées",v:fait,c:"#00BDA5",bg:"#E6F9F7",border:"#99E6DD"},
-        ].map(s=>(
-          <div key={s.l} style={{background:s.bg,border:`1px solid ${s.border}`,borderRadius:4,padding:"14px 16px"}}>
-            <div style={{fontSize:22,fontWeight:700,color:s.c,marginBottom:3}}>{s.v}</div>
+        {[{l:"Total",v:tasks.length,c:"var(--hs-g1)",bg:"var(--hs-g9)",b:"var(--hs-border)"},{l:"Planifiées",v:planifie,c:"#0091AE",bg:"#E5F5F8",b:"#B3DDE5"},{l:"Urgentes",v:urgent,c:"#F2545B",bg:"#FEF0F1",b:"#F8B4B6"},{l:"Réalisées",v:fait,c:"#00BDA5",bg:"#E6F9F7",b:"#99E6DD"}].map(s=>(
+          <div key={s.l} style={{background:s.bg,border:`1px solid ${s.b}`,borderRadius:4,padding:"14px 18px"}}>
+            <div style={{fontSize:24,fontWeight:700,color:s.c,marginBottom:3}}>{s.v}</div>
             <div style={{fontSize:12,color:"var(--hs-g2)"}}>{s.l}</div>
           </div>
         ))}
       </div>
-
-      {/* Toolbar */}
       <div className="crm-toolbar">
         <div className="crm-filter-tabs">
           {[{v:"tous",l:`Toutes (${tasks.length})`},{v:"planifie",l:"Planifiées"},{v:"urgent",l:"🔴 Urgentes"},{v:"fait",l:"✓ Faites"}].map(f=>(
             <button key={f.v} className={`crm-filter-tab${filter===f.v?" active":""}`} onClick={()=>setFilter(f.v)}>{f.l}</button>
           ))}
         </div>
-        <div className="crm-filter-tabs">
-          {[{v:"tous",l:"Tout type"},{v:"appel",l:"📞 Appels"},{v:"reunion",l:"🤝 Réunions"},{v:"email",l:"📧 Emails"}].map(f=>(
-            <button key={f.v} className={`crm-filter-tab${filter===f.v?" active":""}`} onClick={()=>setFilter(f.v)}>{f.l}</button>
-          ))}
-        </div>
         <div style={{marginLeft:"auto"}}><Btn label="+ Créer une tâche" icon="add" variant="primary" sm/></div>
       </div>
-
       <div className="crm-card">
         {filtered.map((task,i)=>{
           const tc={appel:"#0091AE",reunion:"#6B50C8",email:"#FF7A59",visite:"#00BDA5",relance:"#F2545B"}[task.type]||"#99ACC2";
           const typeIco={appel:"phone",reunion:"contacts",email:"mail",visite:"companies",relance:"notify"}[task.type]||"tasks";
-          const isDone = task.status==="fait";
-          const isUrgent = task.status==="urgent";
+          const isDone=task.status==="fait";
+          const isUrgent=task.status==="urgent";
           return (
-            <div key={task.id} className="crm-task-row" style={{background:isUrgent?"#FFF8F8":"white",borderLeft:isUrgent?`3px solid #F2545B`:"3px solid transparent"}}>
-              {/* Checkbox */}
-              <div className={`crm-task-checkbox${isDone?" done":isUrgent?" urgent":""}`} onClick={()=>markDone(task.id)}>
-                {isDone&&<svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+            <div key={task.id} style={{display:"flex",alignItems:"center",gap:12,padding:"13px 18px",borderBottom:"1px solid var(--hs-border2)",background:isUrgent?"#FFF8F8":"white",borderLeft:`3px solid ${isUrgent?"#F2545B":isDone?"#00BDA5":"transparent"}`,transition:"background .1s",cursor:"pointer"}}
+              onMouseEnter={e=>e.currentTarget.style.background=isUrgent?"#FFF0F0":"var(--hs-g9)"}
+              onMouseLeave={e=>e.currentTarget.style.background=isUrgent?"#FFF8F8":"white"}>
+              <div style={{width:18,height:18,borderRadius:"50%",border:`2px solid ${isDone?"#00BDA5":isUrgent?"#F2545B":"var(--hs-border)"}`,background:isDone?"#00BDA5":"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,transition:"all .15s"}} onClick={()=>markDone(task.id)}>
+                {isDone&&<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
               </div>
-              {/* Type icon */}
-              <div style={{width:34,height:34,borderRadius:"50%",background:tc+"15",border:`1px solid ${tc}25`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <div style={{width:32,height:32,borderRadius:"50%",background:tc+"15",border:`1px solid ${tc}25`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                 <Ico n={typeIco} s={14} c={tc}/>
               </div>
-              {/* Content */}
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:13,fontWeight:isDone?400:600,color:isDone?"var(--hs-g4)":"var(--hs-g1)",textDecoration:isDone?"line-through":"none",marginBottom:3}}>{task.title}</div>
-                <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
+                <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
                   {task.company&&<span style={{fontSize:11,color:"var(--hs-g3)",display:"flex",alignItems:"center",gap:3}}><Ico n="companies" s={10} c="var(--hs-g4)"/>{task.company}</span>}
                   {task.contact&&<span style={{fontSize:11,color:"var(--hs-g3)",display:"flex",alignItems:"center",gap:3}}><Ico n="contacts" s={10} c="var(--hs-g4)"/>{task.contact}</span>}
-                  {task.notes&&<span style={{fontSize:11,color:"var(--hs-g3)"}}>📝 {task.notes.slice(0,50)}...</span>}
                 </div>
               </div>
-              {/* Échéance */}
               <div style={{textAlign:"center",flexShrink:0,minWidth:90}}>
-                <div style={{fontSize:11,color:"var(--hs-g3)",marginBottom:2}}>Échéance</div>
+                <div style={{fontSize:10,color:"var(--hs-g3)",marginBottom:2}}>Échéance</div>
                 <div style={{fontSize:12,fontWeight:600,color:isUrgent?"#F2545B":"var(--hs-g1)"}}>{fmtD(task.dueDate)}</div>
               </div>
-              {/* Owner */}
-              <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
                 <Av name={task.owner} size={24}/>
                 <span style={{fontSize:11,color:"var(--hs-g3)"}}>{task.owner.split(" ")[0]}</span>
               </div>
-              {/* Status + Actions */}
-              <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
-                <Badge status={task.status}/>
-                {!isDone&&<button onClick={()=>markDone(task.id)} className="crm-btn crm-btn-success crm-btn-sm" title="Marquer comme fait">✓</button>}
-                <button className="crm-btn crm-btn-default crm-btn-sm"><Ico n="edit" s={12} c="var(--hs-g3)"/></button>
-              </div>
+              <Badge status={task.status}/>
+              {!isDone&&<button onClick={()=>markDone(task.id)} className="crm-btn crm-btn-success crm-btn-sm">✓</button>}
+              <button className="crm-btn crm-btn-default crm-btn-sm"><Ico n="edit" s={12} c="var(--hs-g3)"/></button>
             </div>
           );
         })}
-        {filtered.length===0&&<div className="crm-empty"><Ico n="tasks" s={36} c="var(--hs-border)" cls="crm-empty-icon"/><div className="crm-empty-title">Aucune tâche</div></div>}
+        {filtered.length===0&&<div style={{padding:"48px",textAlign:"center",color:"var(--hs-g3)"}}>Aucune tâche</div>}
       </div>
     </div>
   );
