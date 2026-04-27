@@ -889,6 +889,32 @@ const BulletinModal = ({selB, onClose, onValidate}) => {
   );
 };
 
+
+// ===== MINI PHOTO — composants séparés pour éviter useState dans map =====
+const MiniPhoto = ({empId, first="", last="", size=32}) => {
+  const [err, setErr] = useState(false);
+  const photo = PHOTOS[empId];
+  const ac = getAC(first+last);
+  return (
+    <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid white",boxShadow:"0 0 0 1.5px #D9D9D9"}}>
+      {photo&&!err
+        ? <img src={photo} onError={()=>setErr(true)} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+        : <div style={{width:"100%",height:"100%",background:ac.bg,color:ac.c,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.32,fontWeight:700}}>{getInit(first,last)}</div>
+      }
+    </div>
+  );
+};
+
+const EmpCell = ({empId, first="", last="", matricule="", size=32}) => (
+  <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+    <MiniPhoto empId={empId} first={first} last={last} size={size}/>
+    <div>
+      <div style={{fontSize:"13px",fontWeight:500}}>{first} {last}</div>
+      <div style={{fontSize:"11px",color:"#89898B"}}>{matricule}</div>
+    </div>
+  </div>
+);
+
 // ===== DASHBOARD =====
 const Dashboard = ({employees,externals,bulletins,payExt,setTab}) => {
   const active = employees.filter(e=>e.status==="actif").length;
@@ -940,20 +966,10 @@ const Dashboard = ({employees,externals,bulletins,payExt,setTab}) => {
             <span className="rh-card-title">Équipe interne — Profils récents</span>
             <button onClick={()=>setTab("employees")} style={{fontSize:"12px",color:"#0070F2",background:"none",border:"none",cursor:"pointer",fontWeight:500}}>Voir tous →</button>
           </div>
-          {employees.slice(0,5).map((e,i)=>{
-            const photo = PHOTOS[e.id];
-            const [pErr,setPErr] = useState(false);
-            const ac = getAC(e.first+e.last);
-            return (
-              <div key={e.id} className="rh-emp-row"
-                style={{animationDelay:`${i*0.05}s`}}>
-                {/* Mini photo */}
-                <div style={{width:"38px",height:"38px",borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid white",boxShadow:"0 0 0 1.5px #D9D9D9"}}>
-                  {photo&&!pErr
-                    ? <img src={photo} onError={()=>setPErr(true)} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                    : <div style={{width:"100%",height:"100%",background:ac.bg,color:ac.c,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"13px",fontWeight:700}}>{getInit(e.first,e.last)}</div>
-                  }
-                </div>
+          {employees.slice(0,5).map((e,i)=>(
+            <div key={e.id} className="rh-emp-row"
+              style={{animationDelay:`${i*0.05}s`}}>
+              <MiniPhoto empId={e.id} first={e.first} last={e.last} size={38}/>
                 <div style={{flex:1}}>
                   <div style={{fontSize:"13px",fontWeight:600,color:"#32363A"}}>{e.first} {e.last}</div>
                   <div style={{fontSize:"11px",color:"#89898B"}}>{e.role} · {e.matricule}</div>
@@ -963,8 +979,7 @@ const Dashboard = ({employees,externals,bulletins,payExt,setTab}) => {
                   <div style={{fontSize:"10px",color:"#89898B",marginTop:"3px"}}>{e.department?.split(" ")[0]}</div>
                 </div>
               </div>
-            );
-          })}
+          ))}
         </div>
 
         {/* Droite */}
@@ -1012,22 +1027,8 @@ const Dashboard = ({employees,externals,bulletins,payExt,setTab}) => {
           cols={["Employé","Département","Période","Mode paiement","Statut"]}
           rows={bulletins.slice(0,6).map(b=>{
             const e=employees.find(emp=>emp.id===b.empId);
-            const photo=PHOTOS[b.empId];
-            const [pErr,setPErr]=useState(false);
-            const ac=getAC(e?.first+e?.last);
             return [
-              <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
-                <div style={{width:"32px",height:"32px",borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid white",boxShadow:"0 0 0 1px #D9D9D9"}}>
-                  {photo&&!pErr
-                    ?<img src={photo} onError={()=>setPErr(true)} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                    :<div style={{width:"100%",height:"100%",background:ac.bg,color:ac.c,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:700}}>{getInit(e?.first,e?.last)}</div>
-                  }
-                </div>
-                <div>
-                  <div style={{fontSize:"13px",fontWeight:500}}>{e?`${e.first} ${e.last}`:"—"}</div>
-                  <div style={{fontSize:"11px",color:"#89898B"}}>{e?.matricule}</div>
-                </div>
-              </div>,
+              <EmpCell empId={b.empId} first={e?.first||""} last={e?.last||""} matricule={e?.matricule||""} size={30}/>,
               <span style={{fontSize:"12px",color:"#89898B"}}>{e?.department||"—"}</span>,
               <strong>{MOIS_S[b.month-1]} {b.year}</strong>,
               <span style={{fontSize:"12px",color:"#89898B"}}>{b.payMethod}</span>,
@@ -1106,22 +1107,8 @@ const EmployeeList = ({employees,type,onSelect,onAdd}) => {
           <Table
             cols={isInt?["Employé","Poste","Département","Contrat","Embauche","Téléphone","Statut","Actions"]:["Technicien","Spécialité","Projets actifs","Taux/jour","Total perçu","Téléphone","Statut","Actions"]}
             rows={filtered.map((e,i)=>{
-              const photo=PHOTOS[e.id];
-              const [pErr,setPErr]=useState(false);
-              const ac=getAC(e.first+e.last);
               return [
-                <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
-                  <div style={{width:"36px",height:"36px",borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid white",boxShadow:"0 0 0 1.5px #D9D9D9"}}>
-                    {photo&&!pErr
-                      ?<img src={photo} onError={()=>setPErr(true)} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                      :<div style={{width:"100%",height:"100%",background:ac.bg,color:ac.c,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"12px",fontWeight:700}}>{getInit(e.first,e.last)}</div>
-                    }
-                  </div>
-                  <div>
-                    <div style={{fontSize:"13px",fontWeight:700,color:"#32363A"}}>{e.first} {e.last}</div>
-                    <div style={{fontSize:"11px",color:"#89898B",fontFamily:"monospace"}}>{e.matricule}</div>
-                  </div>
-                </div>,
+                <EmpCell empId={e.id} first={e.first} last={e.last} matricule={e.matricule} size={36}/>,
                 <span style={{fontSize:"12px"}}>{e.role}</span>,
                 isInt
                   ?<span style={{padding:"2px 8px",borderRadius:"4px",background:"#E8F3FF",color:"#0057B8",fontSize:"11px",fontWeight:500}}>{e.department}</span>
@@ -1273,22 +1260,8 @@ const Payroll = ({employees,bulletins,setBulletins,onToast}) => {
           cols={["Employé","Département","Base","Primes","Brut","Net à payer","Mode","Statut","Actions"]}
           rows={filtered.map(b=>{
             const e=employees.find(emp=>emp.id===b.empId);
-            const photo=PHOTOS[b.empId];
-            const [pErr,setPErr]=useState(false);
-            const ac=getAC(e?.first+e?.last);
             return [
-              <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
-                <div style={{width:"32px",height:"32px",borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid white",boxShadow:"0 0 0 1px #D9D9D9"}}>
-                  {photo&&!pErr
-                    ?<img src={photo} onError={()=>setPErr(true)} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                    :<div style={{width:"100%",height:"100%",background:ac.bg,color:ac.c,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:700}}>{getInit(e?.first,e?.last)}</div>
-                  }
-                </div>
-                <div>
-                  <div style={{fontSize:"13px",fontWeight:500}}>{e?`${e.first} ${e.last}`:"—"}</div>
-                  <div style={{fontSize:"11px",color:"#89898B"}}>{e?.matricule}</div>
-                </div>
-              </div>,
+              <EmpCell empId={b.empId} first={e?.first||""} last={e?.last||""} matricule={e?.matricule||""} size={30}/>,
               <span style={{fontSize:"12px",color:"#89898B"}}>{e?.department||"—"}</span>,
               <span>{fmtN(b.base)}</span>,
               <span style={{color:"#107E3E"}}>{b.bonus>0?`+${fmtN(b.bonus)}`:"—"}</span>,
@@ -1308,201 +1281,9 @@ const Payroll = ({employees,bulletins,setBulletins,onToast}) => {
       </div>
 
       {selB&&(
-        <div style={{position:"fixed",inset:0,zIndex:800,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px"}}>
-          <div onClick={()=>setSelB(null)} style={{position:"absolute",inset:0,background:"rgba(13,43,64,0.55)",backdropFilter:"blur(3px)"}}/>
-          <div className="rh-modal rh-card" style={{position:"relative",width:"100%",maxWidth:"660px",maxHeight:"92vh",overflow:"auto",borderRadius:"8px",boxShadow:"0 16px 64px rgba(0,0,0,0.25)"}}>
-            {(()=>{
-              const e=EMPLOYES.find(emp=>emp.id===selB.empId);
-              const photo=PHOTOS[selB.empId];
-              const ac=getAC((e?.first||"")+(e?.last||""));
-              const [pErr,setPErr]=useState(false);
-              return (
-                <>
-                  {/* Header du modal */}
-                  <div style={{background:"linear-gradient(135deg,#1B3A52,#0D2B40)",padding:"16px 24px",display:"flex",justifyContent:"space-between",alignItems:"center",borderRadius:"12px 12px 0 0"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
-                      <div style={{width:"36px",height:"36px",borderRadius:"8px",background:"#0070F2",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                        <Ico n="doc" s={18} c="white"/>
-                      </div>
-                      <div>
-                        <div style={{fontSize:"15px",fontWeight:700,color:"white"}}>Bulletin de Paie</div>
-                        <div style={{fontSize:"11px",color:"rgba(255,255,255,0.55)"}}>{MOIS[selB.month-1]} {selB.year} · Réf: {selB.id}</div>
-                      </div>
-                    </div>
-                    <button onClick={()=>setSelB(null)} style={{width:"32px",height:"32px",borderRadius:"6px",border:"1px solid rgba(255,255,255,0.2)",background:"transparent",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                      <Ico n="close" s={15} c="white"/>
-                    </button>
-                  </div>
-
-                  <div style={{padding:"0"}}>
-                    {/* Bandeau entreprise + employé */}
-                    <div style={{background:"linear-gradient(135deg,#f8fafc,#e8f3ff)",borderBottom:"1px solid #D9D9D9",padding:"20px 28px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      {/* Logo entreprise */}
-                      <div>
-                        <div style={{fontSize:"26px",fontWeight:900,color:"#1B3A52",letterSpacing:"0.5px",lineHeight:1}}>CLEAN<span style={{color:"#0070F2"}}>IT</span></div>
-                        <div style={{fontSize:"10px",color:"#89898B",marginTop:"3px",textTransform:"uppercase",letterSpacing:"0.8px"}}>Télécommunications · Douala, Cameroun</div>
-                        <div style={{fontSize:"10px",color:"#BDBDBD",marginTop:"2px",fontFamily:"monospace"}}>RCCM: DLA/2019/B/1234 · NIU: M012345678901P</div>
-                      </div>
-                      {/* Tampon BULLETIN */}
-                      <div style={{textAlign:"center",padding:"10px 20px",border:"2px solid #0070F2",borderRadius:"8px",background:"white"}}>
-                        <div style={{fontSize:"10px",color:"#0070F2",textTransform:"uppercase",letterSpacing:"1px",fontWeight:700}}>Bulletin de Paie</div>
-                        <div style={{fontSize:"18px",fontWeight:800,color:"#1B3A52",marginTop:"2px"}}>{MOIS[selB.month-1]}</div>
-                        <div style={{fontSize:"13px",fontWeight:600,color:"#6A6D70"}}>{selB.year}</div>
-                      </div>
-                    </div>
-
-                    {/* Profil employé avec photo */}
-                    <div style={{padding:"20px 28px",background:"white",borderBottom:"1px solid #EBEBEB",display:"flex",gap:"20px",alignItems:"center"}}>
-                      {/* Photo */}
-                      <div style={{width:"72px",height:"72px",borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"3px solid #0070F2",boxShadow:"0 4px 16px rgba(0,112,242,0.2)"}}>
-                        {photo&&!pErr
-                          ?<img src={photo} onError={()=>setPErr(true)} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                          :<div style={{width:"100%",height:"100%",background:ac.bg,color:ac.c,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",fontWeight:700}}>{getInit(e?.first,e?.last)}</div>
-                        }
-                      </div>
-                      {/* Infos */}
-                      <div style={{flex:1}}>
-                        <div style={{fontSize:"18px",fontWeight:800,color:"#1B3A52",marginBottom:"3px"}}>{e?.first} {e?.last}</div>
-                        <div style={{fontSize:"13px",color:"#6A6D70",marginBottom:"8px"}}>{e?.role} {e?.department?`· ${e.department}`:""}</div>
-                        <div style={{display:"flex",gap:"20px",flexWrap:"wrap"}}>
-                          {[
-                            {l:"Matricule",v:e?.matricule,mono:true},
-                            {l:"Contrat",v:e?.contract},
-                            {l:"Banque",v:e?.bank},
-                          ].map(item=>(
-                            <div key={item.l}>
-                              <div style={{fontSize:"9px",color:"#BDBDBD",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:"1px"}}>{item.l}</div>
-                              <div style={{fontSize:"12px",fontWeight:600,color:"#32363A",fontFamily:item.mono?"monospace":"inherit"}}>{item.v||"—"}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      {/* Status badge */}
-                      <div style={{textAlign:"right"}}>
-                        <Badge s={selB.status}/>
-                        {selB.paidOn&&<div style={{fontSize:"11px",color:"#89898B",marginTop:"6px"}}>Payé le {fmtD(selB.paidOn)}</div>}
-                      </div>
-                    </div>
-
-                    {/* Tableau de paie */}
-                    <div style={{padding:"20px 28px",background:"white"}}>
-                      <table style={{width:"100%",borderCollapse:"collapse",marginBottom:"0",borderRadius:"8px",overflow:"hidden",border:"1px solid #EBEBEB"}}>
-                        <thead>
-                          <tr style={{background:"#1B3A52"}}>
-                            <th style={{padding:"12px 18px",textAlign:"left",fontSize:"11px",fontWeight:700,color:"rgba(255,255,255,0.7)",textTransform:"uppercase",letterSpacing:"0.5px"}}>Libellé</th>
-                            <th style={{padding:"12px 18px",textAlign:"center",fontSize:"11px",fontWeight:700,color:"rgba(255,255,255,0.7)",textTransform:"uppercase",letterSpacing:"0.5px"}}>Type</th>
-                            <th style={{padding:"12px 18px",textAlign:"right",fontSize:"11px",fontWeight:700,color:"rgba(255,255,255,0.7)",textTransform:"uppercase",letterSpacing:"0.5px"}}>Montant (FCFA)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr style={{borderBottom:"1px solid #EBEBEB",background:"white"}}>
-                            <td style={{padding:"14px 18px"}}>
-                              <div style={{fontSize:"13px",fontWeight:600,color:"#32363A"}}>Salaire de base</div>
-                              <div style={{fontSize:"11px",color:"#89898B",marginTop:"2px"}}>Rémunération mensuelle contractuelle</div>
-                            </td>
-                            <td style={{padding:"14px 18px",textAlign:"center"}}>
-                              <span style={{padding:"3px 10px",borderRadius:"20px",background:"#E8F3FF",color:"#0070F2",fontSize:"11px",fontWeight:600}}>Base</span>
-                            </td>
-                            <td style={{padding:"14px 18px",textAlign:"right",fontSize:"15px",fontWeight:700,color:"#32363A"}}>{fmtN(selB.base)}</td>
-                          </tr>
-                          {selB.bonus>0&&(
-                            <tr style={{borderBottom:"1px solid #EBEBEB",background:"#FAFAFA"}}>
-                              <td style={{padding:"14px 18px"}}>
-                                <div style={{fontSize:"13px",fontWeight:600,color:"#107E3E"}}>Primes & Bonus</div>
-                                <div style={{fontSize:"11px",color:"#89898B",marginTop:"2px"}}>Prime mensuelle</div>
-                              </td>
-                              <td style={{padding:"14px 18px",textAlign:"center"}}>
-                                <span style={{padding:"3px 10px",borderRadius:"20px",background:"#F1F8F1",color:"#107E3E",fontSize:"11px",fontWeight:600}}>Prime</span>
-                              </td>
-                              <td style={{padding:"14px 18px",textAlign:"right",fontSize:"15px",fontWeight:700,color:"#107E3E"}}>+ {fmtN(selB.bonus)}</td>
-                            </tr>
-                          )}
-                          {selB.benefits>0&&(
-                            <tr style={{borderBottom:"1px solid #EBEBEB",background:"white"}}>
-                              <td style={{padding:"14px 18px"}}>
-                                <div style={{fontSize:"13px",fontWeight:600,color:"#6B00A4"}}>Avantages en nature</div>
-                                <div style={{fontSize:"11px",color:"#89898B",marginTop:"2px"}}>Transport, restauration, etc.</div>
-                              </td>
-                              <td style={{padding:"14px 18px",textAlign:"center"}}>
-                                <span style={{padding:"3px 10px",borderRadius:"20px",background:"#FFDEFF",color:"#6B00A4",fontSize:"11px",fontWeight:600}}>Avantage</span>
-                              </td>
-                              <td style={{padding:"14px 18px",textAlign:"right",fontSize:"15px",fontWeight:700,color:"#6B00A4"}}>+ {fmtN(selB.benefits)}</td>
-                            </tr>
-                          )}
-                          {/* Ligne BRUT */}
-                          <tr style={{background:"#F1F8F1",borderTop:"2px solid #107E3E"}}>
-                            <td style={{padding:"14px 18px"}}>
-                              <div style={{fontSize:"14px",fontWeight:700,color:"#107E3E"}}>SALAIRE BRUT</div>
-                            </td>
-                            <td/>
-                            <td style={{padding:"14px 18px",textAlign:"right",fontSize:"16px",fontWeight:800,color:"#107E3E"}}>{fmtN(selB.gross)}</td>
-                          </tr>
-                          {selB.deductions>0&&(
-                            <tr style={{background:"#FFF0F0",borderTop:"1px solid #BB0000"}}>
-                              <td style={{padding:"14px 18px"}}>
-                                <div style={{fontSize:"13px",fontWeight:600,color:"#BB0000"}}>Retenues & Déductions</div>
-                              </td>
-                              <td style={{padding:"14px 18px",textAlign:"center"}}>
-                                <span style={{padding:"3px 10px",borderRadius:"20px",background:"#FFF0F0",color:"#BB0000",fontSize:"11px",fontWeight:600}}>Retenue</span>
-                              </td>
-                              <td style={{padding:"14px 18px",textAlign:"right",fontSize:"15px",fontWeight:700,color:"#BB0000"}}>- {fmtN(selB.deductions)}</td>
-                            </tr>
-                          )}
-                        </tbody>
-                        <tfoot>
-                          <tr style={{background:"linear-gradient(135deg,#0070F2,#0057B8)"}}>
-                            <td style={{padding:"16px 18px"}}>
-                              <div style={{fontSize:"16px",fontWeight:800,color:"white",letterSpacing:"0.3px"}}>NET À PAYER</div>
-                              <div style={{fontSize:"11px",color:"rgba(255,255,255,0.6)",marginTop:"2px"}}>Mode: {selB.payMethod}</div>
-                            </td>
-                            <td/>
-                            <td style={{padding:"16px 18px",textAlign:"right"}}>
-                              <div style={{fontSize:"26px",fontWeight:900,color:"white",letterSpacing:"-0.5px"}}>{fmtN(selB.net)}</div>
-                              <div style={{fontSize:"12px",color:"rgba(255,255,255,0.7)",marginTop:"1px"}}>FCFA</div>
-                            </td>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-
-                    {/* Signatures */}
-                    <div style={{padding:"16px 28px 20px",background:"#FAFAFA",borderTop:"1px solid #EBEBEB"}}>
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"20px",marginBottom:"16px"}}>
-                        {[
-                          {l:"Salaire brut",v:`${fmtN(selB.gross)} FCFA`},
-                          {l:"Déductions",v:selB.deductions?`- ${fmtN(selB.deductions)} FCFA`:"Aucune"},
-                          {l:"Net versé",v:`${fmtN(selB.net)} FCFA`,bold:true},
-                        ].map(item=>(
-                          <div key={item.l} style={{textAlign:"center",padding:"10px",background:"white",borderRadius:"6px",border:"1px solid #EBEBEB"}}>
-                            <div style={{fontSize:"10px",color:"#89898B",textTransform:"uppercase",letterSpacing:"0.4px",marginBottom:"4px"}}>{item.l}</div>
-                            <div style={{fontSize:item.bold?"15px":"13px",fontWeight:item.bold?800:600,color:item.bold?"#0070F2":"#32363A"}}>{item.v}</div>
-                          </div>
-                        ))}
-                      </div>
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"32px",paddingTop:"12px",borderTop:"1px solid #EBEBEB"}}>
-                        {["Signature & Cachet Employé","Signature Direction / DRH"].map(s=>(
-                          <div key={s} style={{textAlign:"center"}}>
-                            <div style={{fontSize:"10px",color:"#89898B",marginBottom:"28px",textTransform:"uppercase",letterSpacing:"0.4px"}}>{s}</div>
-                            <div style={{height:"1px",background:"#D9D9D9"}}/>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div style={{padding:"14px 28px",borderTop:"1px solid #EBEBEB",background:"white",display:"flex",gap:"8px",justifyContent:"flex-end",borderRadius:"0 0 12px 12px"}}>
-                      <Btn label="Fermer" onClick={()=>setSelB(null)} variant="ghost"/>
-                      <Btn label="Imprimer" icon="print" variant="secondary"/>
-                      <Btn label="Télécharger PDF" icon="dl" variant="secondary"/>
-                      {selB.status==="en_attente"&&<Btn label="Valider & Marquer payé" icon="chk" variant="success" onClick={()=>{validate(selB.id);setSelB(null);}}/>}
-                    </div>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        </div>
+        <BulletinModal selB={selB} onClose={()=>setSelB(null)} onValidate={validate}/>
       )}
+
     </div>
   );
 };
@@ -1530,22 +1311,8 @@ const ExtPayments = ({externals,payExt,setPayExt,onToast}) => {
           cols={["Technicien","Projet","Phase","% Négocié","Montant net","Mode","Date","Réf.","Statut","Actions"]}
           rows={payExt.map(p=>{
             const ext=externals.find(e=>e.id===p.empId);
-            const photo=PHOTOS[p.empId];
-            const [pErr,setPErr]=useState(false);
-            const ac=getAC(ext?.first+ext?.last);
             return [
-              <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
-                <div style={{width:"32px",height:"32px",borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid white",boxShadow:"0 0 0 1px #D9D9D9"}}>
-                  {photo&&!pErr
-                    ?<img src={photo} onError={()=>setPErr(true)} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                    :<div style={{width:"100%",height:"100%",background:ac.bg,color:ac.c,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:700}}>{getInit(ext?.first,ext?.last)}</div>
-                  }
-                </div>
-                <div>
-                  <div style={{fontSize:"13px",fontWeight:500}}>{ext?`${ext.first} ${ext.last}`:"—"}</div>
-                  <div style={{fontSize:"11px",color:"#89898B"}}>{ext?.matricule}</div>
-                </div>
-              </div>,
+              <EmpCell empId={p.empId} first={ext?.first||""} last={ext?.last||""} matricule={ext?.matricule||""} size={30}/>,
               <strong style={{color:"#0070F2",fontSize:"12px"}}>{p.project}</strong>,
               <span style={{fontSize:"12px",color:"#89898B"}}>{p.phase}</span>,
               <span style={{padding:"2px 8px",borderRadius:"20px",background:"#F1F8F1",color:"#107E3E",fontSize:"12px",fontWeight:600}}>{p.pct}%</span>,
