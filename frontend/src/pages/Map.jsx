@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
 const MAPTILER_KEY = "r30VkE2cM55t67KloPhg";
-const CESIUM_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzZGExN2M4OC0yZGVmLTRlMjgtOTEwZC00ZmU5YjY4YzI2ZWYiLCJpZCI6NDI0NDUxLCJpYXQiOjE3NzczMjIzMzB9.Gtd46BjdZa0mmuY3J4CKY5Tm5CN0c6mHfGLZveKA-Ag";
 
 const PHOTOS = {
   "EE001":"https://i.pravatar.cc/150?img=15",
@@ -23,8 +22,8 @@ const SITES = [
 ];
 
 const TECHNICIENS_INIT = [
-  {id:"EE001",nom:"Thomas Ngono",lat:4.0580,lng:9.7150,status:"en_mission",site:"DLA-001",siteLat:4.0511,siteLng:9.7085,phone:"+237 677 100 001",avatar:"TN",color:"#2563EB",matricule:"CLN-EXT-001",specialite:"5G NR / 4G LTE",battery:78,signal:4,lastUpdate:"À l'instant",taches:3,rapport:"Câblage RRU terminé. Test en cours.",heureDebut:"07:30"},
-  {id:"EE002",nom:"Jean Mbarga",lat:3.8600,lng:11.5100,status:"en_mission",site:"YDE-001",siteLat:3.8480,siteLng:11.5021,phone:"+237 677 100 002",avatar:"JM",color:"#7C3AED",matricule:"CLN-EXT-002",specialite:"Survey RF",battery:92,signal:5,lastUpdate:"À l'instant",taches:2,rapport:"Installation antenne BBU terminée.",heureDebut:"08:00"},
+  {id:"EE001",nom:"Thomas Ngono",lat:4.0580,lng:9.7150,status:"en_mission",site:"DLA-001",siteLat:4.0511,siteLng:9.7085,phone:"+237 677 100 001",avatar:"TN",color:"#2563EB",matricule:"CLN-EXT-001",specialite:"5G NR / 4G LTE",battery:78,signal:4,lastUpdate:"À l\'instant",taches:3,rapport:"Câblage RRU terminé. Test en cours.",heureDebut:"07:30"},
+  {id:"EE002",nom:"Jean Mbarga",lat:3.8600,lng:11.5100,status:"en_mission",site:"YDE-001",siteLat:3.8480,siteLng:11.5021,phone:"+237 677 100 002",avatar:"JM",color:"#7C3AED",matricule:"CLN-EXT-002",specialite:"Survey RF",battery:92,signal:5,lastUpdate:"À l\'instant",taches:2,rapport:"Installation antenne BBU terminée.",heureDebut:"08:00"},
   {id:"EE003",nom:"Samuel Djomo",lat:4.0300,lng:9.1800,status:"en_deplacement",site:"LIM-001",siteLat:4.0167,siteLng:9.2000,phone:"+237 677 100 003",avatar:"SD",color:"#059669",matricule:"CLN-EXT-003",specialite:"3G UMTS / 4G LTE",battery:45,signal:3,lastUpdate:"Il y a 3 min",taches:1,rapport:"En route vers site Limbé.",heureDebut:"09:15"},
   {id:"EE004",nom:"Ali Moussa",lat:9.2800,lng:13.4100,status:"en_mission",site:"GAR-001",siteLat:9.3019,siteLng:13.3920,phone:"+237 677 100 004",avatar:"AM",color:"#D97706",matricule:"CLN-EXT-004",specialite:"Supervision HSE",battery:63,signal:2,lastUpdate:"Il y a 5 min",taches:4,rapport:"Vérification sécurité pylône terminée.",heureDebut:"06:45"},
   {id:"EE005",nom:"René Talla",lat:4.0400,lng:9.6800,status:"disponible",site:"—",siteLat:null,siteLng:null,phone:"+237 677 100 005",avatar:"RT",color:"#DB2777",matricule:"CLN-EXT-005",specialite:"Fibre optique",battery:100,signal:5,lastUpdate:"En ligne",taches:0,rapport:"",heureDebut:"—"},
@@ -39,218 +38,39 @@ const STATUS_SITES = {
 };
 
 const STATUS_TECH = {
-  en_mission:    {color:"#2563EB",label:"En mission",bg:"#EFF6FF"},
+  en_mission:    {color:"#2563EB",label:"En mission",    bg:"#EFF6FF"},
   en_deplacement:{color:"#D97706",label:"En déplacement",bg:"#FEFCE8"},
-  disponible:    {color:"#059669",label:"Disponible",bg:"#F0FDF4"},
-  hors_ligne:    {color:"#94A3B8",label:"Hors ligne",bg:"#F8FAFC"},
+  disponible:    {color:"#059669",label:"Disponible",    bg:"#F0FDF4"},
+  hors_ligne:    {color:"#94A3B8",label:"Hors ligne",    bg:"#F8FAFC"},
 };
 
 const ALERTES = [
-  {id:"A001",type:"RETARD",color:"#DC2626",msg:"DLA-003 en retard. Aucun technicien assigné.",time:"14:23"},
-  {id:"A002",type:"BATTERIE",color:"#D97706",msg:"Batterie faible (45%) — Samuel Djomo",time:"14:30"},
-  {id:"A003",type:"SIGNAL",color:"#D97706",msg:"Signal faible zone Garoua — Ali Moussa",time:"14:38"},
-  {id:"A004",type:"DISPO",color:"#059669",msg:"René Talla disponible — Peut être dispatché",time:"14:40"},
+  {id:"A001",type:"RETARD",   color:"#DC2626",msg:"DLA-003 en retard. Aucun technicien assigné.",time:"14:23"},
+  {id:"A002",type:"BATTERIE", color:"#D97706",msg:"Batterie faible (45%) — Samuel Djomo",time:"14:30"},
+  {id:"A003",type:"SIGNAL",   color:"#D97706",msg:"Signal faible zone Garoua — Ali Moussa",time:"14:38"},
+  {id:"A004",type:"DISPO",    color:"#059669",msg:"René Talla disponible — Peut être dispatché",time:"14:40"},
 ];
 
-// Styles Maptiler disponibles
-const MAP_STYLES = [
-  {id:"satellite",label:"Satellite HD",url:`https://api.maptiler.com/maps/satellite/style.json?key=${MAPTILER_KEY}`},
-  {id:"hybrid",label:"Hybride",url:`https://api.maptiler.com/maps/hybrid/style.json?key=${MAPTILER_KEY}`},
-  {id:"streets",label:"Standard",url:`https://api.maptiler.com/maps/streets/style.json?key=${MAPTILER_KEY}`},
-  {id:"topo",label:"Topographique",url:`https://api.maptiler.com/maps/topo/style.json?key=${MAPTILER_KEY}`},
-  {id:"outdoor",label:"Terrain",url:`https://api.maptiler.com/maps/outdoor/style.json?key=${MAPTILER_KEY}`},
+// Tuiles Maptiler
+const LAYERS = [
+  {id:"satellite",label:"🛰 Satellite HD", url:`https://api.maptiler.com/maps/satellite/{z}/{x}/{y}.jpg?key=${MAPTILER_KEY}`},
+  {id:"hybrid",   label:"🗺 Hybride",      url:`https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.jpg?key=${MAPTILER_KEY}`},
+  {id:"streets",  label:"🏙 Standard",     url:`https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`},
+  {id:"topo",     label:"⛰ Topographique",url:`https://api.maptiler.com/maps/topo/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`},
 ];
-
-
-// ===== COMPOSANT CESIUM GLOBE =====
-const CesiumGlobe = ({ token, sites, techniciens }) => {
-  const cesiumRef = useRef(null);
-  const viewerRef = useRef(null);
-  const [cesiumLoaded, setCesiumLoaded] = useState(false);
-  const [cesiumError, setCesiumError] = useState(null);
-
-  useEffect(() => {
-    const loadCesium = async () => {
-      try {
-        if(!document.getElementById("cesium-css")) {
-          const link = document.createElement("link");
-          link.id = "cesium-css"; link.rel = "stylesheet";
-          link.href = "https://cesium.com/downloads/cesiumjs/releases/1.95/Build/Cesium/Widgets/widgets.css";
-          document.head.appendChild(link);
-        }
-        if(!window.Cesium) {
-          await new Promise((res, rej) => {
-            const s = document.createElement("script");
-            s.src = "https://cesium.com/downloads/cesiumjs/releases/1.95/Build/Cesium/Cesium.js";
-            s.onload = res; s.onerror = rej;
-            document.head.appendChild(s);
-          });
-        }
-        setCesiumLoaded(true);
-      } catch(e) {
-        setCesiumError("Erreur chargement: " + e.message);
-      }
-    };
-    loadCesium();
-  }, []);
-
-  useEffect(() => {
-    if(!cesiumLoaded || !cesiumRef.current || viewerRef.current) return;
-    const Cesium = window.Cesium;
-    Cesium.Ion.defaultAccessToken = token;
-
-    try {
-      const viewer = new Cesium.Viewer(cesiumRef.current, {
-        baseLayerPicker: true,
-        geocoder: true,
-        homeButton: true,
-        sceneModePicker: true,
-        navigationHelpButton: false,
-        animation: false,
-        timeline: false,
-        fullscreenButton: false,
-        shadows: false,
-      });
-
-      // Ajouter imagery satellite Cesium Ion (Bing Maps)
-      viewer.imageryLayers.addImageryProvider(
-        new Cesium.IonImageryProvider({ assetId: 2 })
-      );
-
-      // Ajouter terrain mondial
-      try {
-        viewer.terrainProvider = Cesium.createWorldTerrain();
-      } catch(e) {}
-
-      // Sites
-      sites.forEach(site => {
-        const cfg = STATUS_SITES[site.status] || STATUS_SITES.planifie;
-        viewer.entities.add({
-          name: site.name,
-          position: Cesium.Cartesian3.fromDegrees(site.lng, site.lat, 100),
-          billboard: {
-            image: createSiteIcon(cfg.color, site.type, site.code),
-            width: 48, height: 56,
-            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          },
-          label: {
-            text: site.code + " - " + site.name,
-            font: "bold 11px Arial",
-            fillColor: Cesium.Color.WHITE,
-            outlineColor: Cesium.Color.BLACK,
-            outlineWidth: 2,
-            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            pixelOffset: new Cesium.Cartesian2(0, -65),
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-            show: false,
-          },
-          description: "<b>" + site.name + "</b><br>Type: " + site.type + "<br>Client: " + site.client + "<br>Progression: " + site.progression + "%",
-        });
-      });
-
-      // Techniciens
-      techniciens.forEach(tech => {
-        const st = STATUS_TECH[tech.status] || STATUS_TECH.disponible;
-        viewer.entities.add({
-          name: tech.nom,
-          position: Cesium.Cartesian3.fromDegrees(tech.lng, tech.lat, 100),
-          point: {
-            pixelSize: 16,
-            color: Cesium.Color.fromCssColorString(tech.color),
-            outlineColor: Cesium.Color.WHITE,
-            outlineWidth: 3,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          },
-          label: {
-            text: tech.nom.split(" ")[0],
-            font: "bold 11px Arial",
-            fillColor: Cesium.Color.fromCssColorString(tech.color),
-            outlineColor: Cesium.Color.BLACK,
-            outlineWidth: 2,
-            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            pixelOffset: new Cesium.Cartesian2(0, -24),
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          },
-          description: "<b>" + tech.nom + "</b><br>Statut: " + st.label + "<br>Site: " + tech.site + "<br>Batterie: " + tech.battery + "%",
-        });
-      });
-
-      // Voler vers Cameroun
-      viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(12.3, 4.5, 1200000),
-        orientation: {
-          heading: Cesium.Math.toRadians(0),
-          pitch: Cesium.Math.toRadians(-40),
-          roll: 0,
-        },
-        duration: 3,
-      });
-
-      // Clic sur entité
-      viewer.screenSpaceEventHandler.setInputAction(movement => {
-        const picked = viewer.scene.pick(movement.position);
-        if(Cesium.defined(picked) && picked.id) {
-          const entity = picked.id;
-          if(entity.label) entity.label.show = new Cesium.ConstantProperty(true);
-        }
-      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-      viewerRef.current = viewer;
-    } catch(e) {
-      setCesiumError("Erreur Cesium: " + e.message);
-    }
-
-    return () => {
-      if(viewerRef.current && !viewerRef.current.isDestroyed()) {
-        viewerRef.current.destroy();
-        viewerRef.current = null;
-      }
-    };
-  }, [cesiumLoaded, token, sites, techniciens]);
-
-  if(cesiumError) return (
-    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"rgba(255,255,255,.5)"}}>
-      <div style={{fontSize:36}}>⚠️</div>
-      <div style={{fontSize:13,textAlign:"center",padding:"0 20px"}}>{cesiumError}</div>
-      <div style={{fontSize:11,color:"rgba(255,255,255,.3)"}}>Vérifiez votre connexion internet</div>
-    </div>
-  );
-
-  if(!cesiumLoaded) return (
-    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14}}>
-      <div style={{width:52,height:52,borderRadius:"50%",border:"3px solid #10B981",borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>
-      <div style={{color:"rgba(255,255,255,.6)",fontSize:14,fontWeight:600}}>Chargement Globe 3D Cesium...</div>
-      <div style={{color:"rgba(255,255,255,.25)",fontSize:11}}>Satellite · Terrain 3D · Données CleanIT</div>
-    </div>
-  );
-
-  return <div ref={cesiumRef} style={{flex:1,width:"100%",minHeight:0}}/>;
-};
-
-// Helper icône site pour Cesium
-function createSiteIcon(color, type, code) {
-  const label = type.includes("5G")?"5G":type.includes("4G")?"4G":"3G";
-  const svg = `<svg width="48" height="56" viewBox="0 0 48 56" xmlns="http://www.w3.org/2000/svg">
-    <rect x="2" y="2" width="44" height="44" rx="10" fill="${color}" stroke="white" stroke-width="3"/>
-    <text x="24" y="22" font-family="Arial" font-size="13" font-weight="bold" fill="white" text-anchor="middle">${label}</text>
-    <text x="24" y="36" font-family="Arial" font-size="8" fill="rgba(255,255,255,0.85)" text-anchor="middle">${code}</text>
-    <polygon points="24,54 16,46 32,46" fill="${color}"/>
-  </svg>`;
-  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
-}
 
 export default function MapPage() {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const tileLayerRef = useRef(null);
   const markersRef = useRef({});
   const techMarkersRef = useRef({});
-  const routeLayerRef = useRef(null);
+  const routeLayersRef = useRef([]);
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState(null);
   const [selectedTech, setSelectedTech] = useState(null);
   const [techniciens, setTechniciens] = useState(TECHNICIENS_INIT);
-  const [activeStyle, setActiveStyle] = useState("satellite");
+  const [activeLayer, setActiveLayer] = useState("satellite");
   const [searchQ, setSearchQ] = useState("");
   const [activeTab, setActiveTab] = useState("sites");
   const [filter, setFilter] = useState("tous");
@@ -261,295 +81,188 @@ export default function MapPage() {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [routeInfo, setRouteInfo] = useState(null);
   const [loadingRoute, setLoadingRoute] = useState(false);
-  const [is3D, setIs3D] = useState(false);
-  const [showCesium, setShowCesium] = useState(false);
 
-  // GPS Live simulation
+  // GPS Live
   useEffect(() => {
     if(!liveMode) return;
     const interval = setInterval(() => {
       setTechniciens(prev => prev.map(t => {
-        if(t.status==="en_mission") return {...t, lat:t.lat+((Math.random()-0.5)*0.0002), lng:t.lng+((Math.random()-0.5)*0.0002), lastUpdate:"À l'instant"};
+        if(t.status==="en_mission") return {...t,lat:t.lat+((Math.random()-0.5)*0.0003),lng:t.lng+((Math.random()-0.5)*0.0003),lastUpdate:"À l\'instant"};
         if(t.status==="en_deplacement"&&t.siteLat) {
-          const dLat=(t.siteLat-t.lat)*0.04;
-          const dLng=(t.siteLng-t.lng)*0.04;
-          return {...t, lat:t.lat+dLat, lng:t.lng+dLng, lastUpdate:"À l'instant"};
+          const dLat=(t.siteLat-t.lat)*0.05,dLng=(t.siteLng-t.lng)*0.05;
+          return {...t,lat:t.lat+dLat,lng:t.lng+dLng,lastUpdate:"À l\'instant"};
         }
         return t;
       }));
       setLastRefresh(new Date());
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [liveMode]);
+    }, 5000);
+    return()=>clearInterval(interval);
+  },[liveMode]);
 
   // Update marker positions
   useEffect(() => {
-    if(!mapInstanceRef.current||!window.maplibregl) return;
-    techniciens.forEach(tech => {
-      const marker = techMarkersRef.current[tech.id];
-      if(marker) marker.setLngLat([tech.lng, tech.lat]);
+    if(!mapInstanceRef.current||!window.L) return;
+    techniciens.forEach(tech=>{
+      const m=techMarkersRef.current[tech.id];
+      if(m) m.setLatLng([tech.lat,tech.lng]);
     });
-  }, [techniciens]);
+  },[techniciens]);
 
-  // Load MapLibre GL (compatible Maptiler, gratuit)
+  // Load Leaflet
   useEffect(() => {
-    const loadLibs = async () => {
-      if(!document.getElementById("maplibre-css")) {
-        const link = document.createElement("link");
-        link.id="maplibre-css"; link.rel="stylesheet";
-        link.href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css";
-        document.head.appendChild(link);
-      }
-      if(!window.maplibregl) {
-        await new Promise((res,rej)=>{
-          const s=document.createElement("script");
-          s.src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js";
-          s.onload=res; s.onerror=rej;
-          document.head.appendChild(s);
-        });
-      }
-      setLoaded(true);
-    };
-    loadLibs();
-    return () => {
-      if(mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current=null; }
-    };
-  }, []);
+    if(!document.getElementById("leaflet-css")) {
+      const link=document.createElement("link");
+      link.id="leaflet-css";link.rel="stylesheet";
+      link.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
+    if(window.L){setLoaded(true);return;}
+    const s=document.createElement("script");
+    s.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    s.onload=()=>setLoaded(true);
+    document.head.appendChild(s);
+    return()=>{if(mapInstanceRef.current){mapInstanceRef.current.remove();mapInstanceRef.current=null;}};
+  },[]);
 
   // Init map
   useEffect(() => {
     if(!loaded||!mapRef.current||mapInstanceRef.current) return;
-    const ml = window.maplibregl;
+    const L=window.L;
+    const map=L.map(mapRef.current,{center:[5.5,12.0],zoom:6,zoomControl:false});
+    L.control.zoom({position:"bottomright"}).addTo(map);
 
-    const map = new ml.Map({
-      container: mapRef.current,
-      style: MAP_STYLES[0].url,
-      center: [12.0, 5.5],
-      zoom: 6,
-      pitch: 0,
-      bearing: 0,
-      antialias: true,
+    // Tuile satellite Maptiler par défaut
+    tileLayerRef.current=L.tileLayer(LAYERS[0].url,{
+      attribution:"© Maptiler © OpenStreetMap",maxZoom:20,tileSize:256
+    }).addTo(map);
+
+    // Marqueurs sites avec photos
+    SITES.forEach(site=>{
+      const cfg=STATUS_SITES[site.status]||STATUS_SITES.planifie;
+      const icon=L.divIcon({
+        html:`<div style="position:relative;width:58px;height:70px">
+          <div style="width:58px;height:58px;border-radius:12px;background:${cfg.color};border:3px solid white;box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;cursor:pointer">
+            <span style="color:white;font-weight:900;font-size:14px;line-height:1">${site.type.includes("5G")?"5G":site.type.includes("4G")?"4G":"3G"}</span>
+            <span style="color:rgba(255,255,255,.85);font-size:8px;font-weight:700;margin-top:1px">${site.code}</span>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:5px;background:rgba(0,0,0,.2);border-radius:0 0 4px 4px;overflow:hidden">
+              <div style="height:100%;width:${site.progression}%;background:rgba(255,255,255,.8)"></div>
+            </div>
+            ${site.status==="en_retard"?`<div style="position:absolute;top:-5px;right:-5px;width:18px;height:18px;border-radius:50%;background:#DC2626;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:700">!</div>`:""}
+          </div>
+          <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:14px solid ${cfg.color}"></div>
+          <div style="position:absolute;top:-26px;left:50%;transform:translateX(-50%);background:rgba(10,15,30,.88);color:white;font-size:10px;font-weight:700;padding:3px 8px;border-radius:8px;white-space:nowrap;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.1)">${site.name.length>18?site.name.slice(0,18)+"...":site.name}</div>
+        </div>`,
+        className:"",iconSize:[58,70],iconAnchor:[29,70],popupAnchor:[0,-74]
+      });
+      const marker=L.marker([site.lat,site.lng],{icon}).addTo(map);
+      marker.on("click",()=>{
+        setSelected(site);setSelectedTech(null);
+        map.flyTo([site.lat,site.lng],16,{animate:true,duration:1.5});
+        clearRoutes(map);setRouteInfo(null);
+      });
+      markersRef.current[site.code]=marker;
     });
 
-    // Navigation control (rotation, zoom, tilt)
-    map.addControl(new ml.NavigationControl({visualizePitch:true}), "bottom-right");
-    // Fullscreen
-    map.addControl(new ml.FullscreenControl(), "bottom-right");
-    // Geolocate
-    map.addControl(new ml.GeolocateControl({
-      positionOptions:{enableHighAccuracy:true},
-      trackUserLocation:true,
-      showUserHeading:true,
-    }), "bottom-right");
-    // Scale
-    map.addControl(new ml.ScaleControl({unit:"metric"}), "bottom-left");
-
-    map.on("load", () => {
-      // Ajouter terrain 3D Maptiler
-      map.addSource("terrain", {
-        type:"raster-dem",
-        url:`https://api.maptiler.com/tiles/terrain-rgb/tiles.json?key=${MAPTILER_KEY}`,
-        tileSize:256,
+    // Marqueurs techniciens avec photos
+    TECHNICIENS_INIT.forEach(tech=>{
+      const st=STATUS_TECH[tech.status]||STATUS_TECH.disponible;
+      const photo=PHOTOS[tech.id];
+      const icon=L.divIcon({
+        html:`<div style="position:relative;width:56px;height:68px;cursor:pointer">
+          <div style="width:56px;height:56px;border-radius:50%;overflow:hidden;border:3px solid ${tech.color};box-shadow:0 6px 20px rgba(0,0,0,.3)">
+            ${photo?`<img src="${photo}" style="width:100%;height:100%;object-fit:cover"/>`:`<div style="width:100%;height:100%;background:${tech.color};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:16px">${tech.avatar}</div>`}
+            <div style="position:absolute;bottom:2px;right:2px;width:14px;height:14px;border-radius:50%;background:${st.color};border:2px solid white"></div>
+          </div>
+          <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:13px solid ${tech.color}"></div>
+          <div style="position:absolute;top:-26px;left:50%;transform:translateX(-50%);background:${tech.color};color:white;font-size:10px;font-weight:700;padding:3px 9px;border-radius:10px;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,.3)">${tech.nom.split(" ")[0]}</div>
+        </div>`,
+        className:"",iconSize:[56,68],iconAnchor:[28,68],popupAnchor:[0,-72]
       });
-      map.setTerrain({source:"terrain", exaggeration:1.5});
-
-      // Ajouter couche ciel
-      map.setSky({
-        "sky-color":"#199EF3",
-        "sky-horizon-blend":0.5,
-        "horizon-color":"#ffffff",
-        "horizon-fog-blend":0.5,
-        "fog-color":"#0000ff",
-        "fog-ground-blend":0.5,
+      const marker=L.marker([tech.lat,tech.lng],{icon}).addTo(map);
+      marker.on("click",()=>{
+        setSelectedTech(tech);setSelected(null);
+        map.flyTo([tech.lat,tech.lng],16,{animate:true,duration:1.5});
+        if(tech.siteLat&&tech.status!=="disponible"){
+          calculateRoute(map,tech.lat,tech.lng,tech.siteLat,tech.siteLng,tech.id);
+        } else {clearRoutes(map);setRouteInfo(null);}
       });
-
-      // Route source (vide au départ)
-      map.addSource("route", {type:"geojson", data:{type:"FeatureCollection",features:[]}});
-      map.addLayer({
-        id:"route-line",
-        type:"line",
-        source:"route",
-        layout:{"line-join":"round","line-cap":"round"},
-        paint:{"line-color":"#3B82F6","line-width":5,"line-opacity":0.9},
-      });
-      map.addLayer({
-        id:"route-line-deco",
-        type:"line",
-        source:"route",
-        layout:{"line-join":"round","line-cap":"round"},
-        paint:{"line-color":"white","line-width":2,"line-opacity":0.5,"line-dasharray":[0,4,3]},
-      });
-
-      // Marqueurs Sites
-      SITES.forEach(site => {
-        const cfg = STATUS_SITES[site.status]||STATUS_SITES.planifie;
-        const el = document.createElement("div");
-        el.innerHTML = `
-          <div style="position:relative;width:58px;height:70px;cursor:pointer">
-            <div style="width:58px;height:58px;border-radius:14px;background:${cfg.color};border:3px solid white;box-shadow:0 6px 20px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;flex-direction:column;position:relative">
-              <span style="color:white;font-weight:900;font-size:13px;line-height:1">${site.type.includes("5G")?"5G":site.type.includes("4G")?"4G":"3G"}</span>
-              <span style="color:rgba(255,255,255,.8);font-size:8px;font-weight:700;margin-top:1px">${site.code}</span>
-              <div style="position:absolute;bottom:0;left:0;right:0;height:5px;background:rgba(255,255,255,.2);border-radius:0 0 4px 4px;overflow:hidden">
-                <div style="height:100%;width:${site.progression}%;background:rgba(255,255,255,.8)"></div>
-              </div>
-              ${site.status==="en_retard"?`<div style="position:absolute;top:-5px;right:-5px;width:17px;height:17px;border-radius:50%;background:#DC2626;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:700">!</div>`:""}
-            </div>
-            <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:14px solid ${cfg.color}"></div>
-            <div style="position:absolute;top:-26px;left:50%;transform:translateX(-50%);background:rgba(10,14,26,.88);color:white;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;white-space:nowrap;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.1)">${site.name.length>16?site.name.slice(0,16)+"...":site.name}</div>
-          </div>`;
-        el.style.cssText="background:transparent;border:none;";
-        el.addEventListener("click", () => {
-          setSelected(site); setSelectedTech(null);
-          map.flyTo({center:[site.lng,site.lat],zoom:17,pitch:45,bearing:Math.random()*60-30,duration:2000,essential:true});
-          clearRoute(map);
-          setRouteInfo(null);
-        });
-        const marker = new ml.Marker({element:el,anchor:"bottom"}).setLngLat([site.lng,site.lat]).addTo(map);
-        markersRef.current[site.code] = marker;
-      });
-
-      // Marqueurs Techniciens avec photos
-      TECHNICIENS_INIT.forEach(tech => {
-        const st = STATUS_TECH[tech.status]||STATUS_TECH.disponible;
-        const photo = PHOTOS[tech.id];
-        const el = document.createElement("div");
-        el.innerHTML = `
-          <div style="position:relative;width:56px;height:68px;cursor:pointer">
-            <div style="width:56px;height:56px;border-radius:50%;overflow:hidden;border:3px solid ${tech.color};box-shadow:0 6px 20px rgba(0,0,0,0.35);position:relative">
-              ${photo
-                ?`<img src="${photo}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.style.background='${tech.color}';this.style.display='none'"/>`
-                :`<div style="width:100%;height:100%;background:${tech.color};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:15px">${tech.avatar}</div>`
-              }
-              <div style="position:absolute;bottom:2px;right:2px;width:14px;height:14px;border-radius:50%;background:${st.color};border:2px solid white;${tech.status==="en_mission"?"animation:pulseGPS 1.5s infinite":""}"></div>
-            </div>
-            <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:13px solid ${tech.color}"></div>
-            <div style="position:absolute;top:-26px;left:50%;transform:translateX(-50%);background:${tech.color};color:white;font-size:10px;font-weight:700;padding:3px 9px;border-radius:10px;white-space:nowrap;box-shadow:0 3px 8px rgba(0,0,0,.3)">${tech.nom.split(" ")[0]}</div>
-          </div>`;
-        el.style.cssText="background:transparent;border:none;";
-        el.addEventListener("click", () => {
-          setSelectedTech(tech); setSelected(null);
-          map.flyTo({center:[tech.lng,tech.lat],zoom:17,pitch:60,bearing:Math.random()*60-30,duration:2000,essential:true});
-          if(tech.siteLat&&tech.status!=="disponible") {
-            calculateRoute(map, tech.lat, tech.lng, tech.siteLat, tech.siteLng, tech.id);
-          } else {
-            clearRoute(map); setRouteInfo(null);
-          }
-        });
-        const marker = new ml.Marker({element:el,anchor:"bottom"}).setLngLat([tech.lng,tech.lat]).addTo(map);
-        techMarkersRef.current[tech.id] = marker;
-      });
+      techMarkersRef.current[tech.id]=marker;
     });
 
-    mapInstanceRef.current = map;
-  }, [loaded]);
+    mapInstanceRef.current=map;
+  },[loaded]);
 
-  const clearRoute = (map) => {
-    if(!map) return;
-    try {
-      const src = map.getSource("route");
-      if(src) src.setData({type:"FeatureCollection",features:[]});
-    } catch(e){}
+  const clearRoutes=(map)=>{
+    routeLayersRef.current.forEach(l=>{try{map.removeLayer(l);}catch(e){}});
+    routeLayersRef.current=[];
   };
 
-  const calculateRoute = useCallback(async (map, fromLat, fromLng, toLat, toLng, techId) => {
-    setLoadingRoute(true); setRouteInfo(null);
-    clearRoute(map);
-    try {
-      const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`;
-      const resp = await fetch(url);
-      const data = await resp.json();
-      if(data.code==="Ok"&&data.routes[0]) {
-        const route = data.routes[0];
-        const dist = (route.distance/1000).toFixed(1);
-        const dur = Math.round(route.duration/60);
-        setRouteInfo({distance:dist, duration:dur});
-        // Afficher route sur carte MapLibre
-        const src = map.getSource("route");
-        if(src) {
-          src.setData({
-            type:"FeatureCollection",
-            features:[{type:"Feature",geometry:route.geometry}]
-          });
-          // Fit bounds sur le trajet
-          const coords = route.geometry.coordinates;
-          const bounds = coords.reduce((b,c)=>b.extend(c), new window.maplibregl.LngLatBounds(coords[0],coords[0]));
-          map.fitBounds(bounds, {padding:80,duration:2000,pitch:45});
-        }
+  const calculateRoute=useCallback(async(map,fromLat,fromLng,toLat,toLng,techId)=>{
+    setLoadingRoute(true);setRouteInfo(null);
+    clearRoutes(map);
+    try{
+      const url=`https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`;
+      const resp=await fetch(url);
+      const data=await resp.json();
+      if(data.code==="Ok"&&data.routes[0]){
+        const route=data.routes[0];
+        const coords=route.geometry.coordinates.map(c=>[c[1],c[0]]);
+        const dist=(route.distance/1000).toFixed(1);
+        const dur=Math.round(route.duration/60);
+        setRouteInfo({distance:dist,duration:dur});
+        // Ligne principale bleue
+        const line=window.L.polyline(coords,{color:"#3B82F6",weight:5,opacity:.9}).addTo(map);
+        // Ligne décorative blanche pointillée
+        const deco=window.L.polyline(coords,{color:"white",weight:2,opacity:.6,dashArray:"8,10"}).addTo(map);
+        routeLayersRef.current=[line,deco];
+        // Fit bounds
+        const bounds=window.L.latLngBounds(coords);
+        map.fitBounds(bounds,{padding:[80,80],animate:true,duration:1.5});
       }
-    } catch(e) {
-      // Fallback ligne droite
-      const src = map?.getSource("route");
-      if(src) src.setData({type:"FeatureCollection",features:[{type:"Feature",geometry:{type:"LineString",coordinates:[[fromLng,fromLat],[toLng,toLat]]}}]});
-      setRouteInfo({distance:"~",duration:"~"});
+    }catch(e){
+      // Ligne droite fallback
+      const line=window.L.polyline([[fromLat,fromLng],[toLat,toLng]],{color:"#F59E0B",weight:3,dashArray:"8,6",opacity:.8}).addTo(map);
+      routeLayersRef.current=[line];
+      setRouteInfo({distance:"N/A",duration:"N/A"});
     }
     setLoadingRoute(false);
-  }, []);
+  },[]);
 
-  const toggle3D = () => {
-    const map = mapInstanceRef.current;
-    if(!map) return;
-    if(!is3D) {
-      map.easeTo({pitch:60, bearing:-20, duration:1000});
-    } else {
-      map.easeTo({pitch:0, bearing:0, duration:1000});
-    }
-    setIs3D(!is3D);
+  const changeLayer=(layerId)=>{
+    if(!mapInstanceRef.current||!window.L) return;
+    if(tileLayerRef.current) mapInstanceRef.current.removeLayer(tileLayerRef.current);
+    const layer=LAYERS.find(l=>l.id===layerId);
+    tileLayerRef.current=window.L.tileLayer(layer.url,{attribution:"© Maptiler © OpenStreetMap",maxZoom:20}).addTo(mapInstanceRef.current);
+    setActiveLayer(layerId);
   };
 
-  const changeStyle = (styleId) => {
-    const map = mapInstanceRef.current;
-    if(!map) return;
-    const style = MAP_STYLES.find(s=>s.id===styleId);
-    if(!style) return;
-    setActiveStyle(styleId);
-    map.setStyle(style.url);
-    // Re-ajouter les sources après changement de style
-    map.once("styledata", () => {
-      try {
-        if(!map.getSource("terrain")) {
-          map.addSource("terrain", {type:"raster-dem",url:`https://api.maptiler.com/tiles/terrain-rgb/tiles.json?key=${MAPTILER_KEY}`,tileSize:256});
-          map.setTerrain({source:"terrain",exaggeration:1.5});
-        }
-        if(!map.getSource("route")) {
-          map.addSource("route",{type:"geojson",data:{type:"FeatureCollection",features:[]}});
-          map.addLayer({id:"route-line",type:"line",source:"route",layout:{"line-join":"round","line-cap":"round"},paint:{"line-color":"#3B82F6","line-width":5,"line-opacity":.9}});
-          map.addLayer({id:"route-line-deco",type:"line",source:"route",layout:{"line-join":"round","line-cap":"round"},paint:{"line-color":"white","line-width":2,"line-opacity":.5,"line-dasharray":[0,4,3]}});
-        }
-      } catch(e){}
-    });
-  };
+  const flyTo=(lat,lng,zoom=16)=>mapInstanceRef.current?.flyTo([lat,lng],zoom,{animate:true,duration:1.5});
 
-  const flyToLocation = (lng, lat, zoom=17) => {
-    mapInstanceRef.current?.flyTo({center:[lng,lat],zoom,pitch:55,bearing:Math.random()*40-20,duration:2000,essential:true});
-  };
-
-  const doDispatch = () => {
+  const doDispatch=()=>{
     if(!dispatchTech||!dispatchSite) return;
-    const site = SITES.find(s=>s.code===dispatchSite.code);
+    const site=SITES.find(s=>s.code===dispatchSite.code);
     setTechniciens(prev=>prev.map(t=>t.id===dispatchTech.id?{...t,status:"en_deplacement",site:dispatchSite.code,siteLat:site?.lat,siteLng:site?.lng}:t));
-    if(mapInstanceRef.current&&site) {
-      calculateRoute(mapInstanceRef.current, dispatchTech.lat, dispatchTech.lng, site.lat, site.lng, dispatchTech.id);
-    }
-    setShowDispatch(false); setDispatchTech(null); setDispatchSite(null);
+    if(mapInstanceRef.current&&site) calculateRoute(mapInstanceRef.current,dispatchTech.lat,dispatchTech.lng,site.lat,site.lng,dispatchTech.id);
+    setShowDispatch(false);setDispatchTech(null);setDispatchSite(null);
   };
 
-  const filteredSites = SITES.filter(s=>{
+  const filteredSites=SITES.filter(s=>{
     const mf=filter==="tous"||s.status===filter;
     const mq=!searchQ||s.code.toLowerCase().includes(searchQ.toLowerCase())||s.name.toLowerCase().includes(searchQ.toLowerCase());
     return mf&&mq;
   });
 
-  return (
-    <div style={{display:"flex",height:"calc(100vh - 56px)",overflow:"hidden",fontFamily:"'Segoe UI',Arial,sans-serif",background:"#0A0E1A"}}>
+  return(
+    <div style={{display:"flex",height:"calc(100vh - 56px)",overflow:"hidden",fontFamily:"'Segoe UI',Arial,sans-serif"}}>
 
-      {/* ===== PANEL GAUCHE ===== */}
+      {/* PANEL GAUCHE */}
       <div style={{width:300,background:"#0D1117",display:"flex",flexDirection:"column",overflow:"hidden",flexShrink:0,zIndex:10,borderRight:"1px solid rgba(255,255,255,.07)"}}>
 
         {/* Header */}
-        <div style={{padding:"14px 16px",background:"linear-gradient(135deg,#0D1117 0%,#1a2744 100%)",flexShrink:0}}>
+        <div style={{padding:"14px 16px",background:"linear-gradient(135deg,#0D1117,#1a2744)",flexShrink:0}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
             <div>
-              <div style={{fontSize:14,fontWeight:800,color:"white",letterSpacing:".3px"}}>🛰 Digital Twin</div>
+              <div style={{fontSize:14,fontWeight:800,color:"white"}}>🛰 Digital Twin</div>
               <div style={{fontSize:10,color:"rgba(255,255,255,.35)",marginTop:1}}>{lastRefresh.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</div>
             </div>
             <button onClick={()=>setLiveMode(!liveMode)} style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",borderRadius:20,border:"none",background:liveMode?"rgba(16,185,129,.12)":"rgba(255,255,255,.06)",color:liveMode?"#34D399":"rgba(255,255,255,.3)",fontSize:10,fontWeight:700,cursor:"pointer"}}>
@@ -559,7 +272,7 @@ export default function MapPage() {
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:5}}>
             {[{l:"Sites",v:SITES.length,c:"#60A5FA"},{l:"Mission",v:techniciens.filter(t=>t.status==="en_mission").length,c:"#34D399"},{l:"Dispo",v:techniciens.filter(t=>t.status==="disponible").length,c:"#A78BFA"},{l:"Alertes",v:ALERTES.length,c:"#F87171"}].map(s=>(
-              <div key={s.l} style={{background:"rgba(255,255,255,.05)",borderRadius:7,padding:"7px 4px",textAlign:"center",border:"1px solid rgba(255,255,255,.04)"}}>
+              <div key={s.l} style={{background:"rgba(255,255,255,.05)",borderRadius:7,padding:"7px 4px",textAlign:"center"}}>
                 <div style={{fontSize:17,fontWeight:800,color:s.c}}>{s.v}</div>
                 <div style={{fontSize:8,color:"rgba(255,255,255,.3)",marginTop:1}}>{s.l}</div>
               </div>
@@ -601,9 +314,9 @@ export default function MapPage() {
             {filteredSites.map(site=>{
               const cfg=STATUS_SITES[site.status]||STATUS_SITES.planifie;
               const techSite=techniciens.find(t=>t.site===site.code);
-              return (
+              return(
                 <div key={site.code}
-                  onClick={()=>{setSelected(site);setSelectedTech(null);flyToLocation(site.lng,site.lat,17);clearRoute(mapInstanceRef.current);setRouteInfo(null);}}
+                  onClick={()=>{setSelected(site);setSelectedTech(null);flyTo(site.lat,site.lng,16);clearRoutes(mapInstanceRef.current);setRouteInfo(null);}}
                   style={{padding:"11px 12px",borderBottom:"1px solid rgba(255,255,255,.04)",cursor:"pointer",background:selected?.code===site.code?"rgba(59,130,246,.08)":"transparent",borderLeft:`3px solid ${selected?.code===site.code?cfg.color:"transparent"}`,transition:"all .12s"}}
                   onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,.03)"}
                   onMouseLeave={e=>e.currentTarget.style.background=selected?.code===site.code?"rgba(59,130,246,.08)":"transparent"}>
@@ -620,7 +333,7 @@ export default function MapPage() {
                     <span style={{fontSize:10,fontWeight:700,color:cfg.color}}>{site.progression}%</span>
                   </div>
                   {techSite&&(
-                    <div style={{marginTop:7,display:"flex",alignItems:"center",gap:7,padding:"4px 7px",borderRadius:6,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.05)"}}>
+                    <div style={{marginTop:7,display:"flex",alignItems:"center",gap:7,padding:"4px 7px",borderRadius:6,background:"rgba(255,255,255,.04)"}}>
                       <div style={{width:20,height:20,borderRadius:"50%",overflow:"hidden",border:`1.5px solid ${techSite.color}`,flexShrink:0}}>
                         {PHOTOS[techSite.id]?<img src={PHOTOS[techSite.id]} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>:<div style={{width:"100%",height:"100%",background:techSite.color,display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:7,fontWeight:700}}>{techSite.avatar}</div>}
                       </div>
@@ -636,15 +349,15 @@ export default function MapPage() {
           {activeTab==="techs"&&(
             techniciens.filter(t=>!searchQ||t.nom.toLowerCase().includes(searchQ.toLowerCase())).map(tech=>{
               const st=STATUS_TECH[tech.status]||STATUS_TECH.disponible;
-              return (
+              return(
                 <div key={tech.id}
-                  onClick={()=>{setSelectedTech(tech);setSelected(null);flyToLocation(tech.lng,tech.lat,17);if(tech.siteLat&&tech.status!=="disponible")calculateRoute(mapInstanceRef.current,tech.lat,tech.lng,tech.siteLat,tech.siteLng,tech.id);}}
+                  onClick={()=>{setSelectedTech(tech);setSelected(null);flyTo(tech.lat,tech.lng,16);if(tech.siteLat&&tech.status!=="disponible")calculateRoute(mapInstanceRef.current,tech.lat,tech.lng,tech.siteLat,tech.siteLng,tech.id);}}
                   style={{padding:"12px",borderBottom:"1px solid rgba(255,255,255,.04)",cursor:"pointer",background:selectedTech?.id===tech.id?"rgba(59,130,246,.08)":"transparent",transition:"all .12s"}}
                   onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,.03)"}
                   onMouseLeave={e=>e.currentTarget.style.background=selectedTech?.id===tech.id?"rgba(59,130,246,.08)":"transparent"}>
                   <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:8}}>
                     <div style={{position:"relative",flexShrink:0}}>
-                      <div style={{width:40,height:40,borderRadius:"50%",overflow:"hidden",border:`2.5px solid ${tech.color}`,boxShadow:`0 0 0 2px ${tech.color}25`}}>
+                      <div style={{width:40,height:40,borderRadius:"50%",overflow:"hidden",border:`2.5px solid ${tech.color}`}}>
                         {PHOTOS[tech.id]?<img src={PHOTOS[tech.id]} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>:<div style={{width:"100%",height:"100%",background:tech.color,display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:12,fontWeight:700}}>{tech.avatar}</div>}
                       </div>
                       <div style={{position:"absolute",bottom:-1,right:-1,width:12,height:12,borderRadius:"50%",background:st.color,border:"2px solid #0D1117"}}/>
@@ -688,7 +401,7 @@ export default function MapPage() {
               {techniciens.filter(t=>t.status==="en_mission"||t.status==="en_deplacement").map(tech=>{
                 const site=SITES.find(s=>s.code===tech.site);
                 const st=STATUS_TECH[tech.status];
-                return (
+                return(
                   <div key={tech.id} style={{padding:"12px",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
                     <div style={{display:"flex",gap:9,alignItems:"center",marginBottom:7}}>
                       <div style={{width:34,height:34,borderRadius:"50%",overflow:"hidden",border:`2px solid ${tech.color}`,flexShrink:0}}>
@@ -711,9 +424,9 @@ export default function MapPage() {
                       </>
                     )}
                     {tech.rapport&&<div style={{marginTop:6,fontSize:10,color:"rgba(255,255,255,.35)",fontStyle:"italic"}}>📋 {tech.rapport}</div>}
-                    <button onClick={()=>{setSelectedTech(tech);setSelected(null);flyToLocation(tech.lng,tech.lat,17);if(tech.siteLat)calculateRoute(mapInstanceRef.current,tech.lat,tech.lng,tech.siteLat,tech.siteLng,tech.id);}}
+                    <button onClick={()=>{setSelectedTech(tech);setSelected(null);flyTo(tech.lat,tech.lng,16);if(tech.siteLat)calculateRoute(mapInstanceRef.current,tech.lat,tech.lng,tech.siteLat,tech.siteLng,tech.id);}}
                       style={{marginTop:8,width:"100%",padding:"5px",borderRadius:5,border:"1px solid rgba(255,255,255,.08)",background:"transparent",color:"rgba(255,255,255,.4)",fontSize:10,cursor:"pointer",fontFamily:"inherit"}}>
-                      📍 Voir sur carte + Trajet
+                      📍 Voir sur carte + Trajet GPS
                     </button>
                   </div>
                 );
@@ -737,125 +450,86 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* ===== CARTE MAPLIBRE ===== */}
+      {/* CARTE LEAFLET + MAPTILER */}
       <div style={{flex:1,position:"relative"}}>
         <div ref={mapRef} style={{width:"100%",height:"100%"}}/>
 
         {!loaded&&(
           <div style={{position:"absolute",inset:0,background:"#0A0E1A",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14}}>
-            <div style={{width:52,height:52,borderRadius:"50%",border:"3px solid #3B82F6",borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>
-            <div style={{color:"white",fontSize:14,fontWeight:600}}>Chargement carte satellite Maptiler...</div>
-            <div style={{fontSize:12,color:"rgba(255,255,255,.35)"}}>Rotation 3D · Terrain · Satellite HD</div>
+            <div style={{width:48,height:48,borderRadius:"50%",border:"3px solid #3B82F6",borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>
+            <div style={{color:"white",fontSize:13,fontWeight:500}}>Chargement carte satellite Maptiler HD...</div>
           </div>
         )}
 
-        {loaded&&(
-          <>
-            {/* Styles carte */}
-            <div style={{position:"absolute",top:14,left:14,zIndex:1000,background:"rgba(10,14,26,.92)",backdropFilter:"blur(12px)",borderRadius:12,padding:10,border:"1px solid rgba(255,255,255,.08)"}}>
-              <div style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,.25)",marginBottom:7,textTransform:"uppercase",letterSpacing:".6px"}}>Vue satellite</div>
-              {MAP_STYLES.map(s=>(
-                <button key={s.id} onClick={()=>changeStyle(s.id)}
-                  style={{display:"block",width:"100%",padding:"6px 10px",marginBottom:3,borderRadius:7,border:`1px solid ${activeStyle===s.id?"#3B82F6":"rgba(255,255,255,.06)"}`,background:activeStyle===s.id?"#3B82F6":"rgba(255,255,255,.04)",color:activeStyle===s.id?"white":"rgba(255,255,255,.4)",fontSize:11,cursor:"pointer",fontWeight:activeStyle===s.id?700:400,textAlign:"left",fontFamily:"inherit",transition:"all .15s"}}>
-                  {s.label}
-                </button>
-              ))}
-              <div style={{height:1,background:"rgba(255,255,255,.06)",margin:"7px 0"}}/>
-              <button onClick={toggle3D} style={{display:"flex",alignItems:"center",gap:6,width:"100%",padding:"6px 10px",borderRadius:7,border:`1px solid ${is3D?"#A78BFA":"rgba(255,255,255,.06)"}`,background:is3D?"rgba(167,139,250,.15)":"rgba(255,255,255,.04)",color:is3D?"#A78BFA":"rgba(255,255,255,.4)",fontSize:11,cursor:"pointer",fontWeight:is3D?700:400,fontFamily:"inherit",transition:"all .15s"}}>
-                🏔 Vue 3D {is3D?"ON":"OFF"}
+        {loaded&&(<>
+          {/* Sélecteur couche */}
+          <div style={{position:"absolute",top:14,left:14,zIndex:1000,background:"rgba(10,14,26,.92)",backdropFilter:"blur(12px)",borderRadius:12,padding:10,border:"1px solid rgba(255,255,255,.08)"}}>
+            <div style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,.25)",marginBottom:7,textTransform:"uppercase",letterSpacing:".6px"}}>Vue satellite</div>
+            {LAYERS.map(l=>(
+              <button key={l.id} onClick={()=>changeLayer(l.id)}
+                style={{display:"block",width:"100%",padding:"6px 10px",marginBottom:3,borderRadius:7,border:`1px solid ${activeLayer===l.id?"#3B82F6":"rgba(255,255,255,.06)"}`,background:activeLayer===l.id?"#3B82F6":"rgba(255,255,255,.04)",color:activeLayer===l.id?"white":"rgba(255,255,255,.4)",fontSize:11,cursor:"pointer",fontWeight:activeLayer===l.id?700:400,textAlign:"left",fontFamily:"inherit"}}>
+                {l.label}
               </button>
-              <button onClick={()=>setShowCesium(!showCesium)} style={{display:"flex",alignItems:"center",gap:6,width:"100%",marginTop:4,padding:"6px 10px",borderRadius:7,border:`1px solid ${showCesium?"#34D399":"rgba(255,255,255,.06)"}`,background:showCesium?"rgba(52,211,153,.15)":"rgba(255,255,255,.04)",color:showCesium?"#34D399":"rgba(255,255,255,.4)",fontSize:11,cursor:"pointer",fontWeight:showCesium?700:400,fontFamily:"inherit",transition:"all .15s"}}>
-                🌍 Globe Cesium
-              </button>
+            ))}
+          </div>
+
+          {/* Infos route */}
+          {(routeInfo||loadingRoute)&&(
+            <div style={{position:"absolute",top:14,left:"50%",transform:"translateX(-50%)",zIndex:1000,background:"rgba(10,14,26,.92)",backdropFilter:"blur(12px)",borderRadius:12,padding:"10px 20px",border:"1px solid rgba(59,130,246,.25)",display:"flex",alignItems:"center",gap:18}}>
+              {loadingRoute?(
+                <div style={{display:"flex",alignItems:"center",gap:8,color:"rgba(255,255,255,.5)",fontSize:12}}>
+                  <div style={{width:14,height:14,borderRadius:"50%",border:"2px solid #3B82F6",borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>
+                  Calcul itinéraire GPS en cours...
+                </div>
+              ):(
+                <>
+                  <div style={{textAlign:"center"}}><div style={{fontSize:9,color:"rgba(255,255,255,.25)",marginBottom:2,textTransform:"uppercase",letterSpacing:".4px"}}>Distance</div><div style={{fontSize:18,fontWeight:700,color:"#60A5FA"}}>{routeInfo.distance} km</div></div>
+                  <div style={{width:1,height:28,background:"rgba(255,255,255,.08)"}}/>
+                  <div style={{textAlign:"center"}}><div style={{fontSize:9,color:"rgba(255,255,255,.25)",marginBottom:2,textTransform:"uppercase",letterSpacing:".4px"}}>Durée est.</div><div style={{fontSize:18,fontWeight:700,color:"#34D399"}}>{routeInfo.duration} min</div></div>
+                  <div style={{width:1,height:28,background:"rgba(255,255,255,.08)"}}/>
+                  <div style={{textAlign:"center"}}><div style={{fontSize:9,color:"rgba(255,255,255,.25)",marginBottom:2,textTransform:"uppercase",letterSpacing:".4px"}}>Arrivée est.</div><div style={{fontSize:14,fontWeight:600,color:"rgba(255,255,255,.6)"}}>{new Date(Date.now()+routeInfo.duration*60000).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</div></div>
+                </>
+              )}
             </div>
+          )}
 
-            {/* Infos route */}
-            {(routeInfo||loadingRoute)&&(
-              <div style={{position:"absolute",top:14,left:"50%",transform:"translateX(-50%)",zIndex:1000,background:"rgba(10,14,26,.92)",backdropFilter:"blur(12px)",borderRadius:12,padding:"10px 20px",border:"1px solid rgba(59,130,246,.25)",display:"flex",alignItems:"center",gap:18}}>
-                {loadingRoute?(
-                  <div style={{display:"flex",alignItems:"center",gap:8,color:"rgba(255,255,255,.5)",fontSize:12}}>
-                    <div style={{width:14,height:14,borderRadius:"50%",border:"2px solid #3B82F6",borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>
-                    Calcul itinéraire GPS...
-                  </div>
-                ):(
-                  <>
-                    {[{l:"Distance",v:`${routeInfo.distance} km`,c:"#60A5FA"},{l:"Durée est.",v:`${routeInfo.duration} min`,c:"#34D399"},{l:"Arrivée est.",v:new Date(Date.now()+routeInfo.duration*60000).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),c:"rgba(255,255,255,.6)"}].map((m,i)=>(
-                      <div key={m.l} style={{textAlign:"center"}}>
-                        <div style={{fontSize:9,color:"rgba(255,255,255,.25)",marginBottom:2,textTransform:"uppercase",letterSpacing:".4px"}}>{m.l}</div>
-                        <div style={{fontSize:16,fontWeight:700,color:m.c}}>{m.v}</div>
-                      </div>
-                    ))}
-                  </>
-                )}
+          {/* Actions */}
+          <div style={{position:"absolute",top:14,right:14,zIndex:1000,display:"flex",flexDirection:"column",gap:6}}>
+            <button onClick={()=>setShowDispatch(true)} style={{display:"flex",alignItems:"center",gap:7,padding:"8px 14px",borderRadius:9,border:"none",background:"#2563EB",color:"white",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 4px 16px rgba(37,99,235,.4)"}}>➤ Dispatcher</button>
+            <button onClick={()=>setActiveTab("alertes")} style={{display:"flex",alignItems:"center",gap:7,padding:"8px 14px",borderRadius:9,border:"1px solid rgba(239,68,68,.25)",background:"rgba(239,68,68,.08)",color:"#F87171",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>🔔 {ALERTES.length} alertes</button>
+          </div>
+
+          {/* Légende */}
+          <div style={{position:"absolute",bottom:40,left:14,zIndex:1000,background:"rgba(10,14,26,.92)",backdropFilter:"blur(12px)",borderRadius:12,padding:"10px 14px",border:"1px solid rgba(255,255,255,.07)"}}>
+            <div style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,.25)",marginBottom:6,textTransform:"uppercase",letterSpacing:".6px"}}>Sites réseau</div>
+            {Object.entries(STATUS_SITES).map(([k,v])=>(
+              <div key={k} style={{display:"flex",alignItems:"center",gap:7,marginBottom:3,fontSize:11,color:"rgba(255,255,255,.55)"}}>
+                <div style={{width:10,height:10,borderRadius:2,background:v.color}}/>{v.label}
               </div>
-            )}
-
-            {/* Actions rapides */}
-            <div style={{position:"absolute",top:14,right:14,zIndex:1000,display:"flex",flexDirection:"column",gap:6}}>
-              <button onClick={()=>setShowDispatch(true)}
-                style={{display:"flex",alignItems:"center",gap:7,padding:"8px 14px",borderRadius:9,border:"none",background:"#2563EB",color:"white",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",boxShadow:"0 4px 16px rgba(37,99,235,.4)"}}>
-                ➤ Dispatcher
-              </button>
-              <button onClick={()=>setActiveTab("alertes")}
-                style={{display:"flex",alignItems:"center",gap:7,padding:"8px 14px",borderRadius:9,border:"1px solid rgba(239,68,68,.25)",background:"rgba(239,68,68,.08)",color:"#F87171",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                🔔 {ALERTES.length} alertes
-              </button>
-            </div>
-
-            {/* Légende */}
-            <div style={{position:"absolute",bottom:60,left:14,zIndex:1000,background:"rgba(10,14,26,.92)",backdropFilter:"blur(12px)",borderRadius:12,padding:"10px 14px",border:"1px solid rgba(255,255,255,.07)"}}>
-              <div style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,.25)",marginBottom:7,textTransform:"uppercase",letterSpacing:".6px"}}>Sites réseau</div>
-              {Object.entries(STATUS_SITES).map(([k,v])=>(
-                <div key={k} style={{display:"flex",alignItems:"center",gap:7,marginBottom:4,fontSize:11,color:"rgba(255,255,255,.55)"}}>
-                  <div style={{width:10,height:10,borderRadius:2,background:v.color}}/>{v.label}
-                </div>
-              ))}
-              <div style={{height:1,background:"rgba(255,255,255,.07)",margin:"7px 0"}}/>
-              <div style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,.25)",marginBottom:7,textTransform:"uppercase",letterSpacing:".6px"}}>Techniciens</div>
-              {Object.entries(STATUS_TECH).map(([k,v])=>(
-                <div key={k} style={{display:"flex",alignItems:"center",gap:7,marginBottom:4,fontSize:11,color:"rgba(255,255,255,.55)"}}>
-                  <div style={{width:10,height:10,borderRadius:"50%",background:v.color}}/>{v.label}
-                </div>
-              ))}
-              <div style={{height:1,background:"rgba(255,255,255,.07)",margin:"7px 0"}}/>
-              <div style={{display:"flex",alignItems:"center",gap:7,fontSize:11,color:"rgba(255,255,255,.45)"}}>
-                <div style={{width:14,height:3,background:"#3B82F6",borderRadius:2}}/>Itinéraire GPS
+            ))}
+            <div style={{height:1,background:"rgba(255,255,255,.07)",margin:"7px 0"}}/>
+            <div style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,.25)",marginBottom:6,textTransform:"uppercase",letterSpacing:".6px"}}>Techniciens</div>
+            {Object.entries(STATUS_TECH).map(([k,v])=>(
+              <div key={k} style={{display:"flex",alignItems:"center",gap:7,marginBottom:3,fontSize:11,color:"rgba(255,255,255,.55)"}}>
+                <div style={{width:10,height:10,borderRadius:"50%",background:v.color}}/>{v.label}
               </div>
-            </div>
-          </>
-        )}
-
-        {/* Globe Cesium overlay - Vraie intégration */}
-        {showCesium&&(
-          <div style={{position:"fixed",inset:0,zIndex:600,background:"rgba(0,0,0,.85)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <div style={{background:"#0D1117",borderRadius:16,width:"95%",maxWidth:1000,height:"88vh",border:"1px solid rgba(255,255,255,.1)",boxShadow:"0 24px 80px rgba(0,0,0,.6)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-              <div style={{padding:"14px 20px",background:"linear-gradient(135deg,#0D1117,#1a2744)",borderBottom:"1px solid rgba(255,255,255,.08)",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
-                <div style={{display:"flex",alignItems:"center",gap:12}}>
-                  <div style={{width:36,height:36,borderRadius:9,background:"linear-gradient(135deg,#10B981,#059669)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🌍</div>
-                  <div>
-                    <div style={{fontSize:15,fontWeight:700,color:"white"}}>Globe 3D Cesium Ion</div>
-                    <div style={{fontSize:11,color:"rgba(255,255,255,.35)",marginTop:1}}>Données satellite NASA · ESA · Beidou · GLONASS · Sites CleanIT</div>
-                  </div>
-                </div>
-                <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                  <span style={{fontSize:10,color:"#34D399",background:"rgba(52,211,153,.12)",border:"1px solid rgba(52,211,153,.25)",borderRadius:20,padding:"3px 10px",fontWeight:600}}>● Connecté</span>
-                  <button onClick={()=>setShowCesium(false)} style={{width:30,height:30,borderRadius:"50%",background:"rgba(255,255,255,.08)",border:"none",color:"rgba(255,255,255,.5)",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
-                </div>
-              </div>
-              <CesiumGlobe token={CESIUM_TOKEN} sites={SITES} techniciens={techniciens}/>
+            ))}
+            <div style={{height:1,background:"rgba(255,255,255,.07)",margin:"7px 0"}}/>
+            <div style={{display:"flex",alignItems:"center",gap:7,fontSize:11,color:"rgba(255,255,255,.45)"}}>
+              <div style={{width:14,height:3,background:"#3B82F6",borderRadius:2}}/>Itinéraire GPS
             </div>
           </div>
-        )}
+        </>)}
       </div>
 
-      {/* ===== PANEL DROIT ===== */}
+      {/* PANEL DROIT */}
       {(selected||selectedTech)&&(
         <div style={{width:290,background:"#0D1117",borderLeft:"1px solid rgba(255,255,255,.07)",display:"flex",flexDirection:"column",overflow:"hidden",flexShrink:0}}>
 
           {selected&&(()=>{
             const cfg=STATUS_SITES[selected.status]||STATUS_SITES.planifie;
             const techSite=techniciens.find(t=>t.site===selected.code);
-            return (<>
+            return(<>
               <div style={{padding:"14px",background:`linear-gradient(135deg,#0D1117,${cfg.color}33)`,borderBottom:"1px solid rgba(255,255,255,.07)",flexShrink:0}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                   <div>
@@ -897,7 +571,7 @@ export default function MapPage() {
                     {techSite.rapport&&<div style={{fontSize:10,color:"rgba(255,255,255,.4)",background:"rgba(255,255,255,.03)",padding:"6px 9px",borderRadius:6,lineHeight:1.5,marginBottom:9}}>📋 {techSite.rapport}</div>}
                     <div style={{display:"flex",gap:7}}>
                       <button onClick={()=>window.open(`tel:${techSite.phone}`)} style={{flex:1,padding:"7px",borderRadius:6,border:"none",background:techSite.color,color:"white",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>📞 Appeler</button>
-                      <button onClick={()=>{setSelectedTech(techSite);setSelected(null);flyToLocation(techSite.lng,techSite.lat,17);if(techSite.siteLat)calculateRoute(mapInstanceRef.current,techSite.lat,techSite.lng,techSite.siteLat,techSite.siteLng,techSite.id);}}
+                      <button onClick={()=>{setSelectedTech(techSite);setSelected(null);flyTo(techSite.lat,techSite.lng,16);if(techSite.siteLat)calculateRoute(mapInstanceRef.current,techSite.lat,techSite.lng,techSite.siteLat,techSite.siteLng,techSite.id);}}
                         style={{flex:1,padding:"7px",borderRadius:6,border:`1px solid ${techSite.color}40`,background:"transparent",color:techSite.color,fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>🗺 Trajet</button>
                     </div>
                   </div>
@@ -913,8 +587,7 @@ export default function MapPage() {
 
           {selectedTech&&!selected&&(()=>{
             const st=STATUS_TECH[selectedTech.status]||STATUS_TECH.disponible;
-            const siteTech=SITES.find(s=>s.code===selectedTech.site);
-            return (<>
+            return(<>
               <div style={{padding:"14px",background:`linear-gradient(135deg,#0D1117,${selectedTech.color}33)`,borderBottom:"1px solid rgba(255,255,255,.07)",flexShrink:0}}>
                 <div style={{display:"flex",gap:12,alignItems:"center"}}>
                   <div style={{width:52,height:52,borderRadius:"50%",overflow:"hidden",border:`3px solid ${selectedTech.color}`,boxShadow:`0 0 0 3px ${selectedTech.color}25`,flexShrink:0}}>
@@ -925,7 +598,7 @@ export default function MapPage() {
                     <div style={{fontSize:10,color:"rgba(255,255,255,.4)",marginTop:1}}>{selectedTech.specialite}</div>
                     <span style={{display:"inline-block",marginTop:4,padding:"2px 8px",borderRadius:7,background:`${st.color}20`,color:st.color,fontSize:9,fontWeight:700}}>{st.label}</span>
                   </div>
-                  <button onClick={()=>{setSelectedTech(null);setRouteInfo(null);clearRoute(mapInstanceRef.current);}} style={{width:24,height:24,borderRadius:"50%",background:"rgba(255,255,255,.08)",border:"none",color:"rgba(255,255,255,.5)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",alignSelf:"flex-start"}}>✕</button>
+                  <button onClick={()=>{setSelectedTech(null);setRouteInfo(null);clearRoutes(mapInstanceRef.current);}} style={{width:24,height:24,borderRadius:"50%",background:"rgba(255,255,255,.08)",border:"none",color:"rgba(255,255,255,.5)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",alignSelf:"flex-start"}}>✕</button>
                 </div>
               </div>
               <div style={{flex:1,overflowY:"auto",padding:14}}>
@@ -976,7 +649,7 @@ export default function MapPage() {
         </div>
       )}
 
-      {/* ===== MODAL DISPATCH ===== */}
+      {/* MODAL DISPATCH */}
       {showDispatch&&(
         <div style={{position:"fixed",inset:0,zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
           <div onClick={()=>{setShowDispatch(false);setDispatchTech(null);setDispatchSite(null);}} style={{position:"absolute",inset:0,background:"rgba(0,0,0,.7)",backdropFilter:"blur(8px)"}}/>
@@ -1009,7 +682,7 @@ export default function MapPage() {
                 <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,.3)",marginBottom:9,textTransform:"uppercase",letterSpacing:".5px"}}>Sélectionner un site</div>
                 {SITES.filter(s=>!["termine","livre"].includes(s.status)).map(s=>{
                   const cfg=STATUS_SITES[s.status];
-                  return (
+                  return(
                     <div key={s.code} onClick={()=>setDispatchSite(s)}
                       style={{display:"flex",alignItems:"center",gap:11,padding:"11px",borderRadius:9,border:`2px solid ${dispatchSite?.code===s.code?cfg.color:"rgba(255,255,255,.07)"}`,cursor:"pointer",background:dispatchSite?.code===s.code?`${cfg.color}0D`:"rgba(255,255,255,.02)",marginBottom:7,transition:"all .12s"}}>
                       <div style={{width:38,height:38,borderRadius:9,background:cfg.color,display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:700,fontSize:10,flexShrink:0}}>
@@ -1039,14 +712,10 @@ export default function MapPage() {
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes pulseLive{0%,100%{opacity:1}50%{opacity:.3}}
-        @keyframes pulseGPS{0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.5)}70%{box-shadow:0 0 0 8px rgba(37,99,235,0)}}
-        .maplibregl-canvas{cursor:grab}
-        .maplibregl-canvas:active{cursor:grabbing}
-        .maplibregl-popup-content{background:#1E293B!important;border-radius:10px!important;color:white!important;border:1px solid rgba(255,255,255,.1)!important;padding:12px 14px!important;box-shadow:0 8px 32px rgba(0,0,0,.4)!important;}
-        .maplibregl-popup-tip{border-top-color:#1E293B!important;border-bottom-color:#1E293B!important;}
-        .maplibregl-ctrl-group{background:rgba(10,14,26,.92)!important;border:1px solid rgba(255,255,255,.08)!important;backdrop-filter:blur(12px);}
-        .maplibregl-ctrl-group button{background:transparent!important;color:rgba(255,255,255,.7)!important;}
-        .maplibregl-ctrl-group button:hover{background:rgba(255,255,255,.08)!important;}
+        .leaflet-popup-content-wrapper{border-radius:12px!important;box-shadow:0 8px 32px rgba(0,0,0,.3)!important;background:#1E293B!important;color:white!important;}
+        .leaflet-popup-content{margin:12px 14px!important;}
+        .leaflet-popup-tip{background:#1E293B!important;}
+        .leaflet-tile{filter:brightness(0.95) saturate(1.1);}
         ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px}
       `}</style>
     </div>
