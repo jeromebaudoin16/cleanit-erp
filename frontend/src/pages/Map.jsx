@@ -72,25 +72,23 @@ const CesiumGlobe = ({ token, sites, techniciens }) => {
   useEffect(() => {
     const loadCesium = async () => {
       try {
-        // Charger CSS Cesium
         if(!document.getElementById("cesium-css")) {
           const link = document.createElement("link");
           link.id = "cesium-css"; link.rel = "stylesheet";
-          link.href = "https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Widgets/widgets.css";
+          link.href = "https://cesium.com/downloads/cesiumjs/releases/1.95/Build/Cesium/Widgets/widgets.css";
           document.head.appendChild(link);
         }
-        // Charger JS Cesium
         if(!window.Cesium) {
           await new Promise((res, rej) => {
             const s = document.createElement("script");
-            s.src = "https://cesium.com/downloads/cesiumjs/releases/1.111/Build/Cesium/Cesium.js";
+            s.src = "https://cesium.com/downloads/cesiumjs/releases/1.95/Build/Cesium/Cesium.js";
             s.onload = res; s.onerror = rej;
             document.head.appendChild(s);
           });
         }
         setCesiumLoaded(true);
       } catch(e) {
-        setCesiumError("Erreur chargement Cesium: " + e.message);
+        setCesiumError("Erreur chargement: " + e.message);
       }
     };
     loadCesium();
@@ -103,138 +101,104 @@ const CesiumGlobe = ({ token, sites, techniciens }) => {
 
     try {
       const viewer = new Cesium.Viewer(cesiumRef.current, {
-        terrainProvider: Cesium.createWorldTerrain({requestWaterMask:true, requestVertexNormals:true}),
-        imageryProvider: new Cesium.IonImageryProvider({assetId:3}),
         baseLayerPicker: true,
         geocoder: true,
         homeButton: true,
         sceneModePicker: true,
-        navigationHelpButton: true,
+        navigationHelpButton: false,
         animation: false,
         timeline: false,
-        fullscreenButton: true,
-        vrButton: false,
-        shadows: true,
-        shouldAnimate: true,
+        fullscreenButton: false,
+        shadows: false,
       });
 
-      // Activer éclairage atmosphérique
-      viewer.scene.globe.enableLighting = true;
-      viewer.scene.atmosphere.dynamicLighting = Cesium.DynamicAtmosphereLightingType.SUNLIGHT;
+      // Ajouter imagery satellite Cesium Ion (Bing Maps)
+      viewer.imageryLayers.addImageryProvider(
+        new Cesium.IonImageryProvider({ assetId: 2 })
+      );
 
-      // Ajouter marqueurs Sites sur le globe
+      // Ajouter terrain mondial
+      try {
+        viewer.terrainProvider = Cesium.createWorldTerrain();
+      } catch(e) {}
+
+      // Sites
       sites.forEach(site => {
         const cfg = STATUS_SITES[site.status] || STATUS_SITES.planifie;
-        const colorCesium = Cesium.Color.fromCssColorString(cfg.color);
-
         viewer.entities.add({
           name: site.name,
-          position: Cesium.Cartesian3.fromDegrees(site.lng, site.lat, 50),
+          position: Cesium.Cartesian3.fromDegrees(site.lng, site.lat, 100),
           billboard: {
-            image: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
-              <svg width="60" height="70" viewBox="0 0 60 70" xmlns="http://www.w3.org/2000/svg">
-                <rect x="5" y="5" width="50" height="50" rx="12" fill="${cfg.color}" stroke="white" stroke-width="3"/>
-                <text x="30" y="28" font-family="Arial" font-size="14" font-weight="bold" fill="white" text-anchor="middle">${site.type.includes("5G")?"5G":site.type.includes("4G")?"4G":"3G"}</text>
-                <text x="30" y="44" font-family="Arial" font-size="9" fill="rgba(255,255,255,0.8)" text-anchor="middle">${site.code}</text>
-                <polygon points="30,58 22,55 38,55" fill="${cfg.color}"/>
-              </svg>
-            `)}`,
-            width: 60, height: 70,
+            image: createSiteIcon(cfg.color, site.type, site.code),
+            width: 48, height: 56,
             verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
-          },
-          label: {
-            text: site.name,
-            font: "bold 12px Arial",
-            fillColor: Cesium.Color.WHITE,
-            outlineColor: Cesium.Color.BLACK,
-            outlineWidth: 2,
-            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            pixelOffset: new Cesium.Cartesian2(0, -75),
-            heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          },
-          description: `
-            <table style="font-family:Arial;font-size:12px;width:220px">
-              <tr><td><b>Site:</b></td><td>${site.name}</td></tr>
-              <tr><td><b>Type:</b></td><td>${site.type}</td></tr>
-              <tr><td><b>Client:</b></td><td>${site.client}</td></tr>
-              <tr><td><b>Statut:</b></td><td style="color:${cfg.color}">${cfg.label}</td></tr>
-              <tr><td><b>Progression:</b></td><td>${site.progression}%</td></tr>
-              <tr><td><b>Budget:</b></td><td>${site.budget}M FCFA</td></tr>
-            </table>
-          `,
-        });
-
-        // Cylindre pulsant sous chaque site
-        if(site.status === "en_cours" || site.status === "en_retard") {
-          viewer.entities.add({
-            position: Cesium.Cartesian3.fromDegrees(site.lng, site.lat, 0),
-            cylinder: {
-              length: 200,
-              topRadius: 500,
-              bottomRadius: 500,
-              material: Cesium.Color.fromCssColorString(cfg.color).withAlpha(0.15),
-              outline: true,
-              outlineColor: Cesium.Color.fromCssColorString(cfg.color).withAlpha(0.4),
-            },
-          });
-        }
-      });
-
-      // Ajouter techniciens sur le globe
-      techniciens.forEach(tech => {
-        const st = STATUS_TECH[tech.status] || STATUS_TECH.disponible;
-        viewer.entities.add({
-          name: tech.nom,
-          position: Cesium.Cartesian3.fromDegrees(tech.lng, tech.lat, 50),
-          point: {
-            pixelSize: 14,
-            color: Cesium.Color.fromCssColorString(tech.color),
-            outlineColor: Cesium.Color.WHITE,
-            outlineWidth: 2,
-            heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
             disableDepthTestDistance: Number.POSITIVE_INFINITY,
           },
           label: {
-            text: tech.nom.split(" ")[0],
+            text: site.code + " - " + site.name,
             font: "bold 11px Arial",
             fillColor: Cesium.Color.WHITE,
             outlineColor: Cesium.Color.BLACK,
             outlineWidth: 2,
             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-            verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-            pixelOffset: new Cesium.Cartesian2(0, -20),
-            heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND,
+            pixelOffset: new Cesium.Cartesian2(0, -65),
             disableDepthTestDistance: Number.POSITIVE_INFINITY,
+            show: false,
           },
-          description: `
-            <table style="font-family:Arial;font-size:12px;width:200px">
-              <tr><td><b>Technicien:</b></td><td>${tech.nom}</td></tr>
-              <tr><td><b>Statut:</b></td><td style="color:${st.color}">${st.label}</td></tr>
-              <tr><td><b>Site:</b></td><td>${tech.site}</td></tr>
-              <tr><td><b>Batterie:</b></td><td>${tech.battery}%</td></tr>
-              <tr><td><b>Signal:</b></td><td>${tech.signal}/5</td></tr>
-            </table>
-          `,
+          description: "<b>" + site.name + "</b><br>Type: " + site.type + "<br>Client: " + site.client + "<br>Progression: " + site.progression + "%",
         });
       });
 
-      // Voler vers le Cameroun
+      // Techniciens
+      techniciens.forEach(tech => {
+        const st = STATUS_TECH[tech.status] || STATUS_TECH.disponible;
+        viewer.entities.add({
+          name: tech.nom,
+          position: Cesium.Cartesian3.fromDegrees(tech.lng, tech.lat, 100),
+          point: {
+            pixelSize: 16,
+            color: Cesium.Color.fromCssColorString(tech.color),
+            outlineColor: Cesium.Color.WHITE,
+            outlineWidth: 3,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+          label: {
+            text: tech.nom.split(" ")[0],
+            font: "bold 11px Arial",
+            fillColor: Cesium.Color.fromCssColorString(tech.color),
+            outlineColor: Cesium.Color.BLACK,
+            outlineWidth: 2,
+            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+            pixelOffset: new Cesium.Cartesian2(0, -24),
+            disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          },
+          description: "<b>" + tech.nom + "</b><br>Statut: " + st.label + "<br>Site: " + tech.site + "<br>Batterie: " + tech.battery + "%",
+        });
+      });
+
+      // Voler vers Cameroun
       viewer.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(12.0, 5.5, 800000),
+        destination: Cesium.Cartesian3.fromDegrees(12.3, 4.5, 1200000),
         orientation: {
           heading: Cesium.Math.toRadians(0),
-          pitch: Cesium.Math.toRadians(-45),
+          pitch: Cesium.Math.toRadians(-40),
           roll: 0,
         },
         duration: 3,
       });
 
+      // Clic sur entité
+      viewer.screenSpaceEventHandler.setInputAction(movement => {
+        const picked = viewer.scene.pick(movement.position);
+        if(Cesium.defined(picked) && picked.id) {
+          const entity = picked.id;
+          if(entity.label) entity.label.show = new Cesium.ConstantProperty(true);
+        }
+      }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
       viewerRef.current = viewer;
     } catch(e) {
-      setCesiumError("Erreur: " + e.message);
+      setCesiumError("Erreur Cesium: " + e.message);
     }
 
     return () => {
@@ -247,21 +211,34 @@ const CesiumGlobe = ({ token, sites, techniciens }) => {
 
   if(cesiumError) return (
     <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:"rgba(255,255,255,.5)"}}>
-      <div style={{fontSize:40}}>⚠️</div>
-      <div style={{fontSize:13}}>{cesiumError}</div>
+      <div style={{fontSize:36}}>⚠️</div>
+      <div style={{fontSize:13,textAlign:"center",padding:"0 20px"}}>{cesiumError}</div>
+      <div style={{fontSize:11,color:"rgba(255,255,255,.3)"}}>Vérifiez votre connexion internet</div>
     </div>
   );
 
   if(!cesiumLoaded) return (
-    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12}}>
-      <div style={{width:48,height:48,borderRadius:"50%",border:"3px solid #10B981",borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>
-      <div style={{color:"rgba(255,255,255,.5)",fontSize:13}}>Chargement Cesium Ion...</div>
-      <div style={{color:"rgba(255,255,255,.3)",fontSize:11}}>Satellite NASA · ESA · Données terrain 3D</div>
+    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14}}>
+      <div style={{width:52,height:52,borderRadius:"50%",border:"3px solid #10B981",borderTopColor:"transparent",animation:"spin 1s linear infinite"}}/>
+      <div style={{color:"rgba(255,255,255,.6)",fontSize:14,fontWeight:600}}>Chargement Globe 3D Cesium...</div>
+      <div style={{color:"rgba(255,255,255,.25)",fontSize:11}}>Satellite · Terrain 3D · Données CleanIT</div>
     </div>
   );
 
-  return <div ref={cesiumRef} style={{flex:1,width:"100%"}}/>;
+  return <div ref={cesiumRef} style={{flex:1,width:"100%",minHeight:0}}/>;
 };
+
+// Helper icône site pour Cesium
+function createSiteIcon(color, type, code) {
+  const label = type.includes("5G")?"5G":type.includes("4G")?"4G":"3G";
+  const svg = `<svg width="48" height="56" viewBox="0 0 48 56" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="2" width="44" height="44" rx="10" fill="${color}" stroke="white" stroke-width="3"/>
+    <text x="24" y="22" font-family="Arial" font-size="13" font-weight="bold" fill="white" text-anchor="middle">${label}</text>
+    <text x="24" y="36" font-family="Arial" font-size="8" fill="rgba(255,255,255,0.85)" text-anchor="middle">${code}</text>
+    <polygon points="24,54 16,46 32,46" fill="${color}"/>
+  </svg>`;
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
 
 export default function MapPage() {
   const mapRef = useRef(null);
