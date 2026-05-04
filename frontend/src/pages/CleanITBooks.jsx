@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { useNavigate, useParams } from 'react-router-dom';
 
 // ================================================================
@@ -1546,40 +1547,207 @@ const PageJobList = ({jobs,setJobs,customers}) => {
               style={{padding:"7px 12px",borderRadius:4,border:"1px solid "+C.border,fontSize:12,color:C.text2,background:C.white,cursor:"pointer",fontFamily:"inherit",outline:"none"}}>
               {TYPES_FILTRE.map(t=><option key={t} value={t}>{t==="Tous"?"Tous les types":t}</option>)}
             </select>
-            <Btn label="Exporter Excel" variant="light" sm icon="download" onClick={()=>{
-              const today = new Date().toISOString().split("T")[0];
-              const wb = XLSX.utils.book_new();
-              // Sheet 1 — PO Tracker
-              const poRows = [["Code Job","Nom du Job","Client","Type","Site","N Bon de commande","Chef de Projet","Date debut","Date fin","Statut","Montant Contrat FCFA","Total Facture FCFA","Reste a Facturer FCFA","Couts Reels FCFA","Marge Nette FCFA","Pct Facture","Nb Phases","Phases Facturees","Notes"]];
-              jobsFiltres.forEach(j=>{
-                const cust=customers.find(c=>c.id===j.customerId);
-                const totalInv=j.invoices.reduce((s,i)=>s+i.amount,0);
-                const totalCR=Object.values(j.coutsReels).reduce((s,v)=>s+v,0);
-                poRows.push([j.id,j.name,cust?cust.name:"",j.jobType,j.site||"",j.bcRef||"",j.chefProjet||"",j.startDate,j.endDate,j.statut,j.contractAmount,totalInv,Math.max(0,j.contractAmount-totalInv),totalCR,totalInv-totalCR,j.contractAmount>0?Math.round(totalInv/j.contractAmount*100)+"%":"0%",j.phases.length,j.phases.filter(p=>p.statut==="invoiced").length,j.notes||""]);
+            <Btn label="Exporter Excel" variant="light" sm icon="download" onClick={async ()=>{
+              const ExcelJS = (await import('exceljs')).default;
+              const today   = new Date().toISOString().split("T")[0];
+              const wb      = new ExcelJS.Workbook();
+              wb.creator    = "CleanITBooks";
+              wb.created    = new Date();
+
+              // ===== COULEURS =====
+              const C_HDR   = "1F4E79";
+              const C_SUB   = "2E75B6";
+              const C_ALT   = "DEEAF1";
+              const C_GREEN = "70AD47";
+              const C_ORANGE= "FFC000";
+              const C_RED   = "FF0000";
+              const C_WHITE = "FFFFFF";
+
+              const hdrFill  = (color) => ({type:"pattern",pattern:"solid",fgColor:{argb:"FF"+color}});
+              const hdrFont  = (color="FFFFFF",bold=true,size=10) => ({name:"Calibri",bold,color:{argb:"FF"+color},size});
+              const cellFont = (color="000000",bold=false,size=10) => ({name:"Calibri",bold,color:{argb:"FF"+color},size});
+              const thinBorder = {top:{style:"thin",color:{argb:"FFBFBFBF"}},left:{style:"thin",color:{argb:"FFBFBFBF"}},bottom:{style:"thin",color:{argb:"FFBFBFBF"}},right:{style:"thin",color:{argb:"FFBFBFBF"}}};
+              const centerAlign = {horizontal:"center",vertical:"middle",wrapText:true};
+              const leftAlign   = {horizontal:"left",  vertical:"middle",wrapText:true};
+              const rightAlign  = {horizontal:"right", vertical:"middle"};
+
+              // ===== SHEET 1 — PO TRACKER =====
+              const ws1 = wb.addWorksheet("PO Tracker");
+
+              // Titre
+              ws1.mergeCells("A1:T1");
+              const title = ws1.getCell("A1");
+              title.value     = "CLEANITBOOKS — PO TRACKER · CleanIT Telecom · "+today;
+              title.font      = hdrFont("FFFFFF",true,14);
+              title.fill      = hdrFill(C_HDR);
+              title.alignment = centerAlign;
+              ws1.getRow(1).height = 32;
+
+              // Headers
+              const hdrs1 = ["Code Job","Nom du Job","Client","Type","Site","N Bon de commande","Chef de Projet","Date debut","Date fin","Statut","Montant Contrat FCFA","Total Facture FCFA","Reste Facturer FCFA","Couts Reels FCFA","Marge Nette FCFA","% Facture","Nb Phases","Phases Fact.","Notes"];
+              const widths1= [14,35,20,20,10,18,16,12,12,14,20,18,18,18,18,10,10,12,35];
+              ws1.columns = hdrs1.map((h,i)=>({key:h,width:widths1[i]}));
+              const hdrRow1 = ws1.getRow(2);
+              hdrRow1.height = 28;
+              hdrs1.forEach((h,i)=>{
+                const cell = hdrRow1.getCell(i+1);
+                cell.value     = h;
+                cell.font      = hdrFont();
+                cell.fill      = hdrFill(C_HDR);
+                cell.alignment = centerAlign;
+                cell.border    = thinBorder;
               });
-              poRows.push(["TOTAL","","","","","","","","","",jobsFiltres.reduce((s,j)=>s+j.contractAmount,0),jobsFiltres.reduce((s,j)=>s+j.invoices.reduce((si,i)=>si+i.amount,0),0),jobsFiltres.reduce((s,j)=>s+Math.max(0,j.contractAmount-j.invoices.reduce((si,i)=>si+i.amount,0)),0),jobsFiltres.reduce((s,j)=>s+Object.values(j.coutsReels).reduce((sc,v)=>sc+v,0),0),"","","",""]);
-              const ws1 = XLSX.utils.aoa_to_sheet(poRows);
-              ws1["!cols"]=[{wch:14},{wch:35},{wch:20},{wch:20},{wch:10},{wch:16},{wch:16},{wch:12},{wch:12},{wch:14},{wch:18},{wch:18},{wch:18},{wch:18},{wch:18},{wch:10},{wch:10},{wch:12},{wch:30}];
-              XLSX.utils.book_append_sheet(wb,ws1,"PO Tracker");
-              // Sheet 2 — Lignes BC
-              const bcRows = [["Pays","Code Projet","Code Site","Nom Site","N Bon de commande","Client","Description","Qte Demandee","Qte Realisee","Qte Restante"]];
-              jobsFiltres.forEach(j=>{
-                const cust=customers.find(c=>c.id===j.customerId);
-                (j.lignesBC||[]).forEach(l=>{ bcRows.push(["Cameroun",j.id,j.site||"",j.name,j.bcRef||"",cust?cust.name:"",l.desc,l.qte,0,l.qte]); });
+              ws1.views = [{state:"frozen",ySplit:2}];
+
+              const statusColor = (s) => s==="Termine"||s==="Closed"?C_GREEN:s==="En cours"||s==="In Progress"?C_ORANGE:s==="En attente"||s==="Pending"?C_RED:s==="Awarded"||s==="Attribue"?"2E75B6":"808080";
+
+              let dataRowStart1 = 3;
+              jobsFiltres.forEach((j,ri)=>{
+                const cust    = customers.find(c=>c.id===j.customerId);
+                const totalInv= j.invoices.reduce((s,i)=>s+i.amount,0);
+                const totalCR = Object.values(j.coutsReels).reduce((s,v)=>s+v,0);
+                const marge   = totalInv-totalCR;
+                const pctF    = j.contractAmount>0?totalInv/j.contractAmount:0;
+                const phasesF = j.phases.filter(p=>p.statut==="invoiced").length;
+                const isAlt   = ri%2===1;
+                const rowBg   = isAlt?C_ALT:C_WHITE;
+
+                const row = ws1.addRow([
+                  j.id,j.name,cust?cust.name:"",j.jobType,j.site||"",j.bcRef||"",j.chefProjet||"",
+                  j.startDate,j.endDate,j.statut,
+                  j.contractAmount,totalInv,Math.max(0,j.contractAmount-totalInv),
+                  totalCR,marge,pctF,j.phases.length,phasesF,j.notes||""
+                ]);
+                row.height = 42;
+
+                row.eachCell((cell,cn)=>{
+                  cell.border = thinBorder;
+                  if(cn===10){ // Statut
+                    const sc = statusColor(j.statut);
+                    cell.fill      = hdrFill(sc);
+                    cell.font      = hdrFont(sc===C_ORANGE||sc===C_GREEN?"000000":"FFFFFF",true,10);
+                    cell.alignment = centerAlign;
+                  } else if(cn>=11&&cn<=15){ // Montants
+                    cell.numFmt    = "#,##0";
+                    cell.font      = cellFont(cn===11?"1F4E79":cn===12?"70AD47":cn===13||cn===15?"C00000":"000000",cn===15,10);
+                    cell.alignment = rightAlign;
+                    cell.fill      = hdrFill(rowBg);
+                  } else if(cn===16){ // %
+                    cell.numFmt    = "0.0%";
+                    cell.font      = cellFont("1F4E79",true,10);
+                    cell.alignment = centerAlign;
+                    const pctBg    = pctF>=1?C_GREEN:pctF>0?C_ORANGE:C_WHITE;
+                    cell.fill      = hdrFill(pctBg);
+                  } else {
+                    cell.font      = cellFont("000000",false,10);
+                    cell.alignment = cn===19?leftAlign:cn>=17&&cn<=18?centerAlign:leftAlign;
+                    cell.fill      = hdrFill(rowBg);
+                  }
+                });
               });
-              const ws2 = XLSX.utils.aoa_to_sheet(bcRows);
-              ws2["!cols"]=[{wch:12},{wch:14},{wch:14},{wch:30},{wch:16},{wch:18},{wch:55},{wch:14},{wch:14},{wch:14}];
-              XLSX.utils.book_append_sheet(wb,ws2,"Lignes BC Detail");
-              // Sheet 3 — Phases
-              const phRows = [["Code Job","Nom Job","Client","N Phase","Nom Phase","Pct Contrat","Montant FCFA","Statut","Date Prevue","Ref Facture"]];
-              jobsFiltres.forEach(j=>{
-                const cust=customers.find(c=>c.id===j.customerId);
-                j.phases.forEach(ph=>{ phRows.push([j.id,j.name,cust?cust.name:"",ph.id,ph.name,ph.pct+"%",ph.amount,ph.statut==="invoiced"?"Facture":"En attente",ph.datePrevue||"",ph.invoiceRef||""]); });
+
+              // Ligne totaux
+              const totRow1 = ws1.addRow([
+                "TOTAL","","","","","","","","","",
+                jobsFiltres.reduce((s,j)=>s+j.contractAmount,0),
+                jobsFiltres.reduce((s,j)=>s+j.invoices.reduce((si,i)=>si+i.amount,0),0),
+                jobsFiltres.reduce((s,j)=>s+Math.max(0,j.contractAmount-j.invoices.reduce((si,i)=>si+i.amount,0)),0),
+                jobsFiltres.reduce((s,j)=>s+Object.values(j.coutsReels).reduce((sc,v)=>sc+v,0),0),
+                "","","","",""
+              ]);
+              totRow1.height = 22;
+              totRow1.eachCell((cell,cn)=>{
+                cell.font   = hdrFont();
+                cell.fill   = hdrFill(C_HDR);
+                cell.border = thinBorder;
+                cell.alignment = cn>=11&&cn<=14?rightAlign:centerAlign;
+                if(cn>=11&&cn<=14) cell.numFmt = "#,##0";
               });
-              const ws3 = XLSX.utils.aoa_to_sheet(phRows);
-              ws3["!cols"]=[{wch:14},{wch:30},{wch:18},{wch:10},{wch:30},{wch:10},{wch:16},{wch:14},{wch:14},{wch:14}];
-              XLSX.utils.book_append_sheet(wb,ws3,"Phases Facturation");
-              XLSX.writeFile(wb,"CleanITBooks_Jobs_"+today+".xlsx");
+
+              ws1.autoFilter = {from:{row:2,column:1},to:{row:2,column:19}};
+
+              // ===== SHEET 2 — LIGNES BC =====
+              const ws2 = wb.addWorksheet("Lignes BC Detail");
+              ws2.mergeCells("A1:J1");
+              const t2 = ws2.getCell("A1");
+              t2.value = "DETAIL LIGNES BONS DE COMMANDE — "+today;
+              t2.font  = hdrFont("FFFFFF",true,13);
+              t2.fill  = hdrFill(C_HDR);
+              t2.alignment = centerAlign;
+              ws2.getRow(1).height = 26;
+
+              const hdrs2 = ["Pays","Code Projet","Code Site","Nom Site","N BC","Client","Description","Qte Demandee","Qte Realisee","Qte Restante"];
+              const w2    = [12,14,14,30,16,18,55,14,14,14];
+              ws2.columns = hdrs2.map((h,i)=>({key:h,width:w2[i]}));
+              const hr2 = ws2.getRow(2);
+              hr2.height = 26;
+              hdrs2.forEach((h,i)=>{ const c=hr2.getCell(i+1); c.value=h; c.font=hdrFont(); c.fill=hdrFill(C_HDR); c.alignment=centerAlign; c.border=thinBorder; });
+              ws2.views = [{state:"frozen",ySplit:2}];
+
+              jobsFiltres.forEach((j,ri)=>{
+                const cust = customers.find(c=>c.id===j.customerId);
+                const isAlt= ri%2===1;
+                const bg   = isAlt?C_ALT:C_WHITE;
+                (j.lignesBC||[]).forEach(l=>{
+                  const row = ws2.addRow(["Cameroun",j.id,j.site||"",j.name,j.bcRef||"",cust?cust.name:"",l.desc,l.qte,0,l.qte]);
+                  row.height = 38;
+                  row.eachCell((cell,cn)=>{
+                    cell.border    = thinBorder;
+                    cell.fill      = hdrFill(bg);
+                    cell.alignment = cn===7?leftAlign:cn>=8?centerAlign:leftAlign;
+                    cell.font      = cellFont(cn===10&&l.qte>0?"C00000":cn===9&&l.qte>0?"70AD47":"000000",false,cn===7?9:10);
+                    if(cn>=8) cell.numFmt = "#,##0";
+                  });
+                });
+              });
+              ws2.autoFilter = {from:{row:2,column:1},to:{row:2,column:10}};
+
+              // ===== SHEET 3 — PHASES =====
+              const ws3 = wb.addWorksheet("Phases Facturation");
+              ws3.mergeCells("A1:K1");
+              const t3 = ws3.getCell("A1");
+              t3.value = "PHASES DE FACTURATION — "+today;
+              t3.font  = hdrFont("FFFFFF",true,13);
+              t3.fill  = hdrFill(C_HDR);
+              t3.alignment = centerAlign;
+              ws3.getRow(1).height = 26;
+
+              const hdrs3 = ["Code Job","Nom Job","Client","N Phase","Nom Phase","% Contrat","Montant FCFA","Statut","Date Prevue","Date Paiement","Ref Facture"];
+              const w3    = [14,30,18,10,30,10,16,14,14,14,14];
+              ws3.columns = hdrs3.map((h,i)=>({key:h,width:w3[i]}));
+              const hr3 = ws3.getRow(2);
+              hr3.height = 26;
+              hdrs3.forEach((h,i)=>{ const c=hr3.getCell(i+1); c.value=h; c.font=hdrFont(); c.fill=hdrFill(C_HDR); c.alignment=centerAlign; c.border=thinBorder; });
+              ws3.views = [{state:"frozen",ySplit:2}];
+
+              jobsFiltres.forEach((j,ri)=>{
+                const cust = customers.find(c=>c.id===j.customerId);
+                j.phases.forEach((ph,pi)=>{
+                  const isAlt = (ri+pi)%2===1;
+                  const bg    = isAlt?C_ALT:C_WHITE;
+                  const phBg  = ph.statut==="invoiced"?C_GREEN:C_ORANGE;
+                  const row   = ws3.addRow([j.id,j.name,cust?cust.name:"",ph.id,ph.name,ph.pct/100,ph.amount,ph.statut==="invoiced"?"Facture":"En attente",ph.datePrevue||"",ph.datePaiement||"",ph.invoiceRef||""]);
+                  row.height  = 22;
+                  row.eachCell((cell,cn)=>{
+                    cell.border    = thinBorder;
+                    if(cn===8){ cell.fill=hdrFill(phBg); cell.font=hdrFont(phBg===C_ORANGE?"000000":"FFFFFF",true,10); cell.alignment=centerAlign; }
+                    else { cell.fill=hdrFill(bg); cell.font=cellFont("000000",false,10); cell.alignment=cn===6||cn===7?centerAlign:leftAlign; }
+                    if(cn===6) cell.numFmt="0%";
+                    if(cn===7) cell.numFmt="#,##0";
+                  });
+                });
+              });
+              ws3.autoFilter = {from:{row:2,column:1},to:{row:2,column:11}};
+
+              // ===== TELECHARGER =====
+              const buf  = await wb.xlsx.writeBuffer();
+              const blob = new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+              const url  = URL.createObjectURL(blob);
+              const a    = document.createElement("a");
+              a.href     = url;
+              a.download = "CleanITBooks_Jobs_"+today+".xlsx";
+              a.click();
+              URL.revokeObjectURL(url);
             }}/>
             <Btn label="Nouveau job" variant="primary" sm icon="plus" onClick={()=>navigate('/cleanitbooks/jobs/new')}/>
           </div>
