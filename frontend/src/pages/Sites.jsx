@@ -84,7 +84,7 @@ export default function Sites() {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:20, flexWrap:'wrap', gap:12 }}>
         <div>
           <h1 style={{ fontSize:22, fontWeight:800, color:'#1e293b', margin:0 }}>Sites Réseau</h1>
-          <p style={{ color:'#64748b', fontSize:13, margin:'4px 0 0' }}>Gestion des sites Huawei au Cameroun · {sites.length} sites</p>
+          <p style={{ color:'#64748b', fontSize:13, margin:'4px 0 0' }}>Gestion des sites Client au Cameroun · {sites.length} sites</p>
         </div>
         <div style={{ display:'flex', gap:8 }}>
           <button onClick={load} style={{ padding:'8px 14px', borderRadius:8, border:'1px solid #e2e8f0', background:'white', color:'#374151', fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>↻ Actualiser</button>

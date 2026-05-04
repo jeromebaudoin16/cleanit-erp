@@ -102,14 +102,14 @@ const Ico = ({n,s=16,c='currentColor'}) => {
 };
 
 // ===== DONNÉES COMPLÈTES =====
-const CLIENTS_LIST  = ['MTN Cameroun','Orange Cameroun','Huawei Technologies','Nexttel Cameroun','Gouvernement Cameroun','CAMTEL','Entreprise Privée','Ericsson Cameroun'];
+const CLIENTS_LIST  = ['MTN Cameroun','Orange Cameroun','Client OEM','Nexttel Cameroun','Gouvernement Cameroun','CAMTEL','Entreprise Privée','Ericsson Cameroun'];
 const DEVISES_LIST  = ['FCFA','USD','EUR','CNY'];
-const FOURNISSEURS  = ['Huawei Technologies','Nokia Networks','Ericsson','Total Énergies','CAMTEL','Afriland First Bank','Fournisseur local','BICEC'];
+const FOURNISSEURS  = ['Client OEM','Nokia Networks','Ericsson','Total Énergies','CAMTEL','Afriland First Bank','Fournisseur local','BICEC'];
 const CATEGORIES_CH = ['Équipements réseau','Main d\'œuvre','Transport & Logistique','Hébergement','Matériel consommable','Télécoms','Maintenance préventive','Per diem terrain','Sous-traitance','Frais généraux','Impôts & Taxes','Salaires'];
 const MODES_PAI     = ['Virement bancaire','Mobile Money MTN','Mobile Money Orange','Chèque','Espèces','Virement international SWIFT'];
 const BANQUES_LIST  = ['BICEC','Société Générale Cameroun','Afriland First Bank','UBA','Ecobank'];
 const PROJETS_REF   = ['PROJ-2024-001 · DLA-001','PROJ-2024-002 · YDE-001','PROJ-2024-003 · GAR-001','PROJ-2024-004 · LIM-001','PROJ-2024-005 · BFN-001','PROJ-2024-006 · MAR-001'];
-const BC_REF        = ['BC-HW-2024-143','BC-HW-2024-141','BC-HW-2024-139','BC-HW-2024-135','BC-HW-2024-148','BC-HW-2024-149'];
+const BC_REF        = ['BC-2024-143','BC-2024-141','BC-2024-139','BC-2024-135','BC-2024-148','BC-2024-149'];
 
 // Plan comptable SYSCOHADA complet
 const PLAN_COMPTABLE = [
@@ -146,7 +146,7 @@ const PLAN_COMPTABLE = [
       {num:'411',label:'Clients — MTN Cameroun',solde:28500000,type:'A'},
       {num:'412',label:'Clients — Orange Cameroun',solde:10195875,type:'A'},
       {num:'413',label:'Clients — Gouvernement',solde:38160000,type:'A'},
-      {num:'401',label:'Fournisseurs — Huawei',solde:-28500000,type:'P'},
+      {num:'401',label:'Fournisseurs — Client',solde:-28500000,type:'P'},
       {num:'421',label:'Personnel — Salaires à payer',solde:-4500000,type:'P'},
       {num:'441',label:'État — TVA collectée',solde:-8450000,type:'P'},
       {num:'442',label:'État — TVA déductible',solde:3200000,type:'A'},
@@ -189,26 +189,26 @@ const PLAN_COMPTABLE = [
 
 // Factures enrichies
 const SEED_FACTURES = [
-  {id:1,numero:'FAC-2024-001',client:'MTN Cameroun',projet:'PROJ-2024-001 · DLA-001',bcRef:'BC-HW-2024-143',
+  {id:1,numero:'FAC-2024-001',client:'MTN Cameroun',projet:'PROJ-2024-001 · DLA-001',bcRef:'BC-2024-143',
    lignes:[{desc:'Installation antennes 5G NR — DLA-001',qte:1,pu:8500000,tva:true},{desc:'Main d\'œuvre techniciens (15j)',qte:15,pu:350000,tva:true},{desc:'Matériel consommable & câblage',qte:1,pu:450000,tva:false}],
    montantHT:14050000,tva:2709625,montantTTC:16759625,status:'paye',
    dateEmission:'2024-01-15',dateEcheance:'2024-02-15',devise:'FCFA',modePaiement:'Virement bancaire',
    notes:'Paiement reçu le 12/02/2024. Projet clôturé.',
    acomptes:[{date:'2024-01-20',montant:5000000,ref:'VIR-2024-001',mode:'Virement bancaire'}],
    compteCClient:'411',compteRevenu:'701'},
-  {id:2,numero:'FAC-2024-002',client:'Orange Cameroun',projet:'PROJ-2024-002 · YDE-001',bcRef:'BC-HW-2024-141',
+  {id:2,numero:'FAC-2024-002',client:'Orange Cameroun',projet:'PROJ-2024-002 · YDE-001',bcRef:'BC-2024-141',
    lignes:[{desc:'Déploiement 4G LTE — YDE-001',qte:1,pu:7200000,tva:true},{desc:'Configuration et tests réseau',qte:1,pu:1350000,tva:true}],
    montantHT:8550000,tva:1645875,montantTTC:10195875,status:'en_retard',
    dateEmission:'2024-01-28',dateEcheance:'2024-03-01',devise:'FCFA',modePaiement:'Chèque',
    notes:'Relance envoyée le 05/03/2024. 2ème relance planifiée.',
    acomptes:[],compteCClient:'412',compteRevenu:'701'},
-  {id:3,numero:'FAC-2024-003',client:'Huawei Technologies',projet:'PROJ-2024-001 · DLA-001',bcRef:'BC-HW-2024-143',
+  {id:3,numero:'FAC-2024-003',client:'Client OEM',projet:'PROJ-2024-001 · DLA-001',bcRef:'BC-2024-143',
    lignes:[{desc:'Engineering services 5G NR',qte:40,pu:850,tva:false},{desc:'Technical site supervision',qte:10,pu:1200,tva:false}],
    montantHT:46000,tva:0,montantTTC:46000,status:'envoye',
    dateEmission:'2024-02-10',dateEcheance:'2024-03-15',devise:'USD',modePaiement:'Virement international SWIFT',
    notes:'Facture en USD. Conversion au taux du jour.',
    acomptes:[],compteCClient:'411',compteRevenu:'702'},
-  {id:4,numero:'FAC-2024-004',client:'Gouvernement Cameroun',projet:'PROJ-2024-003 · GAR-001',bcRef:'BC-HW-2024-139',
+  {id:4,numero:'FAC-2024-004',client:'Gouvernement Cameroun',projet:'PROJ-2024-003 · GAR-001',bcRef:'BC-2024-139',
    lignes:[{desc:'Infrastructure télécom zones rurales',qte:1,pu:27000000,tva:true},{desc:'Maintenance préventive annuelle',qte:1,pu:5000000,tva:true}],
    montantHT:32000000,tva:6160000,montantTTC:38160000,status:'partiel',
    dateEmission:'2024-02-01',dateEcheance:'2024-04-01',devise:'FCFA',modePaiement:'Virement bancaire',
@@ -220,7 +220,7 @@ const SEED_FACTURES = [
    montantHT:4300000,tva:827750,montantTTC:5127750,status:'brouillon',
    dateEmission:'2024-03-01',dateEcheance:'2024-04-01',devise:'FCFA',modePaiement:'Virement bancaire',
    notes:'',acomptes:[],compteCClient:'411',compteRevenu:'704'},
-  {id:6,numero:'FAC-2024-005',client:'CAMTEL',projet:'PROJ-2024-005 · BFN-001',bcRef:'BC-HW-2024-148',
+  {id:6,numero:'FAC-2024-005',client:'CAMTEL',projet:'PROJ-2024-005 · BFN-001',bcRef:'BC-2024-148',
    lignes:[{desc:'Installation fibre optique 50km',qte:50,pu:1200000,tva:true}],
    montantHT:60000000,tva:11550000,montantTTC:71550000,status:'envoye',
    dateEmission:'2024-03-10',dateEcheance:'2024-05-10',devise:'FCFA',modePaiement:'Virement bancaire',
@@ -230,19 +230,19 @@ const SEED_FACTURES = [
 
 // Dépenses enrichies
 const SEED_DEPENSES = [
-  {id:1,numero:'DEP-2024-001',fournisseur:'Huawei Technologies',description:'Équipements 5G NR DLA-001 — BBU+RRU',categorie:'Équipements réseau',montant:28500000,devise:'FCFA',date:'2024-01-15',status:'paye',projet:'PROJ-2024-001 · DLA-001',bcRef:'BC-HW-2024-143',compteCharge:'604',compteFourn:'401',tva_deductible:true},
+  {id:1,numero:'DEP-2024-001',fournisseur:'Client OEM',description:'Équipements 5G NR DLA-001 — BBU+RRU',categorie:'Équipements réseau',montant:28500000,devise:'FCFA',date:'2024-01-15',status:'paye',projet:'PROJ-2024-001 · DLA-001',bcRef:'BC-2024-143',compteCharge:'604',compteFourn:'401',tva_deductible:true},
   {id:2,numero:'DEP-2024-002',fournisseur:'Nokia Networks',description:'Antennes 4G LTE x12 — LIM-001',categorie:'Équipements réseau',montant:15200,devise:'USD',date:'2024-02-01',status:'en_attente',projet:'PROJ-2024-004 · LIM-001',bcRef:'',compteCharge:'604',compteFourn:'401',tva_deductible:false},
   {id:3,numero:'DEP-2024-003',fournisseur:'Total Énergies',description:'Carburant véhicules terrain — Jan 2024',categorie:'Transport & Logistique',montant:850000,devise:'FCFA',date:'2024-01-31',status:'paye',projet:'Général',bcRef:'',compteCharge:'624',compteFourn:'401',tva_deductible:true},
   {id:4,numero:'DEP-2024-004',fournisseur:'CAMTEL',description:'Liaisons fibre optique backbone Q1',categorie:'Télécoms',montant:1200000,devise:'FCFA',date:'2024-02-15',status:'en_attente',projet:'Général',bcRef:'',compteCharge:'626',compteFourn:'401',tva_deductible:true},
-  {id:5,numero:'DEP-2024-005',fournisseur:'Ericsson Cameroun',description:'Maintenance préventive 3G/4G réseau',categorie:'Maintenance préventive',montant:8500,devise:'EUR',date:'2024-02-20',status:'paye',projet:'PROJ-2024-003 · GAR-001',bcRef:'BC-HW-2024-139',compteCharge:'604',compteFourn:'401',tva_deductible:false},
-  {id:6,numero:'DEP-2024-006',fournisseur:'Fournisseur local',description:'Per diem techniciens terrain — Garoua',categorie:'Per diem terrain',montant:1800000,devise:'FCFA',date:'2024-02-25',status:'paye',projet:'PROJ-2024-003 · GAR-001',bcRef:'BC-HW-2024-139',compteCharge:'651',compteFourn:'401',tva_deductible:false},
+  {id:5,numero:'DEP-2024-005',fournisseur:'Ericsson Cameroun',description:'Maintenance préventive 3G/4G réseau',categorie:'Maintenance préventive',montant:8500,devise:'EUR',date:'2024-02-20',status:'paye',projet:'PROJ-2024-003 · GAR-001',bcRef:'BC-2024-139',compteCharge:'604',compteFourn:'401',tva_deductible:false},
+  {id:6,numero:'DEP-2024-006',fournisseur:'Fournisseur local',description:'Per diem techniciens terrain — Garoua',categorie:'Per diem terrain',montant:1800000,devise:'FCFA',date:'2024-02-25',status:'paye',projet:'PROJ-2024-003 · GAR-001',bcRef:'BC-2024-139',compteCharge:'651',compteFourn:'401',tva_deductible:false},
   {id:7,numero:'SAL-2024-001',fournisseur:'Paie Mars 2024',description:'Salaires personnel interne — Mars 2024',categorie:'Salaires',montant:18000000,devise:'FCFA',date:'2024-03-30',status:'paye',projet:'Général',bcRef:'',compteCharge:'641',compteFourn:'421',tva_deductible:false},
 ];
 
-// Données BC Huawei avec prix réels (visible Finance uniquement)
-const BC_HUAWEI_COMPLETS = [
-  {id:'BC-HW-2024-143',site:'DLA-001',type:'5G NR Installation',client:'MTN Cameroun',
-   montantHuawei:180000000,montantNego:165000000,marge:15000000,devise:'FCFA',
+// Données Bon de commande avec prix réels (visible Finance uniquement)
+const BC_CLIENT_COMPLETS = [
+  {id:'BC-2024-143',site:'DLA-001',type:'5G NR Installation',client:'MTN Cameroun',
+   montantClient:180000000,montantNego:165000000,marge:15000000,devise:'FCFA',
    statut:'en_cours',dateReception:'2024-03-10',
    lignesDetail:[
      {desc:'BBU 5900 5G NR',qte:2,pu:25000000,total:50000000},
@@ -250,24 +250,24 @@ const BC_HUAWEI_COMPLETS = [
      {desc:'Installation & câblage',qte:1,pu:35000000,total:35000000},
      {desc:'Engineering services',qte:1,pu:44000000,total:44000000},
    ]},
-  {id:'BC-HW-2024-141',site:'LIM-001',type:'Survey RF',client:'Orange Cameroun',
-   montantHuawei:45000000,montantNego:38000000,marge:7000000,devise:'FCFA',
+  {id:'BC-2024-141',site:'LIM-001',type:'Survey RF',client:'Orange Cameroun',
+   montantClient:45000000,montantNego:38000000,marge:7000000,devise:'FCFA',
    statut:'en_cours',dateReception:'2024-03-12',
    lignesDetail:[
      {desc:'Survey RF terrain',qte:1,pu:20000000,total:20000000},
      {desc:'Rapport technique',qte:1,pu:15000000,total:15000000},
      {desc:'Optimisation paramètres',qte:1,pu:10000000,total:10000000},
    ]},
-  {id:'BC-HW-2024-139',site:'GAR-001',type:'Maintenance HSE',client:'Nexttel',
-   montantHuawei:35000000,montantNego:29000000,marge:6000000,devise:'FCFA',
+  {id:'BC-2024-139',site:'GAR-001',type:'Maintenance HSE',client:'Nexttel',
+   montantClient:35000000,montantNego:29000000,marge:6000000,devise:'FCFA',
    statut:'termine',dateReception:'2024-03-08',
    lignesDetail:[
      {desc:'Inspection HSE pylône',qte:1,pu:15000000,total:15000000},
      {desc:'Mise aux normes sécurité',qte:1,pu:12000000,total:12000000},
      {desc:'Rapport conformité',qte:1,pu:8000000,total:8000000},
    ]},
-  {id:'BC-HW-2024-148',site:'BFN-001',type:'5G NR Installation',client:'CAMTEL',
-   montantHuawei:220000000,montantNego:195000000,marge:25000000,devise:'FCFA',
+  {id:'BC-2024-148',site:'BFN-001',type:'5G NR Installation',client:'CAMTEL',
+   montantClient:220000000,montantNego:195000000,marge:25000000,devise:'FCFA',
    statut:'en_attente',dateReception:'2024-03-15',
    lignesDetail:[
      {desc:'BBU 5900 5G NR x3',qte:3,pu:25000000,total:75000000},
@@ -301,7 +301,7 @@ const SEED_PAIE = [
 const SEED_JOURNAUX = [
   {id:1,date:'2024-03-15',journal:'VTE',libelle:'FAC-2024-001 — MTN Cameroun — Installation 5G NR',debit:411,credit:701,montantD:16759625,montantC:14050000,tvaC:2709625,ref:'FAC-2024-001'},
   {id:2,date:'2024-03-15',journal:'BQ',libelle:'Règlement VIR-2024-001 — MTN Cameroun',debit:521,credit:411,montantD:5000000,montantC:5000000,tvaC:0,ref:'VIR-2024-001'},
-  {id:3,date:'2024-03-16',journal:'ACH',libelle:'DEP-2024-001 — Huawei Technologies — Équipements 5G',debit:604,credit:401,montantD:28500000,montantC:28500000,tvaC:0,ref:'DEP-2024-001'},
+  {id:3,date:'2024-03-16',journal:'ACH',libelle:'DEP-2024-001 — Client OEM — Équipements 5G',debit:604,credit:401,montantD:28500000,montantC:28500000,tvaC:0,ref:'DEP-2024-001'},
   {id:4,date:'2024-03-20',journal:'OD',libelle:'Salaires Mars 2024 — 5 agents',debit:641,credit:421,montantD:18000000,montantC:18000000,tvaC:0,ref:'SAL-2024-001'},
   {id:5,date:'2024-03-25',journal:'TVA',libelle:'Déclaration TVA Fév 2024 — Solde à payer',debit:441,credit:521,montantD:8450000,montantC:8450000,tvaC:0,ref:'TVA-FEV-2024'},
   {id:6,date:'2024-03-28',journal:'VTE',libelle:'FAC-2024-004 — Gouvernement — Acompte 30%',debit:521,credit:413,montantD:11448000,montantC:11448000,tvaC:0,ref:'TRESOR-2024-001'},
@@ -653,7 +653,7 @@ const DashboardFinance = ({factures,depenses,onNavigate}) => {
               {label:'Nouvelle dépense',   icon:'expense',  color:C.red,     action:()=>onNavigate('depenses')},
               {label:'Voir trésorerie',    icon:'bank',     color:C.teal,    action:()=>onNavigate('tresorerie')},
               {label:'Déclaration TVA',    icon:'tax',      color:C.purple,  action:()=>onNavigate('tva')},
-              {label:'BC Huawei complets', icon:'bc',       color:C.orange,  action:()=>onNavigate('bc_huawei')},
+              {label:'Bon de commande complets', icon:'bc',       color:C.orange,  action:()=>onNavigate('bc_import')},
               {label:'États OHADA',        icon:'ohada',    color:C.primary, action:()=>onNavigate('ohada')},
               {label:'Paie & Salaires',    icon:'payroll',  color:C.blue,    action:()=>onNavigate('paie')},
               {label:'Vers Terrain →',     icon:'terrain',  color:C.teal,    action:()=>navigate('/terrain')},
@@ -735,7 +735,7 @@ const VueFactures = ({factures,setFactures}) => {
       </div>
 
       <Table
-        cols={['N° Facture','Client','BC Huawei','Émission','Échéance','Montant TTC','Statut','Actions']}
+        cols={['N° Facture','Client','Bon de commande','Émission','Échéance','Montant TTC','Statut','Actions']}
         rows={filtered.map((f,i)=>[
           <span style={{fontWeight:700,color:C.blue,cursor:'pointer'}} onClick={()=>setDetail(f)}>{f.numero}</span>,
           f.client,
@@ -789,7 +789,7 @@ const FormFacture = ({onClose,onSave,initial={}}) => {
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:18}}>
         <Field label="Client" required><Select value={client} onChange={setClient} options={CLIENTS_LIST} placeholder="Sélectionner le client"/></Field>
         <Field label="Projet associé"><Select value={projet} onChange={setProjet} options={PROJETS_REF} placeholder="Aucun projet"/></Field>
-        <Field label="Référence BC Huawei"><Select value={bcRef} onChange={setBcRef} options={BC_REF} placeholder="Aucun BC"/></Field>
+        <Field label="Référence Bon de commande"><Select value={bcRef} onChange={setBcRef} options={BC_REF} placeholder="Aucun BC"/></Field>
         <Field label="Devise"><Select value={devise} onChange={setDevise} options={DEVISES_LIST}/></Field>
         <Field label="Date d'échéance" required><Input type="date" value={echeance} onChange={setEcheance}/></Field>
         <Field label="Mode de paiement"><Select value={mode} onChange={setMode} options={MODES_PAI}/></Field>
@@ -872,7 +872,7 @@ const DetailFacture = ({facture,onClose}) => {
       </div>
 
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:18}}>
-        {[{l:'Client',v:facture.client},{l:'Projet',v:facture.projet||'—'},{l:'BC Huawei',v:facture.bcRef||'—'},
+        {[{l:'Client',v:facture.client},{l:'Projet',v:facture.projet||'—'},{l:'Bon de commande',v:facture.bcRef||'—'},
           {l:'Émission',v:fmtD(facture.dateEmission)},{l:'Échéance',v:fmtD(facture.dateEcheance)},{l:'Paiement',v:facture.modePaiement}
         ].map(it=>(
           <div key={it.l} style={{padding:'9px 12px',background:C.bg,borderRadius:7}}>
@@ -999,7 +999,7 @@ const VueDepenses = ({depenses,setDepenses}) => {
       </div>
 
       <Table
-        cols={['N° Dépense','Fournisseur','Catégorie','Projet','BC Huawei','Montant','Statut','Actions']}
+        cols={['N° Dépense','Fournisseur','Catégorie','Projet','Bon de commande','Montant','Statut','Actions']}
         rows={filtered.map((d,i)=>[
           <span style={{fontWeight:700,color:C.red,cursor:'pointer'}} onClick={()=>setDetail(d)}>{d.numero}</span>,
           d.fournisseur,
@@ -1021,7 +1021,7 @@ const VueDepenses = ({depenses,setDepenses}) => {
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
             {[{l:'Fournisseur',v:detail.fournisseur},{l:'Catégorie',v:detail.categorie},
               {l:'Date',v:fmtD(detail.date)},{l:'Statut',v:<Badge status={detail.status}/>},
-              {l:'Projet',v:detail.projet||'—'},{l:'BC Huawei',v:detail.bcRef||'—'},
+              {l:'Projet',v:detail.projet||'—'},{l:'Bon de commande',v:detail.bcRef||'—'},
               {l:'Compte charge',v:detail.compteCharge||'—'},{l:'TVA déductible',v:detail.tva_deductible?'Oui':'Non'},
             ].map(it=>(
               <div key={it.l} style={{padding:'9px 12px',background:C.bg,borderRadius:7}}>
@@ -1081,7 +1081,7 @@ const FormDepense = ({onClose,onSave}) => {
         <Field label="Date" required><Input type="date" value={date} onChange={setDate}/></Field>
         <Field label="Compte de charge"><Input value={compteC} onChange={setCompteC} placeholder="604"/></Field>
         <Field label="Projet lié"><Select value={projet} onChange={setProjet} options={[...PROJETS_REF,'Général']} placeholder="Aucun"/></Field>
-        <Field label="Référence BC Huawei"><Select value={bcRef} onChange={setBcRef} options={BC_REF} placeholder="Aucun BC"/></Field>
+        <Field label="Référence Bon de commande"><Select value={bcRef} onChange={setBcRef} options={BC_REF} placeholder="Aucun BC"/></Field>
         <Field label="Description" span><Input value={desc} onChange={setDesc} placeholder="Description détaillée de la dépense"/></Field>
         <Field label="TVA déductible">
           <div style={{display:'flex',alignItems:'center',gap:8,paddingTop:6}}>
@@ -1104,13 +1104,13 @@ const FormDepense = ({onClose,onSave}) => {
 };
 
 // ================================================================
-//  MODULE 4 — BC HUAWEI (prix complets — Finance uniquement)
+//  MODULE 4 — BC CLIENT (prix complets — Finance uniquement)
 // ================================================================
-const VueBCHuawei = () => {
+const VueBCClient = () => {
   const [detail, setDetail] = useState(null);
-  const totalMontants = BC_HUAWEI_COMPLETS.reduce((s,b)=>s+b.montantHuawei,0);
-  const totalNego     = BC_HUAWEI_COMPLETS.reduce((s,b)=>s+b.montantNego,0);
-  const totalMarges   = BC_HUAWEI_COMPLETS.reduce((s,b)=>s+b.marge,0);
+  const totalMontants = BC_CLIENT_COMPLETS.reduce((s,b)=>s+b.montantClient,0);
+  const totalNego     = BC_CLIENT_COMPLETS.reduce((s,b)=>s+b.montantNego,0);
+  const totalMarges   = BC_CLIENT_COMPLETS.reduce((s,b)=>s+b.marge,0);
 
   return(
     <div>
@@ -1118,12 +1118,12 @@ const VueBCHuawei = () => {
       <div style={{display:'flex',alignItems:'center',gap:10,padding:'12px 16px',background:'#FEF3C7',border:`1px solid ${C.orange}40`,borderRadius:9,marginBottom:16}}>
         <Ico n="lock" s={17} c={C.orange}/>
         <div style={{flex:1,fontSize:13,color:C.text2}}>
-          <strong style={{color:C.orange}}>CONFIDENTIEL — Finance & Comptabilité uniquement.</strong> Les montants Huawei sont masqués pour les Project Managers. Visible ici pour la comptabilité, le suivi des marges et la création des projets.
+          <strong style={{color:C.orange}}>CONFIDENTIEL — Finance & Comptabilité uniquement.</strong> Les montants Client sont masqués pour les Project Managers. Visible ici pour la comptabilité, le suivi des marges et la création des projets.
         </div>
       </div>
 
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:18}}>
-        {[{l:'Total BC Huawei',v:`${fmtM(totalMontants)} F`,c:C.orange},
+        {[{l:'Total Bon de commande',v:`${fmtM(totalMontants)} F`,c:C.orange},
           {l:'Total négocié',v:`${fmtM(totalNego)} F`,c:C.blue},
           {l:'Marges totales',v:`${fmtM(totalMarges)} F`,c:C.primary},
           {l:'Taux de marge moyen',v:`${Math.round(totalMarges/totalMontants*100)}%`,c:C.teal},
@@ -1136,7 +1136,7 @@ const VueBCHuawei = () => {
       </div>
 
       <div style={{display:'flex',flexDirection:'column',gap:10}}>
-        {BC_HUAWEI_COMPLETS.map(bc=>(
+        {BC_CLIENT_COMPLETS.map(bc=>(
           <Card key={bc.id} onClick={()=>setDetail(bc)}>
             <div style={{padding:'16px 18px'}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
@@ -1150,8 +1150,8 @@ const VueBCHuawei = () => {
                 </div>
                 <div style={{display:'flex',gap:20,textAlign:'right'}}>
                   <div>
-                    <div style={{fontSize:10,color:C.text4,marginBottom:2}}>Montant Huawei</div>
-                    <div style={{fontSize:16,fontWeight:800,color:C.orange}}>{fmtM(bc.montantHuawei)} FCFA</div>
+                    <div style={{fontSize:10,color:C.text4,marginBottom:2}}>Montant Client</div>
+                    <div style={{fontSize:16,fontWeight:800,color:C.orange}}>{fmtM(bc.montantClient)} FCFA</div>
                   </div>
                   <div>
                     <div style={{fontSize:10,color:C.text4,marginBottom:2}}>Montant négocié</div>
@@ -1160,16 +1160,16 @@ const VueBCHuawei = () => {
                   <div>
                     <div style={{fontSize:10,color:C.text4,marginBottom:2}}>Marge</div>
                     <div style={{fontSize:16,fontWeight:800,color:C.primary}}>{fmtM(bc.marge)} FCFA</div>
-                    <div style={{fontSize:10,color:C.primary}}>{Math.round(bc.marge/bc.montantHuawei*100)}%</div>
+                    <div style={{fontSize:10,color:C.primary}}>{Math.round(bc.marge/bc.montantClient*100)}%</div>
                   </div>
                 </div>
               </div>
               {/* Barre marge */}
               <div style={{display:'flex',alignItems:'center',gap:10}}>
                 <div style={{flex:1,height:6,background:C.bg2,borderRadius:3,overflow:'hidden'}}>
-                  <div style={{height:'100%',width:`${Math.round(bc.marge/bc.montantHuawei*100)}%`,background:C.primary,borderRadius:3}}/>
+                  <div style={{height:'100%',width:`${Math.round(bc.marge/bc.montantClient*100)}%`,background:C.primary,borderRadius:3}}/>
                 </div>
-                <span style={{fontSize:11,color:C.primary,fontWeight:600}}>Marge {Math.round(bc.marge/bc.montantHuawei*100)}%</span>
+                <span style={{fontSize:11,color:C.primary,fontWeight:600}}>Marge {Math.round(bc.marge/bc.montantClient*100)}%</span>
               </div>
             </div>
           </Card>
@@ -1179,7 +1179,7 @@ const VueBCHuawei = () => {
       {detail&&(
         <SlidePanel title={detail.id} sub={`${detail.client} · CONFIDENTIEL`} onClose={()=>setDetail(null)} width={680}>
           <div style={{display:'flex',gap:12,marginBottom:16}}>
-            {[{l:'Prix Huawei',v:`${fmtN(detail.montantHuawei)} ${detail.devise}`,c:C.orange},
+            {[{l:'Prix Client',v:`${fmtN(detail.montantClient)} ${detail.devise}`,c:C.orange},
               {l:'Négocié',v:`${fmtN(detail.montantNego)} ${detail.devise}`,c:C.blue},
               {l:'Marge',v:`${fmtN(detail.marge)} ${detail.devise}`,c:C.primary},
             ].map(s=>(
@@ -1214,7 +1214,7 @@ const VueTresorerie = () => {
 
   const RELEVES = [
     {date:'2024-03-28',libelle:'VIR reçu MTN Cameroun — FAC-2024-001',type:'e',montant:5000000,solde:113000000,ref:'VIR-2024-001'},
-    {date:'2024-03-25',libelle:'Paiement Huawei Technologies DEP-2024-001',type:'s',montant:28500000,solde:108000000,ref:'DEP-2024-001'},
+    {date:'2024-03-25',libelle:'Paiement Client OEM DEP-2024-001',type:'s',montant:28500000,solde:108000000,ref:'DEP-2024-001'},
     {date:'2024-03-22',libelle:'VIR reçu Gouvernement — Acompte FAC-2024-004',type:'e',montant:11448000,solde:136500000,ref:'TRESOR-2024-001'},
     {date:'2024-03-20',libelle:'Salaires Mars 2024',type:'s',montant:18000000,solde:125052000,ref:'SAL-2024-001'},
     {date:'2024-03-15',libelle:'Total Énergies — Carburant véhicules',type:'s',montant:850000,solde:143052000,ref:'DEP-2024-003'},
@@ -1671,25 +1671,25 @@ const VuePayroll = () => {
 
 // ================================================================
 //  MODULE 10 — JOB COSTING & RENTABILITÉ PROJETS
-//  Lié à : BC Huawei (budget), Dépenses (coûts réels), Factures (CA)
+//  Lié à : Bon de commande (budget), Dépenses (coûts réels), Factures (CA)
 // ================================================================
 
-// Données projets enrichies avec budget Huawei + dépenses réelles liées
+// Données projets enrichies avec budget Client + dépenses réelles liées
 const PROJETS_JC = [
   {
     id:'PROJ-2024-001',
     nom:'Déploiement 5G NR DLA-001',
     client:'MTN Cameroun',
-    bcRef:'BC-HW-2024-143',
-    // Prix Huawei (confidentiel PM)
-    budgetHuawei:180000000,
+    bcRef:'BC-2024-143',
+    // Prix Client (confidentiel PM)
+    budgetClient:180000000,
     // Prix négocié CleanIT
     montantContrat:165000000,
     // Factures émises liées
     facturesIds:[1,3],
     // Dépenses réelles liées au projet
     depensesLiees:[
-      {ref:'DEP-2024-001',libelle:'Équipements 5G NR Huawei',montant:28500000,categorie:'Équipements'},
+      {ref:'DEP-2024-001',libelle:'Équipements 5G NR Client',montant:28500000,categorie:'Équipements'},
       {ref:'DEP-2024-003',libelle:'Carburant terrain janvier',montant:850000,categorie:'Transport'},
       {ref:'DEP-2024-006',libelle:'Per diem techniciens terrain',montant:1800000,categorie:'Per diem'},
       {ref:'SAL-PORTION',libelle:'Salaires techniciens (portion)',montant:6000000,categorie:'Main oeuvre'},
@@ -1713,8 +1713,8 @@ const PROJETS_JC = [
     id:'PROJ-2024-002',
     nom:'4G LTE YDE-001',
     client:'Orange Cameroun',
-    bcRef:'BC-HW-2024-141',
-    budgetHuawei:45000000,
+    bcRef:'BC-2024-141',
+    budgetClient:45000000,
     montantContrat:38000000,
     facturesIds:[2],
     depensesLiees:[
@@ -1740,8 +1740,8 @@ const PROJETS_JC = [
     id:'PROJ-2024-003',
     nom:'Infrastructure GAR-001',
     client:'Gouvernement Cameroun',
-    bcRef:'BC-HW-2024-139',
-    budgetHuawei:35000000,
+    bcRef:'BC-2024-139',
+    budgetClient:35000000,
     montantContrat:29000000,
     facturesIds:[4],
     depensesLiees:[
@@ -1769,7 +1769,7 @@ const PROJETS_JC = [
     nom:'Survey RF LIM-001',
     client:'Nexttel Cameroun',
     bcRef:'',
-    budgetHuawei:0,
+    budgetClient:0,
     montantContrat:5127750,
     facturesIds:[5],
     depensesLiees:[
@@ -1794,8 +1794,8 @@ const PROJETS_JC = [
     id:'PROJ-2024-005',
     nom:'Fibre optique BFN-001',
     client:'CAMTEL',
-    bcRef:'BC-HW-2024-148',
-    budgetHuawei:220000000,
+    bcRef:'BC-2024-148',
+    budgetClient:220000000,
     montantContrat:195000000,
     facturesIds:[6],
     depensesLiees:[
@@ -1835,7 +1835,7 @@ const VueRentabilite = ({factures,depenses}) => {
     return {...p, totalDepense, totalBudgetEst, caFacture, margeReelle, margeContrat, ecartBudget, pctDepense, pctMarge};
   });
 
-  const totalBudgets  = projetsCalc.reduce((s,p)=>s+p.budgetHuawei,0);
+  const totalBudgets  = projetsCalc.reduce((s,p)=>s+p.budgetClient,0);
   const totalContrats = projetsCalc.reduce((s,p)=>s+p.montantContrat,0);
   const totalDepenses = projetsCalc.reduce((s,p)=>s+p.totalDepense,0);
   const totalCA       = projetsCalc.reduce((s,p)=>s+p.caFacture,0);
@@ -1859,7 +1859,7 @@ const VueRentabilite = ({factures,depenses}) => {
       {/* KPIs globaux */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10,marginBottom:20}}>
         {[
-          {l:'Budget Huawei total',v:`${fmtM(totalBudgets)} F`,c:C.orange,
+          {l:'Budget Client total',v:`${fmtM(totalBudgets)} F`,c:C.orange,
            sub:'Prix BC confidentiels',icon:'bc'},
           {l:'Contrats négociés',v:`${fmtM(totalContrats)} F`,c:C.blue,
            sub:`Marge brute: ${fmtM(totalBudgets-totalContrats)} F`,icon:'invoice'},
@@ -1885,7 +1885,7 @@ const VueRentabilite = ({factures,depenses}) => {
       {/* Toggle table / chart */}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
         <div style={{fontSize:13,fontWeight:700,color:C.text}}>
-          Job Costing — Budget Huawei vs Dépenses réelles vs CA facturé
+          Job Costing — Budget Client vs Dépenses réelles vs CA facturé
         </div>
         <div style={{display:'flex',gap:6}}>
           {['table','chart'].map(v=>(
@@ -1957,7 +1957,7 @@ const VueRentabilite = ({factures,depenses}) => {
                   {/* 4 métriques financières clés */}
                   <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:12}}>
                     {[
-                      {l:'Budget Huawei',v:p.budgetHuawei>0?`${fmtM(p.budgetHuawei)} F`:'Sans BC',
+                      {l:'Budget Client',v:p.budgetClient>0?`${fmtM(p.budgetClient)} F`:'Sans BC',
                        c:C.orange,bg:C.orange_l,lock:true},
                       {l:'Budget estimé projet',v:`${fmtM(p.totalBudgetEst)} F`,
                        c:C.blue,bg:C.blue_l,lock:false},
@@ -2146,11 +2146,11 @@ const VueRapports = ({factures,depenses}) => {
     {n:'Âge des dettes (AP Aging)',d:'Dettes fournisseurs par ancienneté',icon:'vendor',color:C.red},
     {n:'Cash Flow Statement',d:'Tableau des flux de trésorerie OHADA',icon:'cashflow',color:C.teal},
     {n:'TVA mensuelle',d:'Déclaration TVA — collectée, déductible, solde net',icon:'tax',color:C.orange},
-    {n:'Rentabilité par projet',d:'CA, charges, marge par projet BC Huawei',icon:'job',color:C.primary},
+    {n:'Rentabilité par projet',d:'CA, charges, marge par projet Bon de commande',icon:'job',color:C.primary},
     {n:'Performance commerciale',d:'CA par client, par période, par type de service',icon:'trend_up',color:C.blue},
     {n:'Prévisions trésorerie',d:'Projection trésorerie 3-6 mois — IA prédictive',icon:'ai',color:C.purple},
     {n:'Déclarations IRPP/CNPS',d:'Récapitulatif cotisations sociales & fiscales',icon:'payroll',color:C.teal},
-    {n:'Rapport BC Huawei',d:'Synthèse marges sur bons de commande Huawei',icon:'bc',color:C.orange},
+    {n:'Rapport Bon de commande',d:'Synthèse marges sur bons de commande Client',icon:'bc',color:C.orange},
   ];
 
   return(
@@ -2206,7 +2206,7 @@ const VueIAFinance = ({factures,depenses}) => {
     {type:'info',icon:'cashflow',title:'Trésorerie prévisionnelle 3 mois',
      detail:'Projection IA : Trésorerie en hausse. Solde prévu au 30/06/2024 : 145M FCFA (+27%). Risque de trésorerie identifié en mai si FAC-2024-002 non réglée.',
      action:'Voir prévisions',color:C.teal},
-    {type:'warning',icon:'bc',title:'BC-HW-2024-149 sans ressource disponible',
+    {type:'warning',icon:'bc',title:'BC-2024-149 sans ressource disponible',
      detail:'Le BC de Maroua (MAR-001) n\'a aucun technicien disponible dans un rayon de 50km. Budget : 1.2M FCFA. Recommandation : recrutement externe ou partenaire local.',
      action:'Voir terrain',color:C.orange,navigate:'/terrain'},
   ];
@@ -2289,7 +2289,7 @@ const VueIAFinance = ({factures,depenses}) => {
 // ================================================================
 const VueFournisseurs = () => {
   const FOURN_DATA = [
-    {nom:'Huawei Technologies',pays:'Chine',devise:'FCFA/USD',soldeDu:28500000,soldeEchu:0,status:'ok',lastPay:'2024-01-15',contacts:'Mr. Chen Wei'},
+    {nom:'Client OEM',pays:'Chine',devise:'FCFA/USD',soldeDu:28500000,soldeEchu:0,status:'ok',lastPay:'2024-01-15',contacts:'Mr. Chen Wei'},
     {nom:'Nokia Networks',pays:'France',devise:'USD',soldeDu:9232000,soldeEchu:9232000,status:'retard',lastPay:'2024-02-01',contacts:'Sophie Martin'},
     {nom:'Ericsson Cameroun',pays:'Cameroun',devise:'EUR',soldeDu:5610000,soldeEchu:0,status:'ok',lastPay:'2024-02-20',contacts:'Paul Biya Jr.'},
     {nom:'Total Énergies',pays:'Cameroun',devise:'FCFA',soldeDu:850000,soldeEchu:0,status:'ok',lastPay:'2024-01-31',contacts:'Marc Ateba'},
@@ -2342,7 +2342,7 @@ const NAV = [
   {id:'dashboard',   label:'Tableau de bord',    icon:'home'},
   {id:'factures',    label:'Facturation (AR)',    icon:'invoice'},
   {id:'depenses',    label:'Dépenses (AP)',       icon:'expense'},
-  {id:'bc_huawei',   label:'BC Huawei — Marges', icon:'bc'},
+  {id:'bc_import',   label:'Bon de commande — Marges', icon:'bc'},
   {id:'tresorerie',  label:'Trésorerie & Banque', icon:'bank'},
   {id:'comptable',   label:'Plan comptable OHADA',icon:'ohada'},
   {id:'tva',         label:'TVA & Fiscalité',     icon:'tax'},
@@ -2374,7 +2374,7 @@ export default function Finance() {
     dashboard:   <DashboardFinance factures={factures} depenses={depenses} onNavigate={setNav}/>,
     factures:    <VueFactures factures={factures} setFactures={setFactures}/>,
     depenses:    <VueDepenses depenses={depenses} setDepenses={setDepenses}/>,
-    bc_huawei:   <VueBCHuawei/>,
+    bc_import:   <VueBCClient/>,
     tresorerie:  <VueTresorerie/>,
     comptable:   <VuePlanComptable/>,
     tva:         <VueTVA factures={factures} depenses={depenses}/>,
@@ -2389,7 +2389,7 @@ export default function Finance() {
   // Groupes de navigation pour le menu horizontal
   const NAV_GROUPS = [
     {label:'Vue générale', items:['dashboard']},
-    {label:'Transactions',    items:['factures','depenses','bc_huawei','fournisseurs']},
+    {label:'Transactions',    items:['factures','depenses','bc_import','fournisseurs']},
     {label:'Trésorerie',      items:['tresorerie']},
     {label:'Comptabilité',    items:['comptable','tva','ohada']},
     {label:'Paie & Projets',  items:['paie','rentabilite']},

@@ -72,7 +72,11 @@ export default function App() {
           <Route path="map"             element={<Map />} />
           <Route path="terrain"         element={<Terrain />} />
           <Route path="evidence"        element={<Evidence />} />
-          <Route path="cleanitbooks"    element={<CleanITBooks />} />
+          <Route path="cleanitbooks" element={<CleanITBooks />} />
+          <Route path="cleanitbooks/jobs" element={<CleanITBooks />} />
+          <Route path="cleanitbooks/jobs/new" element={<CleanITBooks />} />
+          <Route path="cleanitbooks/jobs/:jobId" element={<CleanITBooks />} />
+          <Route path="cleanitbooks/jobs/:jobId/edit" element={<CleanITBooks />} />
           <Route path="messaging"       element={<Soon title="Messagerie Interne" color="#7c3aed" />} />
           <Route path="provisioning"    element={<Soon title="Provisioning Réseau" color="#4f8ef7" />} />
         </Route>

@@ -87,7 +87,7 @@ const CA_MENSUEL = [
 const CA_CLIENTS = [
   {client:"MTN",ca:450,objectif:500,prev:520},
   {client:"Orange",ca:320,objectif:350,prev:380},
-  {client:"Huawei",ca:280,objectif:300,prev:310},
+  {client:"Client",ca:280,objectif:300,prev:310},
   {client:"Nexttel",ca:120,objectif:180,prev:200},
   {client:"CAMTEL",ca:95,objectif:200,prev:220},
   {client:"MINPOSTEL",ca:65,objectif:100,prev:120},
@@ -135,7 +135,7 @@ const PIPELINE_STAGES = [
 const PROJETS_DATA = [
   {name:"MTN 5G Core",avancement:68,budget:180,depense:122,retard:0,responsable:"Marie K."},
   {name:"CAMTEL Fibre P2",avancement:35,budget:220,depense:77,retard:0,responsable:"Marie K."},
-  {name:"Huawei BTS Maint.",avancement:82,budget:45,depense:37,retard:0,responsable:"Pierre E."},
+  {name:"Client BTS Maint.",avancement:82,budget:45,depense:37,retard:0,responsable:"Pierre E."},
   {name:"Orange RF Q2",avancement:22,budget:85,depense:19,retard:21,responsable:"Jean F."},
   {name:"MTN Small Cells",avancement:100,budget:95,depense:91,retard:0,responsable:"Pierre E."},
   {name:"Nexttel Audit",avancement:10,budget:25,depense:2.5,retard:0,responsable:"Jean F."},
@@ -434,7 +434,7 @@ const ModuleCommercial = () => (
             {[
               {name:"5G Réseau Cœur MTN",client:"MTN Cameroun",stage:"negociation",stageL:"Négociation",stageC:C.purple_m,stageBg:C.purple_l,montant:180,prob:75,close:"30/06",resp:"Marie K."},
               {name:"Fibre Optique CAMTEL",client:"CAMTEL",stage:"qualifie",stageL:"Qualifié",stageC:C.blue_m,stageBg:C.blue_l,montant:220,prob:45,close:"31/08",resp:"Marie K."},
-              {name:"Maintenance Huawei",client:"Huawei",stage:"negociation",stageL:"Négociation",stageC:C.purple_m,stageBg:C.purple_l,montant:45,prob:85,close:"30/04",resp:"Pierre E."},
+              {name:"Maintenance Client",client:"Client",stage:"negociation",stageL:"Négociation",stageC:C.purple_m,stageBg:C.purple_l,montant:45,prob:85,close:"30/04",resp:"Pierre E."},
               {name:"Optimisation RF Orange",client:"Orange",stage:"proposition",stageL:"Proposition",stageC:C.orange_m,stageBg:C.orange_l,montant:85,prob:60,close:"15/05",resp:"Jean F."},
               {name:"Audit Nexttel",client:"Nexttel",stage:"prospect",stageL:"Prospect",stageC:C.text3,stageBg:C.bg2,montant:25,prob:30,close:"31/07",resp:"Jean F."},
               {name:"5G Small Cells MTN",client:"MTN Cameroun",stage:"gagne",stageL:"Gagné ✓",stageC:C.green_m,stageBg:C.green_l,montant:95,prob:100,close:"28/02",resp:"Pierre E."},

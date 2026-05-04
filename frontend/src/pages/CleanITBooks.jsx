@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 // ================================================================
 //  CLEANITBOOKS — MODULE 1 : JOB CENTER
@@ -97,7 +97,7 @@ const Ico = ({n,s=16,c="currentColor"}) => {
 const CUSTOMERS = [
   {id:"C001",name:"MTN Cameroun",        type:"Telecom",    city:"Douala",   currency:"FCFA"},
   {id:"C002",name:"Orange Cameroun",     type:"Telecom",    city:"Yaounde",  currency:"FCFA"},
-  {id:"C003",name:"Huawei Technologies", type:"OEM",        city:"Douala",   currency:"USD"},
+  {id:"C003",name:"Client OEM", type:"OEM",        city:"Douala",   currency:"USD"},
   {id:"C004",name:"Gouvernement",        type:"Public",     city:"Yaounde",  currency:"FCFA"},
   {id:"C005",name:"CAMTEL",              type:"Telecom",    city:"Yaounde",  currency:"FCFA"},
   {id:"C006",name:"Nexttel Cameroun",    type:"Telecom",    city:"Douala",   currency:"FCFA"},
@@ -118,17 +118,17 @@ const INIT_JOBS = [
     id:"JOB-001",
     name:"Installation 5G NR DLA-001",
     customerId:"C001",
-    bcRef:"BC-HW-2024-143",
+    bcRef:"BC-2024-143",
     jobType:"Telecom Installation",
     statut:"In Progress",
-    description:"Deploiement complet station 5G NR sur le site Akwa Douala. Installation BBU 5900, 3 RRU 5258 4T4R, cablage alimentation DC, configuration parametres reseau et tests end-to-end. Supervision Huawei Technologies.",
+    description:"Deploiement complet station 5G NR sur le site Akwa Douala. Installation BBU 5900, 3 RRU 5258 4T4R, cablage alimentation DC, configuration parametres reseau et tests end-to-end. Supervision Client OEM.",
     startDate:"2024-01-15",
     endDate:"2024-06-30",
     chefProjet:"Marie Kamga",
     site:"DLA-001",
     currency:"FCFA",
-    // Prix Huawei - CONFIDENTIEL
-    budgetHuawei:180000000,
+    // Prix Client - CONFIDENTIEL
+    budgetClient:180000000,
     // Prix negocie CleanIT
     contractAmount:165000000,
     // Budget estime par poste de cout
@@ -145,7 +145,7 @@ const INIT_JOBS = [
       {id:"PH2",name:"Phase 2 — Installation et travaux",pct:40,amount:66000000,statut:"pending",invoiceRef:null,datePrevue:"2024-04-01",datePaiement:null},
       {id:"PH3",name:"Phase 3 — Tests et reception",pct:30,amount:49500000,statut:"pending",invoiceRef:null,datePrevue:"2024-06-30",datePaiement:null},
     ],
-    // Lignes BC Huawei detaillees - CONFIDENTIEL
+    // Lignes Bon de commande detaillees - CONFIDENTIEL
     lignesBC:[
       {desc:"BBU 5900 5G NR",qte:2,pu:25000000,total:50000000},
       {desc:"RRU 5258 4T4R",qte:6,pu:8500000,total:51000000},
@@ -166,7 +166,7 @@ const INIT_JOBS = [
     ],
     // Bills fournisseurs lies
     bills:[
-      {id:"BILL-2024-001",vendor:"Huawei Technologies",date:"2024-01-15",amount:101000000,statut:"Partial"},
+      {id:"BILL-2024-001",vendor:"Client OEM",date:"2024-01-15",amount:101000000,statut:"Partial"},
       {id:"BILL-2024-003",vendor:"Total Energies",date:"2024-01-31",amount:850000,statut:"Paid"},
     ],
     // Heures enregistrees
@@ -175,14 +175,14 @@ const INIT_JOBS = [
       {emp:"Jean Fouda",date:"2024-03-15",service:"PM Terrain",hours:8,rate:46875,billable:true},
       {emp:"Pierre Etoga",date:"2024-03-16",service:"Ingenieur Reseau",hours:10,rate:56250,billable:true},
     ],
-    notes:"Job cree depuis BC Huawei. Prix Huawei confidentiel - PM ne voit pas les montants Huawei. Negociation equipe technique en cours pour Phase 2.",
+    notes:"Job cree depuis Bon de commande. Prix Client confidentiel - PM ne voit pas les montants Client. Negociation equipe technique en cours pour Phase 2.",
     dateCreation:"2024-01-08",
   },
   {
     id:"JOB-002",
     name:"Maintenance 4G LTE YDE-001",
     customerId:"C002",
-    bcRef:"BC-HW-2024-141",
+    bcRef:"BC-2024-141",
     jobType:"Maintenance",
     statut:"Closed",
     description:"Maintenance corrective et preventive reseau 4G LTE Yaounde. Remplacement antennes defectueuses, optimisation parametres radio, mise a jour firmware equipements.",
@@ -191,7 +191,7 @@ const INIT_JOBS = [
     chefProjet:"Jean Fouda",
     site:"YDE-001",
     currency:"FCFA",
-    budgetHuawei:45000000,
+    budgetClient:45000000,
     contractAmount:38000000,
     budgetEstime:{
       labor:6000000,materials:12000000,subcontract:2000000,equipment:500000,overhead:1500000,
@@ -224,7 +224,7 @@ const INIT_JOBS = [
     id:"JOB-003",
     name:"Infrastructure Telecom GAR-001",
     customerId:"C004",
-    bcRef:"BC-HW-2024-139",
+    bcRef:"BC-2024-139",
     jobType:"Infrastructure",
     statut:"In Progress",
     description:"Deploiement infrastructure telecom zones rurales Garoua. Construction pylone 45m, installation equipements 3G/4G, raccordement electrique et fibre optique backbone.",
@@ -233,7 +233,7 @@ const INIT_JOBS = [
     chefProjet:"Pierre Etoga",
     site:"GAR-001",
     currency:"FCFA",
-    budgetHuawei:35000000,
+    budgetClient:35000000,
     contractAmount:29000000,
     budgetEstime:{
       labor:7000000,materials:8000000,subcontract:3000000,equipment:1000000,overhead:2000000,
@@ -268,7 +268,7 @@ const INIT_JOBS = [
     id:"JOB-004",
     name:"Fibre Optique BFN-001",
     customerId:"C005",
-    bcRef:"BC-HW-2024-148",
+    bcRef:"BC-2024-148",
     jobType:"Fibre Optique",
     statut:"Awarded",
     description:"Deploiement reseau fibre optique FTTH 50km Bafoussam Nord. Genie civil (tranchees et fourreaux), pose cable G657A2, raccordements, boitiers epissure et tests optiques.",
@@ -277,7 +277,7 @@ const INIT_JOBS = [
     chefProjet:"Marie Kamga",
     site:"BFN-001",
     currency:"FCFA",
-    budgetHuawei:220000000,
+    budgetClient:220000000,
     contractAmount:195000000,
     budgetEstime:{
       labor:20000000,materials:80000000,subcontract:15000000,equipment:5000000,overhead:8000000,
@@ -308,7 +308,7 @@ const INIT_JOBS = [
     id:"JOB-005",
     name:"Survey RF MAR-001",
     customerId:"C006",
-    bcRef:"BC-HW-2024-149",
+    bcRef:"BC-2024-149",
     jobType:"Survey RF",
     statut:"Pending",
     description:"Relevé mesures radiofréquences zones nord Maroua. Analyse couverture, optimisation paramètres, rapport technique détaillé avec recommandations.",
@@ -317,7 +317,7 @@ const INIT_JOBS = [
     chefProjet:"Jean Fouda",
     site:"MAR-001",
     currency:"FCFA",
-    budgetHuawei:18000000,
+    budgetClient:18000000,
     contractAmount:15000000,
     budgetEstime:{
       labor:5000000,materials:2000000,subcontract:0,equipment:500000,overhead:1000000,
@@ -335,7 +335,7 @@ const INIT_JOBS = [
     invoices:[],
     bills:[],
     timeEntries:[],
-    notes:"En attente validation BC Huawei. Aucun technicien disponible dans rayon 50km.",
+    notes:"En attente validation Bon de commande. Aucun technicien disponible dans rayon 50km.",
     dateCreation:"2024-03-15",
   },
 ];
@@ -514,10 +514,10 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
   const [notes,      setNotes]      = useState(initial?.notes||"");
 
   // Prix confidentiel
-  const [budgetHW,   setBudgetHW]   = useState(initial?.budgetHuawei||"");
+  const [budgetHW,   setBudgetHW]   = useState(initial?.budgetClient||"");
   const [contractAmt,setContractAmt]= useState(initial?.contractAmount||"");
 
-  // Lignes BC Huawei
+  // Lignes Bon de commande
   const [lignesBC, setLignesBC] = useState(
     initial?.lignesBC||[{desc:"",qte:1,pu:0,total:0}]
   );
@@ -568,7 +568,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
       id:initial?.id||"JOB-"+String(Date.now()).slice(-6),
       name,customerId:custId,bcRef,jobType,statut,site,chefProjet:chef,
       startDate,endDate,currency,description:desc,notes,
-      budgetHuawei:+budgetHW||0,contractAmount:+contractAmt||0,
+      budgetClient:+budgetHW||0,contractAmount:+contractAmt||0,
       budgetEstime:Object.fromEntries(Object.entries(budgetEst).map(([k,v])=>[k,+v||0])),
       phases,lignesBC,
       coutsReels:initial?.coutsReels||{labor:0,materials:0,subcontract:0,equipment:0,overhead:0},
@@ -583,7 +583,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
 
   const STEPS = [
     {n:1,label:"Informations generales"},
-    {n:2,label:"BC Huawei (confidentiel)"},
+    {n:2,label:"Bon de commande (confidentiel)"},
     {n:3,label:"Budget estime"},
     {n:4,label:"Phases de facturation"},
     {n:5,label:"Notes"},
@@ -691,7 +691,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
             </div>
           )}
 
-          {/* STEP 2 — BC Huawei confidentiel */}
+          {/* STEP 2 — Bon de commande confidentiel */}
           {step===2&&(
             <div>
               <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",background:"#FEF3C7",border:"1px solid "+C.orange+"50",borderRadius:6,marginBottom:20}}>
@@ -703,15 +703,15 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
               </div>
 
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
-                <Field label="Reference BC Huawei">
-                  <Inp value={bcRef} onChange={setBcRef} placeholder="BC-HW-2024-XXX"/>
+                <Field label="Reference Bon de commande">
+                  <Inp value={bcRef} onChange={setBcRef} placeholder="BC-2024-XXX"/>
                 </Field>
 
                 <Field label="Devise du BC">
                   <Sel value={currency} onChange={setCurrency} options={["FCFA","USD","EUR"]}/>
                 </Field>
 
-                <Field label="Montant total Huawei (prix Huawei)" required hint="Ce que Huawei vous paie — confidentiel">
+                <Field label="Montant total Client (prix Client)" required hint="Ce que Client vous paie — confidentiel">
                   <Inp type="number" value={budgetHW} onChange={setBudgetHW} prefix={currency} placeholder="0"/>
                 </Field>
 
@@ -724,7 +724,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
               {budgetHW&&contractAmt&&(
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}>
                   {[
-                    {l:"Prix Huawei",v:fN(+budgetHW)+" "+currency,c:C.orange},
+                    {l:"Prix Client",v:fN(+budgetHW)+" "+currency,c:C.orange},
                     {l:"Contrat CleanIT",v:fN(+contractAmt)+" "+currency,c:C.blue},
                     {l:"Marge brute",v:fN(+budgetHW-+contractAmt)+" "+currency,c:+budgetHW>+contractAmt?C.green:C.red},
                   ].map((s,i)=>(
@@ -779,7 +779,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
                     </tbody>
                     <tfoot>
                       <tr style={{borderTop:"2px solid "+C.border,background:C.bg}}>
-                        <td colSpan={3} style={{padding:"10px 12px",fontWeight:700,color:C.text}}>TOTAL BC HUAWEI</td>
+                        <td colSpan={3} style={{padding:"10px 12px",fontWeight:700,color:C.text}}>TOTAL BC CLIENT</td>
                         <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:C.orange,fontSize:15}}>{fN(totalBC)} {currency}</td>
                         <td/>
                       </tr>
@@ -940,8 +940,8 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
                       {l:"Site",v:site||"—"},
                       {l:"Chef de projet",v:chef||"—"},
                       {l:"Dates",v:(startDate||"?")+" au "+(endDate||"?")},
-                      {l:"BC Huawei",v:bcRef||"—"},
-                      {l:"Budget Huawei",v:budgetHW?fN(+budgetHW)+" "+currency:"—"},
+                      {l:"Bon de commande",v:bcRef||"—"},
+                      {l:"Budget Client",v:budgetHW?fN(+budgetHW)+" "+currency:"—"},
                       {l:"Contrat CleanIT",v:contractAmt?fN(+contractAmt)+" "+currency:"—"},
                       {l:"Budget estime",v:fN(totalEst)+" "+currency},
                       {l:"Phases",v:phases.length+" phase(s)"},
@@ -997,7 +997,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
     {id:"invoices",     label:"Factures ("+job.invoices.length+")", icon:"invoice"},
     {id:"bills",        label:"Depenses ("+job.bills.length+")", icon:"bill"},
     {id:"time",         label:"Heures ("+job.timeEntries.length+")", icon:"time"},
-    {id:"bc",           label:"BC Huawei",           icon:"bc"},
+    {id:"bc",           label:"Bon de commande",           icon:"bc"},
     {id:"notes",        label:"Notes",               icon:"note"},
   ];
 
@@ -1026,7 +1026,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
         {/* 5 KPIs financiers — coeur du Job Costing */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
           {[
-            {l:"Budget Huawei",      v:fN(job.budgetHuawei)+" F",  c:C.orange, lock:true,  sub:"Confidentiel"},
+            {l:"Budget Client",      v:fN(job.budgetClient)+" F",  c:C.orange, lock:true,  sub:"Confidentiel"},
             {l:"Contrat CleanIT",    v:fN(job.contractAmount)+" F", c:C.blue,   lock:false, sub:"Montant facture"},
             {l:"Budget estime",      v:fN(totalEst)+" F",           c:C.text,   lock:false, sub:"Couts prevus"},
             {l:"Couts reels",        v:fN(totalCouts)+" F",         c:totalCouts>totalEst?C.red:C.green, lock:false, sub:"Depenses engagees"},
@@ -1369,7 +1369,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
           </div>
         )}
 
-        {/* BC HUAWEI */}
+        {/* BC CLIENT */}
         {tab==="bc"&&(
           <div>
             <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",background:"#FEF3C7",border:"1px solid "+C.orange+"50",borderRadius:6,marginBottom:16}}>
@@ -1381,9 +1381,9 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
 
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}>
               {[
-                {l:"Prix Huawei",v:fN(job.budgetHuawei)+" "+job.currency,c:C.orange},
+                {l:"Prix Client",v:fN(job.budgetClient)+" "+job.currency,c:C.orange},
                 {l:"Contrat CleanIT",v:fN(job.contractAmount)+" "+job.currency,c:C.blue},
-                {l:"Marge brute",v:fN(job.budgetHuawei-job.contractAmount)+" "+job.currency,c:job.budgetHuawei>job.contractAmount?C.green:C.red},
+                {l:"Marge brute",v:fN(job.budgetClient-job.contractAmount)+" "+job.currency,c:job.budgetClient>job.contractAmount?C.green:C.red},
               ].map((s,i)=>(
                 <div key={i} style={{padding:"14px 16px",background:C.white,border:"1px solid "+C.border,borderRadius:6,borderTop:"3px solid "+s.c,textAlign:"center"}}>
                   <div style={{fontSize:11,color:C.text3,textTransform:"uppercase",letterSpacing:.4,marginBottom:5}}>{s.l}</div>
@@ -1392,7 +1392,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
               ))}
             </div>
 
-            <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>Lignes du bon de commande Huawei</div>
+            <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>Lignes du bon de commande Client</div>
             <div style={{border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
               <table style={{width:"100%",borderCollapse:"collapse"}}>
                 <thead>
@@ -1414,7 +1414,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
                 </tbody>
                 <tfoot>
                   <tr style={{background:C.bg,borderTop:"2px solid "+C.border}}>
-                    <td colSpan={3} style={{padding:"12px 14px",fontWeight:700,color:C.text,fontSize:13}}>TOTAL BC HUAWEI</td>
+                    <td colSpan={3} style={{padding:"12px 14px",fontWeight:700,color:C.text,fontSize:13}}>TOTAL BC CLIENT</td>
                     <td style={{padding:"12px 14px",textAlign:"right",fontWeight:800,color:C.orange,fontSize:16}}>{fN(job.lignesBC.reduce((s,l)=>s+l.total,0))} {job.currency}</td>
                   </tr>
                 </tfoot>
@@ -1449,30 +1449,20 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
   );
 };
 
+
 // ================================================================
-//  MODULE PRINCIPAL — JOB CENTER
+//  ROUTING PAR URL — chaque job a sa propre page
+//  /cleanitbooks          → liste des jobs
+//  /cleanitbooks/jobs/JOB-001 → detail du job
 // ================================================================
-export default function CleanITBooks() {
-  const navigate = useNavigate();
-  const [jobs,       setJobs]       = useState(INIT_JOBS);
-  const [selJobId,   setSelJobId]   = useState(INIT_JOBS[0].id);
-  const [showForm,   setShowForm]   = useState(false);
-  const [editJob,    setEditJob]    = useState(null);
-  const [search,     setSearch]     = useState("");
+
+// PAGE LISTE DES JOBS
+const PageJobList = ({jobs,setJobs,customers}) => {
+  const navigate   = useNavigate();
+  const [search,     setSearch]      = useState("");
   const [filtreStatut,setFiltreStatut]= useState("Tous");
-  const [filtreType, setFiltreType] = useState("Tous");
-
-  const TABS_NAV = [
-    {id:"jobs",     label:"Job Center",          icon:"job"},
-    {id:"invoices", label:"Facturation AR",       icon:"invoice"},
-    {id:"bills",    label:"Depenses AP",          icon:"bill"},
-    {id:"time",     label:"Saisie heures",        icon:"time"},
-    {id:"reports",  label:"Rapports Job Costing", icon:"chart"},
-    {id:"bc",       label:"Import BC Huawei",     icon:"bc"},
-  ];
-  const [activeTab, setActiveTab] = useState("jobs");
-
-  const selJob = jobs.find(j=>j.id===selJobId);
+  const [filtreType, setFiltreType]  = useState("Tous");
+  const [showForm,   setShowForm]    = useState(false);
 
   const STATUTS_FILTRE = ["Tous","In Progress","Awarded","Closed","Pending","Not Awarded"];
   const TYPES_FILTRE   = ["Tous",...JOB_TYPES];
@@ -1484,257 +1474,1059 @@ export default function CleanITBooks() {
     return ms&&mf&&mt;
   });
 
-  const handleSaveJob = (job) => {
-    setJobs(p=>{
-      const exists = p.find(j=>j.id===job.id);
-      if(exists) return p.map(j=>j.id===job.id?job:j);
-      return [...p,job];
-    });
-    setSelJobId(job.id);
-    setEditJob(null);
-  };
-
-  // Stats globales
-  const totalCA      = jobs.reduce((s,j)=>s+j.invoices.reduce((si,i)=>si+i.amount,0),0);
-  const totalBudgetHW= jobs.reduce((s,j)=>s+j.budgetHuawei,0);
+  const totalBudgetHW= jobs.reduce((s,j)=>s+j.budgetClient,0);
   const totalContrats= jobs.reduce((s,j)=>s+j.contractAmount,0);
   const totalCouts   = jobs.reduce((s,j)=>s+Object.values(j.coutsReels).reduce((sc,v)=>sc+v,0),0);
+  const totalCA      = jobs.reduce((s,j)=>s+j.invoices.reduce((si,i)=>si+i.amount,0),0);
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:'"Segoe UI","Helvetica Neue",Arial,sans-serif',WebkitFontSmoothing:"antialiased"}}>
-      <style>{`
-        @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-        *{box-sizing:border-box}
-        ::-webkit-scrollbar{width:5px;height:5px}
-        ::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}
-        ::-webkit-scrollbar-track{background:transparent}
-      `}</style>
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
 
-      {/* ===== TOPBAR PRINCIPAL ===== */}
+      {/* TOPBAR */}
       <div style={{background:C.white,borderBottom:"1px solid "+C.border,position:"sticky",top:0,zIndex:200,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
-
-        {/* Ligne 1 — Logo + KPIs + Actions */}
-        <div style={{display:"flex",alignItems:"center",padding:"0 20px",height:52,gap:0,borderBottom:"1px solid "+C.border2}}>
-          {/* Logo */}
-          <div style={{display:"flex",alignItems:"center",gap:9,paddingRight:18,marginRight:6,borderRight:"1px solid "+C.border2}}>
+        <div style={{display:"flex",alignItems:"center",padding:"0 24px",height:52,borderBottom:"1px solid "+C.border2}}>
+          <div style={{display:"flex",alignItems:"center",gap:9,paddingRight:18,marginRight:6,borderRight:"1px solid "+C.border2,cursor:"pointer"}} onClick={()=>navigate("/cleanitbooks")}>
             <div style={{width:30,height:30,borderRadius:6,background:C.green,display:"flex",alignItems:"center",justifyContent:"center"}}>
               <Ico n="job" s={15} c="white"/>
             </div>
             <div>
-              <div style={{fontSize:13,fontWeight:800,color:C.text,letterSpacing:-.2}}>
-                CleanIT<span style={{color:C.green}}>Books</span>
-              </div>
+              <div style={{fontSize:13,fontWeight:800,color:C.text}}>CleanIT<span style={{color:C.green}}>Books</span></div>
               <div style={{fontSize:9,color:C.text4}}>SYSCOHADA · Cameroun</div>
             </div>
           </div>
-
-          {/* KPIs inline */}
           <div style={{display:"flex",gap:1,marginRight:14}}>
-            {[
-              {l:"BC Huawei",v:fM(totalBudgetHW),c:C.orange},
-              {l:"Contrats",v:fM(totalContrats),c:C.blue},
-              {l:"Couts reels",v:fM(totalCouts),c:C.red},
-              {l:"CA facture",v:fM(totalCA),c:C.green},
-            ].map(s=>(
+            {[{l:"Bon de commande",v:fM(totalBudgetHW),c:C.orange},{l:"Contrats",v:fM(totalContrats),c:C.blue},{l:"Couts reels",v:fM(totalCouts),c:C.red},{l:"CA facture",v:fM(totalCA),c:C.green}].map(s=>(
               <div key={s.l} style={{padding:"4px 12px",textAlign:"center",borderRight:"1px solid "+C.border2}}>
                 <div style={{fontSize:8,color:C.text4,textTransform:"uppercase",letterSpacing:.4}}>{s.l}</div>
                 <div style={{fontSize:12,fontWeight:700,color:s.c}}>{s.v} F</div>
               </div>
             ))}
           </div>
-
-          {/* Spacer */}
           <div style={{flex:1}}/>
-
-          {/* Actions */}
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             <div style={{display:"flex",alignItems:"center",gap:7,background:C.bg,border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
               <Ico n="search" s={13} c={C.text4}/>
               <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher un job..."
                 style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:170,fontFamily:"inherit"}}/>
             </div>
-            <Btn label="Nouveau job" variant="primary" sm icon="plus" onClick={()=>{setEditJob(null);setShowForm(true);}}/>
+            <Btn label="Nouveau job" variant="primary" sm icon="plus" onClick={()=>navigate('/cleanitbooks/jobs/new')}/>
             <button onClick={()=>navigate("/terrain")}
               style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:4,border:"1px solid "+C.border,background:C.bg,cursor:"pointer",fontFamily:"inherit",fontSize:12,color:C.text3}}
-              onMouseEnter={e=>{e.currentTarget.style.background=C.green_l;e.currentTarget.style.borderColor=C.green;e.currentTarget.style.color=C.green;}}
-              onMouseLeave={e=>{e.currentTarget.style.background=C.bg;e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=C.text3;}}>
+              onMouseEnter={e=>{e.currentTarget.style.background=C.green_l;e.currentTarget.style.color=C.green;}}
+              onMouseLeave={e=>{e.currentTarget.style.background=C.bg;e.currentTarget.style.color=C.text3;}}>
               <Ico n="terrain" s={12} c="currentColor"/>
               Terrain
             </button>
           </div>
         </div>
+        <div style={{display:"flex",padding:"0 24px",borderBottom:"1px solid "+C.border2}}>
+          {[{id:"jobs",l:"Job Center",icon:"job"},{id:"invoices",l:"Facturation AR",icon:"invoice"},{id:"bills",l:"Depenses AP",icon:"bill"},{id:"time",l:"Saisie heures",icon:"time"},{id:"reports",l:"Rapports",icon:"chart"},{id:"bc",l:"Import Bon de commande",icon:"bc"}].map(t=>(
+            <button key={t.id}
+              style={{display:"flex",alignItems:"center",gap:6,padding:"0 16px",height:40,border:"none",background:"transparent",borderBottom:t.id==="jobs"?"2px solid "+C.green:"2px solid transparent",color:t.id==="jobs"?C.green:C.text3,fontWeight:t.id==="jobs"?700:400,fontSize:12,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+              <Ico n={t.icon} s={13} c={t.id==="jobs"?C.green:C.text3}/>
+              {t.l}
+            </button>
+          ))}
+        </div>
+      </div>
 
-        {/* Ligne 2 — Navigation onglets */}
-        <div style={{display:"flex",padding:"0 20px",overflowX:"auto"}}>
-          {TABS_NAV.map(t=>(
-            <button key={t.id} onClick={()=>setActiveTab(t.id)}
-              style={{
-                display:"flex",alignItems:"center",gap:6,
-                padding:"0 16px",height:40,border:"none",background:"transparent",
-                borderBottom:activeTab===t.id?"2px solid "+C.green:"2px solid transparent",
-                color:activeTab===t.id?C.green:C.text3,
-                fontWeight:activeTab===t.id?700:400,
-                fontSize:12,cursor:"pointer",fontFamily:"inherit",
-                whiteSpace:"nowrap",transition:"all .12s",
-              }}>
-              <Ico n={t.icon} s={13} c={activeTab===t.id?C.green:C.text3}/>
+      {/* CONTENU — tableau des jobs */}
+      <div style={{padding:"24px",animation:"fadeUp .3s ease"}}>
+
+        {/* Filtres + actions */}
+        <div style={{display:"flex",gap:10,marginBottom:18,alignItems:"center",flexWrap:"wrap"}}>
+          <div style={{fontSize:18,fontWeight:700,color:C.text}}>Job Center</div>
+          <div style={{marginLeft:"auto",display:"flex",gap:8,flexWrap:"wrap"}}>
+            <select value={filtreStatut} onChange={e=>setFiltreStatut(e.target.value)}
+              style={{padding:"7px 12px",borderRadius:4,border:"1px solid "+C.border,fontSize:12,color:C.text2,background:C.white,cursor:"pointer",fontFamily:"inherit",outline:"none"}}>
+              {STATUTS_FILTRE.map(s=><option key={s} value={s}>{s==="Tous"?"Tous les statuts":s}</option>)}
+            </select>
+            <select value={filtreType} onChange={e=>setFiltreType(e.target.value)}
+              style={{padding:"7px 12px",borderRadius:4,border:"1px solid "+C.border,fontSize:12,color:C.text2,background:C.white,cursor:"pointer",fontFamily:"inherit",outline:"none"}}>
+              {TYPES_FILTRE.map(t=><option key={t} value={t}>{t==="Tous"?"Tous les types":t}</option>)}
+            </select>
+            <Btn label="Exporter CSV" variant="light" sm icon="download" onClick={()=>{
+              const rows = [
+                ['ID','Nom','Client','Type','Site','Statut','Contrat','Facture','Couts reels','Marge','Debut','Fin','Chef','Bon de commande'],
+                ...jobsFiltres.map(j=>{
+                  const cust=customers.find(c=>c.id===j.customerId);
+                  const totalInv=j.invoices.reduce((s,i)=>s+i.amount,0);
+                  const totalCR=Object.values(j.coutsReels).reduce((s,v)=>s+v,0);
+                  return [j.id,j.name,cust?.name||'',j.jobType,j.site,j.statut,j.contractAmount,totalInv,totalCR,totalInv-totalCR,j.startDate,j.endDate,j.chefProjet,j.bcRef];
+                })
+              ];
+              const csv = rows.map(r=>r.map(v=>JSON.stringify(v||'')).join(',')).join('\n');
+              const a=document.createElement('a');
+              a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+              a.download='cleanitbooks-jobs-'+new Date().toISOString().split('T')[0]+'.csv';
+              a.click();
+            }}/>
+            <Btn label="Nouveau job" variant="primary" sm icon="plus" onClick={()=>navigate('/cleanitbooks/jobs/new')}/>
+          </div>
+        </div>
+
+        {/* KPIs row */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:20}}>
+          {[
+            {l:"Jobs total",     v:jobs.length,                                              c:C.text,  icon:"job",     sub:jobs.filter(j=>j.statut==="In Progress").length+" en cours"},
+            {l:"Budget Client",  v:fM(totalBudgetHW)+" F",                                   c:C.orange,icon:"bc",      sub:"Confidentiel"},
+            {l:"Contrats CleanIT",v:fM(totalContrats)+" F",                                  c:C.blue,  icon:"invoice", sub:fM(totalBudgetHW-totalContrats)+" F marge brute"},
+            {l:"Couts reels",    v:fM(totalCouts)+" F",                                      c:C.red,   icon:"bill",    sub:fM(totalContrats-totalCouts)+" F marge nette"},
+            {l:"CA facture",     v:fM(totalCA)+" F",                                         c:C.green, icon:"chart",   sub:fM(totalContrats-totalCA)+" F reste a facturer"},
+          ].map((kpi,i)=>(
+            <div key={i} style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"14px 16px",borderTop:"3px solid "+kpi.c}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontSize:10,color:C.text3,textTransform:"uppercase",letterSpacing:.4,fontWeight:600}}>{kpi.l}</span>
+                <div style={{width:28,height:28,borderRadius:4,background:kpi.c+"15",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <Ico n={kpi.icon} s={14} c={kpi.c}/>
+                </div>
+              </div>
+              <div style={{fontSize:20,fontWeight:700,color:kpi.c,marginBottom:3}}>{kpi.v}</div>
+              <div style={{fontSize:11,color:C.text4}}>{kpi.sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Tableau des jobs — style QB exact */}
+        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",minWidth:900}}>
+              <thead>
+                <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                  {[
+                    {l:"Job",            w:""},
+                    {l:"Client",         w:160},
+                    {l:"Type",           w:160},
+                    {l:"Site",           w:90},
+                    {l:"Statut",         w:120},
+                    {l:"Contrat",        w:130,r:true},
+                    {l:"Facture",        w:130,r:true},
+                    {l:"Couts reels",    w:130,r:true},
+                    {l:"Marge",          w:130,r:true},
+                    {l:"Avancement",     w:140},
+                    {l:"",               w:80},
+                  ].map((h,i)=>(
+                    <th key={i} style={{padding:"10px 14px",textAlign:h.r?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4,whiteSpace:"nowrap",width:h.w||"auto"}}>{h.l}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {jobsFiltres.length===0&&(
+                  <tr><td colSpan={11} style={{padding:"48px",textAlign:"center",color:C.text4,fontSize:14}}>Aucun job ne correspond aux filtres</td></tr>
+                )}
+                {jobsFiltres.map((job,i)=>{
+                  const cust    = customers.find(c=>c.id===job.customerId);
+                  const totalInv= job.invoices.reduce((s,inv)=>s+inv.amount,0);
+                  const totalCR = Object.values(job.coutsReels).reduce((s,v)=>s+v,0);
+                  const marge   = totalInv-totalCR;
+                  const pct     = job.contractAmount>0?Math.round(totalInv/job.contractAmount*100):0;
+
+                  return(
+                    <tr key={job.id}
+                      style={{borderBottom:"1px solid "+C.border2,cursor:"pointer",background:i%2===0?C.white:"#FAFAFA",transition:"background .1s"}}
+                      onMouseEnter={e=>e.currentTarget.style.background=C.blue_l}
+                      onMouseLeave={e=>e.currentTarget.style.background=i%2===0?C.white:"#FAFAFA"}
+                      onClick={()=>navigate("/cleanitbooks/jobs/"+job.id)}>
+
+                      {/* Nom du job — cliquable */}
+                      <td style={{padding:"13px 14px"}}>
+                        <div style={{fontSize:13,fontWeight:700,color:C.blue,marginBottom:3}}>{job.name}</div>
+                        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                          <span style={{fontSize:10,color:C.text4}}>{job.id}</span>
+                          {job.bcRef&&<span style={{fontSize:10,padding:"1px 7px",borderRadius:10,background:C.orange_l,color:C.orange,fontWeight:600}}>{job.bcRef}</span>}
+                        </div>
+                      </td>
+                      <td style={{padding:"13px 14px",fontSize:13,color:C.text2}}>{cust?.name||"—"}</td>
+                      <td style={{padding:"13px 14px"}}>
+                        <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:C.border2,color:C.text3}}>{job.jobType}</span>
+                      </td>
+                      <td style={{padding:"13px 14px",fontSize:12,color:C.text3}}>{job.site||"—"}</td>
+                      <td style={{padding:"13px 14px"}}><StatutBadge statut={job.statut}/></td>
+                      <td style={{padding:"13px 14px",textAlign:"right",fontWeight:600,fontSize:13}}>{fN(job.contractAmount)} F</td>
+                      <td style={{padding:"13px 14px",textAlign:"right",fontWeight:600,color:C.green,fontSize:13}}>{fN(totalInv)} F</td>
+                      <td style={{padding:"13px 14px",textAlign:"right",fontWeight:600,color:totalCR>Object.values(job.budgetEstime).reduce((s,v)=>s+v,0)?C.red:C.text,fontSize:13}}>{fN(totalCR)} F</td>
+                      <td style={{padding:"13px 14px",textAlign:"right",fontWeight:700,color:marge>=0?C.green:C.red,fontSize:13}}>{marge>=0?"+":""}{fN(marge)} F</td>
+                      <td style={{padding:"13px 14px"}}>
+                        <ProgBar value={totalInv} max={job.contractAmount||1} color={C.green} height={5}/>
+                        <div style={{fontSize:10,color:C.text4,marginTop:3}}>{pct}% facture</div>
+                      </td>
+                      <td style={{padding:"13px 14px"}} onClick={e=>e.stopPropagation()}>
+                        <Btn label="Ouvrir" variant="light" sm onClick={()=>navigate("/cleanitbooks/jobs/"+job.id)}/>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {jobs.length>0&&(
+                <tfoot>
+                  <tr style={{borderTop:"2px solid "+C.border,background:"#F9FAFB"}}>
+                    <td colSpan={5} style={{padding:"10px 14px",fontWeight:700,color:C.text,fontSize:12}}>TOTAL — {jobsFiltres.length} job(s)</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:700,color:C.blue}}>{fN(jobsFiltres.reduce((s,j)=>s+j.contractAmount,0))} F</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:700,color:C.green}}>{fN(jobsFiltres.reduce((s,j)=>s+j.invoices.reduce((si,i)=>si+i.amount,0),0))} F</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:700,color:C.red}}>{fN(jobsFiltres.reduce((s,j)=>s+Object.values(j.coutsReels).reduce((sc,v)=>sc+v,0),0))} F</td>
+                    <td colSpan={3}/>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {showForm&&(
+        <FormJob
+          initial={null}
+          customers={customers}
+          onSave={(job)=>{setJobs(p=>[...p,job]);navigate("/cleanitbooks/jobs/"+job.id);}}
+          onClose={()=>setShowForm(false)}
+        />
+      )}
+    </div>
+  );
+};
+
+// PAGE DETAIL JOB — URL: /cleanitbooks/jobs/JOB-001
+const PageJobDetail = ({jobs,setJobs,customers}) => {
+  const navigate = useNavigate();
+  const { jobId } = useParams();
+  const [tab,     setTab]     = useState("overview");
+  const [showEdit,setShowEdit]= useState(false);
+
+  const job  = jobs.find(j=>j.id===jobId);
+  const cust = customers.find(c=>c.id===job?.customerId);
+
+  if(!job) return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:C.bg}}>
+      <div style={{fontSize:18,color:C.text4}}>Job introuvable : {jobId}</div>
+      <Btn label="Retour aux jobs" variant="primary" onClick={()=>navigate("/cleanitbooks/jobs")}/>
+    </div>
+  );
+
+  const totalInvoiced = job.invoices.reduce((s,i)=>s+i.amount,0);
+  const totalBills    = job.bills.reduce((s,b)=>s+b.amount,0);
+  const totalTime     = job.timeEntries.reduce((s,t)=>s+t.hours*t.rate,0);
+  const totalCouts    = Object.values(job.coutsReels).reduce((s,v)=>s+v,0);
+  const totalEst      = Object.values(job.budgetEstime).reduce((s,v)=>s+v,0);
+  const marge         = totalInvoiced-totalCouts;
+
+  const TABS = [
+    {id:"overview",  label:"Vue generale",                 icon:"chart"},
+    {id:"phases",    label:"Phases ("+job.phases.length+")", icon:"phase"},
+    {id:"invoices",  label:"Factures ("+job.invoices.length+")", icon:"invoice"},
+    {id:"bills",     label:"Depenses ("+job.bills.length+")",   icon:"bill"},
+    {id:"time",      label:"Heures ("+job.timeEntries.length+")", icon:"time"},
+    {id:"bc",        label:"Bon de commande",                    icon:"bc"},
+    {id:"notes",     label:"Notes",                        icon:"note"},
+  ];
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+
+      {/* TOPBAR */}
+      <div style={{background:C.white,borderBottom:"1px solid "+C.border,position:"sticky",top:0,zIndex:200,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
+
+        {/* Ligne 1 — breadcrumb + actions */}
+        <div style={{display:"flex",alignItems:"center",padding:"0 24px",height:52,gap:0,borderBottom:"1px solid "+C.border2}}>
+          {/* Logo + breadcrumb */}
+          <div style={{display:"flex",alignItems:"center",gap:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",paddingRight:14,marginRight:6,borderRight:"1px solid "+C.border2}} onClick={()=>navigate("/cleanitbooks")}>
+              <div style={{width:26,height:26,borderRadius:5,background:C.green,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <Ico n="job" s={13} c="white"/>
+              </div>
+              <span style={{fontSize:12,fontWeight:700,color:C.text}}>CleanIT<span style={{color:C.green}}>Books</span></span>
+            </div>
+            {/* Breadcrumb */}
+            <div style={{display:"flex",alignItems:"center",gap:4,padding:"0 10px"}}>
+              <button onClick={()=>navigate("/cleanitbooks/jobs")}
+                style={{border:"none",background:"none",cursor:"pointer",fontSize:12,color:C.blue,fontWeight:600,fontFamily:"inherit",padding:"4px 6px",borderRadius:4}}
+                onMouseEnter={e=>e.currentTarget.style.background=C.blue_l}
+                onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                Job Center
+              </button>
+              <span style={{color:C.text4,fontSize:12}}>/</span>
+              <span style={{fontSize:12,color:C.text3,fontWeight:600}}>{job.id}</span>
+              <span style={{color:C.text4,fontSize:12}}>/</span>
+              <span style={{fontSize:12,color:C.text,fontWeight:700}}>{job.name}</span>
+            </div>
+          </div>
+          <div style={{flex:1}}/>
+          <div style={{display:"flex",gap:8}}>
+            <Btn label="Retour aux jobs" variant="light" sm icon="chevr" onClick={()=>navigate("/cleanitbooks/jobs")}/>
+            <Btn label="Modifier" variant="default" sm icon="edit" onClick={()=>navigate('/cleanitbooks/jobs/'+job.id+'/edit')}/>
+            <Btn label="Facturer" variant="primary" sm icon="invoice"/>
+            <Btn label="Imprimer" variant="light" sm icon="print"/>
+          </div>
+        </div>
+
+        {/* Ligne 2 — Header job + KPIs */}
+        <div style={{padding:"14px 24px",borderBottom:"1px solid "+C.border2,background:C.white}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+            <div>
+              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:5,flexWrap:"wrap"}}>
+                <span style={{fontSize:11,color:C.text4,fontWeight:600,fontFamily:"monospace"}}>{job.id}</span>
+                <StatutBadge statut={job.statut}/>
+                {job.bcRef&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:C.orange_l,color:C.orange,fontWeight:600}}>{job.bcRef}</span>}
+                <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:C.border2,color:C.text3}}>{job.jobType}</span>
+              </div>
+              <div style={{fontSize:22,fontWeight:800,color:C.text,marginBottom:4}}>{job.name}</div>
+              <div style={{fontSize:13,color:C.text3}}>
+                {cust?.name||"—"} · Site <strong>{job.site||"—"}</strong> · Chef: <strong>{job.chefProjet}</strong>
+              </div>
+              <div style={{fontSize:12,color:C.text4,marginTop:2}}>{fD(job.startDate)} — {fD(job.endDate)}</div>
+            </div>
+          </div>
+
+          {/* 5 KPIs financiers */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10}}>
+            {[
+              {l:"Budget Client",   v:fN(job.budgetClient)+" "+job.currency,    c:C.orange, lock:true,  sub:"Prix Client confidentiel"},
+              {l:"Contrat CleanIT", v:fN(job.contractAmount)+" "+job.currency,   c:C.blue,   lock:false, sub:"Ce que le client paie"},
+              {l:"Budget estime",   v:fN(totalEst)+" "+job.currency,             c:C.text,   lock:false, sub:"Couts prevus"},
+              {l:"Couts reels",     v:fN(totalCouts)+" "+job.currency,           c:totalCouts>totalEst?C.red:C.green, lock:false, sub:totalEst>0?Math.round(totalCouts/totalEst*100)+"% du budget":"—"},
+              {l:"Marge nette",     v:(marge>=0?"+":"")+fN(marge)+" "+job.currency, c:marge>=0?C.green:C.red, lock:false, sub:job.contractAmount>0?Math.round(Math.abs(marge)/job.contractAmount*100)+"%":"—"},
+            ].map((kpi,i)=>(
+              <div key={i} style={{padding:"11px 14px",background:kpi.c+"08",borderRadius:6,border:"1px solid "+kpi.c+"25",borderTop:"3px solid "+kpi.c}}>
+                <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:4}}>
+                  <span style={{fontSize:9,color:kpi.c,textTransform:"uppercase",letterSpacing:.5,fontWeight:700}}>{kpi.l}</span>
+                  {kpi.lock&&<Ico n="lock" s={9} c={C.orange}/>}
+                </div>
+                <div style={{fontSize:16,fontWeight:800,color:kpi.c}}>{kpi.v}</div>
+                <div style={{fontSize:10,color:C.text4,marginTop:2}}>{kpi.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Ligne 3 — Onglets */}
+        <div style={{display:"flex",padding:"0 24px",background:C.white,overflowX:"auto"}}>
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)}
+              style={{display:"flex",alignItems:"center",gap:6,padding:"0 16px",height:42,border:"none",background:"transparent",borderBottom:tab===t.id?"2px solid "+C.blue:"2px solid transparent",color:tab===t.id?C.blue:C.text3,fontWeight:tab===t.id?700:400,fontSize:12,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap",transition:"all .12s"}}>
+              <Ico n={t.icon} s={13} c={tab===t.id?C.blue:C.text3}/>
               {t.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* ===== CONTENU PRINCIPAL ===== */}
-      {activeTab==="jobs"&&(
-        <div style={{display:"flex",height:"calc(100vh - 92px)",overflow:"hidden"}}>
+      {/* CONTENU ONGLET */}
+      <div style={{padding:"24px",animation:"fadeUp .25s ease"}}>
 
-          {/* ===== LISTE JOBS (panneau gauche) ===== */}
-          <div style={{width:320,borderRight:"1px solid "+C.border,display:"flex",flexDirection:"column",background:C.white,flexShrink:0}}>
-
-            {/* Filtres */}
-            <div style={{padding:"12px",borderBottom:"1px solid "+C.border,background:C.bg}}>
-              <div style={{display:"flex",alignItems:"center",gap:6,background:C.white,border:"1px solid "+C.border,borderRadius:4,padding:"6px 10px",marginBottom:8}}>
-                <Ico n="filter" s={12} c={C.text4}/>
-                <select value={filtreStatut} onChange={e=>setFiltreStatut(e.target.value)}
-                  style={{border:"none",outline:"none",fontSize:12,color:C.text2,background:"transparent",cursor:"pointer",fontFamily:"inherit",flex:1}}>
-                  {STATUTS_FILTRE.map(s=><option key={s} value={s}>{s==="Tous"?"Tous les statuts":s}</option>)}
-                </select>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:6,background:C.white,border:"1px solid "+C.border,borderRadius:4,padding:"6px 10px"}}>
-                <Ico n="filter" s={12} c={C.text4}/>
-                <select value={filtreType} onChange={e=>setFiltreType(e.target.value)}
-                  style={{border:"none",outline:"none",fontSize:12,color:C.text2,background:"transparent",cursor:"pointer",fontFamily:"inherit",flex:1}}>
-                  {TYPES_FILTRE.map(t=><option key={t} value={t}>{t==="Tous"?"Tous les types":t}</option>)}
-                </select>
-              </div>
+        {/* OVERVIEW */}
+        {tab==="overview"&&(
+          <div>
+            <div style={{padding:"14px 18px",background:C.white,borderRadius:6,border:"1px solid "+C.border2,marginBottom:20,fontSize:13,color:C.text2,lineHeight:1.8}}>
+              {job.description}
             </div>
 
-            {/* Compteur */}
-            <div style={{padding:"8px 14px",borderBottom:"1px solid "+C.border2,background:C.bg,fontSize:11,color:C.text4,fontWeight:600,textTransform:"uppercase",letterSpacing:.4}}>
-              {jobsFiltres.length} job{jobsFiltres.length>1?"s":""} · {jobs.filter(j=>j.statut==="In Progress").length} en cours
-            </div>
-
-            {/* Liste */}
-            <div style={{flex:1,overflowY:"auto"}}>
-              {jobsFiltres.length===0?(
-                <div style={{padding:"32px 16px",textAlign:"center",color:C.text4,fontSize:13}}>
-                  Aucun job ne correspond aux filtres
-                </div>
-              ):jobsFiltres.map(job=>{
-                const cust   = CUSTOMERS.find(c=>c.id===job.customerId);
-                const isSelected = selJobId===job.id;
-                const totalInv   = job.invoices.reduce((s,i)=>s+i.amount,0);
-                const pct        = job.contractAmount>0?Math.round(totalInv/job.contractAmount*100):0;
-                const totalCR    = Object.values(job.coutsReels).reduce((s,v)=>s+v,0);
-
-                return(
-                  <div key={job.id}
-                    onClick={()=>setSelJobId(job.id)}
-                    style={{
-                      padding:"12px 14px",
-                      borderBottom:"1px solid "+C.border2,
-                      cursor:"pointer",
-                      background:isSelected?"#EFF6FF":"transparent",
-                      borderLeft:"3px solid "+(isSelected?C.blue:job.statut==="In Progress"?C.green:job.statut==="Awarded"?C.purple:job.statut==="Closed"?C.gray:C.orange),
-                      transition:"background .1s",
-                    }}
-                    onMouseEnter={e=>{if(!isSelected)e.currentTarget.style.background=C.bg}}
-                    onMouseLeave={e=>{if(!isSelected)e.currentTarget.style.background="transparent"}}>
-
-                    {/* Ligne 1 : ID + Statut */}
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                      <span style={{fontSize:10,color:C.text4,fontWeight:600}}>{job.id}</span>
-                      <StatutBadge statut={job.statut}/>
-                    </div>
-
-                    {/* Ligne 2 : Nom */}
-                    <div style={{fontSize:13,fontWeight:isSelected?700:600,color:isSelected?C.blue:C.text,marginBottom:3,lineHeight:1.4}}>
-                      {job.name}
-                    </div>
-
-                    {/* Ligne 3 : Client + Type */}
-                    <div style={{fontSize:11,color:C.text3,marginBottom:6}}>
-                      {cust?.name||"—"} · {job.jobType}
-                    </div>
-
-                    {/* BC Ref */}
-                    {job.bcRef&&(
-                      <div style={{marginBottom:6}}>
-                        <span style={{fontSize:10,padding:"1px 7px",borderRadius:10,background:C.orange_l,color:C.orange,fontWeight:600}}>{job.bcRef}</span>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
+              {/* Estimates vs Actuals */}
+              <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+                <div style={{padding:"12px 16px",borderBottom:"1px solid "+C.border,fontSize:13,fontWeight:700,color:C.text}}>Estimates vs Actuals — par poste</div>
+                <div style={{padding:"12px 16px",display:"flex",flexDirection:"column",gap:10}}>
+                  {COST_CATS.map(cat=>{
+                    const estime = job.budgetEstime[cat.key]||0;
+                    const reel   = job.coutsReels[cat.key]||0;
+                    const over   = reel>estime&&estime>0;
+                    return(
+                      <div key={cat.key}>
+                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <div style={{width:22,height:22,borderRadius:4,background:cat.color+"15",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                              <Ico n={cat.icon} s={11} c={cat.color}/>
+                            </div>
+                            <span style={{fontSize:12,color:C.text2,fontWeight:500}}>{cat.label}</span>
+                          </div>
+                          <div style={{display:"flex",gap:12,alignItems:"center"}}>
+                            <span style={{fontSize:11,color:C.text4}}>Est: {fN(estime)} F</span>
+                            <span style={{fontSize:12,fontWeight:700,color:over?C.red:C.green}}>Reel: {fN(reel)} F</span>
+                            {over&&<span style={{fontSize:10,color:C.red,fontWeight:600}}>+{fN(reel-estime)} F</span>}
+                          </div>
+                        </div>
+                        <ProgBar value={reel} max={estime||1} color={cat.color} height={5} showPct={false}/>
                       </div>
-                    )}
+                    );
+                  })}
+                </div>
+              </div>
 
-                    {/* Montants */}
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                      <span style={{fontSize:11,color:C.text3}}>Contrat: <strong style={{color:C.blue}}>{fM(job.contractAmount)} F</strong></span>
-                      <span style={{fontSize:11,color:C.text3}}>Facture: <strong style={{color:C.green}}>{fM(totalInv)} F</strong></span>
+              {/* P&L */}
+              <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+                <div style={{padding:"12px 16px",borderBottom:"1px solid "+C.border,fontSize:13,fontWeight:700,color:C.text}}>P et L — Ce job</div>
+                <div style={{padding:"14px 16px"}}>
+                  {[
+                    {l:"Revenus factures",    v:"+"+fN(totalInvoiced)+" F",      c:C.green,  bold:false},
+                    {l:"Main oeuvre",         v:"- "+fN(job.coutsReels.labor)+" F",      c:C.text3,  bold:false},
+                    {l:"Materiaux",           v:"- "+fN(job.coutsReels.materials)+" F",  c:C.text3,  bold:false},
+                    {l:"Sous-traitance",      v:"- "+fN(job.coutsReels.subcontract)+" F",c:C.text3,  bold:false},
+                    {l:"Equipements",         v:"- "+fN(job.coutsReels.equipment)+" F",  c:C.text3,  bold:false},
+                    {l:"Frais generaux",      v:"- "+fN(job.coutsReels.overhead)+" F",   c:C.text3,  bold:false},
+                    {l:"MARGE NETTE",         v:(marge>=0?"+":"")+fN(marge)+" F",        c:marge>=0?C.green:C.red, bold:true},
+                  ].map((r,i)=>(
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:r.bold?"none":"1px solid "+C.border2}}>
+                      <span style={{fontSize:r.bold?13:12,fontWeight:r.bold?700:400,color:r.bold?C.text:C.text3}}>{r.l}</span>
+                      <span style={{fontSize:r.bold?17:13,fontWeight:r.bold?800:600,color:r.c}}>{r.v}</span>
                     </div>
+                  ))}
+                </div>
+                <div style={{padding:"12px 16px",borderTop:"1px solid "+C.border,background:C.bg}}>
+                  <div style={{fontSize:11,color:C.text4,marginBottom:4}}>Progression facturation</div>
+                  <ProgBar value={totalInvoiced} max={job.contractAmount||1} color={C.green} height={7}/>
+                  <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
+                    <span style={{fontSize:11,color:C.text4}}>Facture: {fN(totalInvoiced)} F</span>
+                    <span style={{fontSize:11,color:C.text4}}>Reste: {fN(Math.max(0,job.contractAmount-totalInvoiced))} F</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
-                    {/* Barre progression */}
-                    <ProgBar value={totalInv} max={job.contractAmount||1} color={C.green} height={4} showPct={true}/>
-
-                    {/* Couts reels */}
-                    <div style={{marginTop:5,fontSize:10,color:totalCR>0?C.text3:C.text4}}>
-                      Couts reels: {fM(totalCR)} F
-                      {job.budgetEstime&&Object.values(job.budgetEstime).reduce((s,v)=>s+v,0)>0&&(
-                        <span style={{marginLeft:6,color:totalCR>Object.values(job.budgetEstime).reduce((s,v)=>s+v,0)?C.red:C.text4}}>
-                          / {fM(Object.values(job.budgetEstime).reduce((s,v)=>s+v,0))} F estime
-                        </span>
-                      )}
+        {/* PHASES */}
+        {tab==="phases"&&(
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div>
+                <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:3}}>Phases de facturation</div>
+                <div style={{fontSize:13,color:C.text3}}>Progress Invoicing — {job.phases.length} phase(s)</div>
+              </div>
+              <Btn label="Facturer une phase" variant="primary" sm icon="invoice"/>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {job.phases.map((ph,i)=>(
+                <div key={ph.id} style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden",borderLeft:"4px solid "+(ph.statut==="invoiced"?C.green:C.blue)}}>
+                  <div style={{padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid "+C.border2}}>
+                    <div style={{display:"flex",alignItems:"center",gap:12}}>
+                      <div style={{width:32,height:32,borderRadius:"50%",background:ph.statut==="invoiced"?C.green:C.blue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:"white",flexShrink:0}}>{i+1}</div>
+                      <div>
+                        <div style={{fontSize:15,fontWeight:700,color:C.text}}>{ph.name}</div>
+                        {ph.invoiceRef&&<div style={{fontSize:12,color:C.green,marginTop:2}}>Facture: {ph.invoiceRef}</div>}
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:16,alignItems:"center"}}>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{fontSize:20,fontWeight:800,color:C.blue}}>{fN(ph.amount)} {job.currency}</div>
+                        <div style={{fontSize:12,color:C.text4}}>{ph.pct}% du contrat</div>
+                      </div>
+                      <StatutBadge statut={ph.statut}/>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Footer liste */}
-            <div style={{padding:"10px 12px",borderTop:"1px solid "+C.border,background:C.bg}}>
-              <Btn label="Nouveau job" variant="primary" icon="plus" full onClick={()=>{setEditJob(null);setShowForm(true);}}/>
+                  <div style={{padding:"12px 18px",display:"flex",gap:24,alignItems:"center",background:C.bg}}>
+                    {[{l:"Date prevue",v:fD(ph.datePrevue)||"—"},{l:"Date paiement",v:fD(ph.datePaiement)||"En attente"},{l:"Facture ref",v:ph.invoiceRef||"—"}].map(it=>(
+                      <div key={it.l}>
+                        <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",letterSpacing:.4,marginBottom:2}}>{it.l}</div>
+                        <div style={{fontSize:13,fontWeight:600,color:it.l==="Date paiement"&&!ph.datePaiement?C.text4:C.text}}>{it.v}</div>
+                      </div>
+                    ))}
+                    <div style={{marginLeft:"auto"}}>
+                      {ph.statut!=="invoiced"
+                        ?<Btn label="Creer la facture" variant="primary" sm icon="invoice"/>
+                        :<Btn label="Voir la facture" variant="default" sm icon="invoice"/>
+                      }
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
+        )}
 
-          {/* ===== DETAIL JOB (panneau principal) ===== */}
-          <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
-            {!selJob?(
-              <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:C.text4}}>
-                <Ico n="job" s={48} c={C.border}/>
-                <div style={{fontSize:16,color:C.text4}}>Selectionner un job</div>
-                <Btn label="Creer un nouveau job" variant="primary" icon="plus" onClick={()=>setShowForm(true)}/>
+        {/* FACTURES */}
+        {tab==="invoices"&&(
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontSize:16,fontWeight:700,color:C.text}}>Factures liees a ce job</div>
+              <Btn label="Nouvelle facture" variant="primary" sm icon="invoice"/>
+            </div>
+            {job.invoices.length===0?(
+              <div style={{padding:"60px",textAlign:"center",background:C.white,border:"1px dashed "+C.border,borderRadius:6}}>
+                <Ico n="invoice" s={40} c={C.border}/>
+                <div style={{fontSize:15,color:C.text4,marginTop:12,marginBottom:16}}>Aucune facture pour ce job</div>
+                <Btn label="Facturer une phase" variant="primary" icon="invoice"/>
               </div>
             ):(
-              <DetailJob
-                key={selJob.id}
-                job={selJob}
-                customers={CUSTOMERS}
-                onEdit={()=>{setEditJob(selJob);setShowForm(true);}}
-                onClose={()=>setSelJobId(null)}
-                onCreateInvoice={()=>{}}
-              />
+              <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+                <table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <thead><tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>{["N Facture","Date","Montant","Solde","Statut","Actions"].map((h,i)=><th key={i} style={{padding:"10px 14px",textAlign:i>=2&&i<=3?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.3}}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {job.invoices.map((inv,i)=>(
+                      <tr key={inv.id} style={{borderBottom:"1px solid "+C.border2,cursor:"pointer"}}
+                        onMouseEnter={e=>e.currentTarget.style.background=C.blue_l}
+                        onMouseLeave={e=>e.currentTarget.style.background=C.white}>
+                        <td style={{padding:"12px 14px",fontWeight:700,color:C.blue}}>{inv.id}</td>
+                        <td style={{padding:"12px 14px",color:C.text3,fontSize:12}}>{fD(inv.date)}</td>
+                        <td style={{padding:"12px 14px",textAlign:"right",fontWeight:600,fontSize:13}}>{fN(inv.amount)} {job.currency}</td>
+                        <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700,color:inv.balance>0?C.orange:C.green,fontSize:13}}>{fN(inv.balance)} {job.currency}</td>
+                        <td style={{padding:"12px 14px"}}><StatutBadge statut={inv.statut}/></td>
+                        <td style={{padding:"12px 14px"}}><Btn label="Ouvrir" variant="light" sm/></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot><tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}><td colSpan={2} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>Total facture</td><td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.green,fontSize:15}}>{fN(totalInvoiced)} {job.currency}</td><td colSpan={3}/></tr></tfoot>
+                </table>
+              </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Autres onglets — placeholder */}
-      {activeTab!=="jobs"&&(
-        <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"calc(100vh - 92px)",flexDirection:"column",gap:12}}>
-          <Ico n={TABS_NAV.find(t=>t.id===activeTab)?.icon||"job"} s={48} c={C.border}/>
-          <div style={{fontSize:16,color:C.text4}}>
-            Module {TABS_NAV.find(t=>t.id===activeTab)?.label} — en cours de developpement
+        {/* DEPENSES */}
+        {tab==="bills"&&(
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontSize:16,fontWeight:700,color:C.text}}>Depenses liees a ce job</div>
+              <Btn label="Saisir une depense" variant="primary" sm icon="bill"/>
+            </div>
+            {job.bills.length===0?(
+              <div style={{padding:"60px",textAlign:"center",background:C.white,border:"1px dashed "+C.border,borderRadius:6}}>
+                <Ico n="bill" s={40} c={C.border}/>
+                <div style={{fontSize:15,color:C.text4,marginTop:12,marginBottom:16}}>Aucune depense pour ce job</div>
+                <Btn label="Saisir une depense" variant="primary" icon="bill"/>
+              </div>
+            ):(
+              <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+                <table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <thead><tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>{["N Bill","Fournisseur","Date","Montant","Statut","Actions"].map((h,i)=><th key={i} style={{padding:"10px 14px",textAlign:i===3?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.3}}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {job.bills.map((b,i)=>(
+                      <tr key={b.id} style={{borderBottom:"1px solid "+C.border2,cursor:"pointer"}}
+                        onMouseEnter={e=>e.currentTarget.style.background=C.blue_l}
+                        onMouseLeave={e=>e.currentTarget.style.background=C.white}>
+                        <td style={{padding:"12px 14px",fontWeight:700,color:C.orange}}>{b.id}</td>
+                        <td style={{padding:"12px 14px",fontSize:12}}>{b.vendor}</td>
+                        <td style={{padding:"12px 14px",color:C.text3,fontSize:12}}>{fD(b.date)}</td>
+                        <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700,color:C.red,fontSize:13}}>{fN(b.amount)} F</td>
+                        <td style={{padding:"12px 14px"}}><StatutBadge statut={b.statut}/></td>
+                        <td style={{padding:"12px 14px"}}><Btn label="Ouvrir" variant="light" sm/></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot><tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}><td colSpan={3} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>Total depenses</td><td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.red,fontSize:15}}>{fN(totalBills)} F</td><td colSpan={2}/></tr></tfoot>
+                </table>
+              </div>
+            )}
           </div>
-          <Btn label="Retour au Job Center" variant="default" onClick={()=>setActiveTab("jobs")}/>
-        </div>
-      )}
+        )}
 
-      {/* Formulaire creation/edition */}
-      {showForm&&(
-        <FormJob
-          initial={editJob}
-          customers={CUSTOMERS}
-          onSave={handleSaveJob}
-          onClose={()=>{setShowForm(false);setEditJob(null);}}
-        />
-      )}
+        {/* HEURES */}
+        {tab==="time"&&(
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontSize:16,fontWeight:700,color:C.text}}>Heures enregistrees</div>
+              <Btn label="Saisir des heures" variant="primary" sm icon="time"/>
+            </div>
+            {job.timeEntries.length===0?(
+              <div style={{padding:"60px",textAlign:"center",background:C.white,border:"1px dashed "+C.border,borderRadius:6}}>
+                <Ico n="time" s={40} c={C.border}/>
+                <div style={{fontSize:15,color:C.text4,marginTop:12,marginBottom:16}}>Aucune heure pour ce job</div>
+                <Btn label="Saisir des heures" variant="primary" icon="time"/>
+              </div>
+            ):(
+              <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+                <table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <thead><tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>{["Employe","Date","Service","Heures","Taux/h","Montant","Facturable"].map((h,i)=><th key={i} style={{padding:"10px 14px",textAlign:i>=3&&i<=5?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.3}}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {job.timeEntries.map((t,i)=>(
+                      <tr key={i} style={{borderBottom:"1px solid "+C.border2}}>
+                        <td style={{padding:"12px 14px",fontWeight:600}}>{t.emp}</td>
+                        <td style={{padding:"12px 14px",color:C.text3,fontSize:12}}>{fD(t.date)}</td>
+                        <td style={{padding:"12px 14px",fontSize:12}}>{t.service}</td>
+                        <td style={{padding:"12px 14px",textAlign:"right",fontWeight:600}}>{t.hours}h</td>
+                        <td style={{padding:"12px 14px",textAlign:"right",color:C.text3,fontSize:12}}>{fN(t.rate)} F</td>
+                        <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700,color:C.blue}}>{fN(t.hours*t.rate)} F</td>
+                        <td style={{padding:"12px 14px"}}>{t.billable?<span style={{fontSize:11,color:C.green,fontWeight:600,background:C.green_l,padding:"2px 8px",borderRadius:10}}>Oui</span>:<span style={{fontSize:11,color:C.text4,background:C.border2,padding:"2px 8px",borderRadius:10}}>Non</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot><tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}><td colSpan={3} style={{padding:"10px 14px",fontWeight:700}}>Total</td><td style={{padding:"10px 14px",textAlign:"right",fontWeight:800}}>{job.timeEntries.reduce((s,t)=>s+t.hours,0)}h</td><td/><td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.blue,fontSize:15}}>{fN(totalTime)} F</td><td/></tr></tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* BC CLIENT */}
+        {tab==="bc"&&(
+          <div>
+            <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",background:"#FEF3C7",border:"1px solid "+C.orange+"50",borderRadius:6,marginBottom:20}}>
+              <Ico n="lock" s={16} c={C.orange}/>
+              <div style={{fontSize:13,color:C.text2}}>
+                <strong style={{color:C.orange}}>CONFIDENTIEL Finance et Direction —</strong> Non visible par les Project Managers.
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:20}}>
+              {[
+                {l:"Prix Client",    v:fN(job.budgetClient)+" "+job.currency,               c:C.orange},
+                {l:"Contrat CleanIT",v:fN(job.contractAmount)+" "+job.currency,              c:C.blue},
+                {l:"Marge brute",    v:fN(job.budgetClient-job.contractAmount)+" "+job.currency, c:job.budgetClient>job.contractAmount?C.green:C.red},
+              ].map((s,i)=>(
+                <div key={i} style={{padding:"16px 20px",background:C.white,border:"1px solid "+C.border,borderRadius:6,borderTop:"3px solid "+s.c,textAlign:"center"}}>
+                  <div style={{fontSize:11,color:C.text3,textTransform:"uppercase",letterSpacing:.5,marginBottom:6}}>{s.l}</div>
+                  <div style={{fontSize:22,fontWeight:800,color:s.c}}>{s.v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+              <div style={{padding:"12px 16px",borderBottom:"1px solid "+C.border,fontSize:13,fontWeight:700,color:C.text}}>Lignes du bon de commande</div>
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead><tr style={{background:"#F9FAFB",borderBottom:"1px solid "+C.border}}>{["Description","Quantite","Prix unitaire","Total"].map((h,i)=><th key={i} style={{padding:"10px 14px",textAlign:i>=1?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.3}}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {job.lignesBC.map((l,i)=>(
+                    <tr key={i} style={{borderBottom:"1px solid "+C.border2}}>
+                      <td style={{padding:"12px 14px",fontSize:13}}>{l.desc}</td>
+                      <td style={{padding:"12px 14px",textAlign:"right",color:C.text3}}>{l.qte}</td>
+                      <td style={{padding:"12px 14px",textAlign:"right",color:C.text3}}>{fN(l.pu)} {job.currency}</td>
+                      <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700,color:C.orange,fontSize:13}}>{fN(l.total)} {job.currency}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot><tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}><td colSpan={3} style={{padding:"12px 14px",fontWeight:700,fontSize:13}}>TOTAL BC</td><td style={{padding:"12px 14px",textAlign:"right",fontWeight:800,color:C.orange,fontSize:17}}>{fN(job.lignesBC.reduce((s,l)=>s+l.total,0))} {job.currency}</td></tr></tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* NOTES */}
+        {tab==="notes"&&(
+          <div style={{maxWidth:800}}>
+            <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:16}}>Notes internes</div>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"16px",marginBottom:16,fontSize:13,color:C.text2,lineHeight:1.8,minHeight:120}}>
+              {job.notes||<span style={{color:C.text4}}>Aucune note pour ce job.</span>}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,padding:"14px 16px",background:C.white,border:"1px solid "+C.border,borderRadius:6}}>
+              {[{l:"Date creation",v:fD(job.dateCreation)},{l:"Derniere modif.",v:fD(TODAY)},{l:"ID du job",v:job.id}].map(it=>(
+                <div key={it.l}>
+                  <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",letterSpacing:.4,marginBottom:3}}>{it.l}</div>
+                  <div style={{fontSize:13,fontWeight:600,color:C.text}}>{it.v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      
     </div>
   );
+};
+
+// ================================================================
+//  EXPORT PRINCIPAL — Router entre les pages
+// ================================================================
+export default function CleanITBooks() {
+  const [jobs, setJobs] = useState(INIT_JOBS);
+  const { jobId }       = useParams();
+  const navigate        = useNavigate();
+  const loc             = window.location.pathname;
+
+  // Route: /cleanitbooks/jobs/new
+  if(loc.endsWith('/new')){
+    return(
+      <PageJobNew
+        customers={CUSTOMERS}
+        onSave={(job)=>{setJobs(p=>[...p,job]);navigate('/cleanitbooks/jobs/'+job.id);}}
+        onCancel={()=>navigate('/cleanitbooks/jobs')}
+      />
+    );
+  }
+
+  // Route: /cleanitbooks/jobs/:jobId/edit
+  if(loc.endsWith('/edit')&&jobId){
+    const job = jobs.find(j=>j.id===jobId);
+    return(
+      <PageJobNew
+        initial={job}
+        customers={CUSTOMERS}
+        onSave={(updated)=>{setJobs(p=>p.map(j=>j.id===updated.id?updated:j));navigate('/cleanitbooks/jobs/'+updated.id);}}
+        onCancel={()=>navigate('/cleanitbooks/jobs/'+jobId)}
+      />
+    );
+  }
+
+  // Route: /cleanitbooks/jobs/:jobId
+  if(jobId){
+    return <PageJobDetail jobs={jobs} setJobs={setJobs} customers={CUSTOMERS}/>;
+  }
+
+  // Route: /cleanitbooks ou /cleanitbooks/jobs
+  return <PageJobList jobs={jobs} setJobs={setJobs} customers={CUSTOMERS}/>;
 }
+
+// ================================================================
+//  PAGE CREATION / EDITION JOB — vraie page /cleanitbooks/jobs/new
+// ================================================================
+const PageJobNew = ({initial,customers,onSave,onCancel}) => {
+  const navigate = useNavigate();
+  const isEdit   = !!initial;
+
+  const [step,       setStep]       = useState(1);
+  const [name,       setName]       = useState(initial?.name||"");
+  const [custId,     setCustId]     = useState(initial?.customerId||"");
+  const [bcRef,      setBcRef]      = useState(initial?.bcRef||"");
+  const [jobType,    setJobType]    = useState(initial?.jobType||"");
+  const [statut,     setStatut]     = useState(initial?.statut||"Pending");
+  const [site,       setSite]       = useState(initial?.site||"");
+  const [chef,       setChef]       = useState(initial?.chefProjet||"");
+  const [startDate,  setStartDate]  = useState(initial?.startDate||TODAY);
+  const [endDate,    setEndDate]    = useState(initial?.endDate||"");
+  const [currency,   setCurrency]   = useState(initial?.currency||"FCFA");
+  const [desc,       setDesc]       = useState(initial?.description||"");
+  const [notes,      setNotes]      = useState(initial?.notes||"");
+  const [budgetHW,   setBudgetHW]   = useState(initial?.budgetClient||"");
+  const [contractAmt,setContractAmt]= useState(initial?.contractAmount||"");
+  const [lignesBC,   setLignesBC]   = useState(initial?.lignesBC||[{desc:"",qte:1,pu:0,total:0}]);
+  const [budgetEst,  setBudgetEst]  = useState(initial?.budgetEstime||{labor:0,materials:0,subcontract:0,equipment:0,overhead:0});
+  const [phases,     setPhases]     = useState(initial?.phases||[{id:"PH1",name:"Paiement unique",pct:100,amount:0,statut:"pending",invoiceRef:null,datePrevue:"",datePaiement:null}]);
+
+  const totalBC    = lignesBC.reduce((s,l)=>s+(l.qte*(l.pu||0)),0);
+  const totalEst   = Object.values(budgetEst).reduce((s,v)=>s+(+v||0),0);
+  const totalPhases= phases.reduce((s,p)=>s+(+p.amount||0),0);
+  const pctPhases  = +contractAmt>0?Math.round(totalPhases/+contractAmt*100):0;
+
+  const updLigneBC = (i,k,v) => setLignesBC(p=>p.map((l,idx)=>{
+    if(idx!==i) return l;
+    const nl={...l,[k]:k==="qte"||k==="pu"?+v:v};
+    if(k==="qte"||k==="pu") nl.total=nl.qte*nl.pu;
+    return nl;
+  }));
+
+  const updPhase = (i,k,v) => setPhases(p=>p.map((ph,idx)=>{
+    if(idx!==i) return ph;
+    const nph={...ph,[k]:k==="pct"||k==="amount"?+v:v};
+    if(k==="pct"&&+contractAmt>0) nph.amount=Math.round(+contractAmt*(+v/100));
+    return nph;
+  }));
+
+  const save = () => {
+    if(!name||!custId){alert("Nom et client obligatoires");return;}
+    onSave({
+      id:initial?.id||"JOB-"+String(Date.now()).slice(-6),
+      name,customerId:custId,bcRef,jobType,statut,site,chefProjet:chef,
+      startDate,endDate,currency,description:desc,notes,
+      budgetClient:+budgetHW||0,contractAmount:+contractAmt||0,
+      budgetEstime:Object.fromEntries(Object.entries(budgetEst).map(([k,v])=>[k,+v||0])),
+      phases,lignesBC,
+      coutsReels:initial?.coutsReels||{labor:0,materials:0,subcontract:0,equipment:0,overhead:0},
+      invoices:initial?.invoices||[],
+      bills:initial?.bills||[],
+      timeEntries:initial?.timeEntries||[],
+      dateCreation:initial?.dateCreation||TODAY,
+    });
+  };
+
+  const STEPS = [
+    {n:1,label:"Informations generales"},
+    {n:2,label:"Bon de commande (confidentiel)"},
+    {n:3,label:"Budget estime"},
+    {n:4,label:"Phases de facturation"},
+    {n:5,label:"Recapitulatif"},
+  ];
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:'"Segoe UI",Arial,sans-serif'}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+
+      {/* TOPBAR */}
+      <div style={{background:C.white,borderBottom:"1px solid "+C.border,position:"sticky",top:0,zIndex:200,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
+        <div style={{display:"flex",alignItems:"center",padding:"0 24px",height:52,gap:0,borderBottom:"1px solid "+C.border2}}>
+          <div style={{display:"flex",alignItems:"center",gap:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",paddingRight:14,marginRight:6,borderRight:"1px solid "+C.border2}} onClick={()=>navigate("/cleanitbooks")}>
+              <div style={{width:26,height:26,borderRadius:5,background:C.green,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <Ico n="job" s={13} c="white"/>
+              </div>
+              <span style={{fontSize:12,fontWeight:700,color:C.text}}>CleanIT<span style={{color:C.green}}>Books</span></span>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:4,padding:"0 10px"}}>
+              <button onClick={()=>navigate("/cleanitbooks/jobs")}
+                style={{border:"none",background:"none",cursor:"pointer",fontSize:12,color:C.blue,fontWeight:600,fontFamily:"inherit",padding:"4px 6px",borderRadius:4}}>
+                Job Center
+              </button>
+              <span style={{color:C.text4,fontSize:12}}>/</span>
+              <span style={{fontSize:12,color:C.text,fontWeight:700}}>{isEdit?"Modifier "+initial.id:"Nouveau job"}</span>
+            </div>
+          </div>
+          <div style={{flex:1}}/>
+          <div style={{display:"flex",gap:8}}>
+            <Btn label="Annuler" variant="light" sm onClick={onCancel}/>
+            {step===5&&<Btn label={isEdit?"Enregistrer":"Creer le job"} variant="primary" sm icon="check" onClick={save}/>}
+          </div>
+        </div>
+      </div>
+
+      {/* CONTENU */}
+      <div style={{maxWidth:960,margin:"0 auto",padding:"32px 24px",animation:"fadeUp .3s ease"}}>
+        <div style={{fontSize:22,fontWeight:800,color:C.text,marginBottom:6}}>{isEdit?"Modifier le job":"Creer un nouveau job"}</div>
+        <div style={{fontSize:14,color:C.text3,marginBottom:28}}>CleanITBooks · Job Center · SYSCOHADA</div>
+
+        {/* Steps */}
+        <div style={{display:"flex",gap:0,marginBottom:32,background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+          {STEPS.map((s,i)=>(
+            <button key={s.n} onClick={()=>setStep(s.n)}
+              style={{flex:1,padding:"14px 8px",border:"none",borderRight:i<STEPS.length-1?"1px solid "+C.border:"none",cursor:"pointer",fontFamily:"inherit",background:step===s.n?C.green_l:step>s.n?"#F0FDF4":"transparent",transition:"all .15s"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                <div style={{width:24,height:24,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:step===s.n?C.green:step>s.n?C.green:"#E5E7EB",color:step>=s.n?"white":C.text4,fontSize:11,fontWeight:700,flexShrink:0}}>
+                  {step>s.n?<Ico n="check" s={11} c="white"/>:s.n}
+                </div>
+                <span style={{fontSize:12,fontWeight:step===s.n?700:400,color:step===s.n?C.green:step>s.n?C.green:C.text3}}>{s.label}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* STEP 1 */}
+        {step===1&&(
+          <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px"}}>
+            <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:20}}>Informations generales</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}}>
+              <Field label="Nom du job" required span>
+                <Inp value={name} onChange={setName} placeholder="Ex: Installation 5G NR DLA-001"/>
+              </Field>
+              <Field label="Client" required>
+                <Sel value={custId} onChange={setCustId} placeholder="Selectionner un client" options={customers.map(c=>({v:c.id,l:c.name}))}/>
+              </Field>
+              <Field label="Type de job" required>
+                <Sel value={jobType} onChange={setJobType} placeholder="Selectionner le type" options={JOB_TYPES}/>
+              </Field>
+              <Field label="Statut">
+                <Sel value={statut} onChange={setStatut} options={JOB_STATUTS}/>
+              </Field>
+              <Field label="Site" hint="Code du site reseau ex: DLA-001">
+                <Inp value={site} onChange={setSite} placeholder="DLA-001"/>
+              </Field>
+              <Field label="Chef de projet">
+                <Inp value={chef} onChange={setChef} placeholder="Nom du responsable"/>
+              </Field>
+              <Field label="Date de debut">
+                <Inp type="date" value={startDate} onChange={setStartDate}/>
+              </Field>
+              <Field label="Date de fin prevue">
+                <Inp type="date" value={endDate} onChange={setEndDate}/>
+              </Field>
+              <Field label="Devise">
+                <Sel value={currency} onChange={setCurrency} options={["FCFA","USD","EUR","CNY"]}/>
+              </Field>
+              <Field label="Description" span>
+                <Txt value={desc} onChange={setDesc} placeholder="Description detaillee du job, scope des travaux, objectifs..." rows={4}/>
+              </Field>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2 */}
+        {step===2&&(
+          <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",background:"#FEF3C7",border:"1px solid "+C.orange+"50",borderRadius:6,marginBottom:24}}>
+              <Ico n="lock" s={16} c={C.orange}/>
+              <div>
+                <strong style={{color:C.orange,fontSize:13}}>CONFIDENTIEL — Finance et Comptabilite uniquement</strong>
+                <div style={{fontSize:12,color:C.text2,marginTop:2}}>Non visible par les Project Managers.</div>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18,marginBottom:24}}>
+              <Field label="Reference Bon de commande">
+                <Inp value={bcRef} onChange={setBcRef} placeholder="BC-2024-XXX"/>
+              </Field>
+              <Field label="Devise">
+                <Sel value={currency} onChange={setCurrency} options={["FCFA","USD","EUR"]}/>
+              </Field>
+              <Field label="Montant total Client" required hint="Ce que Client vous paie">
+                <Inp type="number" value={budgetHW} onChange={setBudgetHW} prefix={currency} placeholder="0"/>
+              </Field>
+              <Field label="Montant contrat CleanIT" required hint="Ce que vous facturez au client">
+                <Inp type="number" value={contractAmt} onChange={setContractAmt} prefix={currency} placeholder="0"/>
+              </Field>
+            </div>
+            {budgetHW&&contractAmt&&(
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:24}}>
+                {[
+                  {l:"Prix Client",   v:fN(+budgetHW)+" "+currency,              c:C.orange},
+                  {l:"Contrat CleanIT",v:fN(+contractAmt)+" "+currency,           c:C.blue},
+                  {l:"Marge brute",   v:fN(+budgetHW-+contractAmt)+" "+currency,  c:+budgetHW>+contractAmt?C.green:C.red},
+                ].map((s,i)=>(
+                  <div key={i} style={{padding:"14px 16px",background:C.bg,borderRadius:6,borderTop:"3px solid "+s.c,textAlign:"center"}}>
+                    <div style={{fontSize:11,color:C.text3,textTransform:"uppercase",letterSpacing:.4,marginBottom:4}}>{s.l}</div>
+                    <div style={{fontSize:18,fontWeight:700,color:s.c}}>{s.v}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text}}>Lignes du bon de commande</div>
+              <Btn label="+ Ajouter" variant="light" sm onClick={()=>setLignesBC(p=>[...p,{desc:"",qte:1,pu:0,total:0}])}/>
+            </div>
+            <div style={{border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead>
+                  <tr style={{background:C.bg,borderBottom:"2px solid "+C.border}}>
+                    {["Description","Qte","Prix unitaire ("+currency+")","Total",""].map((h,i)=>(
+                      <th key={i} style={{padding:"10px 12px",textAlign:i>=1&&i<=3?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.3}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {lignesBC.map((l,i)=>(
+                    <tr key={i} style={{borderBottom:"1px solid "+C.border2}}>
+                      <td style={{padding:"8px 10px"}}><Inp value={l.desc} onChange={v=>updLigneBC(i,"desc",v)} placeholder="Description" small/></td>
+                      <td style={{padding:"8px 8px",width:80}}><Inp type="number" value={l.qte} onChange={v=>updLigneBC(i,"qte",v)} small/></td>
+                      <td style={{padding:"8px 8px",width:160}}><Inp type="number" value={l.pu} onChange={v=>updLigneBC(i,"pu",v)} small/></td>
+                      <td style={{padding:"8px 12px",textAlign:"right",fontWeight:700,color:C.orange,width:140}}>{fN(l.qte*(l.pu||0))} {currency}</td>
+                      <td style={{padding:"8px 8px",width:36}}>
+                        {lignesBC.length>1&&<button onClick={()=>setLignesBC(p=>p.filter((_,xi)=>xi!==i))} style={{width:24,height:24,borderRadius:4,border:"1px solid "+C.border,background:C.white,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="close" s={12} c={C.text3}/></button>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{borderTop:"2px solid "+C.border,background:C.bg}}>
+                    <td colSpan={3} style={{padding:"10px 12px",fontWeight:700,color:C.text}}>TOTAL BC CLIENT</td>
+                    <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:C.orange,fontSize:15}}>{fN(totalBC)} {currency}</td>
+                    <td/>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3 */}
+        {step===3&&(
+          <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px"}}>
+            <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:6}}>Budget estime par poste de cout</div>
+            <div style={{fontSize:13,color:C.text3,marginBottom:24}}>Definissez votre budget previsionnel. Il sera compare aux couts reels en temps reel.</div>
+            <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:24}}>
+              {COST_CATS.map(cat=>(
+                <div key={cat.key} style={{display:"grid",gridTemplateColumns:"240px 1fr 160px",gap:16,alignItems:"center",padding:"16px 20px",background:C.bg,borderRadius:6,border:"1px solid "+C.border,borderLeft:"4px solid "+cat.color}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <div style={{width:36,height:36,borderRadius:6,background:cat.color+"15",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      <Ico n={cat.icon} s={17} c={cat.color}/>
+                    </div>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600,color:C.text}}>{cat.label}</div>
+                      <div style={{fontSize:11,color:C.text4}}>Poste de cout</div>
+                    </div>
+                  </div>
+                  <Inp type="number" value={budgetEst[cat.key]||""} onChange={v=>setBudgetEst(p=>({...p,[cat.key]:+v||0}))} placeholder="0" prefix={currency}/>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:15,fontWeight:700,color:cat.color}}>{fN(+budgetEst[cat.key]||0)} {currency}</div>
+                    <div style={{fontSize:11,color:C.text4}}>{totalEst>0?Math.round((+budgetEst[cat.key]||0)/totalEst*100):0}% du total</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,padding:"16px",background:C.bg,borderRadius:6,border:"1px solid "+C.border}}>
+              {[
+                {l:"Budget total estime",   v:fN(totalEst)+" "+currency,              c:C.blue},
+                {l:"Contrat CleanIT",       v:fN(+contractAmt||0)+" "+currency,       c:C.green},
+                {l:"Marge prevue",          v:fN((+contractAmt||0)-totalEst)+" "+currency, c:(+contractAmt||0)-totalEst>=0?C.green:C.red},
+              ].map((s,i)=>(
+                <div key={i} style={{textAlign:"center"}}>
+                  <div style={{fontSize:11,color:C.text3,textTransform:"uppercase",letterSpacing:.4,marginBottom:4}}>{s.l}</div>
+                  <div style={{fontSize:18,fontWeight:700,color:s.c}}>{s.v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4 */}
+        {step===4&&(
+          <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px"}}>
+            <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:6}}>Phases de facturation</div>
+            <div style={{fontSize:13,color:C.text3,marginBottom:20}}>Definissez les etapes de facturation. Chaque phase peut etre facturee independamment.</div>
+            {pctPhases!==100&&phases.length>0&&(
+              <div style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",background:C.orange_l,border:"1px solid "+C.orange+"40",borderRadius:6,marginBottom:16}}>
+                <Ico n="alert" s={15} c={C.orange}/>
+                <span style={{fontSize:12,color:C.orange}}>Total phases: {pctPhases}% — doit etre 100% ({fN(+contractAmt||0)} {currency})</span>
+              </div>
+            )}
+            <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:16}}>
+              {phases.map((ph,i)=>(
+                <div key={i} style={{border:"1px solid "+C.border,borderRadius:6,overflow:"hidden",borderLeft:"4px solid "+(ph.statut==="invoiced"?C.green:C.blue)}}>
+                  <div style={{padding:"12px 16px",background:C.bg,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <div style={{width:26,height:26,borderRadius:"50%",background:ph.statut==="invoiced"?C.green:C.blue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"white"}}>{i+1}</div>
+                      <Inp value={ph.name} onChange={v=>updPhase(i,"name",v)} placeholder={"Phase "+(i+1)} small/>
+                    </div>
+                    {phases.length>1&&(
+                      <button onClick={()=>setPhases(p=>p.filter((_,xi)=>xi!==i))} style={{width:24,height:24,borderRadius:4,border:"1px solid "+C.border,background:C.white,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="close" s={12} c={C.text3}/></button>
+                    )}
+                  </div>
+                  <div style={{padding:"14px 16px",display:"grid",gridTemplateColumns:"120px 1fr 1fr 1fr",gap:12,alignItems:"end"}}>
+                    <Field label="Pourcentage">
+                      <Inp type="number" value={ph.pct} onChange={v=>updPhase(i,"pct",v)} min="0" max="100" suffix="%"/>
+                    </Field>
+                    <Field label={"Montant ("+currency+")"}>
+                      <Inp type="number" value={ph.amount} onChange={v=>updPhase(i,"amount",v)} prefix={currency}/>
+                    </Field>
+                    <Field label="Date prevue">
+                      <Inp type="date" value={ph.datePrevue||""} onChange={v=>updPhase(i,"datePrevue",v)}/>
+                    </Field>
+                    <Field label="Ref facture">
+                      <Inp value={ph.invoiceRef||""} onChange={v=>updPhase(i,"invoiceRef",v)} placeholder="INV-XXXX"/>
+                    </Field>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Btn label="+ Ajouter une phase" variant="light" icon="plus" onClick={()=>setPhases(p=>[...p,{id:"PH"+(p.length+1),name:"Phase "+(p.length+1),pct:0,amount:0,statut:"pending",invoiceRef:null,datePrevue:"",datePaiement:null}])}/>
+            {+contractAmt>0&&(
+              <div style={{marginTop:16,padding:"14px 16px",background:C.bg,borderRadius:6,border:"1px solid "+C.border}}>
+                <ProgBar value={totalPhases} max={+contractAmt} color={C.green} height={8}/>
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}>
+                  <span style={{fontSize:12,color:C.text3}}>Total phases: {fN(totalPhases)} {currency}</span>
+                  <span style={{fontSize:12,fontWeight:700,color:pctPhases===100?C.green:C.orange}}>{pctPhases}%</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* STEP 5 — Recap */}
+        {step===5&&(
+          <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px"}}>
+            <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:6}}>Recapitulatif avant {isEdit?"modification":"creation"}</div>
+            <div style={{fontSize:13,color:C.text3,marginBottom:24}}>Verifiez les informations avant de valider.</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:24}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>Informations generales</div>
+                {[{l:"Nom",v:name||"—"},{l:"Client",v:customers.find(c=>c.id===custId)?.name||"—"},{l:"Type",v:jobType||"—"},{l:"Statut",v:statut},{l:"Site",v:site||"—"},{l:"Chef de projet",v:chef||"—"},{l:"Dates",v:(startDate||"?")+" au "+(endDate||"?")}].map(it=>(
+                  <div key={it.l} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid "+C.border2}}>
+                    <span style={{fontSize:12,color:C.text3}}>{it.l}</span>
+                    <span style={{fontSize:12,fontWeight:600,color:C.text}}>{it.v}</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>Informations financieres</div>
+                {[{l:"Bon de commande",v:bcRef||"—"},{l:"Prix Client",v:budgetHW?fN(+budgetHW)+" "+currency:"—",c:C.orange},{l:"Contrat CleanIT",v:contractAmt?fN(+contractAmt)+" "+currency:"—",c:C.blue},{l:"Marge brute",v:budgetHW&&contractAmt?fN(+budgetHW-+contractAmt)+" "+currency:"—",c:C.green},{l:"Budget estime",v:fN(totalEst)+" "+currency},{l:"Phases",v:phases.length+" phase(s)"},{l:"Total phases",v:fN(totalPhases)+" "+currency+(pctPhases===100?" (100%)":(" ("+pctPhases+"%)!"))}].map(it=>(
+                  <div key={it.l} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid "+C.border2}}>
+                    <span style={{fontSize:12,color:C.text3}}>{it.l}</span>
+                    <span style={{fontSize:12,fontWeight:600,color:it.c||C.text}}>{it.v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Field label="Notes internes">
+              <Txt value={notes} onChange={setNotes} placeholder="Notes, informations complementaires..." rows={3}/>
+            </Field>
+          </div>
+        )}
+
+        {/* Navigation steps */}
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:24}}>
+          <div>
+            {step>1&&<Btn label="Precedent" onClick={()=>setStep(s=>s-1)} variant="default" icon="chevr"/>}
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <Btn label="Annuler" onClick={onCancel} variant="light"/>
+            {step<5
+              ?<Btn label="Suivant" onClick={()=>setStep(s=>s+1)} variant="primary"/>
+              :<Btn label={isEdit?"Enregistrer les modifications":"Creer le job"} onClick={save} variant="primary" icon="check"/>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

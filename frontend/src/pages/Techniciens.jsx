@@ -213,7 +213,7 @@ export default function Techniciens() {
                 <div style={{display:'flex',flexWrap:'wrap',gap:5}}>{(Array.isArray(selected.skills)?selected.skills:selected.skills?.split(',')||[]).map(s=><span key={s} style={{padding:'3px 10px',borderRadius:10,fontSize:12,fontWeight:600,background:'#eff6ff',color:'#2563eb'}}>{s.trim()}</span>)}</div>
               </div>}
               {selected.certifications?.length>0 && <div style={{marginBottom:16}}>
-                <div style={{fontSize:11,color:'#94a3b8',fontWeight:700,marginBottom:6}}>CERTIFICATIONS HUAWEI</div>
+                <div style={{fontSize:11,color:'#94a3b8',fontWeight:700,marginBottom:6}}>CERTIFICATIONS CLIENT</div>
                 <div style={{display:'flex',flexWrap:'wrap',gap:5}}>{(Array.isArray(selected.certifications)?selected.certifications:selected.certifications?.split(',')||[]).map(c=><span key={c} style={{padding:'3px 10px',borderRadius:10,fontSize:12,fontWeight:600,background:'#f5f3ff',color:'#7c3aed'}}>🏆 {c.trim()}</span>)}</div>
               </div>}
               <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
@@ -243,7 +243,7 @@ export default function Techniciens() {
                   <div key={f.k}><label style={{fontSize:12,fontWeight:700,color:'#64748b',display:'block',marginBottom:5}}>{f.l}</label><input value={form[f.k]||''} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:8,fontSize:13,outline:'none',boxSizing:'border-box'}} /></div>
                 ))}
               </div>
-              {[{l:'Compétences (séparées par virgule)',k:'skills',ph:'5G NR, 4G LTE, Installation'},{l:'Certifications Huawei',k:'certifications',ph:'HCNP-5G, HCIP-Carrier'}].map(f=>(
+              {[{l:'Compétences (séparées par virgule)',k:'skills',ph:'5G NR, 4G LTE, Installation'},{l:'Certifications Client',k:'certifications',ph:'HCNP-5G, HCIP-Carrier'}].map(f=>(
                 <div key={f.k}><label style={{fontSize:12,fontWeight:700,color:'#64748b',display:'block',marginBottom:5}}>{f.l}</label><input value={form[f.k]||''} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:8,fontSize:13,outline:'none',boxSizing:'border-box'}} /></div>
               ))}
               <div style={{display:'flex',gap:10}}>

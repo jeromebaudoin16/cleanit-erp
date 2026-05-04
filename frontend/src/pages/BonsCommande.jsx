@@ -16,7 +16,7 @@ const fmtN = n => new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
 const fmtD = d => d ? new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}) : '—';
 const TVA_RATE = 0.1925;
 
-const CLIENTS = ['MTN Cameroun','Orange Cameroun','Huawei Technologies','Nexttel Cameroun','Gouvernement Cameroun','CAMTEL'];
+const CLIENTS = ['MTN Cameroun','Orange Cameroun','Client OEM','Nexttel Cameroun','Gouvernement Cameroun','CAMTEL'];
 const SITES = ['DLA-001','DLA-003','YDE-001','KRI-001','GAR-001','LIM-001','BFN-001'];
 const DEVISES = ['FCFA','USD','EUR','CNY'];
 const DEVISES_RATES = {FCFA:1,USD:600,EUR:655,CNY:83};
@@ -179,7 +179,7 @@ const SEED_BCS = [
     facturesCrees:['FAC-2024-001','FAC-2024-002'],
     notes:'BC reçu par email le 10/01/2024. Importé depuis le portail MTN.',
     lignes:[
-      {id:1,ref:'BBU-5G-01',description:'Base Band Unit 5G NR Huawei AAU5613',unite:'Unité',qte:2,puBC:4500000,tva:true,status:'facture',qteUtilisee:2,qteFacturee:2,notes:''},
+      {id:1,ref:'BBU-5G-01',description:'Base Band Unit 5G NR Client AAU5613',unite:'Unité',qte:2,puBC:4500000,tva:true,status:'facture',qteUtilisee:2,qteFacturee:2,notes:''},
       {id:2,ref:'ANT-5G-01',description:'Antenne active AAU 5G NR 64T64R',unite:'Unité',qte:6,puBC:850000,tva:true,status:'facture',qteUtilisee:6,qteFacturee:6,notes:''},
       {id:3,ref:'CBL-FO-01',description:'Câble fibre optique CPRI 10m',unite:'Mètre',qte:50,puBC:25000,tva:false,status:'partiel',qteUtilisee:35,qteFacturee:35,notes:'15m non utilisés'},
       {id:4,ref:'MOD-RF-01',description:'Module RF 2600MHz',unite:'Unité',qte:4,puBC:320000,tva:true,status:'non_facture',qteUtilisee:0,qteFacturee:0,notes:'Non requis sur ce site'},
@@ -209,7 +209,7 @@ const SEED_BCS = [
   {
     id:'3',
     numero:'BC-HUW-2024-001',
-    client:'Huawei Technologies',
+    client:'Client OEM',
     dateReception:'2024-02-05',
     dateEcheance:'2024-04-30',
     site:'KRI-001',

@@ -63,11 +63,11 @@ const PHOTOS_TECH={
   "EE005":"https://i.pravatar.cc/150?img=25",
 };
 
-// ===== DONNÉES BC HUAWEI =====
+// ===== DONNÉES BC CLIENT =====
 // Note: prix masqués avant transmission aux PM
-const BC_HUAWEI = [
+const BC_CLIENT = [
   {
-    id:"BC-HW-2024-147",site:"DLA-003",siteName:"Site Bonabéri",
+    id:"BC-2024-147",site:"DLA-003",siteName:"Site Bonabéri",
     type:"4G LTE Maintenance",priorite:"urgent",
     statut:"en_attente",dateReception:"2024-03-15",deadline:"2024-03-20",
     description:"Maintenance corrective antennes 4G LTE suite coupure signal",
@@ -75,21 +75,21 @@ const BC_HUAWEI = [
     // prix: masqué PM — visible Finance/Approvals uniquement
   },
   {
-    id:"BC-HW-2024-148",site:"BFN-001",siteName:"Site Bafoussam",
+    id:"BC-2024-148",site:"BFN-001",siteName:"Site Bafoussam",
     type:"5G NR Installation",priorite:"normale",
     statut:"en_attente",dateReception:"2024-03-15",deadline:"2024-04-15",
     description:"Installation complète station 5G NR avec BBU et 3 RRU",
     techIds:[],iaScore:null,
   },
   {
-    id:"BC-HW-2024-149",site:"MAR-001",siteName:"Site Maroua",
+    id:"BC-2024-149",site:"MAR-001",siteName:"Site Maroua",
     type:"Survey RF",priorite:"normale",
     statut:"en_attente",dateReception:"2024-03-15",deadline:"2024-04-30",
     description:"Relevé mesures RF et optimisation paramètres réseau zone nord",
     techIds:[],iaScore:null,
   },
   {
-    id:"BC-HW-2024-143",site:"DLA-001",siteName:"Site Akwa Douala",
+    id:"BC-2024-143",site:"DLA-001",siteName:"Site Akwa Douala",
     type:"5G NR Installation",priorite:"haute",
     statut:"en_cours",dateReception:"2024-03-10",deadline:"2024-03-30",
     description:"Installation RRU 5G NR pylône principal Akwa",
@@ -105,21 +105,21 @@ const BC_HUAWEI = [
     ],
   },
   {
-    id:"BC-HW-2024-141",site:"LIM-001",siteName:"Site Limbé",
+    id:"BC-2024-141",site:"LIM-001",siteName:"Site Limbé",
     type:"Survey RF",priorite:"normale",
     statut:"en_cours",dateReception:"2024-03-12",deadline:"2024-03-25",
     description:"Mesures RF et optimisation réseau zone côtière",
     techIds:["EE003"],iaScore:71,
   },
   {
-    id:"BC-HW-2024-139",site:"GAR-001",siteName:"Site Garoua",
+    id:"BC-2024-139",site:"GAR-001",siteName:"Site Garoua",
     type:"Maintenance HSE",priorite:"normale",
     statut:"en_cours",dateReception:"2024-03-08",deadline:"2024-03-20",
     description:"Inspection sécurité et mise aux normes HSE pylône Garoua",
     techIds:["EE004"],iaScore:68,
   },
   {
-    id:"BC-HW-2024-135",site:"YDE-001",siteName:"Site Yaoundé Centre",
+    id:"BC-2024-135",site:"YDE-001",siteName:"Site Yaoundé Centre",
     type:"5G NR Configuration",priorite:"normale",
     statut:"termine",dateReception:"2024-03-01",deadline:"2024-03-15",
     description:"Configuration paramètres 5G NR et tests end-to-end",
@@ -129,14 +129,14 @@ const BC_HUAWEI = [
 
 const TECHNICIENS=[
   {id:"EE001",nom:"Thomas Ngono",specialite:"5G NR / 4G LTE",statut:"en_mission",
-   bcId:"BC-HW-2024-143",site:"DLA-001",phone:"+237 677 100 001",
+   bcId:"BC-2024-143",site:"DLA-001",phone:"+237 677 100 001",
    battery:78,signal:4,pointageArrivee:"07:30",pointageArriveeType:"CleanCam",
    taches_done:3,taches_total:5,lat:4.0511,lng:9.7085,
    dernierMessage:"Câblage RRU terminé. Tests en cours.",note:4.5,
    paiement:{statut:"en_attente",montant:850000,timing:"fin_projet",demande:"tech"},
   },
   {id:"EE002",nom:"Jean Mbarga",specialite:"Survey RF",statut:"termine_journee",
-   bcId:"BC-HW-2024-135",site:"YDE-001",phone:"+237 677 100 002",
+   bcId:"BC-2024-135",site:"YDE-001",phone:"+237 677 100 002",
    battery:92,signal:5,pointageArrivee:"08:00",pointageArriveeType:"CleanCam",
    pointageDepart:"16:00",pointageDepartType:"Geofencing",
    taches_done:3,taches_total:3,lat:3.8480,lng:11.5021,
@@ -144,14 +144,14 @@ const TECHNICIENS=[
    paiement:{statut:"en_attente",montant:1100000,timing:"fin_journee",demande:"system"},
   },
   {id:"EE003",nom:"Samuel Djomo",specialite:"3G UMTS / 4G LTE",statut:"en_deplacement",
-   bcId:"BC-HW-2024-141",site:"LIM-001",phone:"+237 677 100 003",
+   bcId:"BC-2024-141",site:"LIM-001",phone:"+237 677 100 003",
    battery:45,signal:3,pointageArrivee:null,eta:"45min",
    taches_done:0,taches_total:4,lat:4.0167,lng:9.2000,
    dernierMessage:"En route. ETA 45min.",note:3.9,
    paiement:{statut:"non_defini",montant:null},
   },
   {id:"EE004",nom:"Ali Moussa",specialite:"Supervision HSE",statut:"en_mission",
-   bcId:"BC-HW-2024-139",site:"GAR-001",phone:"+237 677 100 004",
+   bcId:"BC-2024-139",site:"GAR-001",phone:"+237 677 100 004",
    battery:63,signal:2,pointageArrivee:"06:45",pointageArriveeType:"Geofencing",
    taches_done:4,taches_total:6,lat:9.3019,lng:13.3920,
    dernierMessage:"Vérification sécurité pylône terminée.",note:4.2,
@@ -327,7 +327,7 @@ const DashboardPM=({setTab,bcs,techs})=>{
   const missions=bcs.filter(b=>b.statut==="en_cours").length;
   const terrain=techs.filter(t=>t.statut==="en_mission"||t.statut==="en_deplacement").length;
   const paiements=techs.filter(t=>t.paiement?.statut==="en_attente").length;
-  const bcSelMission=bcs.find(b=>b.id==="BC-HW-2024-143");
+  const bcSelMission=bcs.find(b=>b.id==="BC-2024-143");
 
   return(
     <div style={{animation:"fadeUp .3s ease both"}}>
@@ -335,7 +335,7 @@ const DashboardPM=({setTab,bcs,techs})=>{
       {/* KPIs */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:18}}>
         {[
-          {l:"BC Huawei à assigner",v:bcAttente,c:C.orange,bg:C.orange_l,
+          {l:"Bon de commande à assigner",v:bcAttente,c:C.orange,bg:C.orange_l,
            sub:"Reçus · en attente PM",icon:"file",
            badge:{label:"Urgent: 1",c:C.red,bg:C.red_l},tab:"bons"},
           {l:"Missions actives",v:missions,c:C.blue,bg:C.blue_l,
@@ -371,12 +371,12 @@ const DashboardPM=({setTab,bcs,techs})=>{
 
       {/* Flux BC → Mission */}
       <Card style={{marginBottom:14}}>
-        <CardHead title="Flux Bon de commande Huawei → Mission" icon="file" color={C.blue}
+        <CardHead title="Flux Bon de commande Client → Mission" icon="file" color={C.blue}
           action={<Badge color={C.orange} bg={C.orange_l} label={`${bcAttente} BC à assigner`}/>}/>
         <div style={{display:"flex",alignItems:"center",padding:"14px 20px",
           background:C.bg,gap:0,overflowX:"auto"}}>
           {[
-            {l:"BC Huawei reçu",s:"IA lit le PDF automatiquement",c:C.blue,bg:C.blue_l,icon:"file"},
+            {l:"Bon de commande reçu",s:"IA lit le PDF automatiquement",c:C.blue,bg:C.blue_l,icon:"file"},
             {l:"PM étudie",s:"Analyse · Scoring IA tech",c:C.purple,bg:C.purple_l,icon:"ai"},
             {l:"Notif mobile",s:"Tech accepte ou décline",c:C.orange,bg:C.orange_l,icon:"send"},
             {l:"Sur site",s:"CleanCam + Geofencing auto",c:C.green,bg:C.green_l,icon:"gps"},
@@ -433,8 +433,8 @@ const DashboardPM=({setTab,bcs,techs})=>{
                     background:C.purple_l,padding:"3px 8px",borderRadius:6,
                     display:"inline-flex",alignItems:"center",gap:4}}>
                     <Ico n="ai" s={10} c={C.purple}/>
-                    {bc.id==="BC-HW-2024-147"?"René Talla recommandé · score 87/100 · 2.3km":
-                     bc.id==="BC-HW-2024-148"?"Thomas Ngono recommandé · score 72/100":
+                    {bc.id==="BC-2024-147"?"René Talla recommandé · score 87/100 · 2.3km":
+                     bc.id==="BC-2024-148"?"Thomas Ngono recommandé · score 72/100":
                      "Aucun tech disponible dans rayon 50km"}
                   </div>
                 </div>
@@ -450,7 +450,7 @@ const DashboardPM=({setTab,bcs,techs})=>{
             {bcs.filter(b=>b.statut==="en_cours").map((bc,i,arr)=>{
               const tech=techs.find(t=>bc.techIds?.includes(t.id));
               const st=ST_BC[bc.statut];
-              const prog=bc.id==="BC-HW-2024-143"?65:bc.id==="BC-HW-2024-141"?20:80;
+              const prog=bc.id==="BC-2024-143"?65:bc.id==="BC-2024-141"?20:80;
               return(
                 <div key={bc.id} style={{padding:"10px 14px",
                   borderBottom:i<arr.length-1?`1px solid ${C.border}`:"none",
@@ -541,7 +541,7 @@ const DashboardPM=({setTab,bcs,techs})=>{
                       Nouvelle mission assignée
                     </div>
                     <div style={{fontSize:9,color:"rgba(255,255,255,.8)"}}>
-                      BC-HW-2024-147 · Urgent
+                      BC-2024-147 · Urgent
                     </div>
                   </div>
                   <div style={{padding:"8px 10px"}}>
@@ -578,7 +578,7 @@ const DashboardPM=({setTab,bcs,techs})=>{
 
           {/* Timeline mission */}
           <Card>
-            <CardHead title="Timeline · BC-HW-2024-143" icon="clock" color={C.blue}/>
+            <CardHead title="Timeline · BC-2024-143" icon="clock" color={C.blue}/>
             <div style={{padding:"10px 0"}}>
               {bcSelMission?.timeline?.map((step,i,arr)=>(
                 <div key={i} style={{display:"flex",gap:10,padding:"6px 14px",
@@ -650,10 +650,10 @@ const BonsCommande=({bcs,techs})=>{
         {bcs.map(bc=>{
           const st=ST_BC[bc.statut]||ST_BC.en_attente;
           const bcTechs=techs.filter(t=>bc.techIds?.includes(t.id));
-          const prog=bc.id==="BC-HW-2024-143"?65:
-            bc.id==="BC-HW-2024-141"?20:
-            bc.id==="BC-HW-2024-139"?80:
-            bc.id==="BC-HW-2024-135"?100:0;
+          const prog=bc.id==="BC-2024-143"?65:
+            bc.id==="BC-2024-141"?20:
+            bc.id==="BC-2024-139"?80:
+            bc.id==="BC-2024-135"?100:0;
           return(
             <Card key={bc.id}>
               <div style={{padding:"14px 16px"}}>
@@ -731,19 +731,19 @@ const BonsCommande=({bcs,techs})=>{
                       <Ico n="ai" s={11} c={C.purple}/>
                       Recommandation IA
                     </div>
-                    {bc.id==="BC-HW-2024-147"&&(
+                    {bc.id==="BC-2024-147"&&(
                       <div style={{fontSize:11,color:C.text2}}>
                         René Talla est disponible à 2.3km, batterie 100%, signal 5/5.
                         Score 87/100. ETA ~12min.
                       </div>
                     )}
-                    {bc.id==="BC-HW-2024-148"&&(
+                    {bc.id==="BC-2024-148"&&(
                       <div style={{fontSize:11,color:C.text2}}>
                         Thomas Ngono correspond (5G NR), score 72/100.
                         Actuellement sur DLA-001 — disponible dans ~2h.
                       </div>
                     )}
-                    {bc.id==="BC-HW-2024-149"&&(
+                    {bc.id==="BC-2024-149"&&(
                       <div style={{fontSize:11,color:C.red}}>
                         Aucun technicien disponible dans un rayon de 50km.
                         Recrutement externe nécessaire ou reporter la mission.
@@ -1135,8 +1135,8 @@ const PaiementsTerrain=({techs})=>{
         fontSize:12,color:C.purple}}>
         <Ico n="shield" s={14} c={C.purple}/>
         <strong>Confidentialité :</strong> Les montants affichés ici sont les paiements
-        négociés avec les techniciens — pas les montants des BC Huawei.
-        Les prix Huawei sont visibles uniquement dans Finance & Approvals.
+        négociés avec les techniciens — pas les montants des Bon de commande.
+        Les prix Client sont visibles uniquement dans Finance & Approvals.
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",
@@ -1156,7 +1156,7 @@ const PaiementsTerrain=({techs})=>{
 
       <Card>
         <CardHead title="Paiements techniciens — Décision PM" icon="money" color={C.blue}
-          sub="Montants négociés par le PM · Indépendant des prix BC Huawei"/>
+          sub="Montants négociés par le PM · Indépendant des prix Bon de commande"/>
         <div style={{overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",minWidth:700}}>
             <thead>
@@ -1286,9 +1286,9 @@ const MissionsActives=({bcs,techs})=>{
         {missions.map(bc=>{
           const bcTechs=techs.filter(t=>bc.techIds?.includes(t.id));
           const st=ST_BC[bc.statut];
-          const prog=bc.id==="BC-HW-2024-143"?65:
-            bc.id==="BC-HW-2024-141"?20:
-            bc.id==="BC-HW-2024-139"?80:100;
+          const prog=bc.id==="BC-2024-143"?65:
+            bc.id==="BC-2024-141"?20:
+            bc.id==="BC-2024-139"?80:100;
 
           return(
             <Card key={bc.id} style={{cursor:"pointer"}}
@@ -1415,7 +1415,7 @@ const MissionsActives=({bcs,techs})=>{
 // ===== ONGLETS =====
 const TABS=[
   {id:"dashboard",label:"Tableau de bord",icon:"chart"},
-  {id:"bons",label:"BC Huawei",icon:"file",badge:3},
+  {id:"bons",label:"Bon de commande",icon:"file",badge:3},
   {id:"missions",label:"Missions actives",icon:"clock"},
   {id:"equipe",label:"Équipe terrain",icon:"users"},
   {id:"pointage",label:"Pointage GPS",icon:"gps"},
@@ -1425,7 +1425,7 @@ const TABS=[
 export default function Terrain() {
   const navigate=useNavigate();
   const [tab,setTab]=useState("dashboard");
-  const [bcs,setBcs]=useState(BC_HUAWEI);
+  const [bcs,setBcs]=useState(BC_CLIENT);
   const [techs,setTechs]=useState(TECHNICIENS);
   const active=TABS.find(t=>t.id===tab);
 

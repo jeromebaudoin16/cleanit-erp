@@ -5,18 +5,18 @@ const STATUS = {
   planifiee:  { label:'Planifiée',   color:'#7c3aed', bg:'#f5f3ff' },
   en_cours:   { label:'En cours',    color:'#0078d4', bg:'#eff6ff' },
   terminee:   { label:'Terminée',    color:'#16a34a', bg:'#f0fdf4' },
-  validee:    { label:'Validée Huawei', color:'#059669', bg:'#ecfdf5' },
+  validee:    { label:'Validée Client', color:'#059669', bg:'#ecfdf5' },
   annulee:    { label:'Annulée',     color:'#dc2626', bg:'#fef2f2' },
 };
 
 const TYPES = ['installation','maintenance','swap','survey','demantelement','urgence'];
 
 const SEED = [
-  { id:1, code:'INT-00001', title:'Installation 5G DLA-001', type:'installation', site:'DLA-001', technicien:'Thomas Ngono', status:'en_cours', priority:'haute', dateDebut: new Date(Date.now()-3600000).toISOString(), dateFin: new Date(Date.now()+7200000).toISOString(), progression:45, description:'Installation BBU 5900 + RRU 5258 site Akwa Douala', equipements:['BBU 5900','RRU 5258 x2','Câblage'], validationHuawei:false },
-  { id:2, code:'INT-00002', title:'Maintenance YDE-001', type:'maintenance', site:'YDE-001', technicien:'Jean Mbarga', status:'planifiee', priority:'normale', dateDebut: new Date(Date.now()+86400000).toISOString(), dateFin: new Date(Date.now()+90000000).toISOString(), progression:0, description:'Maintenance préventive mensuelle', equipements:[], validationHuawei:false },
-  { id:3, code:'INT-00003', title:'Swap 4G→5G KRI-001', type:'swap', site:'KRI-001', technicien:'Pierre Etoga', status:'validee', priority:'haute', dateDebut: new Date(Date.now()-172800000).toISOString(), dateFin: new Date(Date.now()-86400000).toISOString(), progression:100, description:'Swap complet infrastructure 4G vers 5G NR', equipements:['BBU 5900','RRU 5258 x3','AAU 5614'], validationHuawei:true },
-  { id:4, code:'INT-00004', title:'Survey BFN-001', type:'survey', site:'BFN-001', technicien:'Samuel Djomo', status:'terminee', priority:'normale', dateDebut: new Date(Date.now()-259200000).toISOString(), dateFin: new Date(Date.now()-172800000).toISOString(), progression:100, description:'Survey technique pour nouveau site Bafoussam', equipements:[], validationHuawei:false },
-  { id:5, code:'INT-00005', title:'Urgence DLA-003', type:'urgence', site:'DLA-003', technicien:'Thomas Ngono', status:'en_cours', priority:'critique', dateDebut: new Date(Date.now()-1800000).toISOString(), dateFin: null, progression:30, description:'Panne critique BBU. Intervention urgente requise.', equipements:['BBU 5900 (remplacement)'], validationHuawei:false },
+  { id:1, code:'INT-00001', title:'Installation 5G DLA-001', type:'installation', site:'DLA-001', technicien:'Thomas Ngono', status:'en_cours', priority:'haute', dateDebut: new Date(Date.now()-3600000).toISOString(), dateFin: new Date(Date.now()+7200000).toISOString(), progression:45, description:'Installation BBU 5900 + RRU 5258 site Akwa Douala', equipements:['BBU 5900','RRU 5258 x2','Câblage'], validationClient:false },
+  { id:2, code:'INT-00002', title:'Maintenance YDE-001', type:'maintenance', site:'YDE-001', technicien:'Jean Mbarga', status:'planifiee', priority:'normale', dateDebut: new Date(Date.now()+86400000).toISOString(), dateFin: new Date(Date.now()+90000000).toISOString(), progression:0, description:'Maintenance préventive mensuelle', equipements:[], validationClient:false },
+  { id:3, code:'INT-00003', title:'Swap 4G→5G KRI-001', type:'swap', site:'KRI-001', technicien:'Pierre Etoga', status:'validee', priority:'haute', dateDebut: new Date(Date.now()-172800000).toISOString(), dateFin: new Date(Date.now()-86400000).toISOString(), progression:100, description:'Swap complet infrastructure 4G vers 5G NR', equipements:['BBU 5900','RRU 5258 x3','AAU 5614'], validationClient:true },
+  { id:4, code:'INT-00004', title:'Survey BFN-001', type:'survey', site:'BFN-001', technicien:'Samuel Djomo', status:'terminee', priority:'normale', dateDebut: new Date(Date.now()-259200000).toISOString(), dateFin: new Date(Date.now()-172800000).toISOString(), progression:100, description:'Survey technique pour nouveau site Bafoussam', equipements:[], validationClient:false },
+  { id:5, code:'INT-00005', title:'Urgence DLA-003', type:'urgence', site:'DLA-003', technicien:'Thomas Ngono', status:'en_cours', priority:'critique', dateDebut: new Date(Date.now()-1800000).toISOString(), dateFin: null, progression:30, description:'Panne critique BBU. Intervention urgente requise.', equipements:['BBU 5900 (remplacement)'], validationClient:false },
 ];
 
 export default function Interventions() {
@@ -48,7 +48,7 @@ export default function Interventions() {
       await api.post('/interventions', { ...form, equipements: form.equipements.split(',').map(s=>s.trim()) });
       setShowForm(false); load();
     } catch {
-      const n = { ...form, id:Date.now(), code:`INT-${String(items.length+1).padStart(5,'0')}`, status:'planifiee', progression:0, equipements:form.equipements.split(',').map(s=>s.trim()), validationHuawei:false };
+      const n = { ...form, id:Date.now(), code:`INT-${String(items.length+1).padStart(5,'0')}`, status:'planifiee', progression:0, equipements:form.equipements.split(',').map(s=>s.trim()), validationClient:false };
       setItems(p=>[n,...p]); setShowForm(false);
     } finally { setSaving(false); }
   };
@@ -91,7 +91,7 @@ export default function Interventions() {
 
       {/* Stats */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:10,marginBottom:20}}>
-        {[{l:'Total',v:items.length,c:'#0078d4'},{l:'Planifiées',v:items.filter(i=>i.status==='planifiee').length,c:'#7c3aed'},{l:'En cours',v:items.filter(i=>i.status==='en_cours').length,c:'#0078d4'},{l:'Terminées',v:items.filter(i=>i.status==='terminee').length,c:'#16a34a'},{l:'Validées Huawei',v:items.filter(i=>i.status==='validee').length,c:'#059669'},{l:'Critiques',v:items.filter(i=>i.priority==='critique').length,c:'#dc2626'}].map(s=>(
+        {[{l:'Total',v:items.length,c:'#0078d4'},{l:'Planifiées',v:items.filter(i=>i.status==='planifiee').length,c:'#7c3aed'},{l:'En cours',v:items.filter(i=>i.status==='en_cours').length,c:'#0078d4'},{l:'Terminées',v:items.filter(i=>i.status==='terminee').length,c:'#16a34a'},{l:'Validées Client',v:items.filter(i=>i.status==='validee').length,c:'#059669'},{l:'Critiques',v:items.filter(i=>i.priority==='critique').length,c:'#dc2626'}].map(s=>(
           <div key={s.l} style={{background:'white',borderRadius:10,padding:'14px 16px',border:'1px solid #e2e8f0',textAlign:'center',borderTop:`3px solid ${s.c}`}}>
             <div style={{fontSize:22,fontWeight:800,color:s.c}}>{s.v}</div>
             <div style={{fontSize:11,color:'#64748b',marginTop:2}}>{s.l}</div>
@@ -152,7 +152,7 @@ export default function Interventions() {
                 </div>
                 <div style={{display:'flex',gap:5,fontSize:11,color:'#94a3b8'}}>
                   <span>📅 {fmt(item.dateDebut)}</span>
-                  {item.validationHuawei && <span style={{marginLeft:'auto',padding:'1px 8px',borderRadius:8,background:'#ecfdf5',color:'#059669',fontWeight:600}}>✓ Huawei</span>}
+                  {item.validationClient && <span style={{marginLeft:'auto',padding:'1px 8px',borderRadius:8,background:'#ecfdf5',color:'#059669',fontWeight:600}}>✓ Client</span>}
                 </div>
               </div>
             </div>
@@ -171,7 +171,7 @@ export default function Interventions() {
             </div>
             <div style={{padding:24}}>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
-                {[{l:'Site',v:selected.site},{l:'Technicien',v:selected.technicien||'Non assigné'},{l:'Type',v:selected.type},{l:'Priorité',v:selected.priority},{l:'Début',v:fmt(selected.dateDebut)},{l:'Fin prévue',v:fmt(selected.dateFin)},{l:'Validation Huawei',v:selected.validationHuawei?'✅ Validée':'⏳ En attente'}].map(i=>(
+                {[{l:'Site',v:selected.site},{l:'Technicien',v:selected.technicien||'Non assigné'},{l:'Type',v:selected.type},{l:'Priorité',v:selected.priority},{l:'Début',v:fmt(selected.dateDebut)},{l:'Fin prévue',v:fmt(selected.dateFin)},{l:'Validation Client',v:selected.validationClient?'✅ Validée':'⏳ En attente'}].map(i=>(
                   <div key={i.l} style={{background:'#f8fafc',borderRadius:8,padding:'10px 14px'}}>
                     <div style={{fontSize:10,color:'#94a3b8',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.5px'}}>{i.l}</div>
                     <div style={{fontSize:13,fontWeight:600,color:'#1e293b',marginTop:3}}>{i.v}</div>

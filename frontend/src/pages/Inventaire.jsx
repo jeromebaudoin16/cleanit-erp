@@ -9,14 +9,14 @@ const STATUS_EQ = {
 };
 
 const SEED = [
-  { id:1, code:'BBU-5900-001', name:'BBU 5900 5G NR', type:'BBU', model:'Huawei BBU5900', serialNumber:'SN20240001', site:'DLA-001', status:'actif', condition:'bon', dateInstallation:'2024-01-15', garantieExpiry:'2027-01-15', prix:8500000 },
-  { id:2, code:'RRU-5258-001', name:'RRU 5258 4T4R', type:'RRU', model:'Huawei RRU5258', serialNumber:'SN20240002', site:'DLA-001', status:'actif', condition:'bon', dateInstallation:'2024-01-15', garantieExpiry:'2027-01-15', prix:2500000 },
-  { id:3, code:'AAU-5614-001', name:'AAU 5614 Massive MIMO', type:'AAU', model:'Huawei AAU5614', serialNumber:'SN20240003', site:'YDE-001', status:'actif', condition:'bon', dateInstallation:'2024-02-01', garantieExpiry:'2027-02-01', prix:3200000 },
-  { id:4, code:'BBU-5900-002', name:'BBU 5900 5G NR', type:'BBU', model:'Huawei BBU5900', serialNumber:'SN20240004', site:'', status:'stock', condition:'neuf', dateInstallation:'', garantieExpiry:'2027-03-01', prix:8500000 },
-  { id:5, code:'RRU-5258-002', name:'RRU 5258 4T4R', type:'RRU', model:'Huawei RRU5258', serialNumber:'SN20240005', site:'DLA-003', status:'maintenance', condition:'moyen', dateInstallation:'2023-06-15', garantieExpiry:'2026-06-15', prix:2500000 },
-  { id:6, code:'SW-CE6870-001', name:'Switch CE6870', type:'Switch', model:'Huawei CE6870', serialNumber:'SN20240006', site:'YDE-001', status:'actif', condition:'bon', dateInstallation:'2024-02-01', garantieExpiry:'2027-02-01', prix:4500000 },
-  { id:7, code:'RTR-NE40-001', name:'Routeur NE40E', type:'Routeur', model:'Huawei NE40E', serialNumber:'SN20240007', site:'DLA-001', status:'actif', condition:'bon', dateInstallation:'2024-01-15', garantieExpiry:'2027-01-15', prix:12000000 },
-  { id:8, code:'BBU-5900-003', name:'BBU 5900 5G NR', type:'BBU', model:'Huawei BBU5900', serialNumber:'SN20240008', site:'KRI-001', status:'actif', condition:'bon', dateInstallation:'2024-03-01', garantieExpiry:'2027-03-01', prix:8500000 },
+  { id:1, code:'BBU-5900-001', name:'BBU 5900 5G NR', type:'BBU', model:'Client BBU5900', serialNumber:'SN20240001', site:'DLA-001', status:'actif', condition:'bon', dateInstallation:'2024-01-15', garantieExpiry:'2027-01-15', prix:8500000 },
+  { id:2, code:'RRU-5258-001', name:'RRU 5258 4T4R', type:'RRU', model:'Client RRU5258', serialNumber:'SN20240002', site:'DLA-001', status:'actif', condition:'bon', dateInstallation:'2024-01-15', garantieExpiry:'2027-01-15', prix:2500000 },
+  { id:3, code:'AAU-5614-001', name:'AAU 5614 Massive MIMO', type:'AAU', model:'Client AAU5614', serialNumber:'SN20240003', site:'YDE-001', status:'actif', condition:'bon', dateInstallation:'2024-02-01', garantieExpiry:'2027-02-01', prix:3200000 },
+  { id:4, code:'BBU-5900-002', name:'BBU 5900 5G NR', type:'BBU', model:'Client BBU5900', serialNumber:'SN20240004', site:'', status:'stock', condition:'neuf', dateInstallation:'', garantieExpiry:'2027-03-01', prix:8500000 },
+  { id:5, code:'RRU-5258-002', name:'RRU 5258 4T4R', type:'RRU', model:'Client RRU5258', serialNumber:'SN20240005', site:'DLA-003', status:'maintenance', condition:'moyen', dateInstallation:'2023-06-15', garantieExpiry:'2026-06-15', prix:2500000 },
+  { id:6, code:'SW-CE6870-001', name:'Switch CE6870', type:'Switch', model:'Client CE6870', serialNumber:'SN20240006', site:'YDE-001', status:'actif', condition:'bon', dateInstallation:'2024-02-01', garantieExpiry:'2027-02-01', prix:4500000 },
+  { id:7, code:'RTR-NE40-001', name:'Routeur NE40E', type:'Routeur', model:'Client NE40E', serialNumber:'SN20240007', site:'DLA-001', status:'actif', condition:'bon', dateInstallation:'2024-01-15', garantieExpiry:'2027-01-15', prix:12000000 },
+  { id:8, code:'BBU-5900-003', name:'BBU 5900 5G NR', type:'BBU', model:'Client BBU5900', serialNumber:'SN20240008', site:'KRI-001', status:'actif', condition:'bon', dateInstallation:'2024-03-01', garantieExpiry:'2027-03-01', prix:8500000 },
 ];
 
 export default function Inventaire() {
@@ -70,7 +70,7 @@ export default function Inventaire() {
     <div style={{padding:24,background:'#f0f2f5',minHeight:'100%'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20,flexWrap:'wrap',gap:12}}>
         <div>
-          <h1 style={{fontSize:22,fontWeight:800,color:'#1e293b',margin:0}}>Inventaire OEM Huawei</h1>
+          <h1 style={{fontSize:22,fontWeight:800,color:'#1e293b',margin:0}}>Inventaire OEM Client</h1>
           <p style={{color:'#64748b',fontSize:13,margin:'4px 0 0'}}>Gestion des équipements réseau · {items.length} équipements · Valeur: {fmtN(valeurTotale)} XAF</p>
         </div>
         <button onClick={()=>setShowForm(true)} style={{padding:'9px 16px',borderRadius:8,border:'none',background:'#ea580c',color:'white',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ Nouvel Équipement</button>
@@ -165,7 +165,7 @@ export default function Inventaire() {
             </div>
             <div style={{padding:24,display:'flex',flexDirection:'column',gap:12}}>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                {[{l:'CODE *',k:'code',ph:'BBU-5900-004'},{l:'NOM *',k:'name',ph:'BBU 5900 5G NR'},{l:'MODÈLE',k:'model',ph:'Huawei BBU5900'},{l:'N° SÉRIE',k:'serialNumber',ph:'SN20240009'},{l:'SITE',k:'site',ph:'DLA-001 (vide si stock)'},{l:'PRIX (XAF)',k:'prix',ph:'8500000'},{l:'DATE INSTALLATION',k:'dateInstallation',ph:'',type:'date'},{l:'GARANTIE JUSQU\'AU',k:'garantieExpiry',ph:'',type:'date'}].map(f=>(
+                {[{l:'CODE *',k:'code',ph:'BBU-5900-004'},{l:'NOM *',k:'name',ph:'BBU 5900 5G NR'},{l:'MODÈLE',k:'model',ph:'Client BBU5900'},{l:'N° SÉRIE',k:'serialNumber',ph:'SN20240009'},{l:'SITE',k:'site',ph:'DLA-001 (vide si stock)'},{l:'PRIX (XAF)',k:'prix',ph:'8500000'},{l:'DATE INSTALLATION',k:'dateInstallation',ph:'',type:'date'},{l:'GARANTIE JUSQU\'AU',k:'garantieExpiry',ph:'',type:'date'}].map(f=>(
                   <div key={f.k}><label style={{fontSize:12,fontWeight:700,color:'#64748b',display:'block',marginBottom:5}}>{f.l}</label><input type={f.type||'text'} value={form[f.k]||''} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph||''} style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:8,fontSize:13,outline:'none',boxSizing:'border-box'}} /></div>
                 ))}
                 <div><label style={{fontSize:12,fontWeight:700,color:'#64748b',display:'block',marginBottom:5}}>TYPE</label><select value={form.type} onChange={e=>setForm(p=>({...p,type:e.target.value}))} style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:8,fontSize:13,background:'white'}}>{['BBU','RRU','AAU','Switch','Routeur','Antenne','Autre'].map(t=><option key={t} value={t}>{t}</option>)}</select></div>

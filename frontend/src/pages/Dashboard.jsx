@@ -59,7 +59,7 @@ export default function Dashboard() {
       const r = await api.post('/purchase-orders/import', fd);
       setPoResult(r.data);
     } catch {
-      setPoResult({ poNumber:`PO-${Date.now().toString().slice(-6)}`, supplier:'Huawei Technologies Cameroun', totalAmount:45000000, currency:'XAF', items:[{description:'BBU 5900 5G NR',quantity:3,unitPrice:8500000,total:25500000,assignedTo:'Inventaire'},{description:'RRU 5258 4T4R',quantity:6,unitPrice:2500000,total:15000000,assignedTo:'Inventaire'},{description:'Installation & Configuration',quantity:1,unitPrice:4500000,total:4500000,assignedTo:'Planning'}], actions:[{module:'Inventaire',action:'9 équipements OEM créés automatiquement',status:'done'},{module:'Planning',action:'1 intervention planifiée',status:'done'},{module:'Finance',action:'Facture créée: 45 000 000 XAF',status:'done'},{module:'Contrats',action:'Contrat SLA associé',status:'pending'}] });
+      setPoResult({ poNumber:`PO-${Date.now().toString().slice(-6)}`, supplier:'Client OEM Cameroun', totalAmount:45000000, currency:'XAF', items:[{description:'BBU 5900 5G NR',quantity:3,unitPrice:8500000,total:25500000,assignedTo:'Inventaire'},{description:'RRU 5258 4T4R',quantity:6,unitPrice:2500000,total:15000000,assignedTo:'Inventaire'},{description:'Installation & Configuration',quantity:1,unitPrice:4500000,total:4500000,assignedTo:'Planning'}], actions:[{module:'Inventaire',action:'9 équipements OEM créés automatiquement',status:'done'},{module:'Planning',action:'1 intervention planifiée',status:'done'},{module:'Finance',action:'Facture créée: 45 000 000 XAF',status:'done'},{module:'Contrats',action:'Contrat SLA associé',status:'pending'}] });
     } finally { setPoLoading(false); }
   };
 
@@ -212,7 +212,7 @@ export default function Dashboard() {
                       <div style={{ fontSize:13, fontWeight:700, color:'#0078d4', marginBottom:6 }}>Ce que l'IA va faire automatiquement :</div>
                       <div style={{ fontSize:12, color:'#374151', lineHeight:1.8 }}>
                         • Extraire tous les articles, quantités et prix<br/>
-                        • Créer les équipements Huawei dans l'Inventaire OEM<br/>
+                        • Créer les équipements Client dans l'Inventaire OEM<br/>
                         • Planifier les interventions dans le Planning<br/>
                         • Générer les factures dans Finance<br/>
                         • Associer au Contrat SLA si référencé<br/>
