@@ -1546,21 +1546,40 @@ const PageJobList = ({jobs,setJobs,customers}) => {
               style={{padding:"7px 12px",borderRadius:4,border:"1px solid "+C.border,fontSize:12,color:C.text2,background:C.white,cursor:"pointer",fontFamily:"inherit",outline:"none"}}>
               {TYPES_FILTRE.map(t=><option key={t} value={t}>{t==="Tous"?"Tous les types":t}</option>)}
             </select>
-            <Btn label="Exporter CSV" variant="light" sm icon="download" onClick={()=>{
-              const rows = [
-                ['ID','Nom','Client','Type','Site','Statut','Contrat','Facture','Couts reels','Marge','Debut','Fin','Chef','Bon de commande'],
-                ...jobsFiltres.map(j=>{
-                  const cust=customers.find(c=>c.id===j.customerId);
-                  const totalInv=j.invoices.reduce((s,i)=>s+i.amount,0);
-                  const totalCR=Object.values(j.coutsReels).reduce((s,v)=>s+v,0);
-                  return [j.id,j.name,cust?.name||'',j.jobType,j.site,j.statut,j.contractAmount,totalInv,totalCR,totalInv-totalCR,j.startDate,j.endDate,j.chefProjet,j.bcRef];
-                })
-              ];
-              const csv = rows.map(r=>r.map(v=>JSON.stringify(v||'')).join(',')).join('\n');
-              const a=document.createElement('a');
-              a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-              a.download='cleanitbooks-jobs-'+new Date().toISOString().split('T')[0]+'.csv';
-              a.click();
+            <Btn label="Exporter Excel" variant="light" sm icon="download" onClick={()=>{
+              const today = new Date().toISOString().split("T")[0];
+              const wb = XLSX.utils.book_new();
+              // Sheet 1 — PO Tracker
+              const poRows = [["Code Job","Nom du Job","Client","Type","Site","N Bon de commande","Chef de Projet","Date debut","Date fin","Statut","Montant Contrat FCFA","Total Facture FCFA","Reste a Facturer FCFA","Couts Reels FCFA","Marge Nette FCFA","Pct Facture","Nb Phases","Phases Facturees","Notes"]];
+              jobsFiltres.forEach(j=>{
+                const cust=customers.find(c=>c.id===j.customerId);
+                const totalInv=j.invoices.reduce((s,i)=>s+i.amount,0);
+                const totalCR=Object.values(j.coutsReels).reduce((s,v)=>s+v,0);
+                poRows.push([j.id,j.name,cust?cust.name:"",j.jobType,j.site||"",j.bcRef||"",j.chefProjet||"",j.startDate,j.endDate,j.statut,j.contractAmount,totalInv,Math.max(0,j.contractAmount-totalInv),totalCR,totalInv-totalCR,j.contractAmount>0?Math.round(totalInv/j.contractAmount*100)+"%":"0%",j.phases.length,j.phases.filter(p=>p.statut==="invoiced").length,j.notes||""]);
+              });
+              poRows.push(["TOTAL","","","","","","","","","",jobsFiltres.reduce((s,j)=>s+j.contractAmount,0),jobsFiltres.reduce((s,j)=>s+j.invoices.reduce((si,i)=>si+i.amount,0),0),jobsFiltres.reduce((s,j)=>s+Math.max(0,j.contractAmount-j.invoices.reduce((si,i)=>si+i.amount,0)),0),jobsFiltres.reduce((s,j)=>s+Object.values(j.coutsReels).reduce((sc,v)=>sc+v,0),0),"","","",""]);
+              const ws1 = XLSX.utils.aoa_to_sheet(poRows);
+              ws1["!cols"]=[{wch:14},{wch:35},{wch:20},{wch:20},{wch:10},{wch:16},{wch:16},{wch:12},{wch:12},{wch:14},{wch:18},{wch:18},{wch:18},{wch:18},{wch:18},{wch:10},{wch:10},{wch:12},{wch:30}];
+              XLSX.utils.book_append_sheet(wb,ws1,"PO Tracker");
+              // Sheet 2 — Lignes BC
+              const bcRows = [["Pays","Code Projet","Code Site","Nom Site","N Bon de commande","Client","Description","Qte Demandee","Qte Realisee","Qte Restante"]];
+              jobsFiltres.forEach(j=>{
+                const cust=customers.find(c=>c.id===j.customerId);
+                (j.lignesBC||[]).forEach(l=>{ bcRows.push(["Cameroun",j.id,j.site||"",j.name,j.bcRef||"",cust?cust.name:"",l.desc,l.qte,0,l.qte]); });
+              });
+              const ws2 = XLSX.utils.aoa_to_sheet(bcRows);
+              ws2["!cols"]=[{wch:12},{wch:14},{wch:14},{wch:30},{wch:16},{wch:18},{wch:55},{wch:14},{wch:14},{wch:14}];
+              XLSX.utils.book_append_sheet(wb,ws2,"Lignes BC Detail");
+              // Sheet 3 — Phases
+              const phRows = [["Code Job","Nom Job","Client","N Phase","Nom Phase","Pct Contrat","Montant FCFA","Statut","Date Prevue","Ref Facture"]];
+              jobsFiltres.forEach(j=>{
+                const cust=customers.find(c=>c.id===j.customerId);
+                j.phases.forEach(ph=>{ phRows.push([j.id,j.name,cust?cust.name:"",ph.id,ph.name,ph.pct+"%",ph.amount,ph.statut==="invoiced"?"Facture":"En attente",ph.datePrevue||"",ph.invoiceRef||""]); });
+              });
+              const ws3 = XLSX.utils.aoa_to_sheet(phRows);
+              ws3["!cols"]=[{wch:14},{wch:30},{wch:18},{wch:10},{wch:30},{wch:10},{wch:16},{wch:14},{wch:14},{wch:14}];
+              XLSX.utils.book_append_sheet(wb,ws3,"Phases Facturation");
+              XLSX.writeFile(wb,"CleanITBooks_Jobs_"+today+".xlsx");
             }}/>
             <Btn label="Nouveau job" variant="primary" sm icon="plus" onClick={()=>navigate('/cleanitbooks/jobs/new')}/>
           </div>
