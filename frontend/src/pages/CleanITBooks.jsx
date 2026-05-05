@@ -653,7 +653,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
 
                 <Field label="Client" required>
                   <Sel value={custId} onChange={setCustId} placeholder="Selectionner un client"
-                    options={customers.map(c=>({v:c.id,l:c.name}))}/>
+                    options={customers.map(c=>({v:c.id,l:c.company||c.name||c.id}))}/>
                 </Field>
 
                 <Field label="Type de job" required>
@@ -1015,7 +1015,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
               <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:C.border2,color:C.text3}}>{job.jobType}</span>
             </div>
             <div style={{fontSize:18,fontWeight:700,color:C.text,marginBottom:4}}>{job.name}</div>
-            <div style={{fontSize:12,color:C.text3}}>{cust?.name||"—"} · Site {job.site||"—"} · {job.chefProjet}</div>
+            <div style={{fontSize:12,color:C.text3}}>{cust?.company||cust?.name||"—"} · Site {job.site||"—"} · {job.chefProjet}</div>
             <div style={{fontSize:11,color:C.text4,marginTop:2}}>{fD(job.startDate)} — {fD(job.endDate)}</div>
           </div>
           <div style={{display:"flex",gap:8,flexShrink:0,marginLeft:16}}>
@@ -1453,6 +1453,446 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
 
 
 // ================================================================
+//  VENDOR CENTER — CleanITBooks
+//  /cleanitbooks/vendors
+//  /cleanitbooks/vendors/:vendorId
+//  /cleanitbooks/vendors/new
+// ================================================================
+
+const INIT_VENDORS = [
+  {id:"V001",company:"Huawei Technologies",contact:"Mr. Chen Wei",title:"Project Manager",email:"c.wei@huawei.com",phone:"+237 233 401 000",mobile:"+237 699 401 000",address:"Akwa Business Center",city:"Douala",region:"Littoral",country:"Cameroun",type:"Equipementier",terms:"Net 60",currency:"USD",taxId:"",accountNum:"HW-CM-001",balance:72500000,creditLimit:500000000,notes:"Fournisseur principal equipements telecom. Paiement SWIFT USD.",dateCreation:"2021-01-01",status:"Active",
+   bills:[{id:"BILL-2024-001",date:"2024-01-15",dueDate:"2024-03-15",total:101000000,balance:72500000,status:"Partial",memo:"Equipements 5G NR BC-2024-143"}]},
+  {id:"V002",company:"Nokia Networks",contact:"Sophie Martin",title:"Sales Manager",email:"s.martin@nokia.com",phone:"+33 1 40 80 00 00",mobile:"",address:"Paris La Defense",city:"Paris",region:"",country:"France",type:"Equipementier",terms:"Net 45",currency:"USD",taxId:"",accountNum:"NOK-001",balance:9232000,creditLimit:200000000,notes:"Antennes 4G LTE. Contact local: Douala bureau.",dateCreation:"2022-03-01",status:"Active",
+   bills:[{id:"BILL-2024-002",date:"2024-02-01",dueDate:"2024-03-15",total:9232000,balance:9232000,status:"Unpaid",memo:"Antennes Nokia 4G LTE x12"}]},
+  {id:"V003",company:"Ericsson Cameroun",contact:"Paul Biya Jr",title:"Ingenieur Commercial",email:"p.biya@ericsson.cm",phone:"+237 222 230 500",mobile:"+237 677 230 500",address:"Yaounde Bastos",city:"Yaounde",region:"Centre",country:"Cameroun",type:"Equipementier",terms:"Net 30",currency:"EUR",taxId:"P098765432B",accountNum:"ERI-001",balance:0,creditLimit:100000000,notes:"Equipements Ericsson. Conditions paiement 30 jours.",dateCreation:"2022-06-15",status:"Active",
+   bills:[]},
+  {id:"V004",company:"Total Energies Cameroun",contact:"Marc Ateba",title:"Responsable Grands Comptes",email:"m.ateba@total.cm",phone:"+237 222 420 000",mobile:"+237 677 420 000",address:"Bonanjo, Rue du Commerce",city:"Douala",region:"Littoral",country:"Cameroun",type:"Services",terms:"Net 15",currency:"FCFA",taxId:"P112233445C",accountNum:"TOT-001",balance:0,creditLimit:10000000,notes:"Carburant vehicules terrain. Facture mensuelle.",dateCreation:"2021-09-01",status:"Active",
+   bills:[{id:"BILL-2024-003",date:"2024-01-31",dueDate:"2024-02-15",total:850000,balance:0,status:"Paid",memo:"Carburant vehicules terrain janvier 2024"}]},
+  {id:"V005",company:"CAMTEL",contact:"Direction Commerciale",title:"Directeur Commercial",email:"dc@camtel.cm",phone:"+237 222 225 000",mobile:"",address:"Av. Kennedy",city:"Yaounde",region:"Centre",country:"Cameroun",type:"Telecom",terms:"Net 30",currency:"FCFA",taxId:"P556677889D",accountNum:"CAM-001",balance:1200000,creditLimit:50000000,notes:"Liaisons fibre backbone. Facture trimestrielle.",dateCreation:"2022-01-01",status:"Active",
+   bills:[{id:"BILL-2024-004",date:"2024-02-15",dueDate:"2024-03-15",total:1200000,balance:1200000,status:"Unpaid",memo:"Liaisons fibre optique backbone Q1"}]},
+];
+
+const VENDOR_TYPES  = ["Equipementier","Services","Telecom","Transport","Sous-traitant","Autre"];
+
+// ================================================================
+//  PAGE LISTE VENDORS
+// ================================================================
+const PageVendorList = ({vendors,setVendors,jobs}) => {
+  const navigate = useNavigate();
+  const [search,     setSearch]     = useState("");
+  const [filtreType, setFiltreType] = useState("Tous");
+
+  const filtered = vendors.filter(v=>{
+    const ms = !search||(v.company+v.contact+v.city+v.accountNum).toLowerCase().includes(search.toLowerCase());
+    const mt = filtreType==="Tous"||v.type===filtreType;
+    return ms&&mt;
+  });
+
+  const totalAP    = filtered.filter(v=>v.balance>0).reduce((s,v)=>s+v.balance,0);
+  const totalBills = filtered.reduce((s,v)=>s+v.bills.length,0);
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+
+      {/* TOPBAR */}
+      <div style={{background:C.white,borderBottom:"1px solid "+C.border,position:"sticky",top:0,zIndex:200,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
+        <div style={{display:"flex",alignItems:"center",padding:"0 24px",height:52,borderBottom:"1px solid "+C.border2}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",paddingRight:16,marginRight:8,borderRight:"1px solid "+C.border2}} onClick={()=>navigate("/cleanitbooks")}>
+            <div style={{width:28,height:28,borderRadius:6,background:C.orange,display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="vendor" s={14} c="white"/></div>
+            <span style={{fontSize:13,fontWeight:800,color:C.text}}>CleanIT<span style={{color:C.green}}>Books</span></span>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:4,padding:"0 10px"}}>
+            <span style={{fontSize:12,color:C.text3}}>Vendor Center</span>
+          </div>
+          <div style={{flex:1}}/>
+          <div style={{display:"flex",gap:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:7,background:C.bg,border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
+              <Ico n="search" s={13} c={C.text4}/>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher fournisseur..."
+                style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:180,fontFamily:"inherit"}}/>
+            </div>
+            <Btn label="Nouveau fournisseur" variant="primary" sm icon="plus" onClick={()=>navigate("/cleanitbooks/vendors/new")}/>
+            <button onClick={()=>navigate("/cleanitbooks")} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:4,border:"1px solid "+C.border,background:C.bg,cursor:"pointer",fontFamily:"inherit",fontSize:12,color:C.text3}}>
+              <Ico n="job" s={12} c={C.text3}/>Accueil
+            </button>
+          </div>
+        </div>
+        <div style={{display:"flex",padding:"0 24px",overflowX:"auto"}}>
+          {[{id:"customers",l:"Customer Center",icon:"customer",url:"/cleanitbooks/customers"},{id:"jobs",l:"Job Center",icon:"job",url:"/cleanitbooks/jobs"},{id:"vendors",l:"Vendor Center",icon:"vendor",url:"/cleanitbooks/vendors"},{id:"bills",l:"Depenses AP",icon:"bill",url:""},{id:"banking",l:"Banking",icon:"bank",url:""},{id:"payroll",l:"Paie RH",icon:"payroll",url:""},{id:"reports",l:"Rapports",icon:"report",url:""}].map(t=>(
+            <button key={t.id} onClick={()=>t.url?navigate(t.url):null}
+              style={{display:"flex",alignItems:"center",gap:6,padding:"0 16px",height:40,border:"none",background:"transparent",borderBottom:window.location.pathname.includes(t.id)?"2px solid "+C.green:"2px solid transparent",color:window.location.pathname.includes(t.id)?C.green:C.text3,fontWeight:window.location.pathname.includes(t.id)?700:400,fontSize:12,cursor:t.url?"pointer":"default",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+              <Ico n={t.icon} s={13} c={window.location.pathname.includes(t.id)?C.green:C.text3}/>
+              {t.l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{padding:"24px",animation:"fadeUp .3s ease"}}>
+        {/* KPIs */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+          {[
+            {l:"Fournisseurs actifs",  v:filtered.filter(v=>v.status==="Active").length, c:C.green,  icon:"vendor", sub:vendors.length+" au total"},
+            {l:"Total AP du",          v:fM(totalAP)+" F",  c:C.red,    icon:"bill",   sub:filtered.filter(v=>v.balance>0).length+" avec solde ouvert"},
+            {l:"Bills enregistres",    v:totalBills,        c:C.orange, icon:"invoice",sub:"Total toutes periodes"},
+            {l:"Fournisseurs filtres", v:filtered.length,   c:C.text,   icon:"filter", sub:"Sur "+vendors.length+" total"},
+          ].map((kpi,i)=>(
+            <div key={i} style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"14px 16px",borderTop:"3px solid "+kpi.c}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontSize:10,color:C.text3,textTransform:"uppercase",letterSpacing:.4,fontWeight:600}}>{kpi.l}</span>
+                <div style={{width:28,height:28,borderRadius:4,background:kpi.c+"15",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n={kpi.icon} s={14} c={kpi.c}/></div>
+              </div>
+              <div style={{fontSize:20,fontWeight:700,color:kpi.c,marginBottom:3}}>{kpi.v}</div>
+              <div style={{fontSize:11,color:C.text4}}>{kpi.sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Filtres */}
+        <div style={{display:"flex",gap:10,marginBottom:14,alignItems:"center"}}>
+          <select value={filtreType} onChange={e=>setFiltreType(e.target.value)}
+            style={{padding:"7px 12px",borderRadius:4,border:"1px solid "+C.border,fontSize:12,color:C.text2,background:C.white,cursor:"pointer",fontFamily:"inherit",outline:"none"}}>
+            {["Tous",...VENDOR_TYPES].map(t=><option key={t} value={t}>{t==="Tous"?"Tous les types":t}</option>)}
+          </select>
+          <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+            <Btn label="Saisir un bill" variant="ghost" sm icon="bill"/>
+            <Btn label="Nouveau fournisseur" variant="primary" sm icon="plus" onClick={()=>navigate("/cleanitbooks/vendors/new")}/>
+          </div>
+        </div>
+
+        {/* Tableau */}
+        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",minWidth:800}}>
+              <thead>
+                <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                  {["Fournisseur","Type","Ville","Contact","Conditions","Devise","Solde AP","Statut","Actions"].map((h,i)=>(
+                    <th key={i} style={{padding:"10px 14px",textAlign:i===6?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length===0&&<tr><td colSpan={9} style={{padding:"48px",textAlign:"center",color:C.text4}}>Aucun fournisseur</td></tr>}
+                {filtered.map((v,i)=>{
+                  const isAlt = i%2===1;
+                  return(
+                    <tr key={v.id} style={{borderBottom:"1px solid "+C.border2,cursor:"pointer",background:isAlt?"#FAFAFA":C.white,transition:"background .1s"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="#FFF7ED"}
+                      onMouseLeave={e=>e.currentTarget.style.background=isAlt?"#FAFAFA":C.white}
+                      onClick={()=>navigate("/cleanitbooks/vendors/"+v.id)}>
+                      <td style={{padding:"13px 14px"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:10}}>
+                          <div style={{width:36,height:36,borderRadius:6,background:C.orange+"20",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:C.orange,flexShrink:0}}>
+                            {v.company.slice(0,2).toUpperCase()}
+                          </div>
+                          <div>
+                            <div style={{fontSize:13,fontWeight:700,color:C.orange}}>{v.company}</div>
+                            <div style={{fontSize:10,color:C.text4}}>{v.accountNum} · {v.bills.length} bill(s)</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{padding:"13px 14px"}}><span style={{fontSize:11,padding:"3px 9px",borderRadius:10,background:C.orange+"15",color:C.orange,fontWeight:600}}>{v.type}</span></td>
+                      <td style={{padding:"13px 14px",fontSize:12,color:C.text2}}>{v.city}</td>
+                      <td style={{padding:"13px 14px"}}>
+                        <div style={{fontSize:12,color:C.text2}}>{v.contact}</div>
+                        <div style={{fontSize:11,color:C.text4}}>{v.title}</div>
+                      </td>
+                      <td style={{padding:"13px 14px",fontSize:12,color:C.text3}}>{v.terms}</td>
+                      <td style={{padding:"13px 14px",textAlign:"center"}}><span style={{fontSize:11,padding:"2px 7px",borderRadius:10,background:v.currency==="USD"?C.orange_l:C.blue_l,color:v.currency==="USD"?C.orange:C.blue,fontWeight:600}}>{v.currency}</span></td>
+                      <td style={{padding:"13px 14px",textAlign:"right",fontWeight:700,color:v.balance>0?C.red:C.green,fontSize:13}}>{v.balance>0?fN(v.balance)+" F":"—"}</td>
+                      <td style={{padding:"13px 14px"}}><span style={{fontSize:11,padding:"3px 9px",borderRadius:10,fontWeight:600,background:v.status==="Active"?C.green_l:C.border2,color:v.status==="Active"?C.green:C.text3}}>{v.status==="Active"?"Actif":"Inactif"}</span></td>
+                      <td style={{padding:"13px 14px"}} onClick={e=>e.stopPropagation()}>
+                        <div style={{display:"flex",gap:4}}>
+                          <Btn label="Ouvrir" variant="light" sm onClick={()=>navigate("/cleanitbooks/vendors/"+v.id)}/>
+                          <Btn label="Bill" variant="primary" sm icon="bill"/>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              {filtered.length>0&&(
+                <tfoot>
+                  <tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}>
+                    <td colSpan={6} style={{padding:"10px 14px",fontWeight:700,color:C.text,fontSize:12}}>TOTAL AP — {filtered.length} fournisseur(s)</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.red,fontSize:14}}>{fM(totalAP)} F</td>
+                    <td colSpan={2}/>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ================================================================
+//  PAGE DETAIL VENDOR
+// ================================================================
+const PageVendorDetail = ({vendors,jobs}) => {
+  const navigate   = useNavigate();
+  const {vendorId} = useParams();
+  const [tab, setTab] = useState("overview");
+
+  const vendor = vendors.find(v=>v.id===vendorId);
+
+  if(!vendor) return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:C.bg}}>
+      <div style={{fontSize:18,color:C.text4}}>Fournisseur introuvable</div>
+      <Btn label="Retour fournisseurs" variant="primary" onClick={()=>navigate("/cleanitbooks/vendors")}/>
+    </div>
+  );
+
+  const totalBills  = vendor.bills.reduce((s,b)=>s+b.total,0);
+  const totalPaid   = vendor.bills.reduce((s,b)=>s+(b.total-b.balance),0);
+  const totalBalance= vendor.balance;
+  const vendorJobs  = jobs.filter(j=>j.bcRef&&j.bcRef.includes(vendor.accountNum.split("-")[0]));
+
+  const TABS = [
+    {id:"overview",     l:"Vue generale",                       icon:"home"},
+    {id:"transactions", l:"Bills ("+vendor.bills.length+")",    icon:"bill"},
+    {id:"contacts",     l:"Contacts",                           icon:"customer"},
+    {id:"notes",        l:"Notes",                              icon:"note"},
+  ];
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+
+      {/* TOPBAR */}
+      <div style={{background:C.white,borderBottom:"1px solid "+C.border,position:"sticky",top:0,zIndex:200,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
+        <div style={{display:"flex",alignItems:"center",padding:"0 24px",height:52,borderBottom:"1px solid "+C.border2}}>
+          <div style={{display:"flex",alignItems:"center",gap:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",paddingRight:14,marginRight:6,borderRight:"1px solid "+C.border2}} onClick={()=>navigate("/cleanitbooks")}>
+              <div style={{width:26,height:26,borderRadius:5,background:C.orange,display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="vendor" s={13} c="white"/></div>
+              <span style={{fontSize:12,fontWeight:700,color:C.text}}>CleanIT<span style={{color:C.green}}>Books</span></span>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:4,padding:"0 10px"}}>
+              <button onClick={()=>navigate("/cleanitbooks/vendors")} style={{border:"none",background:"none",cursor:"pointer",fontSize:12,color:C.blue,fontWeight:600,fontFamily:"inherit"}}>Vendor Center</button>
+              <span style={{color:C.text4,fontSize:12}}>/</span>
+              <span style={{fontSize:12,color:C.text,fontWeight:700}}>{vendor.company}</span>
+            </div>
+          </div>
+          <div style={{flex:1}}/>
+          <div style={{display:"flex",gap:8}}>
+            <Btn label="Retour" variant="light" sm onClick={()=>navigate("/cleanitbooks/vendors")}/>
+            <Btn label="Modifier" variant="default" sm icon="edit" onClick={()=>navigate("/cleanitbooks/vendors/"+vendorId+"/edit")}/>
+            <Btn label="Saisir un bill" variant="primary" sm icon="bill"/>
+          </div>
+        </div>
+
+        {/* Header vendor */}
+        <div style={{padding:"16px 24px",borderBottom:"1px solid "+C.border2,background:C.white}}>
+          <div style={{display:"flex",gap:16,alignItems:"flex-start",marginBottom:16}}>
+            <div style={{width:56,height:56,borderRadius:10,background:C.orange+"20",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:800,color:C.orange,flexShrink:0}}>
+              {vendor.company.slice(0,2).toUpperCase()}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4,flexWrap:"wrap"}}>
+                <span style={{fontSize:22,fontWeight:800,color:C.text}}>{vendor.company}</span>
+                <span style={{fontSize:11,padding:"3px 9px",borderRadius:10,background:C.orange+"15",color:C.orange,fontWeight:600}}>{vendor.type}</span>
+                <span style={{fontSize:11,padding:"3px 9px",borderRadius:10,background:vendor.status==="Active"?C.green_l:C.border2,color:vendor.status==="Active"?C.green:C.text3,fontWeight:600}}>{vendor.status==="Active"?"Actif":"Inactif"}</span>
+              </div>
+              <div style={{fontSize:13,color:C.text3,marginBottom:2}}>{vendor.contact} · {vendor.title} · {vendor.phone}</div>
+              <div style={{fontSize:12,color:C.text4}}>{vendor.address}, {vendor.city} · {vendor.accountNum}</div>
+            </div>
+          </div>
+
+          {/* KPIs */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+            {[
+              {l:"Total bills",   v:fN(totalBills)+" "+vendor.currency,   c:C.orange},
+              {l:"Total paye",    v:fN(totalPaid)+" "+vendor.currency,    c:C.green},
+              {l:"Solde du",      v:fN(totalBalance)+" "+vendor.currency, c:totalBalance>0?C.red:C.green},
+              {l:"Conditions",    v:vendor.terms,                          c:C.text},
+            ].map((kpi,i)=>(
+              <div key={i} style={{padding:"10px 14px",background:kpi.c+"08",borderRadius:6,border:"1px solid "+kpi.c+"25",borderTop:"3px solid "+kpi.c}}>
+                <div style={{fontSize:9,color:kpi.c,textTransform:"uppercase",letterSpacing:.5,fontWeight:700,marginBottom:4}}>{kpi.l}</div>
+                <div style={{fontSize:15,fontWeight:800,color:kpi.c}}>{kpi.v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Onglets */}
+        <div style={{display:"flex",padding:"0 24px",background:C.white,overflowX:"auto"}}>
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)}
+              style={{display:"flex",alignItems:"center",gap:6,padding:"0 16px",height:42,border:"none",background:"transparent",borderBottom:tab===t.id?"2px solid "+C.orange:"2px solid transparent",color:tab===t.id?C.orange:C.text3,fontWeight:tab===t.id?700:400,fontSize:12,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+              <Ico n={t.icon} s={13} c={tab===t.id?C.orange:C.text3}/>
+              {t.l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* CONTENU */}
+      <div style={{padding:"24px",animation:"fadeUp .25s ease"}}>
+
+        {/* OVERVIEW */}
+        {tab==="overview"&&(
+          <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:20}}>
+            <div>
+              <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden",marginBottom:16}}>
+                <div style={{padding:"12px 16px",borderBottom:"1px solid "+C.border,fontSize:13,fontWeight:700,color:C.text}}>Informations fournisseur</div>
+                <div style={{padding:"14px 16px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
+                  {[{l:"Entreprise",v:vendor.company},{l:"Type",v:vendor.type},{l:"N Compte",v:vendor.accountNum},{l:"Statut",v:vendor.status==="Active"?"Actif":"Inactif"},{l:"Conditions",v:vendor.terms},{l:"Devise",v:vendor.currency},{l:"ID Fiscal",v:vendor.taxId||"—"},{l:"Limite credit",v:fM(vendor.creditLimit)+" "+vendor.currency},{l:"Pays",v:vendor.country},{l:"Client depuis",v:vendor.dateCreation}].map((it,i)=>(
+                    <div key={it.l} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:i<9?"1px solid "+C.border2:"none"}}>
+                      <span style={{fontSize:12,color:C.text3}}>{it.l}</span>
+                      <span style={{fontSize:12,fontWeight:600,color:C.text}}>{it.v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bills recents */}
+              <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+                <div style={{padding:"12px 16px",borderBottom:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontSize:13,fontWeight:700,color:C.text}}>Bills recents ({vendor.bills.length})</span>
+                  <Btn label="Voir tous" variant="light" sm onClick={()=>setTab("transactions")}/>
+                </div>
+                {vendor.bills.length===0?(
+                  <div style={{padding:"24px",textAlign:"center",color:C.text4,fontSize:13}}>Aucun bill pour ce fournisseur</div>
+                ):vendor.bills.slice(0,3).map((b,i)=>(
+                  <div key={b.id} style={{padding:"12px 16px",borderBottom:i<Math.min(vendor.bills.length,3)-1?"1px solid "+C.border2:"none"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:700,color:C.orange}}>{b.id}</div>
+                        <div style={{fontSize:11,color:C.text4}}>{b.memo}</div>
+                      </div>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{fontSize:13,fontWeight:700,color:C.red}}>{fM(b.total)} F</div>
+                        <StatutBadge statut={b.status}/>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Panel droit */}
+            <div>
+              <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden",marginBottom:14}}>
+                <div style={{padding:"12px 16px",borderBottom:"1px solid "+C.border,fontSize:13,fontWeight:700,color:C.text}}>Contact principal</div>
+                <div style={{padding:"14px 16px"}}>
+                  <div style={{width:44,height:44,borderRadius:"50%",background:C.orange+"15",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:700,color:C.orange,marginBottom:10}}>
+                    {(vendor.contact||"?").split(" ").map(n=>n[0]).join("").slice(0,2)}
+                  </div>
+                  <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:2}}>{vendor.contact}</div>
+                  <div style={{fontSize:12,color:C.text3,marginBottom:10}}>{vendor.title}</div>
+                  {[{icon:"phone",v:vendor.phone},{icon:"mail",v:vendor.email}].filter(c=>c.v).map((it,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
+                      <Ico n={it.icon} s={14} c={C.text4}/>
+                      <span style={{fontSize:12,color:C.blue}}>{it.v}</span>
+                    </div>
+                  ))}
+                  <div style={{marginTop:12,display:"flex",gap:6}}>
+                    <Btn label="Appeler" variant="ghost" sm icon="phone" full onClick={()=>window.open("tel:"+vendor.phone)}/>
+                    <Btn label="Email" variant="light" sm icon="mail" full onClick={()=>window.open("mailto:"+vendor.email)}/>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"14px 16px"}}>
+                <div style={{fontSize:12,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4,marginBottom:10}}>AP Aging</div>
+                {[{l:"Courant",v:0,c:C.green},{l:"1-30 jours",v:vendor.balance>0?vendor.balance:0,c:C.orange},{l:"31-60 jours",v:0,c:C.red},{l:"Total du",v:vendor.balance,c:C.red}].map((s,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:i<3?"1px solid "+C.border2:"none"}}>
+                    <span style={{fontSize:12,color:C.text3}}>{s.l}</span>
+                    <span style={{fontSize:13,fontWeight:i===3?700:600,color:s.v>0?s.c:C.text4}}>{s.v>0?fN(s.v)+" F":"—"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TRANSACTIONS */}
+        {tab==="transactions"&&(
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontSize:16,fontWeight:700,color:C.text}}>Bills — {vendor.company}</div>
+              <Btn label="Saisir un bill" variant="primary" sm icon="bill"/>
+            </div>
+            {vendor.bills.length===0?(
+              <div style={{padding:"60px",textAlign:"center",background:C.white,border:"1px dashed "+C.border,borderRadius:6}}>
+                <Ico n="bill" s={40} c={C.border}/>
+                <div style={{fontSize:15,color:C.text4,marginTop:12,marginBottom:16}}>Aucun bill pour ce fournisseur</div>
+                <Btn label="Saisir un bill" variant="primary" icon="bill"/>
+              </div>
+            ):(
+              <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+                <table style={{width:"100%",borderCollapse:"collapse"}}>
+                  <thead>
+                    <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                      {["N Bill","Date","Echeance","Description","Montant","Solde","Statut","Actions"].map((h,i)=>(
+                        <th key={i} style={{padding:"10px 14px",textAlign:i>=4&&i<=5?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.3}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vendor.bills.map((b,i)=>(
+                      <tr key={b.id} style={{borderBottom:"1px solid "+C.border2,transition:"background .1s"}}
+                        onMouseEnter={e=>e.currentTarget.style.background="#FFF7ED"}
+                        onMouseLeave={e=>e.currentTarget.style.background=C.white}>
+                        <td style={{padding:"12px 14px",fontWeight:700,color:C.orange}}>{b.id}</td>
+                        <td style={{padding:"12px 14px",color:C.text3,fontSize:12}}>{fD(b.date)}</td>
+                        <td style={{padding:"12px 14px",color:C.text3,fontSize:12}}>{fD(b.dueDate)}</td>
+                        <td style={{padding:"12px 14px",fontSize:12,color:C.text2}}>{b.memo}</td>
+                        <td style={{padding:"12px 14px",textAlign:"right",fontWeight:600,fontSize:13}}>{fN(b.total)} {vendor.currency}</td>
+                        <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700,color:b.balance>0?C.red:C.green,fontSize:13}}>{fN(b.balance)} {vendor.currency}</td>
+                        <td style={{padding:"12px 14px"}}><StatutBadge statut={b.status}/></td>
+                        <td style={{padding:"12px 14px"}}>{b.balance>0&&<Btn label="Payer" variant="primary" sm/>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}>
+                      <td colSpan={4} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>Total</td>
+                      <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.orange,fontSize:14}}>{fN(totalBills)} {vendor.currency}</td>
+                      <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:totalBalance>0?C.red:C.green,fontSize:14}}>{fN(totalBalance)} {vendor.currency}</td>
+                      <td colSpan={2}/>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CONTACTS */}
+        {tab==="contacts"&&(
+          <div style={{maxWidth:600}}>
+            <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:16}}>Informations de contact</div>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+              {[{l:"Entreprise",v:vendor.company},{l:"Contact",v:vendor.contact},{l:"Titre",v:vendor.title},{l:"Telephone",v:vendor.phone},{l:"Mobile",v:vendor.mobile||"—"},{l:"Email",v:vendor.email},{l:"Adresse",v:vendor.address},{l:"Ville",v:vendor.city},{l:"Pays",v:vendor.country}].map((it,i)=>(
+                <div key={it.l} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderBottom:i<8?"1px solid "+C.border2:"none"}}>
+                  <span style={{fontSize:12,color:C.text3,minWidth:100}}>{it.l}</span>
+                  <span style={{fontSize:13,fontWeight:500,color:C.text}}>{it.v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* NOTES */}
+        {tab==="notes"&&(
+          <div style={{maxWidth:700}}>
+            <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:16}}>Notes internes</div>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"16px",fontSize:13,color:C.text2,lineHeight:1.8,minHeight:100}}>
+              {vendor.notes||<span style={{color:C.text4}}>Aucune note.</span>}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+// ================================================================
 //  CUSTOMER CENTER — CleanITBooks
 //  Page liste + Page detail + Formulaire creation/edition
 //  URL: /cleanitbooks/customers
@@ -1544,10 +1984,11 @@ const PageCustomerList = ({customers,setCustomers,invoices,jobs}) => {
 
         {/* Onglets navigation */}
         <div style={{display:"flex",padding:"0 24px",overflowX:"auto"}}>
-          {[{id:"customers",l:"Customer Center",icon:"customer"},{id:"invoices",l:"Facturation AR",icon:"invoice"},{id:"jobs",l:"Jobs",icon:"job"},{id:"vendors",l:"Vendor Center",icon:"vendor"},{id:"bills",l:"Depenses AP",icon:"bill"},{id:"banking",l:"Banking",icon:"bank"},{id:"payroll",l:"Paie RH",icon:"payroll"},{id:"reports",l:"Rapports",icon:"report"}].map(t=>(
+          {[{id:"customers",l:"Customer Center",icon:"customer",url:"/cleanitbooks/customers"},{id:"jobs",l:"Job Center",icon:"job",url:"/cleanitbooks/jobs"},{id:"invoices",l:"Facturation AR",icon:"invoice",url:""},{id:"vendors",l:"Vendor Center",icon:"vendor",url:""},{id:"bills",l:"Depenses AP",icon:"bill",url:""},{id:"banking",l:"Banking",icon:"bank",url:""},{id:"payroll",l:"Paie RH",icon:"payroll",url:""},{id:"reports",l:"Rapports",icon:"report",url:""}].map(t=>(
             <button key={t.id}
-              style={{display:"flex",alignItems:"center",gap:6,padding:"0 16px",height:40,border:"none",background:"transparent",borderBottom:t.id==="customers"?"2px solid "+C.green:"2px solid transparent",color:t.id==="customers"?C.green:C.text3,fontWeight:t.id==="customers"?700:400,fontSize:12,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-              <Ico n={t.icon} s={13} c={t.id==="customers"?C.green:C.text3}/>
+              onClick={()=>t.url?navigate(t.url):null}
+              style={{display:"flex",alignItems:"center",gap:6,padding:"0 16px",height:40,border:"none",background:"transparent",borderBottom:window.location.pathname.includes(t.id)?"2px solid "+C.green:"2px solid transparent",color:window.location.pathname.includes(t.id)?C.green:C.text3,fontWeight:window.location.pathname.includes(t.id)?700:400,fontSize:12,cursor:t.url?"pointer":"default",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+              <Ico n={t.icon} s={13} c={window.location.pathname.includes(t.id)?C.green:C.text3}/>
               {t.l}
             </button>
           ))}
@@ -2404,8 +2845,9 @@ const PageJobList = ({jobs,setJobs,customers}) => {
           </div>
         </div>
         <div style={{display:"flex",padding:"0 24px",borderBottom:"1px solid "+C.border2}}>
-          {[{id:"jobs",l:"Job Center",icon:"job"},{id:"invoices",l:"Facturation AR",icon:"invoice"},{id:"bills",l:"Depenses AP",icon:"bill"},{id:"time",l:"Saisie heures",icon:"time"},{id:"reports",l:"Rapports",icon:"chart"},{id:"bc",l:"Import Bon de commande",icon:"bc"}].map(t=>(
+          {[{id:"customers",l:"Customer Center",icon:"customer"},{id:"jobs",l:"Job Center",icon:"job"},{id:"invoices",l:"Facturation AR",icon:"invoice"},{id:"bills",l:"Depenses AP",icon:"bill"},{id:"time",l:"Saisie heures",icon:"time"},{id:"reports",l:"Rapports",icon:"chart"},{id:"bc",l:"Import BC",icon:"bc"}].map(t=>(
             <button key={t.id}
+              onClick={()=>t.id==="customers"?navigate("/cleanitbooks/customers"):t.id==="jobs"?navigate("/cleanitbooks/jobs"):null}
               style={{display:"flex",alignItems:"center",gap:6,padding:"0 16px",height:40,border:"none",background:"transparent",borderBottom:t.id==="jobs"?"2px solid "+C.green:"2px solid transparent",color:t.id==="jobs"?C.green:C.text3,fontWeight:t.id==="jobs"?700:400,fontSize:12,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
               <Ico n={t.icon} s={13} c={t.id==="jobs"?C.green:C.text3}/>
               {t.l}
@@ -2495,7 +2937,7 @@ const PageJobList = ({jobs,setJobs,customers}) => {
                 const rowBg   = isAlt?C_ALT:C_WHITE;
 
                 const row = ws1.addRow([
-                  j.id,j.name,cust?cust.name:"",j.jobType,j.site||"",j.bcRef||"",j.chefProjet||"",
+                  j.id,j.name,cust?cust.company||cust.name:"",j.jobType,j.site||"",j.bcRef||"",j.chefProjet||"",
                   j.startDate,j.endDate,j.statut,
                   j.contractAmount,totalInv,Math.max(0,j.contractAmount-totalInv),
                   totalCR,marge,pctF,j.phases.length,phasesF,j.notes||""
@@ -2571,7 +3013,7 @@ const PageJobList = ({jobs,setJobs,customers}) => {
                 const isAlt= ri%2===1;
                 const bg   = isAlt?C_ALT:C_WHITE;
                 (j.lignesBC||[]).forEach(l=>{
-                  const row = ws2.addRow(["Cameroun",j.id,j.site||"",j.name,j.bcRef||"",cust?cust.name:"",l.desc,l.qte,0,l.qte]);
+                  const row = ws2.addRow(["Cameroun",j.id,j.site||"",j.name,j.bcRef||"",cust?cust.company||cust.name:"",l.desc,l.qte,0,l.qte]);
                   row.height = 38;
                   row.eachCell((cell,cn)=>{
                     cell.border    = thinBorder;
@@ -2608,7 +3050,7 @@ const PageJobList = ({jobs,setJobs,customers}) => {
                   const isAlt = (ri+pi)%2===1;
                   const bg    = isAlt?C_ALT:C_WHITE;
                   const phBg  = ph.statut==="invoiced"?C_GREEN:C_ORANGE;
-                  const row   = ws3.addRow([j.id,j.name,cust?cust.name:"",ph.id,ph.name,ph.pct/100,ph.amount,ph.statut==="invoiced"?"Facture":"En attente",ph.datePrevue||"",ph.datePaiement||"",ph.invoiceRef||""]);
+                  const row   = ws3.addRow([j.id,j.name,cust?cust.company||cust.name:"",ph.id,ph.name,ph.pct/100,ph.amount,ph.statut==="invoiced"?"Facture":"En attente",ph.datePrevue||"",ph.datePaiement||"",ph.invoiceRef||""]);
                   row.height  = 22;
                   row.eachCell((cell,cn)=>{
                     cell.border    = thinBorder;
@@ -2706,7 +3148,7 @@ const PageJobList = ({jobs,setJobs,customers}) => {
                           {job.bcRef&&<span style={{fontSize:10,padding:"1px 7px",borderRadius:10,background:C.orange_l,color:C.orange,fontWeight:600}}>{job.bcRef}</span>}
                         </div>
                       </td>
-                      <td style={{padding:"13px 14px",fontSize:13,color:C.text2}}>{cust?.name||"—"}</td>
+                      <td style={{padding:"13px 14px",fontSize:13,color:C.text2}}>{cust?.company||cust?.name||"—"}</td>
                       <td style={{padding:"13px 14px"}}>
                         <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:C.border2,color:C.text3}}>{job.jobType}</span>
                       </td>
@@ -2841,7 +3283,7 @@ const PageJobDetail = ({jobs,setJobs,customers}) => {
               </div>
               <div style={{fontSize:22,fontWeight:800,color:C.text,marginBottom:4}}>{job.name}</div>
               <div style={{fontSize:13,color:C.text3}}>
-                {cust?.name||"—"} · Site <strong>{job.site||"—"}</strong> · Chef: <strong>{job.chefProjet}</strong>
+                {cust?.company||cust?.name||"—"} · Site <strong>{job.site||"—"}</strong> · Chef: <strong>{job.chefProjet}</strong>
               </div>
               <div style={{fontSize:12,color:C.text4,marginTop:2}}>{fD(job.startDate)} — {fD(job.endDate)}</div>
             </div>
@@ -3183,60 +3625,6 @@ const PageJobDetail = ({jobs,setJobs,customers}) => {
 // ================================================================
 //  EXPORT PRINCIPAL — Router entre les pages
 // ================================================================
-export default function CleanITBooks() {
-  const [jobs,      setJobs]      = useState(INIT_JOBS);
-  const [customers, setCustomers] = useState(INIT_CUSTOMERS);
-  const { jobId, custId }         = useParams();
-  const navigate                  = useNavigate();
-  const loc                       = window.location.pathname;
-
-  // Route: /cleanitbooks/customers/*
-  if(loc.includes('/cleanitbooks/customers')){
-    if(loc.endsWith('/new')||loc.endsWith('/edit')){
-      return <PageCustomerForm customers={customers} setCustomers={setCustomers} invoices={INIT_INVOICES} jobs={jobs}/>;
-    }
-    if(custId){
-      return <PageCustomerDetail customers={customers} invoices={INIT_INVOICES} jobs={jobs}/>;
-    }
-    return <PageCustomerList customers={customers} setCustomers={setCustomers} invoices={INIT_INVOICES} jobs={jobs}/>;
-  }
-
-  // Route: /cleanitbooks/jobs/new
-  if(loc.endsWith('/new')){
-    return(
-      <PageJobNew
-        customers={CUSTOMERS}
-        onSave={(job)=>{setJobs(p=>[...p,job]);navigate('/cleanitbooks/jobs/'+job.id);}}
-        onCancel={()=>navigate('/cleanitbooks/jobs')}
-      />
-    );
-  }
-
-  // Route: /cleanitbooks/jobs/:jobId/edit
-  if(loc.endsWith('/edit')&&jobId){
-    const job = jobs.find(j=>j.id===jobId);
-    return(
-      <PageJobNew
-        initial={job}
-        customers={CUSTOMERS}
-        onSave={(updated)=>{setJobs(p=>p.map(j=>j.id===updated.id?updated:j));navigate('/cleanitbooks/jobs/'+updated.id);}}
-        onCancel={()=>navigate('/cleanitbooks/jobs/'+jobId)}
-      />
-    );
-  }
-
-  // Route: /cleanitbooks/jobs/:jobId
-  if(jobId){
-    return <PageJobDetail jobs={jobs} setJobs={setJobs} customers={CUSTOMERS}/>;
-  }
-
-  // Route: /cleanitbooks ou /cleanitbooks/jobs
-  return <PageJobList jobs={jobs} setJobs={setJobs} customers={CUSTOMERS}/>;
-}
-
-// ================================================================
-//  PAGE CREATION / EDITION JOB — vraie page /cleanitbooks/jobs/new
-// ================================================================
 const PageJobNew = ({initial,customers,onSave,onCancel}) => {
   const navigate = useNavigate();
   const isEdit   = !!initial;
@@ -3364,7 +3752,7 @@ const PageJobNew = ({initial,customers,onSave,onCancel}) => {
                 <Inp value={name} onChange={setName} placeholder="Ex: Installation 5G NR DLA-001"/>
               </Field>
               <Field label="Client" required>
-                <Sel value={custId} onChange={setCustId} placeholder="Selectionner un client" options={customers.map(c=>({v:c.id,l:c.name}))}/>
+                <Sel value={custId} onChange={setCustId} placeholder="Selectionner un client" options={customers.map(c=>({v:c.id,l:c.company||c.name||c.id}))}/>
               </Field>
               <Field label="Type de job" required>
                 <Sel value={jobType} onChange={setJobType} placeholder="Selectionner le type" options={JOB_TYPES}/>
@@ -3611,3 +3999,72 @@ const PageJobNew = ({initial,customers,onSave,onCancel}) => {
     </div>
   );
 };
+
+export default function CleanITBooks() {
+  const [jobs,      setJobs]      = useState(INIT_JOBS);
+  const [customers, setCustomers] = useState(INIT_CUSTOMERS);
+  const params   = useParams();
+  const navigate = useNavigate();
+  const loc      = window.location.pathname;
+
+  // Route: /cleanitbooks/vendors/*
+  if(loc.includes('/vendors')){
+    const vendorId = params.vendorId;
+    if(vendorId){
+      return <PageVendorDetail vendors={INIT_VENDORS} jobs={jobs}/>;
+    }
+    return <PageVendorList vendors={INIT_VENDORS} setVendors={()=>{}} jobs={jobs}/>;
+  }
+
+  // Route: /cleanitbooks/customers/*
+  if(loc.includes('/customers')){
+    const custId = params.custId;
+    if(loc.endsWith('/new')){
+      return <PageCustomerForm customers={customers} setCustomers={setCustomers} jobs={jobs}/>;
+    }
+    if(loc.endsWith('/edit')&&custId){
+      return <PageCustomerForm customers={customers} setCustomers={setCustomers} jobs={jobs}/>;
+    }
+    if(custId){
+      return <PageCustomerDetail customers={customers} invoices={[]} jobs={jobs}/>;
+    }
+    return <PageCustomerList customers={customers} setCustomers={setCustomers} invoices={[]} jobs={jobs}/>;
+  }
+
+  const jobId = params.jobId;
+  // Route: /cleanitbooks/jobs/new
+  if(loc.endsWith('/new')){
+    return(
+      <PageJobNew
+        customers={customers}
+        onSave={(job)=>{setJobs(p=>[...p,job]);navigate('/cleanitbooks/jobs/'+job.id);}}
+        onCancel={()=>navigate('/cleanitbooks/jobs')}
+      />
+    );
+  }
+
+  // Route: /cleanitbooks/jobs/:jobId/edit
+  if(loc.endsWith('/edit')&&jobId){
+    const job = jobs.find(j=>j.id===jobId);
+    return(
+      <PageJobNew
+        initial={job}
+        customers={customers}
+        onSave={(updated)=>{setJobs(p=>p.map(j=>j.id===updated.id?updated:j));navigate('/cleanitbooks/jobs/'+updated.id);}}
+        onCancel={()=>navigate('/cleanitbooks/jobs/'+jobId)}
+      />
+    );
+  }
+
+  // Route: /cleanitbooks/jobs/:jobId
+  if(jobId){
+    return <PageJobDetail jobs={jobs} setJobs={setJobs} customers={customers}/>;
+  }
+
+  // Route: /cleanitbooks ou /cleanitbooks/jobs
+  return <PageJobList jobs={jobs} setJobs={setJobs} customers={customers}/>;
+}
+
+// ================================================================
+//  PAGE CREATION / EDITION JOB — vraie page /cleanitbooks/jobs/new
+// ================================================================
