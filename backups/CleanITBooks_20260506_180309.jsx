@@ -4057,6 +4057,816 @@ const PageJobNew = ({initial,customers,onSave,onCancel}) => {
   );
 };
 
+// ================================================================
+//  FACTURATION AR
+// ================================================================
+const INIT_INVOICES_AR = [
+  {id:"INV-2024-001",customerId:"C001",jobId:"JOB-001",date:"2024-01-15",dueDate:"2024-02-15",terms:"Net 30",poNumber:"PO-MTN-001",memo:"Installation 5G NR DLA-001 Phase 1",currency:"FCFA",
+   lines:[{desc:"Service Installation 5G NR",qty:1,rate:40000000,amount:40000000,taxable:true},{desc:"Main oeuvre 15 jours",qty:15,rate:350000,amount:5250000,taxable:true}],
+   subtotal:45250000,taxRate:0.1925,taxAmount:8685625,total:53935625,amountPaid:53935625,balance:0,status:"Paid",
+   payments:[{date:"2024-01-25",amount:53935625,method:"Virement bancaire",ref:"VIR-MTN-001"}]},
+  {id:"INV-2024-002",customerId:"C002",jobId:"JOB-002",date:"2024-01-28",dueDate:"2024-03-13",terms:"Net 45",poNumber:"",memo:"Maintenance 4G LTE YDE-001",currency:"FCFA",
+   lines:[{desc:"Service Maintenance 4G LTE",qty:1,rate:7200000,amount:7200000,taxable:true},{desc:"Configuration et tests",qty:1,rate:1350000,amount:1350000,taxable:true}],
+   subtotal:8550000,taxRate:0.1925,taxAmount:1645875,total:10195875,amountPaid:0,balance:10195875,status:"Overdue",
+   payments:[]},
+  {id:"INV-2024-003",customerId:"C004",jobId:"JOB-003",date:"2024-02-01",dueDate:"2024-04-01",terms:"Net 60",poNumber:"GOV-001",memo:"Infrastructure GAR-001 Acompte 30%",currency:"FCFA",
+   lines:[{desc:"Infrastructure telecom Garoua",qty:1,rate:32000000,amount:32000000,taxable:false}],
+   subtotal:32000000,taxRate:0,taxAmount:0,total:32000000,amountPaid:9600000,balance:22400000,status:"Partial",
+   payments:[{date:"2024-02-15",amount:9600000,method:"Virement Tresor",ref:"TRESOR-001"}]},
+  {id:"INV-2024-004",customerId:"C005",jobId:"JOB-004",date:"2024-03-10",dueDate:"2024-05-09",terms:"Net 60",poNumber:"CAM-FO-001",memo:"Fibre Optique BFN-001",currency:"FCFA",
+   lines:[{desc:"Installation fibre optique 50km",qty:50,rate:1200000,amount:60000000,taxable:true}],
+   subtotal:60000000,taxRate:0.1925,taxAmount:11550000,total:71550000,amountPaid:0,balance:71550000,status:"Sent",
+   payments:[]},
+];
+
+const STATUS_INV = {
+  "Paid":    {c:C.green,  bg:C.green_l,  l:"Paye"},
+  "Partial": {c:C.orange, bg:C.orange_l, l:"Partiel"},
+  "Overdue": {c:C.red,    bg:C.red_l,    l:"En retard"},
+  "Sent":    {c:C.blue,   bg:C.blue_l,   l:"Envoye"},
+  "Draft":   {c:C.text3,  bg:C.border2,  l:"Brouillon"},
+};
+
+const PageInvoiceList = ({invoices,customers,jobs}) => {
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [filtre, setFiltre] = useState("Tous");
+  const filtered = invoices.filter(inv=>{
+    const cust=customers.find(c=>c.id===inv.customerId);
+    const ms=!search||(inv.id+(cust?cust.company||cust.name:"")).toLowerCase().includes(search.toLowerCase());
+    return ms&&(filtre==="Tous"||inv.status===filtre);
+  });
+  const totalCA=filtered.reduce((s,i)=>s+i.total,0);
+  const totalPaid=filtered.reduce((s,i)=>s+i.amountPaid,0);
+  const totalBalance=filtered.reduce((s,i)=>s+i.balance,0);
+  const totalOverdue=filtered.filter(i=>i.status==="Overdue").reduce((s,i)=>s+i.balance,0);
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+      <CIBTopBar title="Facturation AR" icon="invoice" color={C.green}>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <div style={{display:"flex",alignItems:"center",gap:7,background:C.bg,border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
+            <Ico n="search" s={13} c={C.text4}/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher..."
+              style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:150,fontFamily:"inherit"}}/>
+          </div>
+          <Btn label="Nouvelle facture" variant="primary" sm icon="plus" onClick={()=>navigate("/cleanitbooks/invoices/new")}/>
+        </div>
+      </CIBTopBar>
+      <div style={{padding:"24px",animation:"fadeUp .3s ease"}}>
+        {totalOverdue>0&&(
+          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 18px",background:"#FEF3C7",border:"1px solid "+C.orange+"40",borderRadius:6,marginBottom:18}}>
+            <Ico n="alert" s={16} c={C.orange}/>
+            <span style={{fontSize:13,color:C.text2,flex:1}}><strong style={{color:C.orange}}>Alerte : </strong>{filtered.filter(i=>i.status==="Overdue").length} facture(s) en retard — {fM(totalOverdue)} F</span>
+          </div>
+        )}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+          {[{l:"CA total",v:fM(totalCA)+" F",c:C.blue,icon:"chart"},{l:"Encaisse",v:fM(totalPaid)+" F",c:C.green,icon:"receive"},{l:"Encours AR",v:fM(totalBalance)+" F",c:C.orange,icon:"invoice"},{l:"En retard",v:fM(totalOverdue)+" F",c:C.red,icon:"alert"}].map((kpi,i)=>(
+            <div key={i} style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"14px 16px",borderTop:"3px solid "+kpi.c}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontSize:10,color:C.text3,textTransform:"uppercase",letterSpacing:.4,fontWeight:600}}>{kpi.l}</span>
+                <div style={{width:28,height:28,borderRadius:4,background:kpi.c+"15",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n={kpi.icon} s={14} c={kpi.c}/></div>
+              </div>
+              <div style={{fontSize:20,fontWeight:700,color:kpi.c}}>{kpi.v}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:14}}>
+          {["Tous","Sent","Partial","Paid","Overdue","Draft"].map(f=>(
+            <button key={f} onClick={()=>setFiltre(f)}
+              style={{padding:"7px 14px",border:"1px solid "+(filtre===f?C.green:C.border),borderRadius:4,background:filtre===f?C.green:C.white,color:filtre===f?"white":C.text3,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+              {f==="Tous"?"Toutes":f==="Sent"?"Envoyees":f==="Partial"?"Partielles":f==="Paid"?"Payees":f==="Overdue"?"En retard":"Brouillons"}
+            </button>
+          ))}
+        </div>
+        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead>
+              <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                {["N Facture","Client","Date","Echeance","Total TTC","Paye","Solde","Statut","Actions"].map((h,i)=>(
+                  <th key={i} style={{padding:"10px 14px",textAlign:i>=4&&i<=6?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length===0&&<tr><td colSpan={9} style={{padding:"48px",textAlign:"center",color:C.text4}}>Aucune facture</td></tr>}
+              {filtered.map((inv,i)=>{
+                const cust=customers.find(c=>c.id===inv.customerId);
+                const sc=STATUS_INV[inv.status]||{c:C.text3,bg:C.border2,l:inv.status};
+                return(
+                  <tr key={inv.id} style={{borderBottom:"1px solid "+C.border2,cursor:"pointer",background:i%2===1?"#FAFAFA":C.white}}
+                    onMouseEnter={e=>e.currentTarget.style.background=C.blue_l}
+                    onMouseLeave={e=>e.currentTarget.style.background=i%2===1?"#FAFAFA":C.white}
+                    onClick={()=>navigate("/cleanitbooks/invoices/"+inv.id)}>
+                    <td style={{padding:"12px 14px",fontWeight:700,color:C.blue}}>{inv.id}</td>
+                    <td style={{padding:"12px 14px",fontSize:13}}>{cust?cust.company||cust.name:"—"}</td>
+                    <td style={{padding:"12px 14px",color:C.text3,fontSize:12}}>{fD2(inv.date)}</td>
+                    <td style={{padding:"12px 14px",color:inv.status==="Overdue"?C.red:C.text3,fontSize:12}}>{fD2(inv.dueDate)}</td>
+                    <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700}}>{fN(inv.total)} {inv.currency}</td>
+                    <td style={{padding:"12px 14px",textAlign:"right",color:C.green,fontWeight:600}}>{inv.amountPaid>0?fN(inv.amountPaid)+" "+inv.currency:"—"}</td>
+                    <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700,color:inv.balance>0?C.orange:C.green}}>{inv.balance>0?fN(inv.balance)+" "+inv.currency:"—"}</td>
+                    <td style={{padding:"12px 14px"}}><span style={{fontSize:11,padding:"3px 9px",borderRadius:10,background:sc.bg,color:sc.c,fontWeight:600}}>{sc.l}</span></td>
+                    <td style={{padding:"12px 14px"}} onClick={e=>e.stopPropagation()}>
+                      <div style={{display:"flex",gap:4}}>
+                        <Btn label="Voir" variant="light" sm onClick={()=>navigate("/cleanitbooks/invoices/"+inv.id)}/>
+                        {inv.balance>0&&<Btn label="Paiement" variant="primary" sm/>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}>
+                <td colSpan={4} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>TOTAL — {filtered.length} facture(s)</td>
+                <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.blue,fontSize:14}}>{fN(totalCA)} F</td>
+                <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.green}}>{fN(totalPaid)} F</td>
+                <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:totalBalance>0?C.orange:C.green}}>{fN(totalBalance)} F</td>
+                <td colSpan={2}/>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PageInvoiceDetail = ({invoices,customers,jobs}) => {
+  const navigate    = useNavigate();
+  const {invoiceId} = useParams();
+  const inv  = invoices.find(i=>i.id===invoiceId);
+  const cust = inv?customers.find(c=>c.id===inv.customerId):null;
+  const job  = inv?jobs.find(j=>j.id===inv.jobId):null;
+  if(!inv) return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:C.bg}}>
+      <div style={{fontSize:18,color:C.text4}}>Facture introuvable</div>
+      <Btn label="Retour" variant="primary" onClick={()=>navigate("/cleanitbooks/invoices")}/>
+    </div>
+  );
+  const sc = STATUS_INV[inv.status]||{c:C.text3,bg:C.border2,l:inv.status};
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+      <CIBTopBar title={"Facture "+inv.id} icon="invoice" color={C.green}>
+        <div style={{display:"flex",gap:8}}>
+          <Btn label="Retour" variant="light" sm onClick={()=>navigate("/cleanitbooks/invoices")}/>
+          {inv.balance>0&&<Btn label="Recevoir paiement" variant="primary" sm icon="receive"/>}
+        </div>
+      </CIBTopBar>
+      <div style={{padding:"24px",maxWidth:900,margin:"0 auto",animation:"fadeUp .3s ease"}}>
+        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden",marginBottom:20}}>
+          <div style={{padding:"16px 24px",background:sc.bg,borderBottom:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:11,color:sc.c,fontWeight:700,textTransform:"uppercase",marginBottom:4}}>Facture Client</div>
+              <div style={{fontSize:28,fontWeight:800,color:sc.c}}>{fN(inv.total)} {inv.currency}</div>
+            </div>
+            <span style={{fontSize:13,padding:"5px 14px",borderRadius:20,background:sc.c,color:"white",fontWeight:700}}>{sc.l}</span>
+          </div>
+          <div style={{padding:"20px 24px"}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,marginBottom:20}}>
+              <div>
+                <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",letterSpacing:.4,marginBottom:8,fontWeight:600}}>Facture a</div>
+                <div style={{fontSize:14,fontWeight:700,color:C.text}}>{cust?cust.company||cust.name:"—"}</div>
+                <div style={{fontSize:12,color:C.text3}}>{cust?cust.contact:"—"} · {cust?cust.city:"—"}</div>
+              </div>
+              <div>
+                <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",letterSpacing:.4,marginBottom:8,fontWeight:600}}>Details</div>
+                {[{l:"N Facture",v:inv.id},{l:"Date",v:fD(inv.date)},{l:"Echeance",v:fD(inv.dueDate)},{l:"Conditions",v:inv.terms}].map(it=>(
+                  <div key={it.l} style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                    <span style={{fontSize:12,color:C.text3}}>{it.l}</span>
+                    <span style={{fontSize:12,fontWeight:600,color:C.text}}>{it.v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{border:"1px solid "+C.border,borderRadius:4,overflow:"hidden",marginBottom:20}}>
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead>
+                  <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                    {["Description","Qte","Prix unitaire","TVA","Montant"].map((h,i)=>(
+                      <th key={i} style={{padding:"10px 14px",textAlign:i>=1?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {inv.lines.map((line,i)=>(
+                    <tr key={i} style={{borderBottom:"1px solid "+C.border2,background:i%2===1?"#FAFAFA":C.white}}>
+                      <td style={{padding:"12px 14px",fontSize:13}}>{line.desc}</td>
+                      <td style={{padding:"12px 14px",textAlign:"right",color:C.text3}}>{line.qty}</td>
+                      <td style={{padding:"12px 14px",textAlign:"right"}}>{fN(line.rate)} {inv.currency}</td>
+                      <td style={{padding:"12px 14px",textAlign:"right",color:line.taxable?C.text3:C.text4}}>{line.taxable?"19.25%":"—"}</td>
+                      <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700,color:C.blue}}>{fN(line.amount)} {inv.currency}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{display:"flex",justifyContent:"flex-end"}}>
+              <div style={{width:300}}>
+                {[
+                  {l:"Sous-total HT",v:fN(inv.subtotal)+" "+inv.currency,c:C.text,big:false},
+                  {l:"TVA 19.25%",v:inv.taxAmount>0?fN(inv.taxAmount)+" "+inv.currency:"Exonere",c:C.red,big:false},
+                  {l:"TOTAL TTC",v:fN(inv.total)+" "+inv.currency,c:C.blue,big:true},
+                  ...(inv.amountPaid>0?[
+                    {l:"Acomptes recus",v:"- "+fN(inv.amountPaid)+" "+inv.currency,c:C.green,big:false},
+                    {l:"SOLDE DU",v:fN(inv.balance)+" "+inv.currency,c:inv.balance>0?C.orange:C.green,big:true},
+                  ]:[]),
+                ].map((t,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:t.big?"none":"1px solid "+C.border2}}>
+                    <span style={{fontSize:t.big?13:12,color:C.text3,fontWeight:t.big?700:400}}>{t.l}</span>
+                    <span style={{fontSize:t.big?18:13,fontWeight:t.big?800:600,color:t.c}}>{t.v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        {inv.payments&&inv.payments.length>0&&(
+          <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+            <div style={{padding:"12px 16px",borderBottom:"1px solid "+C.border,fontSize:13,fontWeight:700,color:C.text}}>Paiements recus</div>
+            {inv.payments.map((p,i)=>(
+              <div key={i} style={{padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:13,fontWeight:600}}>{fD(p.date)}</div>
+                  <div style={{fontSize:11,color:C.text4}}>{p.method} · {p.ref}</div>
+                </div>
+                <div style={{fontSize:16,fontWeight:700,color:C.green}}>{fN(p.amount)} {inv.currency}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ================================================================
+//  FORMULAIRE NOUVEAU FOURNISSEUR
+// ================================================================
+const PageVendorNew = ({vendors,setVendors}) => {
+  const navigate = useNavigate();
+  const [company,  setCompany]  = useState("");
+  const [contact,  setContact]  = useState("");
+  const [email,    setEmail]    = useState("");
+  const [phone,    setPhone]    = useState("");
+  const [city,     setCity]     = useState("");
+  const [country,  setCountry]  = useState("Cameroun");
+  const [type,     setType]     = useState("Equipementier");
+  const [terms,    setTerms]    = useState("Net 30");
+  const [currency, setCurrency] = useState("FCFA");
+  const [accountNum,setAccountNum]=useState("");
+  const [notes,    setNotes]    = useState("");
+
+  const save = () => {
+    if(!company){alert("Nom obligatoire");return;}
+    const v = {
+      id:"V"+String(Date.now()).slice(-6),
+      company,contact,email,phone,city,country,
+      type,terms,currency,accountNum,notes,
+      title:"",mobile:"",address:"",region:"",taxId:"",
+      creditLimit:0,balance:0,status:"Active",
+      dateCreation:TODAY,bills:[],
+    };
+    setVendors(p=>[...p,v]);
+    navigate("/cleanitbooks/vendors/"+v.id);
+  };
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`*{box-sizing:border-box}`}</style>
+      <CIBTopBar title="Nouveau fournisseur" icon="vendor" color={C.orange}>
+        <div style={{display:"flex",gap:8}}>
+          <Btn label="Annuler" variant="light" sm onClick={()=>navigate("/cleanitbooks/vendors")}/>
+          <Btn label="Creer le fournisseur" variant="primary" sm icon="check" onClick={save}/>
+        </div>
+      </CIBTopBar>
+      <div style={{maxWidth:720,margin:"0 auto",padding:"32px 24px"}}>
+        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px"}}>
+          <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:20}}>Informations fournisseur</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+            <Field label="Nom de l entreprise" required span>
+              <Inp value={company} onChange={setCompany} placeholder="Ex: Nokia Networks"/>
+            </Field>
+            <Field label="Type">
+              <Sel value={type} onChange={setType} options={VENDOR_TYPES}/>
+            </Field>
+            <Field label="Contact">
+              <Inp value={contact} onChange={setContact} placeholder="Nom du contact"/>
+            </Field>
+            <Field label="Email">
+              <Inp type="email" value={email} onChange={setEmail} placeholder="email@exemple.com"/>
+            </Field>
+            <Field label="Telephone">
+              <Inp value={phone} onChange={setPhone} placeholder="+237 222 XXX XXX"/>
+            </Field>
+            <Field label="Ville">
+              <Inp value={city} onChange={setCity} placeholder="Douala / Yaounde"/>
+            </Field>
+            <Field label="Pays">
+              <Inp value={country} onChange={setCountry} placeholder="Cameroun"/>
+            </Field>
+            <Field label="N de compte">
+              <Inp value={accountNum} onChange={setAccountNum} placeholder="NOK-CM-001"/>
+            </Field>
+            <Field label="Conditions de paiement">
+              <Sel value={terms} onChange={setTerms} options={["Net 15","Net 30","Net 45","Net 60","Net 90"]}/>
+            </Field>
+            <Field label="Devise">
+              <Sel value={currency} onChange={setCurrency} options={["FCFA","USD","EUR","CNY"]}/>
+            </Field>
+            <Field label="Notes" span>
+              <Txt value={notes} onChange={setNotes} placeholder="Notes internes..." rows={3}/>
+            </Field>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ================================================================
+//  FORMULAIRE NOUVELLE FACTURE
+// ================================================================
+const PageInvoiceNew = ({invoices,setInvoices,customers,jobs}) => {
+  const navigate = useNavigate();
+  const [custId,   setCustId]   = useState("");
+  const [jobId,    setJobId]    = useState("");
+  const [date,     setDate]     = useState(TODAY);
+  const [dueDate,  setDueDate]  = useState("");
+  const [terms,    setTerms]    = useState("Net 30");
+  const [poNum,    setPoNum]    = useState("");
+  const [memo,     setMemo]     = useState("");
+  const [currency, setCurrency] = useState("FCFA");
+  const [lines,    setLines]    = useState([{desc:"",qty:1,rate:0,amount:0,taxable:true}]);
+
+  const cust = customers.find(c=>c.id===custId);
+  const custJobs = jobs.filter(j=>j.customerId===custId);
+
+  const updLine = (i,k,v) => setLines(p=>p.map((l,idx)=>{
+    if(idx!==i) return l;
+    const nl={...l,[k]:k==="qty"||k==="rate"?+v:v};
+    if(k==="qty"||k==="rate") nl.amount=nl.qty*nl.rate;
+    return nl;
+  }));
+
+  const subtotal = lines.reduce((s,l)=>s+l.amount,0);
+  const taxAmt   = cust&&cust.taxCode==="TVA"?lines.filter(l=>l.taxable).reduce((s,l)=>s+l.amount*0.1925,0):0;
+  const total    = subtotal+taxAmt;
+
+  const save = () => {
+    if(!custId){alert("Client obligatoire");return;}
+    const inv = {
+      id:"INV-"+new Date().getFullYear()+"-"+String(Math.floor(Math.random()*900+100)).padStart(3,"0"),
+      customerId:custId,jobId,date,dueDate,terms,poNumber:poNum,memo,currency,lines,
+      subtotal,taxRate:0.1925,taxAmount:taxAmt,total,amountPaid:0,balance:total,
+      status:"Draft",payments:[],
+    };
+    setInvoices(p=>[...p,inv]);
+    navigate("/cleanitbooks/invoices/"+inv.id);
+  };
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`*{box-sizing:border-box}`}</style>
+      <CIBTopBar title="Nouvelle facture" icon="invoice" color={C.green}>
+        <div style={{display:"flex",gap:8}}>
+          <Btn label="Annuler" variant="light" sm onClick={()=>navigate("/cleanitbooks/invoices")}/>
+          <Btn label="Enregistrer brouillon" variant="default" sm onClick={save}/>
+          <Btn label="Enregistrer et envoyer" variant="primary" sm icon="mail" onClick={save}/>
+        </div>
+      </CIBTopBar>
+      <div style={{maxWidth:860,margin:"0 auto",padding:"32px 24px"}}>
+        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px",marginBottom:16}}>
+          <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:16,marginBottom:20}}>
+            <Field label="Client" required>
+              <Sel value={custId} onChange={v=>{setCustId(v);setCurrency((customers.find(c=>c.id===v)||{currency:"FCFA"}).currency);}} placeholder="Selectionner un client" options={customers.map(c=>({v:c.id,l:c.company||c.name}))}/>
+            </Field>
+            <Field label="Date"><Inp type="date" value={date} onChange={setDate}/></Field>
+            <Field label="Conditions"><Sel value={terms} onChange={setTerms} options={["Net 15","Net 30","Net 45","Net 60","Net 90"]}/></Field>
+            {custId&&custJobs.length>0&&(
+              <Field label="Job lie">
+                <Sel value={jobId} onChange={setJobId} placeholder="Aucun job" options={custJobs.map(j=>({v:j.id,l:j.name}))}/>
+              </Field>
+            )}
+            <Field label="Date echeance"><Inp type="date" value={dueDate} onChange={setDueDate}/></Field>
+            <Field label="N PO client"><Inp value={poNum} onChange={setPoNum} placeholder="PO du client"/></Field>
+            <Field label="Devise"><Sel value={currency} onChange={setCurrency} options={["FCFA","USD","EUR"]}/></Field>
+          </div>
+          <div style={{border:"1px solid "+C.border,borderRadius:4,overflow:"hidden",marginBottom:16}}>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead>
+                <tr style={{background:C.bg,borderBottom:"2px solid "+C.border}}>
+                  {["Description","Qte","Prix unitaire","TVA","Montant",""].map((h,i)=>(
+                    <th key={i} style={{padding:"9px 12px",textAlign:i>=1&&i<=4?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((l,i)=>(
+                  <tr key={i} style={{borderBottom:"1px solid "+C.border2}}>
+                    <td style={{padding:"6px 8px"}}><Inp value={l.desc} onChange={v=>updLine(i,"desc",v)} placeholder="Description" small/></td>
+                    <td style={{padding:"6px 8px",width:70}}><Inp type="number" value={l.qty} onChange={v=>updLine(i,"qty",v)} small/></td>
+                    <td style={{padding:"6px 8px",width:140}}><Inp type="number" value={l.rate} onChange={v=>updLine(i,"rate",v)} small/></td>
+                    <td style={{padding:"6px 10px",textAlign:"center",width:60}}>
+                      <input type="checkbox" checked={l.taxable} onChange={e=>updLine(i,"taxable",e.target.checked)} style={{width:15,height:15,accentColor:C.green}}/>
+                    </td>
+                    <td style={{padding:"6px 12px",textAlign:"right",fontWeight:600,color:C.blue,width:130}}>{fN(l.amount)} {currency}</td>
+                    <td style={{padding:"6px 8px",width:30}}>
+                      {lines.length>1&&<button onClick={()=>setLines(p=>p.filter((_,xi)=>xi!==i))} style={{width:22,height:22,borderRadius:3,border:"1px solid "+C.border,background:C.white,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="close" s={11} c={C.text3}/></button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{padding:"8px 10px",borderTop:"1px solid "+C.border2,background:C.bg}}>
+              <Btn label="+ Ajouter une ligne" variant="light" sm onClick={()=>setLines(p=>[...p,{desc:"",qty:1,rate:0,amount:0,taxable:true}])}/>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 280px",gap:16}}>
+            <Field label="Memo"><Txt value={memo} onChange={setMemo} placeholder="Message ou note pour la facture..."/></Field>
+            <div style={{background:C.bg,borderRadius:4,border:"1px solid "+C.border,padding:"14px 16px"}}>
+              {[{l:"Sous-total HT",v:fN(subtotal)+" "+currency,c:C.text,big:false},{l:"TVA 19.25%",v:taxAmt>0?fN(Math.round(taxAmt))+" "+currency:"Exonere",c:C.red,big:false},{l:"TOTAL TTC",v:fN(Math.round(total))+" "+currency,c:C.blue,big:true}].map((t,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:t.big?"none":"1px solid "+C.border2}}>
+                  <span style={{fontSize:t.big?13:12,color:C.text3,fontWeight:t.big?600:400}}>{t.l}</span>
+                  <span style={{fontSize:t.big?20:13,fontWeight:t.big?800:600,color:t.c}}>{t.v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ================================================================
+//  DEPENSES AP — Bills fournisseurs
+// ================================================================
+const INIT_BILLS_AP = [
+  {id:"BILL-2024-001",vendorId:"V001",date:"2024-01-15",dueDate:"2024-03-15",refNum:"HW-INV-2024-143",memo:"Equipements 5G NR BC-2024-143",currency:"FCFA",jobId:"JOB-001",
+   lines:[{account:"604",desc:"BBU 5900 5G NR x2",amount:50000000},{account:"604",desc:"RRU 5258 4T4R x6",amount:51000000}],
+   total:101000000,amountPaid:28500000,balance:72500000,status:"Partial",
+   payments:[{date:"2024-01-20",amount:28500000,method:"Virement SWIFT",ref:"SWIFT-001"}]},
+  {id:"BILL-2024-002",vendorId:"V002",date:"2024-02-01",dueDate:"2024-03-15",refNum:"NOK-INV-2024-001",memo:"Antennes Nokia 4G LTE x12",currency:"FCFA",jobId:"JOB-002",
+   lines:[{account:"604",desc:"Antennes Nokia MIMO 4G LTE x12",amount:9232000}],
+   total:9232000,amountPaid:0,balance:9232000,status:"Unpaid",payments:[]},
+  {id:"BILL-2024-003",vendorId:"V004",date:"2024-01-31",dueDate:"2024-02-15",refNum:"TOT-JAN-2024",memo:"Carburant vehicules terrain janvier",currency:"FCFA",jobId:null,
+   lines:[{account:"624",desc:"Carburant vehicules terrain",amount:850000}],
+   total:850000,amountPaid:850000,balance:0,status:"Paid",
+   payments:[{date:"2024-02-05",amount:850000,method:"Cheque",ref:"CHQ-001"}]},
+  {id:"BILL-2024-004",vendorId:"V005",date:"2024-02-15",dueDate:"2024-03-15",refNum:"CAM-Q1-2024",memo:"Liaisons fibre optique backbone Q1",currency:"FCFA",jobId:null,
+   lines:[{account:"626",desc:"Liaisons fibre optique permanentes",amount:1200000}],
+   total:1200000,amountPaid:0,balance:1200000,status:"Unpaid",payments:[]},
+  {id:"BILL-2024-005",vendorId:"V003",date:"2024-02-20",dueDate:"2024-03-20",refNum:"ERI-INV-2024-001",memo:"Equipements Ericsson GAR-001",currency:"EUR",jobId:"JOB-003",
+   lines:[{account:"604",desc:"Equipements reseau Ericsson",amount:5610000}],
+   total:5610000,amountPaid:5610000,balance:0,status:"Paid",
+   payments:[{date:"2024-03-01",amount:5610000,method:"Virement SEPA",ref:"SEPA-001"}]},
+];
+
+const STATUS_BILL = {
+  "Paid":    {c:C.green,  bg:C.green_l,  l:"Paye"},
+  "Partial": {c:C.orange, bg:C.orange_l, l:"Partiel"},
+  "Unpaid":  {c:C.red,    bg:C.red_l,    l:"Non paye"},
+  "Draft":   {c:C.text3,  bg:C.border2,  l:"Brouillon"},
+};
+
+const PageBillList = ({bills,vendors,jobs}) => {
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [filtre, setFiltre] = useState("Tous");
+
+  const filtered = bills.filter(b=>{
+    const v=vendors.find(x=>x.id===b.vendorId);
+    const ms=!search||(b.id+(v?v.company:"")).toLowerCase().includes(search.toLowerCase());
+    return ms&&(filtre==="Tous"||b.status===filtre);
+  });
+
+  const totalAP     = filtered.reduce((s,b)=>s+b.total,0);
+  const totalPaid   = filtered.reduce((s,b)=>s+b.amountPaid,0);
+  const totalBalance= filtered.reduce((s,b)=>s+b.balance,0);
+  const overdue     = filtered.filter(b=>b.balance>0&&b.dueDate&&new Date(b.dueDate)<new Date());
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+      <CIBTopBar title="Depenses AP — Bills fournisseurs" icon="bill" color={C.orange}>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <div style={{display:"flex",alignItems:"center",gap:7,background:C.bg,border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
+            <Ico n="search" s={13} c={C.text4}/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher bill..."
+              style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:150,fontFamily:"inherit"}}/>
+          </div>
+          <Btn label="Exporter" variant="light" sm icon="download" onClick={async ()=>{
+            const ExcelJS=(await import("exceljs")).default;
+            const wb=new ExcelJS.Workbook();
+            const ws=wb.addWorksheet("Bills AP");
+            ws.columns=[{key:"id",width:16,header:"N Bill"},{key:"vendor",width:24,header:"Fournisseur"},{key:"date",width:13,header:"Date"},{key:"echeance",width:13,header:"Echeance"},{key:"total",width:18,header:"Total"},{key:"paye",width:16,header:"Paye"},{key:"solde",width:16,header:"Solde"},{key:"statut",width:14,header:"Statut"}];
+            ws.getRow(1).eachCell(cell=>{cell.font={name:"Calibri",bold:true,color:{argb:"FFFFFFFF"},size:10};cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFE27000"}};cell.alignment={horizontal:"center",vertical:"middle"};});
+            filtered.forEach((b,i)=>{
+              const v=vendors.find(x=>x.id===b.vendorId);
+              const row=ws.addRow({id:b.id,vendor:v?v.company:"",date:b.date,echeance:b.dueDate,total:b.total,paye:b.amountPaid,solde:b.balance,statut:b.status});
+              if(i%2===1) row.eachCell(cell=>cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFFEF3E2"}});
+            });
+            const buf=await wb.xlsx.writeBuffer();
+            const a=document.createElement("a");
+            a.href=URL.createObjectURL(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+            a.download="Bills_AP_"+new Date().toISOString().split("T")[0]+".xlsx";a.click();
+          }}/>
+          <Btn label="Saisir un bill" variant="primary" sm icon="plus" onClick={()=>navigate("/cleanitbooks/bills/new")}/>
+        </div>
+      </CIBTopBar>
+
+      <div style={{padding:"24px",animation:"fadeUp .3s ease"}}>
+        {overdue.length>0&&(
+          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 18px",background:"#FEF3C7",border:"1px solid "+C.orange+"40",borderRadius:6,marginBottom:18}}>
+            <Ico n="alert" s={16} c={C.orange}/>
+            <span style={{fontSize:13,color:C.text2,flex:1}}><strong style={{color:C.orange}}>Alerte AP : </strong>{overdue.length} bill(s) en retard — {fM(overdue.reduce((s,b)=>s+b.balance,0))} F</span>
+          </div>
+        )}
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+          {[
+            {l:"Total AP",       v:fM(totalAP)+" F",      c:C.orange, icon:"bill"},
+            {l:"Paye",           v:fM(totalPaid)+" F",    c:C.green,  icon:"check"},
+            {l:"Solde du",       v:fM(totalBalance)+" F", c:C.red,    icon:"alert"},
+            {l:"Bills en retard",v:overdue.length,         c:C.red,    icon:"calendar"},
+          ].map((kpi,i)=>(
+            <div key={i} style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"14px 16px",borderTop:"3px solid "+kpi.c}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontSize:10,color:C.text3,textTransform:"uppercase",letterSpacing:.4,fontWeight:600}}>{kpi.l}</span>
+                <div style={{width:28,height:28,borderRadius:4,background:kpi.c+"15",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n={kpi.icon} s={14} c={kpi.c}/></div>
+              </div>
+              <div style={{fontSize:20,fontWeight:700,color:kpi.c}}>{kpi.v}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{display:"flex",gap:8,marginBottom:14}}>
+          {["Tous","Unpaid","Partial","Paid"].map(f=>(
+            <button key={f} onClick={()=>setFiltre(f)}
+              style={{padding:"7px 14px",border:"1px solid "+(filtre===f?C.orange:C.border),borderRadius:4,background:filtre===f?C.orange:C.white,color:filtre===f?"white":C.text3,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+              {f==="Tous"?"Tous":f==="Unpaid"?"Non payes":f==="Partial"?"Partiels":"Payes"}
+            </button>
+          ))}
+        </div>
+
+        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead>
+              <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                {["N Bill","Fournisseur","Job","Date","Echeance","Total","Paye","Solde","Statut","Actions"].map((h,i)=>(
+                  <th key={i} style={{padding:"10px 14px",textAlign:i>=5&&i<=7?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length===0&&<tr><td colSpan={10} style={{padding:"48px",textAlign:"center",color:C.text4}}>Aucun bill</td></tr>}
+              {filtered.map((b,i)=>{
+                const v=vendors.find(x=>x.id===b.vendorId);
+                const j=jobs.find(x=>x.id===b.jobId);
+                const sc=STATUS_BILL[b.status]||{c:C.text3,bg:C.border2,l:b.status};
+                const isOverdue=b.balance>0&&b.dueDate&&new Date(b.dueDate)<new Date();
+                return(
+                  <tr key={b.id} style={{borderBottom:"1px solid "+C.border2,cursor:"pointer",background:i%2===1?"#FAFAFA":C.white}}
+                    onMouseEnter={e=>e.currentTarget.style.background="#FFF7ED"}
+                    onMouseLeave={e=>e.currentTarget.style.background=i%2===1?"#FAFAFA":C.white}
+                    onClick={()=>navigate("/cleanitbooks/bills/"+b.id)}>
+                    <td style={{padding:"12px 14px",fontWeight:700,color:C.orange}}>{b.id}</td>
+                    <td style={{padding:"12px 14px",fontSize:13}}>{v?v.company:"—"}</td>
+                    <td style={{padding:"12px 14px"}}>{j?<span style={{fontSize:11,color:C.text3}}>{j.name}</span>:"—"}</td>
+                    <td style={{padding:"12px 14px",color:C.text3,fontSize:12}}>{fD2(b.date)}</td>
+                    <td style={{padding:"12px 14px",color:isOverdue?C.red:C.text3,fontSize:12,fontWeight:isOverdue?700:400}}>{fD2(b.dueDate)}</td>
+                    <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700}}>{fN(b.total)} {b.currency}</td>
+                    <td style={{padding:"12px 14px",textAlign:"right",color:C.green,fontWeight:600}}>{b.amountPaid>0?fN(b.amountPaid)+" "+b.currency:"—"}</td>
+                    <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700,color:b.balance>0?C.red:C.green}}>{b.balance>0?fN(b.balance)+" "+b.currency:"—"}</td>
+                    <td style={{padding:"12px 14px"}}><span style={{fontSize:11,padding:"3px 9px",borderRadius:10,background:sc.bg,color:sc.c,fontWeight:600}}>{sc.l}</span></td>
+                    <td style={{padding:"12px 14px"}} onClick={e=>e.stopPropagation()}>
+                      <div style={{display:"flex",gap:4}}>
+                        <Btn label="Voir" variant="light" sm onClick={()=>navigate("/cleanitbooks/bills/"+b.id)}/>
+                        {b.balance>0&&<Btn label="Payer" variant="primary" sm/>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}>
+                <td colSpan={5} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>TOTAL — {filtered.length} bill(s)</td>
+                <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.orange,fontSize:14}}>{fN(totalAP)} F</td>
+                <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.green}}>{fN(totalPaid)} F</td>
+                <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:totalBalance>0?C.red:C.green}}>{fN(totalBalance)} F</td>
+                <td colSpan={2}/>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PageBillDetail = ({bills,vendors,jobs}) => {
+  const navigate = useNavigate();
+  const {billId} = useParams();
+  const bill = bills.find(b=>b.id===billId);
+  const vendor = bill?vendors.find(v=>v.id===bill.vendorId):null;
+  const job    = bill?jobs.find(j=>j.id===bill.jobId):null;
+
+  if(!bill) return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:C.bg}}>
+      <div style={{fontSize:18,color:C.text4}}>Bill introuvable</div>
+      <Btn label="Retour" variant="primary" onClick={()=>navigate("/cleanitbooks/bills")}/>
+    </div>
+  );
+
+  const sc = STATUS_BILL[bill.status]||{c:C.text3,bg:C.border2,l:bill.status};
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+      <CIBTopBar title={"Bill "+bill.id} icon="bill" color={C.orange}>
+        <div style={{display:"flex",gap:8}}>
+          <Btn label="Retour" variant="light" sm onClick={()=>navigate("/cleanitbooks/bills")}/>
+          {bill.balance>0&&<Btn label="Payer ce bill" variant="primary" sm icon="money"/>}
+        </div>
+      </CIBTopBar>
+      <div style={{padding:"24px",maxWidth:860,margin:"0 auto",animation:"fadeUp .3s ease"}}>
+        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden",marginBottom:16}}>
+          <div style={{padding:"16px 24px",background:sc.bg,borderBottom:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:11,color:sc.c,fontWeight:700,textTransform:"uppercase",marginBottom:4}}>Bill Fournisseur</div>
+              <div style={{fontSize:28,fontWeight:800,color:sc.c}}>{fN(bill.total)} {bill.currency}</div>
+            </div>
+            <span style={{fontSize:13,padding:"5px 14px",borderRadius:20,background:sc.c,color:"white",fontWeight:700}}>{sc.l}</span>
+          </div>
+          <div style={{padding:"20px 24px"}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:20,marginBottom:20}}>
+              <div>
+                <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",letterSpacing:.4,marginBottom:8,fontWeight:600}}>Fournisseur</div>
+                <div style={{fontSize:14,fontWeight:700,color:C.text}}>{vendor?vendor.company:"—"}</div>
+                <div style={{fontSize:12,color:C.text3}}>{vendor?vendor.contact:"—"}</div>
+                <div style={{fontSize:12,color:C.text3}}>{vendor?vendor.city:"—"}</div>
+              </div>
+              <div>
+                <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",letterSpacing:.4,marginBottom:8,fontWeight:600}}>Details</div>
+                {[{l:"N Bill",v:bill.id},{l:"Ref fournisseur",v:bill.refNum||"—"},{l:"Date",v:fD(bill.date)},{l:"Echeance",v:fD(bill.dueDate)}].map(it=>(
+                  <div key={it.l} style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                    <span style={{fontSize:12,color:C.text3}}>{it.l}</span>
+                    <span style={{fontSize:12,fontWeight:600,color:C.text}}>{it.v}</span>
+                  </div>
+                ))}
+              </div>
+              {job&&(
+                <div>
+                  <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",letterSpacing:.4,marginBottom:8,fontWeight:600}}>Job lie</div>
+                  <div style={{padding:"10px 12px",background:C.bg,borderRadius:4,border:"1px solid "+C.border2,cursor:"pointer"}}
+                    onClick={()=>navigate("/cleanitbooks/jobs/"+job.id)}>
+                    <div style={{fontSize:12,fontWeight:700,color:C.blue}}>{job.name}</div>
+                    <div style={{fontSize:11,color:C.text4}}>{job.id}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={{border:"1px solid "+C.border,borderRadius:4,overflow:"hidden",marginBottom:20}}>
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead>
+                  <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                    {["Compte","Description","Montant"].map((h,i)=>(
+                      <th key={i} style={{padding:"10px 14px",textAlign:i===2?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {bill.lines.map((line,i)=>(
+                    <tr key={i} style={{borderBottom:"1px solid "+C.border2}}>
+                      <td style={{padding:"12px 14px",fontFamily:"monospace",fontSize:12,color:C.blue}}>{line.account}</td>
+                      <td style={{padding:"12px 14px",fontSize:13}}>{line.desc}</td>
+                      <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700,color:C.orange}}>{fN(line.amount)} {bill.currency}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}>
+                    <td colSpan={2} style={{padding:"10px 14px",fontWeight:700}}>TOTAL</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.orange,fontSize:16}}>{fN(bill.total)} {bill.currency}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            {bill.amountPaid>0&&(
+              <div style={{display:"flex",justifyContent:"flex-end"}}>
+                <div style={{width:280,background:C.bg,borderRadius:4,border:"1px solid "+C.border,padding:"12px 16px"}}>
+                  {[{l:"Total du",v:fN(bill.total)+" "+bill.currency,c:C.orange,big:false},{l:"Paye",v:"-"+fN(bill.amountPaid)+" "+bill.currency,c:C.green,big:false},{l:"SOLDE",v:fN(bill.balance)+" "+bill.currency,c:bill.balance>0?C.red:C.green,big:true}].map((t,i)=>(
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:t.big?"none":"1px solid "+C.border2}}>
+                      <span style={{fontSize:t.big?13:12,color:C.text3,fontWeight:t.big?700:400}}>{t.l}</span>
+                      <span style={{fontSize:t.big?18:13,fontWeight:t.big?800:600,color:t.c}}>{t.v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {bill.memo&&<div style={{marginTop:16,padding:"10px 14px",background:C.bg,borderRadius:4,border:"1px solid "+C.border2,fontSize:12,color:C.text3}}><strong style={{color:C.text}}>Memo : </strong>{bill.memo}</div>}
+          </div>
+        </div>
+        {bill.payments&&bill.payments.length>0&&(
+          <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+            <div style={{padding:"12px 16px",borderBottom:"1px solid "+C.border,fontSize:13,fontWeight:700,color:C.text}}>Paiements effectues</div>
+            {bill.payments.map((p,i)=>(
+              <div key={i} style={{padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div><div style={{fontSize:13,fontWeight:600}}>{fD(p.date)}</div><div style={{fontSize:11,color:C.text4}}>{p.method} · {p.ref}</div></div>
+                <div style={{fontSize:16,fontWeight:700,color:C.green}}>{fN(p.amount)} {bill.currency}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const PageBillNew = ({vendors,jobs}) => {
+  const navigate = useNavigate();
+  const [vendorId, setVendorId] = useState("");
+  const [date,     setDate]     = useState(TODAY);
+  const [dueDate,  setDueDate]  = useState("");
+  const [refNum,   setRefNum]   = useState("");
+  const [memo,     setMemo]     = useState("");
+  const [jobId,    setJobId]    = useState("");
+  const [lines,    setLines]    = useState([{account:"604",desc:"",amount:0}]);
+
+  const total = lines.reduce((s,l)=>s+(+l.amount||0),0);
+
+  const save = () => {
+    if(!vendorId){alert("Fournisseur obligatoire");return;}
+    navigate("/cleanitbooks/bills");
+  };
+
+  const ACCTS = ["604 — Achats matieres","624 — Transport","626 — Telecommunications","641 — Salaires","625 — Per diem terrain","628 — Autres charges"];
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`*{box-sizing:border-box}`}</style>
+      <CIBTopBar title="Saisir un bill fournisseur" icon="bill" color={C.orange}>
+        <div style={{display:"flex",gap:8}}>
+          <Btn label="Annuler" variant="light" sm onClick={()=>navigate("/cleanitbooks/bills")}/>
+          <Btn label="Enregistrer le bill" variant="primary" sm icon="check" onClick={save}/>
+        </div>
+      </CIBTopBar>
+      <div style={{maxWidth:800,margin:"0 auto",padding:"32px 24px"}}>
+        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px"}}>
+          <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:16,marginBottom:20}}>
+            <Field label="Fournisseur" required>
+              <Sel value={vendorId} onChange={setVendorId} placeholder="Selectionner..." options={vendors.map(v=>({v:v.id,l:v.company}))}/>
+            </Field>
+            <Field label="Date"><Inp type="date" value={date} onChange={setDate}/></Field>
+            <Field label="Date echeance"><Inp type="date" value={dueDate} onChange={setDueDate}/></Field>
+            <Field label="Ref facture fournisseur"><Inp value={refNum} onChange={setRefNum} placeholder="N facture fournisseur"/></Field>
+            <Field label="Job lie">
+              <Sel value={jobId} onChange={setJobId} placeholder="Aucun job" options={jobs.map(j=>({v:j.id,l:j.name}))}/>
+            </Field>
+            <Field label="Memo" span><Inp value={memo} onChange={setMemo} placeholder="Description de la depense"/></Field>
+          </div>
+          <div style={{border:"1px solid "+C.border,borderRadius:4,overflow:"hidden",marginBottom:16}}>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead>
+                <tr style={{background:C.bg,borderBottom:"2px solid "+C.border}}>
+                  {["Compte","Description","Montant (FCFA)",""].map((h,i)=>(
+                    <th key={i} style={{padding:"9px 12px",textAlign:i===2?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((l,i)=>(
+                  <tr key={i} style={{borderBottom:"1px solid "+C.border2}}>
+                    <td style={{padding:"6px 8px",width:200}}>
+                      <Sel value={l.account} onChange={v=>setLines(p=>p.map((x,xi)=>xi===i?{...x,account:v}:x))} options={ACCTS} small/>
+                    </td>
+                    <td style={{padding:"6px 8px"}}>
+                      <Inp value={l.desc} onChange={v=>setLines(p=>p.map((x,xi)=>xi===i?{...x,desc:v}:x))} placeholder="Description" small/>
+                    </td>
+                    <td style={{padding:"6px 8px",width:140}}>
+                      <Inp type="number" value={l.amount} onChange={v=>setLines(p=>p.map((x,xi)=>xi===i?{...x,amount:+v}:x))} small/>
+                    </td>
+                    <td style={{padding:"6px 8px",width:30}}>
+                      {lines.length>1&&<button onClick={()=>setLines(p=>p.filter((_,xi)=>xi!==i))} style={{width:22,height:22,borderRadius:3,border:"1px solid "+C.border,background:C.white,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="close" s={11} c={C.text3}/></button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{padding:"8px 10px",borderTop:"1px solid "+C.border2,background:C.bg,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <Btn label="+ Ajouter une ligne" variant="light" sm onClick={()=>setLines(p=>[...p,{account:"604",desc:"",amount:0}])}/>
+              <div style={{fontSize:15,fontWeight:700,color:C.orange}}>Total: {fN(total)} FCFA</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function CleanITBooks() {
   const [jobs,      setJobs]      = useState(INIT_JOBS);
   const [customers, setCustomers] = useState(INIT_CUSTOMERS);
@@ -4064,9 +4874,24 @@ export default function CleanITBooks() {
   const navigate = useNavigate();
   const loc      = window.location.pathname;
 
+  // Route: /cleanitbooks/bills/*
+  if(loc.includes('/bills')){
+    const billId = params.billId;
+    if(loc.endsWith('/new')){
+      return <PageBillNew vendors={INIT_VENDORS} jobs={jobs}/>;
+    }
+    if(billId&&billId!=='new'){
+      return <PageBillDetail bills={INIT_BILLS_AP} vendors={INIT_VENDORS} jobs={jobs}/>;
+    }
+    return <PageBillList bills={INIT_BILLS_AP} vendors={INIT_VENDORS} jobs={jobs}/>;
+  }
+
   // Route: /cleanitbooks/invoices/*
   if(loc.includes('/invoices')){
     const invoiceId = params.invoiceId;
+    if(loc.endsWith('/new')){
+      return <PageInvoiceNew invoices={INIT_INVOICES_AR} setInvoices={()=>{}} customers={customers} jobs={jobs}/>;
+    }
     if(invoiceId&&invoiceId!=='new'){
       return <PageInvoiceDetail invoices={INIT_INVOICES_AR} customers={customers} jobs={jobs}/>;
     }
@@ -4076,7 +4901,10 @@ export default function CleanITBooks() {
   // Route: /cleanitbooks/vendors/*
   if(loc.includes('/vendors')){
     const vendorId = params.vendorId;
-    if(vendorId){
+    if(loc.endsWith('/new')){
+      return <PageVendorNew vendors={INIT_VENDORS} setVendors={()=>{}}/>;
+    }
+    if(vendorId&&vendorId!=='new'){
       return <PageVendorDetail vendors={INIT_VENDORS} jobs={jobs}/>;
     }
     return <PageVendorList vendors={INIT_VENDORS} setVendors={()=>{}} jobs={jobs}/>;

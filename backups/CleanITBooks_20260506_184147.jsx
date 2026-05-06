@@ -4301,6 +4301,1130 @@ const PageInvoiceDetail = ({invoices,customers,jobs}) => {
   );
 };
 
+// ================================================================
+//  FORMULAIRE NOUVEAU FOURNISSEUR
+// ================================================================
+const PageVendorNew = ({vendors,setVendors}) => {
+  const navigate = useNavigate();
+  const [company,  setCompany]  = useState("");
+  const [contact,  setContact]  = useState("");
+  const [email,    setEmail]    = useState("");
+  const [phone,    setPhone]    = useState("");
+  const [city,     setCity]     = useState("");
+  const [country,  setCountry]  = useState("Cameroun");
+  const [type,     setType]     = useState("Equipementier");
+  const [terms,    setTerms]    = useState("Net 30");
+  const [currency, setCurrency] = useState("FCFA");
+  const [accountNum,setAccountNum]=useState("");
+  const [notes,    setNotes]    = useState("");
+
+  const save = () => {
+    if(!company){alert("Nom obligatoire");return;}
+    const v = {
+      id:"V"+String(Date.now()).slice(-6),
+      company,contact,email,phone,city,country,
+      type,terms,currency,accountNum,notes,
+      title:"",mobile:"",address:"",region:"",taxId:"",
+      creditLimit:0,balance:0,status:"Active",
+      dateCreation:TODAY,bills:[],
+    };
+    setVendors(p=>[...p,v]);
+    navigate("/cleanitbooks/vendors/"+v.id);
+  };
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`*{box-sizing:border-box}`}</style>
+      <CIBTopBar title="Nouveau fournisseur" icon="vendor" color={C.orange}>
+        <div style={{display:"flex",gap:8}}>
+          <Btn label="Annuler" variant="light" sm onClick={()=>navigate("/cleanitbooks/vendors")}/>
+          <Btn label="Creer le fournisseur" variant="primary" sm icon="check" onClick={save}/>
+        </div>
+      </CIBTopBar>
+      <div style={{maxWidth:720,margin:"0 auto",padding:"32px 24px"}}>
+        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px"}}>
+          <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:20}}>Informations fournisseur</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+            <Field label="Nom de l entreprise" required span>
+              <Inp value={company} onChange={setCompany} placeholder="Ex: Nokia Networks"/>
+            </Field>
+            <Field label="Type">
+              <Sel value={type} onChange={setType} options={VENDOR_TYPES}/>
+            </Field>
+            <Field label="Contact">
+              <Inp value={contact} onChange={setContact} placeholder="Nom du contact"/>
+            </Field>
+            <Field label="Email">
+              <Inp type="email" value={email} onChange={setEmail} placeholder="email@exemple.com"/>
+            </Field>
+            <Field label="Telephone">
+              <Inp value={phone} onChange={setPhone} placeholder="+237 222 XXX XXX"/>
+            </Field>
+            <Field label="Ville">
+              <Inp value={city} onChange={setCity} placeholder="Douala / Yaounde"/>
+            </Field>
+            <Field label="Pays">
+              <Inp value={country} onChange={setCountry} placeholder="Cameroun"/>
+            </Field>
+            <Field label="N de compte">
+              <Inp value={accountNum} onChange={setAccountNum} placeholder="NOK-CM-001"/>
+            </Field>
+            <Field label="Conditions de paiement">
+              <Sel value={terms} onChange={setTerms} options={["Net 15","Net 30","Net 45","Net 60","Net 90"]}/>
+            </Field>
+            <Field label="Devise">
+              <Sel value={currency} onChange={setCurrency} options={["FCFA","USD","EUR","CNY"]}/>
+            </Field>
+            <Field label="Notes" span>
+              <Txt value={notes} onChange={setNotes} placeholder="Notes internes..." rows={3}/>
+            </Field>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ================================================================
+//  FORMULAIRE NOUVELLE FACTURE
+// ================================================================
+const PageInvoiceNew = ({invoices,setInvoices,customers,jobs}) => {
+  const navigate = useNavigate();
+  const [custId,   setCustId]   = useState("");
+  const [jobId,    setJobId]    = useState("");
+  const [date,     setDate]     = useState(TODAY);
+  const [dueDate,  setDueDate]  = useState("");
+  const [terms,    setTerms]    = useState("Net 30");
+  const [poNum,    setPoNum]    = useState("");
+  const [memo,     setMemo]     = useState("");
+  const [currency, setCurrency] = useState("FCFA");
+  const [lines,    setLines]    = useState([{desc:"",qty:1,rate:0,amount:0,taxable:true}]);
+
+  const cust = customers.find(c=>c.id===custId);
+  const custJobs = jobs.filter(j=>j.customerId===custId);
+
+  const updLine = (i,k,v) => setLines(p=>p.map((l,idx)=>{
+    if(idx!==i) return l;
+    const nl={...l,[k]:k==="qty"||k==="rate"?+v:v};
+    if(k==="qty"||k==="rate") nl.amount=nl.qty*nl.rate;
+    return nl;
+  }));
+
+  const subtotal = lines.reduce((s,l)=>s+l.amount,0);
+  const taxAmt   = cust&&cust.taxCode==="TVA"?lines.filter(l=>l.taxable).reduce((s,l)=>s+l.amount*0.1925,0):0;
+  const total    = subtotal+taxAmt;
+
+  const save = () => {
+    if(!custId){alert("Client obligatoire");return;}
+    const inv = {
+      id:"INV-"+new Date().getFullYear()+"-"+String(Math.floor(Math.random()*900+100)).padStart(3,"0"),
+      customerId:custId,jobId,date,dueDate,terms,poNumber:poNum,memo,currency,lines,
+      subtotal,taxRate:0.1925,taxAmount:taxAmt,total,amountPaid:0,balance:total,
+      status:"Draft",payments:[],
+    };
+    setInvoices(p=>[...p,inv]);
+    navigate("/cleanitbooks/invoices/"+inv.id);
+  };
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`*{box-sizing:border-box}`}</style>
+      <CIBTopBar title="Nouvelle facture" icon="invoice" color={C.green}>
+        <div style={{display:"flex",gap:8}}>
+          <Btn label="Annuler" variant="light" sm onClick={()=>navigate("/cleanitbooks/invoices")}/>
+          <Btn label="Enregistrer brouillon" variant="default" sm onClick={save}/>
+          <Btn label="Enregistrer et envoyer" variant="primary" sm icon="mail" onClick={save}/>
+        </div>
+      </CIBTopBar>
+      <div style={{maxWidth:860,margin:"0 auto",padding:"32px 24px"}}>
+        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px",marginBottom:16}}>
+          <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:16,marginBottom:20}}>
+            <Field label="Client" required>
+              <Sel value={custId} onChange={v=>{setCustId(v);setCurrency((customers.find(c=>c.id===v)||{currency:"FCFA"}).currency);}} placeholder="Selectionner un client" options={customers.map(c=>({v:c.id,l:c.company||c.name}))}/>
+            </Field>
+            <Field label="Date"><Inp type="date" value={date} onChange={setDate}/></Field>
+            <Field label="Conditions"><Sel value={terms} onChange={setTerms} options={["Net 15","Net 30","Net 45","Net 60","Net 90"]}/></Field>
+            {custId&&custJobs.length>0&&(
+              <Field label="Job lie">
+                <Sel value={jobId} onChange={setJobId} placeholder="Aucun job" options={custJobs.map(j=>({v:j.id,l:j.name}))}/>
+              </Field>
+            )}
+            <Field label="Date echeance"><Inp type="date" value={dueDate} onChange={setDueDate}/></Field>
+            <Field label="N PO client"><Inp value={poNum} onChange={setPoNum} placeholder="PO du client"/></Field>
+            <Field label="Devise"><Sel value={currency} onChange={setCurrency} options={["FCFA","USD","EUR"]}/></Field>
+          </div>
+          <div style={{border:"1px solid "+C.border,borderRadius:4,overflow:"hidden",marginBottom:16}}>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead>
+                <tr style={{background:C.bg,borderBottom:"2px solid "+C.border}}>
+                  {["Description","Qte","Prix unitaire","TVA","Montant",""].map((h,i)=>(
+                    <th key={i} style={{padding:"9px 12px",textAlign:i>=1&&i<=4?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((l,i)=>(
+                  <tr key={i} style={{borderBottom:"1px solid "+C.border2}}>
+                    <td style={{padding:"6px 8px"}}><Inp value={l.desc} onChange={v=>updLine(i,"desc",v)} placeholder="Description" small/></td>
+                    <td style={{padding:"6px 8px",width:70}}><Inp type="number" value={l.qty} onChange={v=>updLine(i,"qty",v)} small/></td>
+                    <td style={{padding:"6px 8px",width:140}}><Inp type="number" value={l.rate} onChange={v=>updLine(i,"rate",v)} small/></td>
+                    <td style={{padding:"6px 10px",textAlign:"center",width:60}}>
+                      <input type="checkbox" checked={l.taxable} onChange={e=>updLine(i,"taxable",e.target.checked)} style={{width:15,height:15,accentColor:C.green}}/>
+                    </td>
+                    <td style={{padding:"6px 12px",textAlign:"right",fontWeight:600,color:C.blue,width:130}}>{fN(l.amount)} {currency}</td>
+                    <td style={{padding:"6px 8px",width:30}}>
+                      {lines.length>1&&<button onClick={()=>setLines(p=>p.filter((_,xi)=>xi!==i))} style={{width:22,height:22,borderRadius:3,border:"1px solid "+C.border,background:C.white,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="close" s={11} c={C.text3}/></button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{padding:"8px 10px",borderTop:"1px solid "+C.border2,background:C.bg}}>
+              <Btn label="+ Ajouter une ligne" variant="light" sm onClick={()=>setLines(p=>[...p,{desc:"",qty:1,rate:0,amount:0,taxable:true}])}/>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 280px",gap:16}}>
+            <Field label="Memo"><Txt value={memo} onChange={setMemo} placeholder="Message ou note pour la facture..."/></Field>
+            <div style={{background:C.bg,borderRadius:4,border:"1px solid "+C.border,padding:"14px 16px"}}>
+              {[{l:"Sous-total HT",v:fN(subtotal)+" "+currency,c:C.text,big:false},{l:"TVA 19.25%",v:taxAmt>0?fN(Math.round(taxAmt))+" "+currency:"Exonere",c:C.red,big:false},{l:"TOTAL TTC",v:fN(Math.round(total))+" "+currency,c:C.blue,big:true}].map((t,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:t.big?"none":"1px solid "+C.border2}}>
+                  <span style={{fontSize:t.big?13:12,color:C.text3,fontWeight:t.big?600:400}}>{t.l}</span>
+                  <span style={{fontSize:t.big?20:13,fontWeight:t.big?800:600,color:t.c}}>{t.v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ================================================================
+//  DEPENSES AP — Bills fournisseurs
+// ================================================================
+const INIT_BILLS_AP = [
+  {id:"BILL-2024-001",vendorId:"V001",date:"2024-01-15",dueDate:"2024-03-15",refNum:"HW-INV-2024-143",memo:"Equipements 5G NR BC-2024-143",currency:"FCFA",jobId:"JOB-001",
+   lines:[{account:"604",desc:"BBU 5900 5G NR x2",amount:50000000},{account:"604",desc:"RRU 5258 4T4R x6",amount:51000000}],
+   total:101000000,amountPaid:28500000,balance:72500000,status:"Partial",
+   payments:[{date:"2024-01-20",amount:28500000,method:"Virement SWIFT",ref:"SWIFT-001"}]},
+  {id:"BILL-2024-002",vendorId:"V002",date:"2024-02-01",dueDate:"2024-03-15",refNum:"NOK-INV-2024-001",memo:"Antennes Nokia 4G LTE x12",currency:"FCFA",jobId:"JOB-002",
+   lines:[{account:"604",desc:"Antennes Nokia MIMO 4G LTE x12",amount:9232000}],
+   total:9232000,amountPaid:0,balance:9232000,status:"Unpaid",payments:[]},
+  {id:"BILL-2024-003",vendorId:"V004",date:"2024-01-31",dueDate:"2024-02-15",refNum:"TOT-JAN-2024",memo:"Carburant vehicules terrain janvier",currency:"FCFA",jobId:null,
+   lines:[{account:"624",desc:"Carburant vehicules terrain",amount:850000}],
+   total:850000,amountPaid:850000,balance:0,status:"Paid",
+   payments:[{date:"2024-02-05",amount:850000,method:"Cheque",ref:"CHQ-001"}]},
+  {id:"BILL-2024-004",vendorId:"V005",date:"2024-02-15",dueDate:"2024-03-15",refNum:"CAM-Q1-2024",memo:"Liaisons fibre optique backbone Q1",currency:"FCFA",jobId:null,
+   lines:[{account:"626",desc:"Liaisons fibre optique permanentes",amount:1200000}],
+   total:1200000,amountPaid:0,balance:1200000,status:"Unpaid",payments:[]},
+  {id:"BILL-2024-005",vendorId:"V003",date:"2024-02-20",dueDate:"2024-03-20",refNum:"ERI-INV-2024-001",memo:"Equipements Ericsson GAR-001",currency:"EUR",jobId:"JOB-003",
+   lines:[{account:"604",desc:"Equipements reseau Ericsson",amount:5610000}],
+   total:5610000,amountPaid:5610000,balance:0,status:"Paid",
+   payments:[{date:"2024-03-01",amount:5610000,method:"Virement SEPA",ref:"SEPA-001"}]},
+];
+
+const STATUS_BILL = {
+  "Paid":    {c:C.green,  bg:C.green_l,  l:"Paye"},
+  "Partial": {c:C.orange, bg:C.orange_l, l:"Partiel"},
+  "Unpaid":  {c:C.red,    bg:C.red_l,    l:"Non paye"},
+  "Draft":   {c:C.text3,  bg:C.border2,  l:"Brouillon"},
+};
+
+const PageBillList = ({bills,vendors,jobs}) => {
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [filtre, setFiltre] = useState("Tous");
+
+  const filtered = bills.filter(b=>{
+    const v=vendors.find(x=>x.id===b.vendorId);
+    const ms=!search||(b.id+(v?v.company:"")).toLowerCase().includes(search.toLowerCase());
+    return ms&&(filtre==="Tous"||b.status===filtre);
+  });
+
+  const totalAP     = filtered.reduce((s,b)=>s+b.total,0);
+  const totalPaid   = filtered.reduce((s,b)=>s+b.amountPaid,0);
+  const totalBalance= filtered.reduce((s,b)=>s+b.balance,0);
+  const overdue     = filtered.filter(b=>b.balance>0&&b.dueDate&&new Date(b.dueDate)<new Date());
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+      <CIBTopBar title="Depenses AP — Bills fournisseurs" icon="bill" color={C.orange}>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <div style={{display:"flex",alignItems:"center",gap:7,background:C.bg,border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
+            <Ico n="search" s={13} c={C.text4}/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher bill..."
+              style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:150,fontFamily:"inherit"}}/>
+          </div>
+          <Btn label="Exporter" variant="light" sm icon="download" onClick={async ()=>{
+            const ExcelJS=(await import("exceljs")).default;
+            const wb=new ExcelJS.Workbook();
+            const ws=wb.addWorksheet("Bills AP");
+            ws.columns=[{key:"id",width:16,header:"N Bill"},{key:"vendor",width:24,header:"Fournisseur"},{key:"date",width:13,header:"Date"},{key:"echeance",width:13,header:"Echeance"},{key:"total",width:18,header:"Total"},{key:"paye",width:16,header:"Paye"},{key:"solde",width:16,header:"Solde"},{key:"statut",width:14,header:"Statut"}];
+            ws.getRow(1).eachCell(cell=>{cell.font={name:"Calibri",bold:true,color:{argb:"FFFFFFFF"},size:10};cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFE27000"}};cell.alignment={horizontal:"center",vertical:"middle"};});
+            filtered.forEach((b,i)=>{
+              const v=vendors.find(x=>x.id===b.vendorId);
+              const row=ws.addRow({id:b.id,vendor:v?v.company:"",date:b.date,echeance:b.dueDate,total:b.total,paye:b.amountPaid,solde:b.balance,statut:b.status});
+              if(i%2===1) row.eachCell(cell=>cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFFEF3E2"}});
+            });
+            const buf=await wb.xlsx.writeBuffer();
+            const a=document.createElement("a");
+            a.href=URL.createObjectURL(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+            a.download="Bills_AP_"+new Date().toISOString().split("T")[0]+".xlsx";a.click();
+          }}/>
+          <Btn label="Saisir un bill" variant="primary" sm icon="plus" onClick={()=>navigate("/cleanitbooks/bills/new")}/>
+        </div>
+      </CIBTopBar>
+
+      <div style={{padding:"24px",animation:"fadeUp .3s ease"}}>
+        {overdue.length>0&&(
+          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 18px",background:"#FEF3C7",border:"1px solid "+C.orange+"40",borderRadius:6,marginBottom:18}}>
+            <Ico n="alert" s={16} c={C.orange}/>
+            <span style={{fontSize:13,color:C.text2,flex:1}}><strong style={{color:C.orange}}>Alerte AP : </strong>{overdue.length} bill(s) en retard — {fM(overdue.reduce((s,b)=>s+b.balance,0))} F</span>
+          </div>
+        )}
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+          {[
+            {l:"Total AP",       v:fM(totalAP)+" F",      c:C.orange, icon:"bill"},
+            {l:"Paye",           v:fM(totalPaid)+" F",    c:C.green,  icon:"check"},
+            {l:"Solde du",       v:fM(totalBalance)+" F", c:C.red,    icon:"alert"},
+            {l:"Bills en retard",v:overdue.length,         c:C.red,    icon:"calendar"},
+          ].map((kpi,i)=>(
+            <div key={i} style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"14px 16px",borderTop:"3px solid "+kpi.c}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontSize:10,color:C.text3,textTransform:"uppercase",letterSpacing:.4,fontWeight:600}}>{kpi.l}</span>
+                <div style={{width:28,height:28,borderRadius:4,background:kpi.c+"15",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n={kpi.icon} s={14} c={kpi.c}/></div>
+              </div>
+              <div style={{fontSize:20,fontWeight:700,color:kpi.c}}>{kpi.v}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{display:"flex",gap:8,marginBottom:14}}>
+          {["Tous","Unpaid","Partial","Paid"].map(f=>(
+            <button key={f} onClick={()=>setFiltre(f)}
+              style={{padding:"7px 14px",border:"1px solid "+(filtre===f?C.orange:C.border),borderRadius:4,background:filtre===f?C.orange:C.white,color:filtre===f?"white":C.text3,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+              {f==="Tous"?"Tous":f==="Unpaid"?"Non payes":f==="Partial"?"Partiels":"Payes"}
+            </button>
+          ))}
+        </div>
+
+        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead>
+              <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                {["N Bill","Fournisseur","Job","Date","Echeance","Total","Paye","Solde","Statut","Actions"].map((h,i)=>(
+                  <th key={i} style={{padding:"10px 14px",textAlign:i>=5&&i<=7?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length===0&&<tr><td colSpan={10} style={{padding:"48px",textAlign:"center",color:C.text4}}>Aucun bill</td></tr>}
+              {filtered.map((b,i)=>{
+                const v=vendors.find(x=>x.id===b.vendorId);
+                const j=jobs.find(x=>x.id===b.jobId);
+                const sc=STATUS_BILL[b.status]||{c:C.text3,bg:C.border2,l:b.status};
+                const isOverdue=b.balance>0&&b.dueDate&&new Date(b.dueDate)<new Date();
+                return(
+                  <tr key={b.id} style={{borderBottom:"1px solid "+C.border2,cursor:"pointer",background:i%2===1?"#FAFAFA":C.white}}
+                    onMouseEnter={e=>e.currentTarget.style.background="#FFF7ED"}
+                    onMouseLeave={e=>e.currentTarget.style.background=i%2===1?"#FAFAFA":C.white}
+                    onClick={()=>navigate("/cleanitbooks/bills/"+b.id)}>
+                    <td style={{padding:"12px 14px",fontWeight:700,color:C.orange}}>{b.id}</td>
+                    <td style={{padding:"12px 14px",fontSize:13}}>{v?v.company:"—"}</td>
+                    <td style={{padding:"12px 14px"}}>{j?<span style={{fontSize:11,color:C.text3}}>{j.name}</span>:"—"}</td>
+                    <td style={{padding:"12px 14px",color:C.text3,fontSize:12}}>{fD2(b.date)}</td>
+                    <td style={{padding:"12px 14px",color:isOverdue?C.red:C.text3,fontSize:12,fontWeight:isOverdue?700:400}}>{fD2(b.dueDate)}</td>
+                    <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700}}>{fN(b.total)} {b.currency}</td>
+                    <td style={{padding:"12px 14px",textAlign:"right",color:C.green,fontWeight:600}}>{b.amountPaid>0?fN(b.amountPaid)+" "+b.currency:"—"}</td>
+                    <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700,color:b.balance>0?C.red:C.green}}>{b.balance>0?fN(b.balance)+" "+b.currency:"—"}</td>
+                    <td style={{padding:"12px 14px"}}><span style={{fontSize:11,padding:"3px 9px",borderRadius:10,background:sc.bg,color:sc.c,fontWeight:600}}>{sc.l}</span></td>
+                    <td style={{padding:"12px 14px"}} onClick={e=>e.stopPropagation()}>
+                      <div style={{display:"flex",gap:4}}>
+                        <Btn label="Voir" variant="light" sm onClick={()=>navigate("/cleanitbooks/bills/"+b.id)}/>
+                        {b.balance>0&&<Btn label="Payer" variant="primary" sm/>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}>
+                <td colSpan={5} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>TOTAL — {filtered.length} bill(s)</td>
+                <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.orange,fontSize:14}}>{fN(totalAP)} F</td>
+                <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.green}}>{fN(totalPaid)} F</td>
+                <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:totalBalance>0?C.red:C.green}}>{fN(totalBalance)} F</td>
+                <td colSpan={2}/>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PageBillDetail = ({bills,vendors,jobs}) => {
+  const navigate = useNavigate();
+  const {billId} = useParams();
+  const bill = bills.find(b=>b.id===billId);
+  const vendor = bill?vendors.find(v=>v.id===bill.vendorId):null;
+  const job    = bill?jobs.find(j=>j.id===bill.jobId):null;
+
+  if(!bill) return(
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:C.bg}}>
+      <div style={{fontSize:18,color:C.text4}}>Bill introuvable</div>
+      <Btn label="Retour" variant="primary" onClick={()=>navigate("/cleanitbooks/bills")}/>
+    </div>
+  );
+
+  const sc = STATUS_BILL[bill.status]||{c:C.text3,bg:C.border2,l:bill.status};
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+      <CIBTopBar title={"Bill "+bill.id} icon="bill" color={C.orange}>
+        <div style={{display:"flex",gap:8}}>
+          <Btn label="Retour" variant="light" sm onClick={()=>navigate("/cleanitbooks/bills")}/>
+          {bill.balance>0&&<Btn label="Payer ce bill" variant="primary" sm icon="money"/>}
+        </div>
+      </CIBTopBar>
+      <div style={{padding:"24px",maxWidth:860,margin:"0 auto",animation:"fadeUp .3s ease"}}>
+        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden",marginBottom:16}}>
+          <div style={{padding:"16px 24px",background:sc.bg,borderBottom:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <div style={{fontSize:11,color:sc.c,fontWeight:700,textTransform:"uppercase",marginBottom:4}}>Bill Fournisseur</div>
+              <div style={{fontSize:28,fontWeight:800,color:sc.c}}>{fN(bill.total)} {bill.currency}</div>
+            </div>
+            <span style={{fontSize:13,padding:"5px 14px",borderRadius:20,background:sc.c,color:"white",fontWeight:700}}>{sc.l}</span>
+          </div>
+          <div style={{padding:"20px 24px"}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:20,marginBottom:20}}>
+              <div>
+                <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",letterSpacing:.4,marginBottom:8,fontWeight:600}}>Fournisseur</div>
+                <div style={{fontSize:14,fontWeight:700,color:C.text}}>{vendor?vendor.company:"—"}</div>
+                <div style={{fontSize:12,color:C.text3}}>{vendor?vendor.contact:"—"}</div>
+                <div style={{fontSize:12,color:C.text3}}>{vendor?vendor.city:"—"}</div>
+              </div>
+              <div>
+                <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",letterSpacing:.4,marginBottom:8,fontWeight:600}}>Details</div>
+                {[{l:"N Bill",v:bill.id},{l:"Ref fournisseur",v:bill.refNum||"—"},{l:"Date",v:fD(bill.date)},{l:"Echeance",v:fD(bill.dueDate)}].map(it=>(
+                  <div key={it.l} style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                    <span style={{fontSize:12,color:C.text3}}>{it.l}</span>
+                    <span style={{fontSize:12,fontWeight:600,color:C.text}}>{it.v}</span>
+                  </div>
+                ))}
+              </div>
+              {job&&(
+                <div>
+                  <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",letterSpacing:.4,marginBottom:8,fontWeight:600}}>Job lie</div>
+                  <div style={{padding:"10px 12px",background:C.bg,borderRadius:4,border:"1px solid "+C.border2,cursor:"pointer"}}
+                    onClick={()=>navigate("/cleanitbooks/jobs/"+job.id)}>
+                    <div style={{fontSize:12,fontWeight:700,color:C.blue}}>{job.name}</div>
+                    <div style={{fontSize:11,color:C.text4}}>{job.id}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={{border:"1px solid "+C.border,borderRadius:4,overflow:"hidden",marginBottom:20}}>
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead>
+                  <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                    {["Compte","Description","Montant"].map((h,i)=>(
+                      <th key={i} style={{padding:"10px 14px",textAlign:i===2?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {bill.lines.map((line,i)=>(
+                    <tr key={i} style={{borderBottom:"1px solid "+C.border2}}>
+                      <td style={{padding:"12px 14px",fontFamily:"monospace",fontSize:12,color:C.blue}}>{line.account}</td>
+                      <td style={{padding:"12px 14px",fontSize:13}}>{line.desc}</td>
+                      <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700,color:C.orange}}>{fN(line.amount)} {bill.currency}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}>
+                    <td colSpan={2} style={{padding:"10px 14px",fontWeight:700}}>TOTAL</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.orange,fontSize:16}}>{fN(bill.total)} {bill.currency}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            {bill.amountPaid>0&&(
+              <div style={{display:"flex",justifyContent:"flex-end"}}>
+                <div style={{width:280,background:C.bg,borderRadius:4,border:"1px solid "+C.border,padding:"12px 16px"}}>
+                  {[{l:"Total du",v:fN(bill.total)+" "+bill.currency,c:C.orange,big:false},{l:"Paye",v:"-"+fN(bill.amountPaid)+" "+bill.currency,c:C.green,big:false},{l:"SOLDE",v:fN(bill.balance)+" "+bill.currency,c:bill.balance>0?C.red:C.green,big:true}].map((t,i)=>(
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:t.big?"none":"1px solid "+C.border2}}>
+                      <span style={{fontSize:t.big?13:12,color:C.text3,fontWeight:t.big?700:400}}>{t.l}</span>
+                      <span style={{fontSize:t.big?18:13,fontWeight:t.big?800:600,color:t.c}}>{t.v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {bill.memo&&<div style={{marginTop:16,padding:"10px 14px",background:C.bg,borderRadius:4,border:"1px solid "+C.border2,fontSize:12,color:C.text3}}><strong style={{color:C.text}}>Memo : </strong>{bill.memo}</div>}
+          </div>
+        </div>
+        {bill.payments&&bill.payments.length>0&&(
+          <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+            <div style={{padding:"12px 16px",borderBottom:"1px solid "+C.border,fontSize:13,fontWeight:700,color:C.text}}>Paiements effectues</div>
+            {bill.payments.map((p,i)=>(
+              <div key={i} style={{padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div><div style={{fontSize:13,fontWeight:600}}>{fD(p.date)}</div><div style={{fontSize:11,color:C.text4}}>{p.method} · {p.ref}</div></div>
+                <div style={{fontSize:16,fontWeight:700,color:C.green}}>{fN(p.amount)} {bill.currency}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const PageBillNew = ({vendors,jobs}) => {
+  const navigate = useNavigate();
+  const [vendorId, setVendorId] = useState("");
+  const [date,     setDate]     = useState(TODAY);
+  const [dueDate,  setDueDate]  = useState("");
+  const [refNum,   setRefNum]   = useState("");
+  const [memo,     setMemo]     = useState("");
+  const [jobId,    setJobId]    = useState("");
+  const [lines,    setLines]    = useState([{account:"604",desc:"",amount:0}]);
+
+  const total = lines.reduce((s,l)=>s+(+l.amount||0),0);
+
+  const save = () => {
+    if(!vendorId){alert("Fournisseur obligatoire");return;}
+    navigate("/cleanitbooks/bills");
+  };
+
+  const ACCTS = ["604 — Achats matieres","624 — Transport","626 — Telecommunications","641 — Salaires","625 — Per diem terrain","628 — Autres charges"];
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`*{box-sizing:border-box}`}</style>
+      <CIBTopBar title="Saisir un bill fournisseur" icon="bill" color={C.orange}>
+        <div style={{display:"flex",gap:8}}>
+          <Btn label="Annuler" variant="light" sm onClick={()=>navigate("/cleanitbooks/bills")}/>
+          <Btn label="Enregistrer le bill" variant="primary" sm icon="check" onClick={save}/>
+        </div>
+      </CIBTopBar>
+      <div style={{maxWidth:800,margin:"0 auto",padding:"32px 24px"}}>
+        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px"}}>
+          <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:16,marginBottom:20}}>
+            <Field label="Fournisseur" required>
+              <Sel value={vendorId} onChange={setVendorId} placeholder="Selectionner..." options={vendors.map(v=>({v:v.id,l:v.company}))}/>
+            </Field>
+            <Field label="Date"><Inp type="date" value={date} onChange={setDate}/></Field>
+            <Field label="Date echeance"><Inp type="date" value={dueDate} onChange={setDueDate}/></Field>
+            <Field label="Ref facture fournisseur"><Inp value={refNum} onChange={setRefNum} placeholder="N facture fournisseur"/></Field>
+            <Field label="Job lie">
+              <Sel value={jobId} onChange={setJobId} placeholder="Aucun job" options={jobs.map(j=>({v:j.id,l:j.name}))}/>
+            </Field>
+            <Field label="Memo" span><Inp value={memo} onChange={setMemo} placeholder="Description de la depense"/></Field>
+          </div>
+          <div style={{border:"1px solid "+C.border,borderRadius:4,overflow:"hidden",marginBottom:16}}>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead>
+                <tr style={{background:C.bg,borderBottom:"2px solid "+C.border}}>
+                  {["Compte","Description","Montant (FCFA)",""].map((h,i)=>(
+                    <th key={i} style={{padding:"9px 12px",textAlign:i===2?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((l,i)=>(
+                  <tr key={i} style={{borderBottom:"1px solid "+C.border2}}>
+                    <td style={{padding:"6px 8px",width:200}}>
+                      <Sel value={l.account} onChange={v=>setLines(p=>p.map((x,xi)=>xi===i?{...x,account:v}:x))} options={ACCTS} small/>
+                    </td>
+                    <td style={{padding:"6px 8px"}}>
+                      <Inp value={l.desc} onChange={v=>setLines(p=>p.map((x,xi)=>xi===i?{...x,desc:v}:x))} placeholder="Description" small/>
+                    </td>
+                    <td style={{padding:"6px 8px",width:140}}>
+                      <Inp type="number" value={l.amount} onChange={v=>setLines(p=>p.map((x,xi)=>xi===i?{...x,amount:+v}:x))} small/>
+                    </td>
+                    <td style={{padding:"6px 8px",width:30}}>
+                      {lines.length>1&&<button onClick={()=>setLines(p=>p.filter((_,xi)=>xi!==i))} style={{width:22,height:22,borderRadius:3,border:"1px solid "+C.border,background:C.white,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="close" s={11} c={C.text3}/></button>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{padding:"8px 10px",borderTop:"1px solid "+C.border2,background:C.bg,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <Btn label="+ Ajouter une ligne" variant="light" sm onClick={()=>setLines(p=>[...p,{account:"604",desc:"",amount:0}])}/>
+              <div style={{fontSize:15,fontWeight:700,color:C.orange}}>Total: {fN(total)} FCFA</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ================================================================
+//  BANKING — Tresorerie et rapprochement
+// ================================================================
+const INIT_BANKS = [
+  {id:"B001",name:"BICEC Compte principal",accountNum:"CMR-BICEC-****4521",balance:45200000,type:"Checking",currency:"FCFA",lastSync:"2024-03-28",bank:"BICEC"},
+  {id:"B002",name:"SGC Compte operationnel",accountNum:"CMR-SGC-****8834",balance:12500000,type:"Checking",currency:"FCFA",lastSync:"2024-03-28",bank:"SGC"},
+  {id:"B003",name:"Caisse principale Douala",accountNum:"CAISSE-DLA-001",balance:850000,type:"Cash",currency:"FCFA",lastSync:"2024-03-28",bank:"Caisse"},
+];
+
+const INIT_TRANSACTIONS = [
+  {id:"TXN-001",bankId:"B001",date:"2024-03-28",desc:"VIR RECU MTN CAMEROUN",amount:53935625,type:"credit",status:"matched",ref:"VIR-MTN-001",accountId:"INV-2024-001"},
+  {id:"TXN-002",bankId:"B001",date:"2024-03-25",desc:"PAIEMENT FOURNISSEUR EQUIPEMENTS",amount:-28500000,type:"debit",status:"matched",ref:"BILL-2024-001",accountId:"BILL-2024-001"},
+  {id:"TXN-003",bankId:"B001",date:"2024-03-22",desc:"VIR RECU TRESOR PUBLIC",amount:9600000,type:"credit",status:"matched",ref:"TRESOR-2024-001",accountId:"INV-2024-003"},
+  {id:"TXN-004",bankId:"B001",date:"2024-03-20",desc:"SALAIRES MARS 2024",amount:-18000000,type:"debit",status:"matched",ref:"SAL-MAR-2024",accountId:null},
+  {id:"TXN-005",bankId:"B001",date:"2024-03-15",desc:"CAMTEL LIAISONS FIBRE Q1",amount:-1200000,type:"debit",status:"unmatched",ref:null,accountId:null},
+  {id:"TXN-006",bankId:"B001",date:"2024-03-10",desc:"COMMISSION BANCAIRE MARS",amount:-45000,type:"debit",status:"matched",ref:"COM-MAR-2024",accountId:null},
+  {id:"TXN-007",bankId:"B001",date:"2024-03-05",desc:"VIR RECU ERICSSON GAROUA",amount:5610000,type:"credit",status:"matched",ref:"SEPA-001",accountId:"BILL-2024-005"},
+  {id:"TXN-008",bankId:"B002",date:"2024-03-28",desc:"VIR INTERNE BICEC VERS SGC",amount:5000000,type:"credit",status:"matched",ref:"INT-001",accountId:null},
+  {id:"TXN-009",bankId:"B003",date:"2024-03-25",desc:"RETRAIT CAISSE TERRAIN",amount:500000,type:"credit",status:"matched",ref:"CAI-001",accountId:null},
+];
+
+const PageBanking = () => {
+  const navigate  = useNavigate();
+  const [selBank, setSelBank] = useState("B001");
+  const [mode,    setMode]    = useState("feed");
+  const [search,  setSearch]  = useState("");
+
+  const selAcc   = INIT_BANKS.find(b=>b.id===selBank);
+  const txns     = INIT_TRANSACTIONS.filter(t=>t.bankId===selBank&&(!search||(t.desc+t.ref).toLowerCase().includes(search.toLowerCase())));
+  const totalBanks = INIT_BANKS.reduce((s,b)=>s+b.balance,0);
+  const unmatched  = INIT_TRANSACTIONS.filter(t=>t.status==="unmatched").length;
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+
+      <CIBTopBar title="Banking et Tresorerie" icon="bank" color={C.blue}>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <div style={{display:"flex",alignItems:"center",gap:7,background:C.bg,border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
+            <Ico n="search" s={13} c={C.text4}/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher transaction..."
+              style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:160,fontFamily:"inherit"}}/>
+          </div>
+          <Btn label="Synchroniser" variant="light" sm icon="refresh"/>
+          <Btn label="Rapprocher" variant="primary" sm icon="recon" onClick={()=>setMode("reconcile")}/>
+        </div>
+      </CIBTopBar>
+
+      <div style={{padding:"24px",animation:"fadeUp .3s ease"}}>
+
+        {/* Comptes bancaires */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:20}}>
+          {INIT_BANKS.map(b=>(
+            <div key={b.id} onClick={()=>setSelBank(b.id)}
+              style={{background:C.white,border:"2px solid "+(selBank===b.id?C.blue:C.border),borderRadius:6,padding:"16px 20px",cursor:"pointer",transition:"all .15s",borderTop:"3px solid "+(b.type==="Cash"?C.orange:C.green)}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{b.name}</div>
+                  <div style={{fontSize:11,color:C.text4}}>{b.accountNum} · {b.bank}</div>
+                  <div style={{fontSize:10,color:C.text4,marginTop:2}}>Sync: {fD2(b.lastSync)}</div>
+                </div>
+                <div style={{width:36,height:36,borderRadius:6,background:(b.type==="Cash"?C.orange:C.green)+"15",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <Ico n={b.type==="Cash"?"money":"bank"} s={18} c={b.type==="Cash"?C.orange:C.green}/>
+                </div>
+              </div>
+              <div style={{fontSize:24,fontWeight:800,color:b.balance>0?C.green:C.red}}>{fN(b.balance)} F</div>
+              <div style={{fontSize:11,color:C.text4,marginTop:4}}>{b.type==="Cash"?"Especes":"Compte courant"}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Total tresorerie */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",background:C.green_l,border:"1px solid "+C.green+"30",borderRadius:6,marginBottom:20}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <Ico n="bank" s={20} c={C.green}/>
+            <span style={{fontSize:14,fontWeight:700,color:C.text}}>Tresorerie totale</span>
+          </div>
+          <span style={{fontSize:26,fontWeight:800,color:C.green}}>{fN(totalBanks)} FCFA</span>
+        </div>
+
+        {unmatched>0&&(
+          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 18px",background:"#FEF3C7",border:"1px solid "+C.orange+"40",borderRadius:6,marginBottom:16}}>
+            <Ico n="alert" s={16} c={C.orange}/>
+            <span style={{fontSize:13,color:C.text2,flex:1}}><strong style={{color:C.orange}}>{unmatched} transaction(s)</strong> non rapprochees — action requise</span>
+            <Btn label="Rapprocher maintenant" variant="ghost" sm onClick={()=>setMode("reconcile")}/>
+          </div>
+        )}
+
+        {/* Tabs mode */}
+        <div style={{display:"flex",gap:8,marginBottom:16}}>
+          {[{id:"feed",l:"Bank Feed"},{id:"reconcile",l:"Rapprochement"},{id:"transfers",l:"Virements internes"}].map(m=>(
+            <button key={m.id} onClick={()=>setMode(m.id)}
+              style={{padding:"8px 16px",borderRadius:4,border:"1px solid "+(mode===m.id?C.blue:C.border),background:mode===m.id?C.blue_l:C.white,color:mode===m.id?C.blue:C.text3,fontSize:12,fontWeight:mode===m.id?700:400,cursor:"pointer",fontFamily:"inherit"}}>
+              {m.l}
+            </button>
+          ))}
+          <div style={{marginLeft:"auto"}}>
+            <Btn label="Exporter" variant="light" sm icon="download"/>
+          </div>
+        </div>
+
+        {/* BANK FEED */}
+        {mode==="feed"&&(
+          <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+            <div style={{padding:"12px 16px",borderBottom:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center",background:C.bg}}>
+              <span style={{fontSize:13,fontWeight:700,color:C.text}}>{selAcc?selAcc.name:"—"} — Transactions</span>
+              <span style={{fontSize:12,color:C.text3}}>Solde: <strong style={{color:C.green}}>{selAcc?fN(selAcc.balance)+" F":"—"}</strong></span>
+            </div>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead>
+                <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                  {["Date","Description","Reference","Debit","Credit","Statut","Actions"].map((h,i)=>(
+                    <th key={i} style={{padding:"10px 14px",textAlign:i>=3&&i<=4?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {txns.length===0&&<tr><td colSpan={7} style={{padding:"48px",textAlign:"center",color:C.text4}}>Aucune transaction</td></tr>}
+                {txns.map((t,i)=>(
+                  <tr key={t.id} style={{borderBottom:"1px solid "+C.border2,background:i%2===1?"#FAFAFA":C.white}}>
+                    <td style={{padding:"12px 14px",color:C.text3,fontSize:12}}>{fD2(t.date)}</td>
+                    <td style={{padding:"12px 14px",fontSize:12,fontWeight:500,color:C.text}}>{t.desc}</td>
+                    <td style={{padding:"12px 14px",fontSize:11,color:C.text4}}>{t.ref||"—"}</td>
+                    <td style={{padding:"12px 14px",textAlign:"right",fontWeight:600,color:C.red}}>{t.amount<0?fN(Math.abs(t.amount))+" F":"—"}</td>
+                    <td style={{padding:"12px 14px",textAlign:"right",fontWeight:600,color:C.green}}>{t.amount>0?fN(t.amount)+" F":"—"}</td>
+                    <td style={{padding:"12px 14px"}}>
+                      <span style={{fontSize:11,padding:"3px 9px",borderRadius:10,fontWeight:600,background:t.status==="matched"?C.green_l:C.orange_l,color:t.status==="matched"?C.green:C.orange}}>
+                        {t.status==="matched"?"Rapproche":"A rapprocher"}
+                      </span>
+                    </td>
+                    <td style={{padding:"12px 14px"}}>
+                      {t.status==="unmatched"?<Btn label="Rapprocher" variant="primary" sm/>:<Btn label="Voir" variant="light" sm/>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}>
+                  <td colSpan={3} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>{txns.length} transaction(s)</td>
+                  <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.red}}>{fN(Math.abs(txns.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0)))} F</td>
+                  <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.green}}>{fN(txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0))} F</td>
+                  <td colSpan={2}/>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {/* RAPPROCHEMENT */}
+        {mode==="reconcile"&&(
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"20px"}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>Demarrer le rapprochement</div>
+              <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                <Field label="Compte a rapprocher">
+                  <Sel value={selBank} onChange={setSelBank} options={INIT_BANKS.map(b=>({v:b.id,l:b.name}))}/>
+                </Field>
+                <Field label="Date du releve bancaire">
+                  <Inp type="date" value={TODAY} onChange={()=>{}}/>
+                </Field>
+                <Field label="Solde du releve bancaire" hint="Solde selon votre releve papier ou en ligne">
+                  <Inp type="number" value="" onChange={()=>{}} prefix="FCFA" placeholder="Solde releve"/>
+                </Field>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginTop:16,padding:"14px",background:C.bg,borderRadius:4,border:"1px solid "+C.border2}}>
+                {[{l:"Solde CleanITBooks",v:fN(selAcc?selAcc.balance:0)+" F"},{l:"Solde releve",v:"—"},{l:"Ecart",v:"—"}].map((s,i)=>(
+                  <div key={i} style={{textAlign:"center"}}>
+                    <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",marginBottom:3}}>{s.l}</div>
+                    <div style={{fontSize:16,fontWeight:700,color:C.text}}>{s.v}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{marginTop:16}}>
+                <Btn label="Demarrer le rapprochement" variant="primary" icon="recon" full/>
+              </div>
+            </div>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"20px"}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>Historique rapprochements</div>
+              {[{date:"2024-02-29",compte:"BICEC Principal",solde:"38500000",ecart:"0",statut:"OK"},{date:"2024-01-31",compte:"BICEC Principal",solde:"25200000",ecart:"0",statut:"OK"},{date:"2024-02-29",compte:"SGC Operationnel",solde:"8500000",ecart:"0",statut:"OK"}].map((h,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<2?"1px solid "+C.border2:"none"}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:600,color:C.text}}>{h.compte}</div>
+                    <div style={{fontSize:11,color:C.text4}}>{fD(h.date)}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:12,fontWeight:600,color:C.green}}>{fN(+h.solde)} F</div>
+                    <span style={{fontSize:10,padding:"1px 7px",borderRadius:10,background:C.green_l,color:C.green,fontWeight:600}}>{h.statut}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* VIREMENTS */}
+        {mode==="transfers"&&(
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"20px"}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>Nouveau virement interne</div>
+              <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                <Field label="Compte source">
+                  <Sel value="" onChange={()=>{}} placeholder="Selectionner..." options={INIT_BANKS.map(b=>({v:b.id,l:b.name+" — "+fN(b.balance)+" F"}))}/>
+                </Field>
+                <Field label="Compte destination">
+                  <Sel value="" onChange={()=>{}} placeholder="Selectionner..." options={INIT_BANKS.map(b=>({v:b.id,l:b.name+" — "+fN(b.balance)+" F"}))}/>
+                </Field>
+                <Field label="Montant (FCFA)">
+                  <Inp type="number" value="" onChange={()=>{}} prefix="FCFA" placeholder="0"/>
+                </Field>
+                <Field label="Date">
+                  <Inp type="date" value={TODAY} onChange={()=>{}}/>
+                </Field>
+                <Field label="Memo">
+                  <Inp value="" onChange={()=>{}} placeholder="Description du virement"/>
+                </Field>
+                <Btn label="Effectuer le virement" variant="primary" icon="bank" full/>
+              </div>
+            </div>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"20px"}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>Derniers virements</div>
+              {INIT_TRANSACTIONS.filter(t=>t.ref&&t.ref.startsWith("INT")).map((t,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid "+C.border2}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:600}}>{t.desc}</div>
+                    <div style={{fontSize:11,color:C.text4}}>{fD(t.date)} · {t.ref}</div>
+                  </div>
+                  <span style={{fontSize:13,fontWeight:700,color:C.green}}>{fN(t.amount)} F</span>
+                </div>
+              ))}
+              {INIT_TRANSACTIONS.filter(t=>t.ref&&t.ref.startsWith("INT")).length===0&&(
+                <div style={{textAlign:"center",color:C.text4,fontSize:13,padding:"20px"}}>Aucun virement recent</div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ================================================================
+//  PAIE RH — Payroll SYSCOHADA Cameroun
+// ================================================================
+const INIT_EMPLOYEES = [
+  {id:"E001",firstName:"Marie",lastName:"Kamga",title:"Chef de Projet Senior",dept:"Operations",hireDate:"2020-03-01",payType:"Salary",grossSalary:850000,status:"Active",cnps:"123456789",phone:"+237 677 001 001",email:"m.kamga@cleanit.cm"},
+  {id:"E002",firstName:"Jean",lastName:"Fouda",title:"Project Manager",dept:"Operations",hireDate:"2021-01-15",payType:"Salary",grossSalary:750000,status:"Active",cnps:"234567890",phone:"+237 677 002 002",email:"j.fouda@cleanit.cm"},
+  {id:"E003",firstName:"Pierre",lastName:"Etoga",title:"Ingenieur Reseau Senior",dept:"Technique",hireDate:"2019-06-01",payType:"Salary",grossSalary:900000,status:"Active",cnps:"345678901",phone:"+237 677 003 003",email:"p.etoga@cleanit.cm"},
+  {id:"E004",firstName:"Alice",lastName:"Finance",title:"Directrice Financiere",dept:"Finance",hireDate:"2018-01-01",payType:"Salary",grossSalary:1200000,status:"Active",cnps:"456789012",phone:"+237 677 004 004",email:"a.finance@cleanit.cm"},
+  {id:"E005",firstName:"Bob",lastName:"Comptable",title:"Chef Comptable",dept:"Finance",hireDate:"2020-09-01",payType:"Salary",grossSalary:750000,status:"Active",cnps:"567890123",phone:"+237 677 005 005",email:"b.comptable@cleanit.cm"},
+  {id:"E006",firstName:"Samuel",lastName:"Djomo",title:"Technicien Reseau",dept:"Technique",hireDate:"2022-04-01",payType:"Salary",grossSalary:550000,status:"Active",cnps:"678901234",phone:"+237 677 006 006",email:"s.djomo@cleanit.cm"},
+  {id:"E007",firstName:"Ali",lastName:"Moussa",title:"Technicien HSE",dept:"Technique",hireDate:"2023-01-15",payType:"Salary",grossSalary:480000,status:"Active",cnps:"789012345",phone:"+237 677 007 007",email:"a.moussa@cleanit.cm"},
+];
+
+const calcPayroll = (grossSalary) => {
+  const cnpsEmp   = Math.round(grossSalary * 0.084);
+  const cnpsEmp2  = Math.round(grossSalary * 0.014);
+  const cnpsTotal = cnpsEmp + cnpsEmp2;
+  const taxable   = grossSalary - cnpsEmp;
+  let irpp = 0;
+  if(taxable <= 166667) irpp = 0;
+  else if(taxable <= 291667) irpp = Math.round((taxable - 166667) * 0.10);
+  else if(taxable <= 458333) irpp = 12500 + Math.round((taxable - 291667) * 0.15);
+  else if(taxable <= 666667) irpp = 37500 + Math.round((taxable - 458333) * 0.25);
+  else irpp = 89583 + Math.round((taxable - 666667) * 0.35);
+  const cac  = Math.round(irpp * 0.10);
+  const totalDeductions = cnpsEmp + irpp + cac;
+  const netSalary = grossSalary - totalDeductions;
+  const cnpsPatronal = Math.round(grossSalary * 0.1175);
+  return {cnpsEmp, cnpsEmp2, cnpsTotal, irpp, cac, totalDeductions, netSalary, cnpsPatronal};
+};
+
+const INIT_PAYROLL_HISTORY = [
+  {id:"PAY-2024-03",period:"Mars 2024",payDate:"2024-03-31",status:"Processed"},
+  {id:"PAY-2024-02",period:"Fevrier 2024",payDate:"2024-02-29",status:"Processed"},
+  {id:"PAY-2024-01",period:"Janvier 2024",payDate:"2024-01-31",status:"Processed"},
+];
+
+const PagePayroll = () => {
+  const navigate   = useNavigate();
+  const [tab,      setTab]      = useState("run");
+  const [selPeriod,setSelPeriod]= useState("Mars 2024");
+  const [showBulletin,setShowBulletin] = useState(null);
+
+  const totalBrut   = INIT_EMPLOYEES.reduce((s,e)=>s+e.grossSalary,0);
+  const totalNet    = INIT_EMPLOYEES.reduce((s,e)=>s+calcPayroll(e.grossSalary).netSalary,0);
+  const totalCNPS   = INIT_EMPLOYEES.reduce((s,e)=>s+calcPayroll(e.grossSalary).cnpsEmp,0);
+  const totalIRPP   = INIT_EMPLOYEES.reduce((s,e)=>s+calcPayroll(e.grossSalary).irpp,0);
+  const totalPatronal = INIT_EMPLOYEES.reduce((s,e)=>s+calcPayroll(e.grossSalary).cnpsPatronal,0);
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+
+      <CIBTopBar title="Paie et Ressources Humaines" icon="payroll" color={C.purple}>
+        <div style={{display:"flex",gap:8}}>
+          <Btn label="Exporter bulletin" variant="light" sm icon="download"/>
+          <Btn label="Lancer la paie" variant="primary" sm icon="check"/>
+        </div>
+      </CIBTopBar>
+
+      <div style={{padding:"24px",animation:"fadeUp .3s ease"}}>
+
+        {/* KPIs */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:20}}>
+          {[
+            {l:"Employes actifs",   v:INIT_EMPLOYEES.filter(e=>e.status==="Active").length, c:C.green,  icon:"user"},
+            {l:"Masse salariale brute", v:fM(totalBrut)+" F", c:C.blue,   icon:"money"},
+            {l:"CNPS employes 8.4%",v:fM(totalCNPS)+" F",  c:C.orange, icon:"tax"},
+            {l:"IRPP retenu",      v:fM(totalIRPP)+" F",   c:C.red,    icon:"tax"},
+            {l:"Net a payer",      v:fM(totalNet)+" F",    c:C.green,  icon:"bank"},
+          ].map((kpi,i)=>(
+            <div key={i} style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"14px 16px",borderTop:"3px solid "+kpi.c}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontSize:10,color:C.text3,textTransform:"uppercase",letterSpacing:.4,fontWeight:600}}>{kpi.l}</span>
+                <div style={{width:28,height:28,borderRadius:4,background:kpi.c+"15",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n={kpi.icon} s={14} c={kpi.c}/></div>
+              </div>
+              <div style={{fontSize:20,fontWeight:700,color:kpi.c}}>{kpi.v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs */}
+        <div style={{display:"flex",gap:0,borderBottom:"1px solid "+C.border,marginBottom:20}}>
+          {[{id:"run",l:"Bulletin de paie"},{id:"employees",l:"Employes"},{id:"history",l:"Historique paie"},{id:"declarations",l:"Declarations fiscales"}].map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)}
+              style={{padding:"10px 20px",border:"none",borderBottom:tab===t.id?"2px solid "+C.purple:"2px solid transparent",background:"transparent",color:tab===t.id?C.purple:C.text3,fontWeight:tab===t.id?700:400,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>
+              {t.l}
+            </button>
+          ))}
+        </div>
+
+        {/* BULLETIN PAIE */}
+        {tab==="run"&&(
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:14,fontWeight:700,color:C.text}}>Periode :</span>
+                <Sel value={selPeriod} onChange={setSelPeriod} options={["Mars 2024","Fevrier 2024","Janvier 2024","Avril 2024"]} small/>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <Btn label="Declarer CNPS" variant="ghost" sm icon="tax"/>
+                <Btn label="Declarer IRPP" variant="ghost" sm icon="tax"/>
+                <Btn label="Virer les salaires" variant="primary" sm icon="bank"/>
+              </div>
+            </div>
+
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead>
+                  <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                    {["Employe","Poste","Salaire brut","CNPS 8.4%","IRPP","CAC 10%","Net a payer","Actions"].map((h,i)=>(
+                      <th key={i} style={{padding:"10px 14px",textAlign:i>=2&&i<=6?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {INIT_EMPLOYEES.filter(e=>e.status==="Active").map((emp,i)=>{
+                    const p = calcPayroll(emp.grossSalary);
+                    return(
+                      <tr key={emp.id} style={{borderBottom:"1px solid "+C.border2,background:i%2===1?"#FAFAFA":C.white}}>
+                        <td style={{padding:"12px 14px"}}>
+                          <div style={{fontSize:13,fontWeight:700,color:C.text}}>{emp.firstName+" "+emp.lastName}</div>
+                          <div style={{fontSize:11,color:C.text4}}>{emp.dept}</div>
+                        </td>
+                        <td style={{padding:"12px 14px",fontSize:12,color:C.text3}}>{emp.title}</td>
+                        <td style={{padding:"12px 14px",textAlign:"right",fontWeight:600}}>{fN(emp.grossSalary)} F</td>
+                        <td style={{padding:"12px 14px",textAlign:"right",color:C.orange}}>{fN(p.cnpsEmp)} F</td>
+                        <td style={{padding:"12px 14px",textAlign:"right",color:C.red}}>{fN(p.irpp)} F</td>
+                        <td style={{padding:"12px 14px",textAlign:"right",color:C.red}}>{fN(p.cac)} F</td>
+                        <td style={{padding:"12px 14px",textAlign:"right",fontWeight:800,color:C.green,fontSize:14}}>{fN(p.netSalary)} F</td>
+                        <td style={{padding:"12px 14px"}}>
+                          <Btn label="Bulletin" variant="light" sm icon="print" onClick={()=>setShowBulletin(emp)}/>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}>
+                    <td colSpan={2} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>TOTAL — {INIT_EMPLOYEES.filter(e=>e.status==="Active").length} employes</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.blue,fontSize:14}}>{fN(totalBrut)} F</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:700,color:C.orange}}>{fN(totalCNPS)} F</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:700,color:C.red}}>{fN(totalIRPP)} F</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:700,color:C.red}}>{fN(Math.round(totalIRPP*0.10))} F</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.green,fontSize:15}}>{fN(totalNet)} F</td>
+                    <td/>
+                  </tr>
+                  <tr style={{background:C.purple_l,borderTop:"1px solid "+C.purple+"30"}}>
+                    <td colSpan={6} style={{padding:"8px 14px",fontSize:12,fontWeight:600,color:C.purple}}>Charges patronales CNPS 11.75%</td>
+                    <td style={{padding:"8px 14px",textAlign:"right",fontWeight:700,color:C.purple,fontSize:13}}>{fN(totalPatronal)} F</td>
+                    <td/>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* EMPLOYES */}
+        {tab==="employees"&&(
+          <div>
+            <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+              <Btn label="Nouvel employe" variant="primary" icon="plus"/>
+            </div>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead>
+                  <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                    {["Matricule","Employe","Poste","Departement","CNPS","Salaire brut","Date embauche","Statut"].map((h,i)=>(
+                      <th key={i} style={{padding:"10px 14px",textAlign:i===5?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {INIT_EMPLOYEES.map((emp,i)=>(
+                    <tr key={emp.id} style={{borderBottom:"1px solid "+C.border2,background:i%2===1?"#FAFAFA":C.white}}>
+                      <td style={{padding:"12px 14px",fontFamily:"monospace",fontSize:12,color:C.text4}}>{emp.id}</td>
+                      <td style={{padding:"12px 14px"}}>
+                        <div style={{fontSize:13,fontWeight:700,color:C.text}}>{emp.firstName+" "+emp.lastName}</div>
+                        <div style={{fontSize:11,color:C.text4}}>{emp.email}</div>
+                      </td>
+                      <td style={{padding:"12px 14px",fontSize:12,color:C.text3}}>{emp.title}</td>
+                      <td style={{padding:"12px 14px"}}><span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:C.blue_l,color:C.blue,fontWeight:600}}>{emp.dept}</span></td>
+                      <td style={{padding:"12px 14px",fontFamily:"monospace",fontSize:11,color:C.text4}}>{emp.cnps}</td>
+                      <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700,color:C.blue}}>{fN(emp.grossSalary)} F</td>
+                      <td style={{padding:"12px 14px",color:C.text3,fontSize:12}}>{fD2(emp.hireDate)}</td>
+                      <td style={{padding:"12px 14px"}}><span style={{fontSize:11,padding:"3px 9px",borderRadius:10,background:emp.status==="Active"?C.green_l:C.border2,color:emp.status==="Active"?C.green:C.text3,fontWeight:600}}>{emp.status==="Active"?"Actif":"Inactif"}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* HISTORIQUE */}
+        {tab==="history"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            {INIT_PAYROLL_HISTORY.map((h,i)=>(
+              <div key={h.id} style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:14,fontWeight:700,color:C.text}}>{h.period}</div>
+                  <div style={{fontSize:12,color:C.text3}}>Paye le: {fD(h.payDate)} · Ref: {h.id}</div>
+                </div>
+                <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:15,fontWeight:700,color:C.green}}>{fN(totalNet)} F</div>
+                    <div style={{fontSize:11,color:C.text4}}>Net total paye</div>
+                  </div>
+                  <span style={{fontSize:11,padding:"3px 9px",borderRadius:10,background:C.green_l,color:C.green,fontWeight:600}}>Traite</span>
+                  <Btn label="Voir details" variant="light" sm/>
+                  <Btn label="Bulletins" variant="default" sm icon="print"/>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* DECLARATIONS */}
+        {tab==="declarations"&&(
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"20px"}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>Declaration CNPS mensuelle</div>
+              <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+                {[{l:"CNPS employes (8.4%)",v:fN(totalCNPS)+" F",c:C.orange},{l:"CNPS employes (1.4% AT)",v:fN(Math.round(totalBrut*0.014))+" F",c:C.orange},{l:"CNPS patronal (11.75%)",v:fN(totalPatronal)+" F",c:C.purple},{l:"TOTAL CNPS a verser",v:fN(totalCNPS+Math.round(totalBrut*0.014)+totalPatronal)+" F",c:C.red}].map((r,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:i<3?"1px solid "+C.border2:"none"}}>
+                    <span style={{fontSize:12,color:C.text3}}>{r.l}</span>
+                    <span style={{fontSize:i===3?15:13,fontWeight:i===3?800:600,color:r.c}}>{r.v}</span>
+                  </div>
+                ))}
+              </div>
+              <Btn label="Generer declaration CNPS" variant="primary" icon="download" full/>
+            </div>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"20px"}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>Declaration IRPP mensuelle</div>
+              <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+                {[{l:"IRPP retenu a la source",v:fN(totalIRPP)+" F",c:C.red},{l:"CAC 10% sur IRPP",v:fN(Math.round(totalIRPP*0.10))+" F",c:C.red},{l:"TOTAL IRPP + CAC",v:fN(Math.round(totalIRPP*1.10))+" F",c:C.red}].map((r,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:i<2?"1px solid "+C.border2:"none"}}>
+                    <span style={{fontSize:12,color:C.text3}}>{r.l}</span>
+                    <span style={{fontSize:i===2?15:13,fontWeight:i===2?800:600,color:r.c}}>{r.v}</span>
+                  </div>
+                ))}
+              </div>
+              <Btn label="Generer declaration IRPP" variant="primary" icon="download" full/>
+            </div>
+          </div>
+        )}
+
+        {/* BULLETIN MODAL */}
+        {showBulletin&&(
+          <div style={{position:"fixed",inset:0,zIndex:500,background:"rgba(0,0,0,.5)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <div style={{background:C.white,borderRadius:8,width:560,maxHeight:"90vh",overflow:"auto",boxShadow:"0 20px 60px rgba(0,0,0,.2)"}}>
+              <div style={{padding:"16px 24px",borderBottom:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center",background:C.purple_l}}>
+                <div>
+                  <div style={{fontSize:11,color:C.purple,fontWeight:700,textTransform:"uppercase"}}>Bulletin de paie</div>
+                  <div style={{fontSize:18,fontWeight:800,color:C.text}}>{showBulletin.firstName+" "+showBulletin.lastName}</div>
+                </div>
+                <button onClick={()=>setShowBulletin(null)} style={{width:30,height:30,borderRadius:4,border:"1px solid "+C.border,background:C.white,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="close" s={14} c={C.text3}/></button>
+              </div>
+              <div style={{padding:"20px 24px"}}>
+                {(()=>{
+                  const p = calcPayroll(showBulletin.grossSalary);
+                  return(
+                    <div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20,padding:"12px",background:C.bg,borderRadius:4}}>
+                        {[{l:"Matricule",v:showBulletin.id},{l:"Periode",v:selPeriod},{l:"Poste",v:showBulletin.title},{l:"Departement",v:showBulletin.dept},{l:"N CNPS",v:showBulletin.cnps},{l:"Date embauche",v:fD2(showBulletin.hireDate)}].map(it=>(
+                          <div key={it.l}>
+                            <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",letterSpacing:.4,marginBottom:1}}>{it.l}</div>
+                            <div style={{fontSize:12,fontWeight:600,color:C.text}}>{it.v}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{marginBottom:16}}>
+                        <div style={{fontSize:12,fontWeight:700,color:C.text3,textTransform:"uppercase",marginBottom:8}}>GAINS</div>
+                        {[{l:"Salaire de base",v:fN(showBulletin.grossSalary)+" F"}].map(r=>(
+                          <div key={r.l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid "+C.border2}}>
+                            <span style={{fontSize:13,color:C.text}}>{r.l}</span>
+                            <span style={{fontSize:13,fontWeight:600,color:C.green}}>{r.v}</span>
+                          </div>
+                        ))}
+                        <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",background:C.green_l,borderRadius:3,paddingLeft:8,marginTop:4}}>
+                          <span style={{fontSize:13,fontWeight:700}}>TOTAL BRUT</span>
+                          <span style={{fontSize:14,fontWeight:800,color:C.green}}>{fN(showBulletin.grossSalary)} F</span>
+                        </div>
+                      </div>
+                      <div style={{marginBottom:16}}>
+                        <div style={{fontSize:12,fontWeight:700,color:C.text3,textTransform:"uppercase",marginBottom:8}}>RETENUES</div>
+                        {[{l:"CNPS employe (8.4%)",v:fN(p.cnpsEmp)+" F"},{l:"IRPP",v:fN(p.irpp)+" F"},{l:"CAC (10% IRPP)",v:fN(p.cac)+" F"}].map(r=>(
+                          <div key={r.l} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid "+C.border2}}>
+                            <span style={{fontSize:13,color:C.text}}>{r.l}</span>
+                            <span style={{fontSize:13,fontWeight:600,color:C.red}}>{r.v}</span>
+                          </div>
+                        ))}
+                        <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",background:C.red_l,borderRadius:3,paddingLeft:8,marginTop:4}}>
+                          <span style={{fontSize:13,fontWeight:700}}>TOTAL RETENUES</span>
+                          <span style={{fontSize:14,fontWeight:800,color:C.red}}>{fN(p.totalDeductions)} F</span>
+                        </div>
+                      </div>
+                      <div style={{padding:"14px 16px",background:C.green_l,borderRadius:6,border:"1px solid "+C.green+"30",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span style={{fontSize:15,fontWeight:700,color:C.text}}>NET A PAYER</span>
+                        <span style={{fontSize:22,fontWeight:800,color:C.green}}>{fN(p.netSalary)} FCFA</span>
+                      </div>
+                      <div style={{marginTop:16,display:"flex",gap:8,justifyContent:"flex-end"}}>
+                        <Btn label="Fermer" variant="light" onClick={()=>setShowBulletin(null)}/>
+                        <Btn label="Imprimer" variant="primary" icon="print"/>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function CleanITBooks() {
   const [jobs,      setJobs]      = useState(INIT_JOBS);
   const [customers, setCustomers] = useState(INIT_CUSTOMERS);
@@ -4308,9 +5432,34 @@ export default function CleanITBooks() {
   const navigate = useNavigate();
   const loc      = window.location.pathname;
 
+  // Route: /cleanitbooks/payroll/*
+  if(loc.includes('/payroll')){
+    return <PagePayroll/>;
+  }
+
+  // Route: /cleanitbooks/banking/*
+  if(loc.includes('/banking')){
+    return <PageBanking/>;
+  }
+
+  // Route: /cleanitbooks/bills/*
+  if(loc.includes('/bills')){
+    const billId = params.billId;
+    if(loc.endsWith('/new')){
+      return <PageBillNew vendors={INIT_VENDORS} jobs={jobs}/>;
+    }
+    if(billId&&billId!=='new'){
+      return <PageBillDetail bills={INIT_BILLS_AP} vendors={INIT_VENDORS} jobs={jobs}/>;
+    }
+    return <PageBillList bills={INIT_BILLS_AP} vendors={INIT_VENDORS} jobs={jobs}/>;
+  }
+
   // Route: /cleanitbooks/invoices/*
   if(loc.includes('/invoices')){
     const invoiceId = params.invoiceId;
+    if(loc.endsWith('/new')){
+      return <PageInvoiceNew invoices={INIT_INVOICES_AR} setInvoices={()=>{}} customers={customers} jobs={jobs}/>;
+    }
     if(invoiceId&&invoiceId!=='new'){
       return <PageInvoiceDetail invoices={INIT_INVOICES_AR} customers={customers} jobs={jobs}/>;
     }
@@ -4320,7 +5469,10 @@ export default function CleanITBooks() {
   // Route: /cleanitbooks/vendors/*
   if(loc.includes('/vendors')){
     const vendorId = params.vendorId;
-    if(vendorId){
+    if(loc.endsWith('/new')){
+      return <PageVendorNew vendors={INIT_VENDORS} setVendors={()=>{}}/>;
+    }
+    if(vendorId&&vendorId!=='new'){
       return <PageVendorDetail vendors={INIT_VENDORS} jobs={jobs}/>;
     }
     return <PageVendorList vendors={INIT_VENDORS} setVendors={()=>{}} jobs={jobs}/>;
