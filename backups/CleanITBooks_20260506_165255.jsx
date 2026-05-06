@@ -4301,205 +4301,6 @@ const PageInvoiceDetail = ({invoices,customers,jobs}) => {
   );
 };
 
-// ================================================================
-//  FORMULAIRE NOUVEAU FOURNISSEUR
-// ================================================================
-const PageVendorNew = ({vendors,setVendors}) => {
-  const navigate = useNavigate();
-  const [company,  setCompany]  = useState("");
-  const [contact,  setContact]  = useState("");
-  const [email,    setEmail]    = useState("");
-  const [phone,    setPhone]    = useState("");
-  const [city,     setCity]     = useState("");
-  const [country,  setCountry]  = useState("Cameroun");
-  const [type,     setType]     = useState("Equipementier");
-  const [terms,    setTerms]    = useState("Net 30");
-  const [currency, setCurrency] = useState("FCFA");
-  const [accountNum,setAccountNum]=useState("");
-  const [notes,    setNotes]    = useState("");
-
-  const save = () => {
-    if(!company){alert("Nom obligatoire");return;}
-    const v = {
-      id:"V"+String(Date.now()).slice(-6),
-      company,contact,email,phone,city,country,
-      type,terms,currency,accountNum,notes,
-      title:"",mobile:"",address:"",region:"",taxId:"",
-      creditLimit:0,balance:0,status:"Active",
-      dateCreation:TODAY,bills:[],
-    };
-    setVendors(p=>[...p,v]);
-    navigate("/cleanitbooks/vendors/"+v.id);
-  };
-
-  return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
-      <style>{`*{box-sizing:border-box}`}</style>
-      <CIBTopBar title="Nouveau fournisseur" icon="vendor" color={C.orange}>
-        <div style={{display:"flex",gap:8}}>
-          <Btn label="Annuler" variant="light" sm onClick={()=>navigate("/cleanitbooks/vendors")}/>
-          <Btn label="Creer le fournisseur" variant="primary" sm icon="check" onClick={save}/>
-        </div>
-      </CIBTopBar>
-      <div style={{maxWidth:720,margin:"0 auto",padding:"32px 24px"}}>
-        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px"}}>
-          <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:20}}>Informations fournisseur</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-            <Field label="Nom de l entreprise" required span>
-              <Inp value={company} onChange={setCompany} placeholder="Ex: Nokia Networks"/>
-            </Field>
-            <Field label="Type">
-              <Sel value={type} onChange={setType} options={VENDOR_TYPES}/>
-            </Field>
-            <Field label="Contact">
-              <Inp value={contact} onChange={setContact} placeholder="Nom du contact"/>
-            </Field>
-            <Field label="Email">
-              <Inp type="email" value={email} onChange={setEmail} placeholder="email@exemple.com"/>
-            </Field>
-            <Field label="Telephone">
-              <Inp value={phone} onChange={setPhone} placeholder="+237 222 XXX XXX"/>
-            </Field>
-            <Field label="Ville">
-              <Inp value={city} onChange={setCity} placeholder="Douala / Yaounde"/>
-            </Field>
-            <Field label="Pays">
-              <Inp value={country} onChange={setCountry} placeholder="Cameroun"/>
-            </Field>
-            <Field label="N de compte">
-              <Inp value={accountNum} onChange={setAccountNum} placeholder="NOK-CM-001"/>
-            </Field>
-            <Field label="Conditions de paiement">
-              <Sel value={terms} onChange={setTerms} options={["Net 15","Net 30","Net 45","Net 60","Net 90"]}/>
-            </Field>
-            <Field label="Devise">
-              <Sel value={currency} onChange={setCurrency} options={["FCFA","USD","EUR","CNY"]}/>
-            </Field>
-            <Field label="Notes" span>
-              <Txt value={notes} onChange={setNotes} placeholder="Notes internes..." rows={3}/>
-            </Field>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ================================================================
-//  FORMULAIRE NOUVELLE FACTURE
-// ================================================================
-const PageInvoiceNew = ({invoices,setInvoices,customers,jobs}) => {
-  const navigate = useNavigate();
-  const [custId,   setCustId]   = useState("");
-  const [jobId,    setJobId]    = useState("");
-  const [date,     setDate]     = useState(TODAY);
-  const [dueDate,  setDueDate]  = useState("");
-  const [terms,    setTerms]    = useState("Net 30");
-  const [poNum,    setPoNum]    = useState("");
-  const [memo,     setMemo]     = useState("");
-  const [currency, setCurrency] = useState("FCFA");
-  const [lines,    setLines]    = useState([{desc:"",qty:1,rate:0,amount:0,taxable:true}]);
-
-  const cust = customers.find(c=>c.id===custId);
-  const custJobs = jobs.filter(j=>j.customerId===custId);
-
-  const updLine = (i,k,v) => setLines(p=>p.map((l,idx)=>{
-    if(idx!==i) return l;
-    const nl={...l,[k]:k==="qty"||k==="rate"?+v:v};
-    if(k==="qty"||k==="rate") nl.amount=nl.qty*nl.rate;
-    return nl;
-  }));
-
-  const subtotal = lines.reduce((s,l)=>s+l.amount,0);
-  const taxAmt   = cust&&cust.taxCode==="TVA"?lines.filter(l=>l.taxable).reduce((s,l)=>s+l.amount*0.1925,0):0;
-  const total    = subtotal+taxAmt;
-
-  const save = () => {
-    if(!custId){alert("Client obligatoire");return;}
-    const inv = {
-      id:"INV-"+new Date().getFullYear()+"-"+String(Math.floor(Math.random()*900+100)).padStart(3,"0"),
-      customerId:custId,jobId,date,dueDate,terms,poNumber:poNum,memo,currency,lines,
-      subtotal,taxRate:0.1925,taxAmount:taxAmt,total,amountPaid:0,balance:total,
-      status:"Draft",payments:[],
-    };
-    setInvoices(p=>[...p,inv]);
-    navigate("/cleanitbooks/invoices/"+inv.id);
-  };
-
-  return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
-      <style>{`*{box-sizing:border-box}`}</style>
-      <CIBTopBar title="Nouvelle facture" icon="invoice" color={C.green}>
-        <div style={{display:"flex",gap:8}}>
-          <Btn label="Annuler" variant="light" sm onClick={()=>navigate("/cleanitbooks/invoices")}/>
-          <Btn label="Enregistrer brouillon" variant="default" sm onClick={save}/>
-          <Btn label="Enregistrer et envoyer" variant="primary" sm icon="mail" onClick={save}/>
-        </div>
-      </CIBTopBar>
-      <div style={{maxWidth:860,margin:"0 auto",padding:"32px 24px"}}>
-        <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px",marginBottom:16}}>
-          <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:16,marginBottom:20}}>
-            <Field label="Client" required>
-              <Sel value={custId} onChange={v=>{setCustId(v);setCurrency((customers.find(c=>c.id===v)||{currency:"FCFA"}).currency);}} placeholder="Selectionner un client" options={customers.map(c=>({v:c.id,l:c.company||c.name}))}/>
-            </Field>
-            <Field label="Date"><Inp type="date" value={date} onChange={setDate}/></Field>
-            <Field label="Conditions"><Sel value={terms} onChange={setTerms} options={["Net 15","Net 30","Net 45","Net 60","Net 90"]}/></Field>
-            {custId&&custJobs.length>0&&(
-              <Field label="Job lie">
-                <Sel value={jobId} onChange={setJobId} placeholder="Aucun job" options={custJobs.map(j=>({v:j.id,l:j.name}))}/>
-              </Field>
-            )}
-            <Field label="Date echeance"><Inp type="date" value={dueDate} onChange={setDueDate}/></Field>
-            <Field label="N PO client"><Inp value={poNum} onChange={setPoNum} placeholder="PO du client"/></Field>
-            <Field label="Devise"><Sel value={currency} onChange={setCurrency} options={["FCFA","USD","EUR"]}/></Field>
-          </div>
-          <div style={{border:"1px solid "+C.border,borderRadius:4,overflow:"hidden",marginBottom:16}}>
-            <table style={{width:"100%",borderCollapse:"collapse"}}>
-              <thead>
-                <tr style={{background:C.bg,borderBottom:"2px solid "+C.border}}>
-                  {["Description","Qte","Prix unitaire","TVA","Montant",""].map((h,i)=>(
-                    <th key={i} style={{padding:"9px 12px",textAlign:i>=1&&i<=4?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {lines.map((l,i)=>(
-                  <tr key={i} style={{borderBottom:"1px solid "+C.border2}}>
-                    <td style={{padding:"6px 8px"}}><Inp value={l.desc} onChange={v=>updLine(i,"desc",v)} placeholder="Description" small/></td>
-                    <td style={{padding:"6px 8px",width:70}}><Inp type="number" value={l.qty} onChange={v=>updLine(i,"qty",v)} small/></td>
-                    <td style={{padding:"6px 8px",width:140}}><Inp type="number" value={l.rate} onChange={v=>updLine(i,"rate",v)} small/></td>
-                    <td style={{padding:"6px 10px",textAlign:"center",width:60}}>
-                      <input type="checkbox" checked={l.taxable} onChange={e=>updLine(i,"taxable",e.target.checked)} style={{width:15,height:15,accentColor:C.green}}/>
-                    </td>
-                    <td style={{padding:"6px 12px",textAlign:"right",fontWeight:600,color:C.blue,width:130}}>{fN(l.amount)} {currency}</td>
-                    <td style={{padding:"6px 8px",width:30}}>
-                      {lines.length>1&&<button onClick={()=>setLines(p=>p.filter((_,xi)=>xi!==i))} style={{width:22,height:22,borderRadius:3,border:"1px solid "+C.border,background:C.white,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n="close" s={11} c={C.text3}/></button>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div style={{padding:"8px 10px",borderTop:"1px solid "+C.border2,background:C.bg}}>
-              <Btn label="+ Ajouter une ligne" variant="light" sm onClick={()=>setLines(p=>[...p,{desc:"",qty:1,rate:0,amount:0,taxable:true}])}/>
-            </div>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 280px",gap:16}}>
-            <Field label="Memo"><Txt value={memo} onChange={setMemo} placeholder="Message ou note pour la facture..."/></Field>
-            <div style={{background:C.bg,borderRadius:4,border:"1px solid "+C.border,padding:"14px 16px"}}>
-              {[{l:"Sous-total HT",v:fN(subtotal)+" "+currency,c:C.text,big:false},{l:"TVA 19.25%",v:taxAmt>0?fN(Math.round(taxAmt))+" "+currency:"Exonere",c:C.red,big:false},{l:"TOTAL TTC",v:fN(Math.round(total))+" "+currency,c:C.blue,big:true}].map((t,i)=>(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:t.big?"none":"1px solid "+C.border2}}>
-                  <span style={{fontSize:t.big?13:12,color:C.text3,fontWeight:t.big?600:400}}>{t.l}</span>
-                  <span style={{fontSize:t.big?20:13,fontWeight:t.big?800:600,color:t.c}}>{t.v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export default function CleanITBooks() {
   const [jobs,      setJobs]      = useState(INIT_JOBS);
   const [customers, setCustomers] = useState(INIT_CUSTOMERS);
@@ -4511,7 +4312,7 @@ export default function CleanITBooks() {
   if(loc.includes('/invoices')){
     const invoiceId = params.invoiceId;
     if(loc.endsWith('/new')){
-      return <PageInvoiceNew invoices={INIT_INVOICES_AR} setInvoices={()=>{}} customers={customers} jobs={jobs}/>;
+      return <PageInvoiceList invoices={INIT_INVOICES_AR} customers={customers} jobs={jobs}/>;
     }
     if(invoiceId&&invoiceId!=='new'){
       return <PageInvoiceDetail invoices={INIT_INVOICES_AR} customers={customers} jobs={jobs}/>;
@@ -4523,7 +4324,7 @@ export default function CleanITBooks() {
   if(loc.includes('/vendors')){
     const vendorId = params.vendorId;
     if(loc.endsWith('/new')){
-      return <PageVendorNew vendors={INIT_VENDORS} setVendors={()=>{}}/>;
+      return <PageVendorList vendors={INIT_VENDORS} setVendors={()=>{}} jobs={jobs}/>;
     }
     if(vendorId&&vendorId!=='new'){
       return <PageVendorDetail vendors={INIT_VENDORS} jobs={jobs}/>;
