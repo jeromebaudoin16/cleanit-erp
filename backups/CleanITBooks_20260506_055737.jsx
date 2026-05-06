@@ -1453,55 +1453,6 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
 
 
 // ================================================================
-//  COMPOSANT NAV PARTAGE — CIBTopBar
-// ================================================================
-const CIB_NAV = [
-  {id:"jobs",      l:"Job Center",      icon:"job",     url:"/cleanitbooks/jobs"},
-  {id:"customers", l:"Customer Center", icon:"customer",url:"/cleanitbooks/customers"},
-  {id:"vendors",   l:"Vendor Center",   icon:"vendor",  url:"/cleanitbooks/vendors"},
-  {id:"invoices",  l:"Facturation AR",  icon:"invoice", url:"/cleanitbooks/invoices"},
-  {id:"bills",     l:"Depenses AP",     icon:"bill",    url:"/cleanitbooks/bills"},
-  {id:"banking",   l:"Banking",         icon:"bank",    url:"/cleanitbooks/banking"},
-  {id:"payroll",   l:"Paie RH",         icon:"payroll", url:"/cleanitbooks/payroll"},
-  {id:"reports",   l:"Rapports",        icon:"report",  url:"/cleanitbooks/reports"},
-];
-
-const CIBTopBar = ({title,icon,color,children}) => {
-  const navigate = useNavigate();
-  const loc      = window.location.pathname;
-  const activeId = CIB_NAV.find(n=>loc.includes("/"+n.id))?.id||"jobs";
-  return(
-    <div style={{background:C.white,borderBottom:"1px solid "+C.border,position:"sticky",top:0,zIndex:200,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
-      <div style={{display:"flex",alignItems:"center",padding:"0 24px",height:52,borderBottom:"1px solid "+C.border2}}>
-        <div style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",paddingRight:16,marginRight:8,borderRight:"1px solid "+C.border2}}
-          onClick={()=>navigate("/cleanitbooks")}>
-          <div style={{width:28,height:28,borderRadius:6,background:color||C.green,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <Ico n={icon||"job"} s={14} c="white"/>
-          </div>
-          <span style={{fontSize:13,fontWeight:800,color:C.text}}>CleanIT<span style={{color:C.green}}>Books</span></span>
-        </div>
-        <span style={{fontSize:12,color:C.text3,padding:"0 12px"}}>{title}</span>
-        <div style={{flex:1}}/>
-        {children}
-      </div>
-      <div style={{display:"flex",padding:"0 24px",overflowX:"auto"}}>
-        {CIB_NAV.map(t=>(
-          <button key={t.id} onClick={()=>navigate(t.url)}
-            style={{display:"flex",alignItems:"center",gap:6,padding:"0 16px",height:40,border:"none",background:"transparent",
-              borderBottom:activeId===t.id?"2px solid "+C.green:"2px solid transparent",
-              color:activeId===t.id?C.green:C.text3,fontWeight:activeId===t.id?700:400,
-              fontSize:12,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-            <Ico n={t.icon} s={13} c={activeId===t.id?C.green:C.text3}/>
-            {t.l}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-
-// ================================================================
 //  VENDOR CENTER — CleanITBooks
 //  /cleanitbooks/vendors
 //  /cleanitbooks/vendors/:vendorId
@@ -4055,15 +4006,6 @@ export default function CleanITBooks() {
   const params   = useParams();
   const navigate = useNavigate();
   const loc      = window.location.pathname;
-
-  // Route: /cleanitbooks/invoices/*
-  if(loc.includes('/invoices')){
-    const invoiceId = params.invoiceId;
-    if(invoiceId&&invoiceId!=='new'){
-      return <PageInvoiceDetail invoices={INIT_INVOICES_AR} customers={customers} jobs={jobs}/>;
-    }
-    return <PageInvoiceList invoices={INIT_INVOICES_AR} customers={customers} jobs={jobs}/>;
-  }
 
   // Route: /cleanitbooks/vendors/*
   if(loc.includes('/vendors')){
