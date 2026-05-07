@@ -1,0 +1,69 @@
+import { DataSource } from 'typeorm';
+import { Customer } from './customer.entity';
+import { Vendor } from './vendor.entity';
+import { Job } from './job.entity';
+import { Invoice } from './invoice.entity';
+import { Bill } from './bill.entity';
+
+export async function seedCleanITBooks(dataSource: DataSource) {
+  const customerRepo = dataSource.getRepository(Customer);
+  const vendorRepo   = dataSource.getRepository(Vendor);
+  const jobRepo      = dataSource.getRepository(Job);
+  const invoiceRepo  = dataSource.getRepository(Invoice);
+  const billRepo     = dataSource.getRepository(Bill);
+
+  // Seed seulement si vide
+  const existingCustomers = await customerRepo.count();
+  if(existingCustomers > 0) {
+    console.log('CleanITBooks: donnees deja presentes, seed ignore');
+    return;
+  }
+
+  console.log('CleanITBooks: insertion des donnees initiales...');
+
+  // CUSTOMERS
+  const customers: Customer[] = await customerRepo.save([
+    {company:"MTN Cameroun",contact:"Alain Nkoulou",title:"Directeur Technique",email:"a.nkoulou@mtn.cm",phone:"+237 222 501 000",city:"Douala",region:"Littoral",country:"Cameroun",type:"Telecom",terms:"Net 30",currency:"FCFA",taxCode:"TVA",taxId:"P045678901A",creditLimit:500000000,balance:28500000,accountNum:"MTN-CM-001",status:"Active",notes:"Client principal. Contrats cadres annuels."},
+    {company:"Orange Cameroun",contact:"Sophie Biyong",title:"Chef Projet Reseau",email:"s.biyong@orange.cm",phone:"+237 222 502 000",city:"Yaounde",region:"Centre",country:"Cameroun",type:"Telecom",terms:"Net 45",currency:"FCFA",taxCode:"TVA",taxId:"P045678902B",creditLimit:300000000,balance:10195875,accountNum:"ORA-CM-001",status:"Active",notes:"Facture en retard. Relance envoyee."},
+    {company:"Client OEM Telecom",contact:"Mr. Chen Wei",title:"Project Manager",email:"c.wei@oemtelecom.com",phone:"+237 233 401 000",city:"Douala",region:"Littoral",country:"Cameroun",type:"OEM",terms:"Net 60",currency:"USD",taxCode:"Exonere",creditLimit:1000000000,balance:28060000,accountNum:"OEM-CM-001",status:"Active",notes:"Factures en USD. Paiement SWIFT."},
+    {company:"Gouvernement Cameroun",contact:"DG Marches Publics",title:"Directeur General",email:"dg@marchespublics.cm",phone:"+237 222 230 000",city:"Yaounde",region:"Centre",country:"Cameroun",type:"Public",terms:"Net 90",currency:"FCFA",taxCode:"Exonere",creditLimit:2000000000,balance:38160000,accountNum:"GOV-CM-001",status:"Active",notes:"Paiement via Tresor Public."},
+    {company:"CAMTEL",contact:"DG CAMTEL",title:"Directeur General",email:"dg@camtel.cm",phone:"+237 222 225 000",city:"Yaounde",region:"Centre",country:"Cameroun",type:"Telecom",terms:"Net 60",currency:"FCFA",taxCode:"TVA",taxId:"P045678905E",creditLimit:800000000,balance:71550000,accountNum:"CAM-CM-001",status:"Active",notes:"Projet fibre BFN-001 en cours."},
+    {company:"Nexttel Cameroun",contact:"Pierre Essomba",title:"Responsable Technique",email:"p.essomba@nexttel.cm",phone:"+237 222 610 000",city:"Douala",region:"Littoral",country:"Cameroun",type:"Telecom",terms:"Net 30",currency:"FCFA",taxCode:"TVA",taxId:"P045678906F",creditLimit:100000000,balance:5127750,accountNum:"NEX-CM-001",status:"Active",notes:"Survey RF MAR-001 en attente."},
+  ]);
+
+  // VENDORS
+  const vendors: Vendor[] = await vendorRepo.save([
+    {company:"Huawei Technologies",contact:"Mr. Chen Wei",title:"Project Manager",email:"c.wei@huawei.com",phone:"+237 233 401 000",city:"Douala",country:"Cameroun",type:"Equipementier",terms:"Net 60",currency:"USD",accountNum:"HW-CM-001",balance:72500000,creditLimit:500000000,status:"Active",notes:"Fournisseur principal equipements telecom."},
+    {company:"Nokia Networks",contact:"Sophie Martin",title:"Sales Manager",email:"s.martin@nokia.com",phone:"+33 1 40 80 00 00",city:"Paris",country:"France",type:"Equipementier",terms:"Net 45",currency:"USD",accountNum:"NOK-001",balance:9232000,creditLimit:200000000,status:"Active",notes:"Antennes 4G LTE."},
+    {company:"Ericsson Cameroun",contact:"Paul Biya Jr",title:"Ingenieur Commercial",email:"p.biya@ericsson.cm",phone:"+237 222 230 500",city:"Yaounde",country:"Cameroun",type:"Equipementier",terms:"Net 30",currency:"EUR",taxId:"P098765432B",accountNum:"ERI-001",balance:0,creditLimit:100000000,status:"Active"},
+    {company:"Total Energies Cameroun",contact:"Marc Ateba",email:"m.ateba@total.cm",phone:"+237 222 420 000",city:"Douala",country:"Cameroun",type:"Services",terms:"Net 15",currency:"FCFA",taxId:"P112233445C",accountNum:"TOT-001",balance:0,creditLimit:10000000,status:"Active",notes:"Carburant vehicules terrain."},
+    {company:"CAMTEL",contact:"Direction Commerciale",email:"dc@camtel.cm",phone:"+237 222 225 000",city:"Yaounde",country:"Cameroun",type:"Telecom",terms:"Net 30",currency:"FCFA",taxId:"P556677889D",accountNum:"CAM-001",balance:1200000,creditLimit:50000000,status:"Active",notes:"Liaisons fibre backbone."},
+  ]);
+
+  // JOBS
+  const jobs: Job[] = await jobRepo.save([
+    {name:"Installation 5G NR DLA-001",customerId:customers[0].id,bcRef:"BC-2024-143",jobType:"Telecom Installation",statut:"In Progress",site:"DLA-001",chefProjet:"Marie Kamga",startDate:"2024-01-15",endDate:"2024-06-30",currency:"FCFA",description:"Deploiement 5G NR site Akwa Douala.",budgetHuawei:180000000,contractAmount:165000000,budgetEstime:{labor:12000000,materials:30000000,subcontract:5000000,equipment:2000000,overhead:3000000},coutsReels:{labor:8500000,materials:22000000,subcontract:2000000,equipment:1200000,overhead:1800000},phases:[{id:"PH1",name:"Phase 1 Mobilisation",pct:30,amount:49500000,statut:"invoiced",datePrevue:"2024-01-20"},{id:"PH2",name:"Phase 2 Travaux",pct:40,amount:66000000,statut:"pending",datePrevue:"2024-04-01"},{id:"PH3",name:"Phase 3 Reception",pct:30,amount:49500000,statut:"pending",datePrevue:"2024-06-30"}],lignesBC:[{desc:"BBU 5900 5G NR",qte:2,pu:25000000,total:50000000},{desc:"RRU 5258 4T4R",qte:6,pu:8500000,total:51000000}],notes:"Job cree depuis BC. Prix confidentiel."},
+    {name:"Maintenance 4G LTE YDE-001",customerId:customers[1].id,bcRef:"BC-2024-141",jobType:"Maintenance",statut:"Closed",site:"YDE-001",chefProjet:"Jean Fouda",startDate:"2024-02-01",endDate:"2024-02-28",currency:"FCFA",description:"Maintenance corrective reseau 4G LTE Yaounde.",budgetHuawei:45000000,contractAmount:38000000,budgetEstime:{labor:6000000,materials:12000000,subcontract:2000000,equipment:500000,overhead:1500000},coutsReels:{labor:5200000,materials:10500000,subcontract:1800000,equipment:400000,overhead:1300000},phases:[{id:"PH1",name:"Paiement unique",pct:100,amount:38000000,statut:"invoiced",datePrevue:"2024-02-28"}],lignesBC:[{desc:"Survey RF et audit",qte:1,pu:15000000,total:15000000},{desc:"Remplacement antennes x12",qte:12,pu:1500000,total:18000000}],notes:"Job cloture. Toutes phases payees."},
+    {name:"Infrastructure GAR-001",customerId:customers[3].id,bcRef:"BC-2024-139",jobType:"Infrastructure",statut:"In Progress",site:"GAR-001",chefProjet:"Pierre Etoga",startDate:"2024-03-08",endDate:"2024-04-30",currency:"FCFA",budgetHuawei:35000000,contractAmount:29000000,budgetEstime:{labor:7000000,materials:8000000,subcontract:3000000,equipment:1000000,overhead:2000000},coutsReels:{labor:4200000,materials:5100000,subcontract:1500000,equipment:600000,overhead:1200000},phases:[{id:"PH1",name:"Acompte 30%",pct:30,amount:8700000,statut:"invoiced",datePrevue:"2024-03-10"},{id:"PH2",name:"Solde 70%",pct:70,amount:20300000,statut:"pending",datePrevue:"2024-04-30"}],lignesBC:[{desc:"Inspection HSE pylone",qte:1,pu:15000000,total:15000000}],notes:"Acompte recu. Travaux en cours."},
+    {name:"Fibre Optique BFN-001",customerId:customers[4].id,bcRef:"BC-2024-148",jobType:"Fibre Optique",statut:"Awarded",site:"BFN-001",chefProjet:"Marie Kamga",startDate:"2024-03-10",endDate:"2024-08-31",currency:"FCFA",budgetHuawei:220000000,contractAmount:195000000,budgetEstime:{labor:20000000,materials:80000000,subcontract:15000000,equipment:5000000,overhead:8000000},coutsReels:{labor:0,materials:27200000,subcontract:0,equipment:0,overhead:0},phases:[{id:"PH1",name:"Phase 1 Genie civil",pct:35,amount:68250000,statut:"pending",datePrevue:"2024-05-01"},{id:"PH2",name:"Phase 2 Tirage cable",pct:40,amount:78000000,statut:"pending",datePrevue:"2024-07-01"},{id:"PH3",name:"Phase 3 Raccordements",pct:25,amount:48750000,statut:"pending",datePrevue:"2024-08-31"}],lignesBC:[{desc:"Cable fibre FTTH 50km",qte:50,pu:1500000,total:75000000}],notes:"Job attribue. Demarrage prevu avril."},
+    {name:"Survey RF MAR-001",customerId:customers[5].id,bcRef:"BC-2024-149",jobType:"Survey RF",statut:"Pending",site:"MAR-001",chefProjet:"Jean Fouda",startDate:"2024-04-01",endDate:"2024-04-30",currency:"FCFA",budgetHuawei:18000000,contractAmount:15000000,budgetEstime:{labor:5000000,materials:2000000,subcontract:0,equipment:500000,overhead:1000000},coutsReels:{labor:0,materials:0,subcontract:0,equipment:0,overhead:0},phases:[{id:"PH1",name:"Paiement unique",pct:100,amount:15000000,statut:"pending",datePrevue:"2024-04-30"}],lignesBC:[{desc:"Survey RF zones nord",qte:1,pu:10000000,total:10000000}],notes:"En attente validation BC."},
+  ]);
+
+  // INVOICES
+  await invoiceRepo.save([
+    {customerId:customers[0].id,jobId:jobs[0].id,date:"2024-01-15",dueDate:"2024-02-15",terms:"Net 30",poNumber:"PO-MTN-001",memo:"Installation 5G NR DLA-001 Phase 1",currency:"FCFA",lines:[{desc:"Service Installation 5G NR",qty:1,rate:40000000,amount:40000000,taxable:true},{desc:"Main oeuvre 15 jours",qty:15,rate:350000,amount:5250000,taxable:true}],subtotal:45250000,taxRate:0.1925,taxAmount:8685625,total:53935625,amountPaid:53935625,balance:0,status:"Paid",payments:[{date:"2024-01-25",amount:53935625,method:"Virement bancaire",ref:"VIR-MTN-001"}]},
+    {customerId:customers[1].id,jobId:jobs[1].id,date:"2024-01-28",dueDate:"2024-03-13",terms:"Net 45",memo:"Maintenance 4G LTE YDE-001",currency:"FCFA",lines:[{desc:"Service Maintenance 4G LTE",qty:1,rate:7200000,amount:7200000,taxable:true},{desc:"Configuration et tests",qty:1,rate:1350000,amount:1350000,taxable:true}],subtotal:8550000,taxRate:0.1925,taxAmount:1645875,total:10195875,amountPaid:0,balance:10195875,status:"Overdue",payments:[]},
+    {customerId:customers[3].id,jobId:jobs[2].id,date:"2024-02-01",dueDate:"2024-04-01",terms:"Net 60",poNumber:"GOV-BTP-001",memo:"Infrastructure GAR-001 Acompte 30%",currency:"FCFA",lines:[{desc:"Infrastructure telecom Garoua",qty:1,rate:32000000,amount:32000000,taxable:false}],subtotal:32000000,taxRate:0,taxAmount:0,total:32000000,amountPaid:9600000,balance:22400000,status:"Partial",payments:[{date:"2024-02-15",amount:9600000,method:"Virement Tresor",ref:"TRESOR-001"}]},
+    {customerId:customers[4].id,jobId:jobs[3].id,date:"2024-03-10",dueDate:"2024-05-09",terms:"Net 60",poNumber:"CAM-FO-001",memo:"Fibre Optique BFN-001",currency:"FCFA",lines:[{desc:"Installation fibre 50km",qty:50,rate:1200000,amount:60000000,taxable:true}],subtotal:60000000,taxRate:0.1925,taxAmount:11550000,total:71550000,amountPaid:0,balance:71550000,status:"Sent",payments:[]},
+  ]);
+
+  // BILLS
+  await billRepo.save([
+    {vendorId:vendors[0].id,date:"2024-01-15",dueDate:"2024-03-15",refNum:"HW-INV-2024-143",memo:"Equipements 5G NR BC-2024-143",currency:"FCFA",jobId:jobs[0].id,lines:[{account:"604",desc:"BBU 5900 5G NR x2",amount:50000000},{account:"604",desc:"RRU 5258 4T4R x6",amount:51000000}],total:101000000,amountPaid:28500000,balance:72500000,status:"Partial",payments:[{date:"2024-01-20",amount:28500000,method:"Virement SWIFT",ref:"SWIFT-001"}]},
+    {vendorId:vendors[1].id,date:"2024-02-01",dueDate:"2024-03-15",refNum:"NOK-INV-2024-001",memo:"Antennes Nokia 4G LTE x12",currency:"FCFA",jobId:jobs[1].id,lines:[{account:"604",desc:"Antennes Nokia MIMO x12",amount:9232000}],total:9232000,amountPaid:0,balance:9232000,status:"Unpaid",payments:[]},
+    {vendorId:vendors[3].id,date:"2024-01-31",dueDate:"2024-02-15",refNum:"TOT-JAN-2024",memo:"Carburant vehicules janvier",currency:"FCFA",lines:[{account:"624",desc:"Carburant vehicules terrain",amount:850000}],total:850000,amountPaid:850000,balance:0,status:"Paid",payments:[{date:"2024-02-05",amount:850000,method:"Cheque",ref:"CHQ-001"}]},
+    {vendorId:vendors[4].id,date:"2024-02-15",dueDate:"2024-03-15",refNum:"CAM-Q1-2024",memo:"Liaisons fibre backbone Q1",currency:"FCFA",lines:[{account:"626",desc:"Liaisons fibre optique",amount:1200000}],total:1200000,amountPaid:0,balance:1200000,status:"Unpaid",payments:[]},
+  ]);
+
+  console.log('CleanITBooks: seed termine avec succes');
+}

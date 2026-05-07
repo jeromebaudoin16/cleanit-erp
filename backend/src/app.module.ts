@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
+import { CleanITBooksModule } from './cleanitbooks/cleanitbooks.module';
 import { UsersModule } from './users/users.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SitesModule } from './sites/sites.module';
@@ -48,7 +49,8 @@ import { ApprovalsService } from './approvals/approvals.service';
       inject: [ConfigService],
     }),
     ScheduleModule.forRoot(),
-    AuthModule, UsersModule, DashboardModule,
+    AuthModule,
+    CleanITBooksModule, UsersModule, DashboardModule,
     SitesModule, TicketsModule, TechniciansModule, InterventionsModule,
     PlanningModule, InventaireModule, ContratsModule, MediationModule,
     ProvisioningModule, EvidenceModule, FinanceModule, PointageModule,
