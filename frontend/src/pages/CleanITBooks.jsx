@@ -6015,9 +6015,38 @@ const PageTimeTracking = () => {
 export default function CleanITBooks() {
   const [jobs,      setJobs]      = useState(INIT_JOBS);
   const [customers, setCustomers] = useState(INIT_CUSTOMERS);
+  const [vendors,   setVendors]   = useState(INIT_VENDORS);
+  const [invoices,  setInvoices]  = useState(INIT_INVOICES_AR);
+  const [bills,     setBills]     = useState(INIT_BILLS_AP);
+  const [loading,   setLoading]   = useState(true);
   const params   = useParams();
   const navigate = useNavigate();
   const loc      = window.location.pathname;
+
+  // Charger les donnees depuis le backend
+  useEffect(()=>{
+    const load = async () => {
+      try {
+        const [j, c, v, i, b] = await Promise.all([
+          CIBApi.getJobs(),
+          CIBApi.getCustomers(),
+          CIBApi.getVendors(),
+          CIBApi.getInvoices(),
+          CIBApi.getBills(),
+        ]);
+        if(Array.isArray(j)&&j.length>0) setJobs(j);
+        if(Array.isArray(c)&&c.length>0) setCustomers(c);
+        if(Array.isArray(v)&&v.length>0) setVendors(v);
+        if(Array.isArray(i)&&i.length>0) setInvoices(i);
+        if(Array.isArray(b)&&b.length>0) setBills(b);
+      } catch(e) {
+        console.warn("CleanITBooks: backend indisponible, donnees statiques utilisees");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  },[]);
 
   // Route: /cleanitbooks/time/*
   if(loc.includes('/time')){
