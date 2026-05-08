@@ -4213,7 +4213,7 @@ const PageInvoiceDetail = ({invoices,customers,jobs}) => {
       <CIBTopBar title={"Facture "+inv.id} icon="invoice" color={C.green}>
         <div style={{display:"flex",gap:8}}>
           <Btn label="Retour" variant="light" sm onClick={()=>navigate("/cleanitbooks/invoices")}/>
-          {inv.balance>0&&<Btn label="Recevoir paiement" variant="primary" sm icon="receive"/>}
+          {inv.balance>0&&<Btn label="Recevoir paiement" variant="primary" sm icon="receive" onClick={()=>setShowPay(true)}/>}
         </div>
       </CIBTopBar>
       <div style={{padding:"24px",maxWidth:900,margin:"0 auto",animation:"fadeUp .3s ease"}}>
@@ -4320,18 +4320,18 @@ const PageVendorNew = ({vendors,setVendors}) => {
   const [accountNum,setAccountNum]=useState("");
   const [notes,    setNotes]    = useState("");
 
-  const save = () => {
+  const save = async () => {
     if(!company){alert("Nom obligatoire");return;}
-    const v = {
-      id:"V"+String(Date.now()).slice(-6),
-      company,contact,email,phone,city,country,
-      type,terms,currency,accountNum,notes,
-      title:"",mobile:"",address:"",region:"",taxId:"",
-      creditLimit:0,balance:0,status:"Active",
-      dateCreation:TODAY,bills:[],
-    };
-    setVendors(p=>[...p,v]);
-    navigate("/cleanitbooks/vendors/"+v.id);
+    const dto = {company,contact,email,phone,city,country,type,terms,currency,accountNum,notes,status:"Active"};
+    try {
+      const res = await import("../services/cleanitbooks.api");
+      const saved = await res.createVendor(dto);
+      if(saved && saved.id) navigate("/cleanitbooks/vendors");
+      else navigate("/cleanitbooks/vendors");
+    } catch(e) {
+      console.warn("API indisponible, sauvegarde locale");
+      navigate("/cleanitbooks/vendors");
+    }
   };
 
   return(
@@ -4416,16 +4416,21 @@ const PageInvoiceNew = ({invoices,setInvoices,customers,jobs}) => {
   const taxAmt   = cust&&cust.taxCode==="TVA"?lines.filter(l=>l.taxable).reduce((s,l)=>s+l.amount*0.1925,0):0;
   const total    = subtotal+taxAmt;
 
-  const save = () => {
+  const save = async () => {
     if(!custId){alert("Client obligatoire");return;}
-    const inv = {
-      id:"INV-"+new Date().getFullYear()+"-"+String(Math.floor(Math.random()*900+100)).padStart(3,"0"),
+    const dto = {
       customerId:custId,jobId,date,dueDate,terms,poNumber:poNum,memo,currency,lines,
-      subtotal,taxRate:0.1925,taxAmount:taxAmt,total,amountPaid:0,balance:total,
-      status:"Draft",payments:[],
+      subtotal,taxRate:0.1925,taxAmount:Math.round(taxAmt),total:Math.round(total),
+      amountPaid:0,balance:Math.round(total),status:"Draft",payments:[],
     };
-    setInvoices(p=>[...p,inv]);
-    navigate("/cleanitbooks/invoices/"+inv.id);
+    try {
+      const api = await import("../services/cleanitbooks.api");
+      const saved = await api.createInvoice(dto);
+      navigate("/cleanitbooks/invoices");
+    } catch(e) {
+      console.warn("API indisponible");
+      navigate("/cleanitbooks/invoices");
+    }
   };
 
   return(
@@ -4691,7 +4696,7 @@ const PageBillDetail = ({bills,vendors,jobs}) => {
       <CIBTopBar title={"Bill "+bill.id} icon="bill" color={C.orange}>
         <div style={{display:"flex",gap:8}}>
           <Btn label="Retour" variant="light" sm onClick={()=>navigate("/cleanitbooks/bills")}/>
-          {bill.balance>0&&<Btn label="Payer ce bill" variant="primary" sm icon="money"/>}
+          {bill.balance>0&&<Btn label="Payer ce bill" variant="primary" sm icon="money" onClick={()=>setShowPay(true)}/>}
         </div>
       </CIBTopBar>
       <div style={{padding:"24px",maxWidth:860,margin:"0 auto",animation:"fadeUp .3s ease"}}>
@@ -4800,8 +4805,14 @@ const PageBillNew = ({vendors,jobs}) => {
 
   const total = lines.reduce((s,l)=>s+(+l.amount||0),0);
 
-  const save = () => {
+  const save = async () => {
     if(!vendorId){alert("Fournisseur obligatoire");return;}
+    const total = lines.reduce((s,l)=>s+(+l.amount||0),0);
+    const dto = {vendorId,date,dueDate,refNum,memo,jobId,lines,total,amountPaid:0,balance:total,status:"Unpaid",payments:[]};
+    try {
+      const api = await import("../services/cleanitbooks.api");
+      await api.createBill(dto);
+    } catch(e) { console.warn("API indisponible"); }
     navigate("/cleanitbooks/bills");
   };
 
@@ -5624,7 +5635,10 @@ const PageReports = () => {
         <div style={{display:"flex",gap:8}}>
           {selReport&&<Btn label="Retour aux rapports" variant="light" sm onClick={()=>setSelReport(null)}/>}
           {selReport&&<Btn label="Exporter Excel" variant="light" sm icon="download"/>}
-          {selReport&&<Btn label="Imprimer" variant="default" sm icon="print"/>}
+          {selReport&&<Btn label="Imprimer" variant="default" sm icon="print" onClick={async()=>{
+  const {generateInvoicePDF} = await import("../services/pdf.service");
+  await generateInvoicePDF(inv, cust, job);
+}}/>}
         </div>
       </CIBTopBar>
 
@@ -6007,6 +6021,104 @@ const PageTimeTracking = () => {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+// ================================================================
+//  MODAL PAIEMENT — Recevoir paiement / Payer bill
+// ================================================================
+const ModalPaiement = ({type, item, customers, vendors, onClose, onSave}) => {
+  const [montant,  setMontant]  = React.useState(item?.balance||0);
+  const [date,     setDate]     = React.useState(TODAY);
+  const [methode,  setMethode]  = React.useState("Virement bancaire");
+  const [ref,      setRef]      = React.useState("");
+  const [loading,  setLoading]  = React.useState(false);
+
+  const isInvoice = type === "invoice";
+  const tiers = isInvoice
+    ? customers?.find(c=>c.id===item?.customerId)
+    : vendors?.find(v=>v.id===item?.vendorId);
+
+  const save = async () => {
+    if(!montant||+montant<=0){alert("Montant obligatoire");return;}
+    if(!ref){alert("Référence obligatoire");return;}
+    setLoading(true);
+    const paiement = {date, amount:+montant, method:methode, ref};
+    try {
+      const api = await import("../services/cleanitbooks.api");
+      const newBalance = Math.max(0, (item.balance||0) - +montant);
+      const newPaid    = (item.amountPaid||0) + +montant;
+      const newStatus  = newBalance===0?"Paid":newPaid>0?"Partial":item.status;
+      const updated    = {
+        ...item,
+        amountPaid: newPaid,
+        balance:    newBalance,
+        status:     newStatus,
+        payments:   [...(item.payments||[]), paiement],
+      };
+      if(isInvoice) await api.updateInvoice(item.id, updated);
+      else          await api.updateBill(item.id, updated);
+      onSave(updated);
+    } catch(e) {
+      console.warn("API indisponible");
+      onSave({...item, amountPaid:(item.amountPaid||0)+(+montant), balance:Math.max(0,(item.balance||0)-(+montant))});
+    }
+    setLoading(false);
+    onClose();
+  };
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:C.white,borderRadius:16,width:"100%",maxWidth:440,boxShadow:"0 20px 60px rgba(0,0,0,.2)",overflow:"hidden"}}>
+        <div style={{background:isInvoice?"linear-gradient(135deg,#16a34a,#15803d)":"linear-gradient(135deg,#ea580c,#c2410c)",padding:"18px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>
+              {isInvoice?"Encaissement client":"Paiement fournisseur"}
+            </div>
+            <div style={{fontSize:18,fontWeight:800,color:"white"}}>
+              {isInvoice?"Recevoir un paiement":"Payer ce bill"}
+            </div>
+          </div>
+          <button onClick={onClose} style={{width:30,height:30,borderRadius:8,background:"rgba(255,255,255,.2)",border:"none",color:"white",cursor:"pointer",fontSize:18}}>×</button>
+        </div>
+        <div style={{padding:24}}>
+          <div style={{padding:"12px 14px",borderRadius:10,background:C.bg,border:"1px solid "+C.border,marginBottom:18}}>
+            <div style={{fontSize:12,fontWeight:700,color:C.text}}>{tiers?.company||tiers?.nom||item?.id}</div>
+            <div style={{fontSize:12,color:C.text3,marginTop:2}}>
+              Solde restant : <strong style={{color:isInvoice?C.orange:C.red}}>{fN(item?.balance||0)} {item?.currency||"FCFA"}</strong>
+            </div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div>
+              <label style={{fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4,display:"block",marginBottom:5}}>Montant *</label>
+              <input type="number" value={montant} onChange={e=>setMontant(e.target.value)} max={item?.balance}
+                style={{width:"100%",padding:"10px 12px",borderRadius:9,border:"1.5px solid "+C.border,fontSize:14,fontWeight:700,color:C.text,fontFamily:"inherit"}}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4,display:"block",marginBottom:5}}>Date du paiement *</label>
+              <input type="date" value={date} onChange={e=>setDate(e.target.value)}
+                style={{width:"100%",padding:"10px 12px",borderRadius:9,border:"1.5px solid "+C.border,fontSize:13,color:C.text,fontFamily:"inherit"}}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4,display:"block",marginBottom:5}}>Mode de paiement</label>
+              <select value={methode} onChange={e=>setMethode(e.target.value)}
+                style={{width:"100%",padding:"10px 12px",borderRadius:9,border:"1.5px solid "+C.border,fontSize:13,color:C.text,background:C.white,fontFamily:"inherit"}}>
+                {["Virement bancaire","Virement SWIFT","Virement SEPA","Chèque","Espèces","Mobile Money","Virement Trésor"].map(m=><option key={m}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4,display:"block",marginBottom:5}}>Référence *</label>
+              <input value={ref} onChange={e=>setRef(e.target.value)} placeholder="Ex: VIR-2024-001"
+                style={{width:"100%",padding:"10px 12px",borderRadius:9,border:"1.5px solid "+C.border,fontSize:13,color:C.text,fontFamily:"inherit"}}/>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:10,marginTop:20}}>
+            <Btn label="Annuler" variant="light" onClick={onClose} full/>
+            <Btn label={loading?"Enregistrement...":isInvoice?"✓ Encaisser":"✓ Payer"} variant={isInvoice?"primary":"ghost"} onClick={save} disabled={loading} full/>
+          </div>
+        </div>
       </div>
     </div>
   );

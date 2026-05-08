@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 
 // ================================================================
 //  CLEANITBOOKS — MODULE 1 : JOB CENTER
@@ -1456,19 +1456,21 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
 //  COMPOSANT NAV PARTAGE — CIBTopBar
 // ================================================================
 const CIB_NAV = [
-  {id:"jobs",      l:"Job Center",      icon:"job",     url:"/cleanitbooks/jobs"},
-  {id:"customers", l:"Customer Center", icon:"customer",url:"/cleanitbooks/customers"},
-  {id:"vendors",   l:"Vendor Center",   icon:"vendor",  url:"/cleanitbooks/vendors"},
-  {id:"invoices",  l:"Facturation AR",  icon:"invoice", url:"/cleanitbooks/invoices"},
-  {id:"bills",     l:"Depenses AP",     icon:"bill",    url:"/cleanitbooks/bills"},
-  {id:"banking",   l:"Banking",         icon:"bank",    url:"/cleanitbooks/banking"},
-  {id:"payroll",   l:"Paie RH",         icon:"payroll", url:"/cleanitbooks/payroll"},
-  {id:"reports",   l:"Rapports",        icon:"report",  url:"/cleanitbooks/reports"},
+  {id:"jobs",      l:"Jobs",        icon:"job",     url:"/cleanitbooks/jobs"},
+  {id:"customers", l:"Clients",     icon:"customer",url:"/cleanitbooks/customers"},
+  {id:"vendors",   l:"Fournisseurs",icon:"vendor",  url:"/cleanitbooks/vendors"},
+  {id:"invoices",  l:"Factures AR", icon:"invoice", url:"/cleanitbooks/invoices"},
+  {id:"bills",     l:"Depenses AP", icon:"bill",    url:"/cleanitbooks/bills"},
+  {id:"banking",   l:"Banking",     icon:"bank",    url:"/cleanitbooks/banking"},
+  {id:"payroll",   l:"Paie RH",     icon:"payroll", url:"/cleanitbooks/payroll"},
+  {id:"time",      l:"Heures",      icon:"time",    url:"/cleanitbooks/time"},
+  {id:"reports",   l:"Rapports",    icon:"report",  url:"/cleanitbooks/reports"},
 ];
 
 const CIBTopBar = ({title,icon,color,children}) => {
   const navigate = useNavigate();
-  const loc      = window.location.pathname;
+  const location = useLocation();
+  const loc      = location.pathname;
   const activeId = CIB_NAV.find(n=>loc.includes("/"+n.id))?.id||"jobs";
   return(
     <div style={{background:C.white,borderBottom:"1px solid "+C.border,position:"sticky",top:0,zIndex:200,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
@@ -1484,14 +1486,14 @@ const CIBTopBar = ({title,icon,color,children}) => {
         <div style={{flex:1}}/>
         {children}
       </div>
-      <div style={{display:"flex",padding:"0 24px",overflowX:"auto"}}>
+      <div style={{display:"flex",padding:"0 16px",overflowX:"auto",scrollbarWidth:"none"}}>
         {CIB_NAV.map(t=>(
           <button key={t.id} onClick={()=>navigate(t.url)}
-            style={{display:"flex",alignItems:"center",gap:6,padding:"0 16px",height:40,border:"none",background:"transparent",
+            style={{display:"flex",alignItems:"center",gap:4,padding:"0 10px",height:38,border:"none",background:"transparent",
               borderBottom:activeId===t.id?"2px solid "+C.green:"2px solid transparent",
               color:activeId===t.id?C.green:C.text3,fontWeight:activeId===t.id?700:400,
-              fontSize:12,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-            <Ico n={t.icon} s={13} c={activeId===t.id?C.green:C.text3}/>
+              fontSize:11,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap",flexShrink:0}}>
+            <Ico n={t.icon} s={12} c={activeId===t.id?C.green:C.text3}/>
             {t.l}
           </button>
         ))}
@@ -4211,7 +4213,7 @@ const PageInvoiceDetail = ({invoices,customers,jobs}) => {
       <CIBTopBar title={"Facture "+inv.id} icon="invoice" color={C.green}>
         <div style={{display:"flex",gap:8}}>
           <Btn label="Retour" variant="light" sm onClick={()=>navigate("/cleanitbooks/invoices")}/>
-          {inv.balance>0&&<Btn label="Recevoir paiement" variant="primary" sm icon="receive"/>}
+          {inv.balance>0&&<Btn label="Recevoir paiement" variant="primary" sm icon="receive" onClick={()=>setShowPay(true)}/>}
         </div>
       </CIBTopBar>
       <div style={{padding:"24px",maxWidth:900,margin:"0 auto",animation:"fadeUp .3s ease"}}>
@@ -4318,18 +4320,18 @@ const PageVendorNew = ({vendors,setVendors}) => {
   const [accountNum,setAccountNum]=useState("");
   const [notes,    setNotes]    = useState("");
 
-  const save = () => {
+  const save = async () => {
     if(!company){alert("Nom obligatoire");return;}
-    const v = {
-      id:"V"+String(Date.now()).slice(-6),
-      company,contact,email,phone,city,country,
-      type,terms,currency,accountNum,notes,
-      title:"",mobile:"",address:"",region:"",taxId:"",
-      creditLimit:0,balance:0,status:"Active",
-      dateCreation:TODAY,bills:[],
-    };
-    setVendors(p=>[...p,v]);
-    navigate("/cleanitbooks/vendors/"+v.id);
+    const dto = {company,contact,email,phone,city,country,type,terms,currency,accountNum,notes,status:"Active"};
+    try {
+      const res = await import("../services/cleanitbooks.api");
+      const saved = await res.createVendor(dto);
+      if(saved && saved.id) navigate("/cleanitbooks/vendors");
+      else navigate("/cleanitbooks/vendors");
+    } catch(e) {
+      console.warn("API indisponible, sauvegarde locale");
+      navigate("/cleanitbooks/vendors");
+    }
   };
 
   return(
@@ -4416,14 +4418,19 @@ const PageInvoiceNew = ({invoices,setInvoices,customers,jobs}) => {
 
   const save = () => {
     if(!custId){alert("Client obligatoire");return;}
-    const inv = {
-      id:"INV-"+new Date().getFullYear()+"-"+String(Math.floor(Math.random()*900+100)).padStart(3,"0"),
+    const dto = {
       customerId:custId,jobId,date,dueDate,terms,poNumber:poNum,memo,currency,lines,
-      subtotal,taxRate:0.1925,taxAmount:taxAmt,total,amountPaid:0,balance:total,
-      status:"Draft",payments:[],
+      subtotal,taxRate:0.1925,taxAmount:Math.round(taxAmt),total:Math.round(total),
+      amountPaid:0,balance:Math.round(total),status:"Draft",payments:[],
     };
-    setInvoices(p=>[...p,inv]);
-    navigate("/cleanitbooks/invoices/"+inv.id);
+    try {
+      const api = await import("../services/cleanitbooks.api");
+      const saved = await api.createInvoice(dto);
+      navigate("/cleanitbooks/invoices");
+    } catch(e) {
+      console.warn("API indisponible");
+      navigate("/cleanitbooks/invoices");
+    }
   };
 
   return(
@@ -4689,7 +4696,7 @@ const PageBillDetail = ({bills,vendors,jobs}) => {
       <CIBTopBar title={"Bill "+bill.id} icon="bill" color={C.orange}>
         <div style={{display:"flex",gap:8}}>
           <Btn label="Retour" variant="light" sm onClick={()=>navigate("/cleanitbooks/bills")}/>
-          {bill.balance>0&&<Btn label="Payer ce bill" variant="primary" sm icon="money"/>}
+          {bill.balance>0&&<Btn label="Payer ce bill" variant="primary" sm icon="money" onClick={()=>setShowPay(true)}/>}
         </div>
       </CIBTopBar>
       <div style={{padding:"24px",maxWidth:860,margin:"0 auto",animation:"fadeUp .3s ease"}}>
@@ -4798,8 +4805,14 @@ const PageBillNew = ({vendors,jobs}) => {
 
   const total = lines.reduce((s,l)=>s+(+l.amount||0),0);
 
-  const save = () => {
+  const save = async () => {
     if(!vendorId){alert("Fournisseur obligatoire");return;}
+    const total = lines.reduce((s,l)=>s+(+l.amount||0),0);
+    const dto = {vendorId,date,dueDate,refNum,memo,jobId,lines,total,amountPaid:0,balance:total,status:"Unpaid",payments:[]};
+    try {
+      const api = await import("../services/cleanitbooks.api");
+      await api.createBill(dto);
+    } catch(e) { console.warn("API indisponible"); }
     navigate("/cleanitbooks/bills");
   };
 
@@ -5622,7 +5635,10 @@ const PageReports = () => {
         <div style={{display:"flex",gap:8}}>
           {selReport&&<Btn label="Retour aux rapports" variant="light" sm onClick={()=>setSelReport(null)}/>}
           {selReport&&<Btn label="Exporter Excel" variant="light" sm icon="download"/>}
-          {selReport&&<Btn label="Imprimer" variant="default" sm icon="print"/>}
+          {selReport&&<Btn label="Imprimer" variant="default" sm icon="print" onClick={async()=>{
+  const {generateInvoicePDF} = await import("../services/pdf.service");
+  await generateInvoicePDF(inv, cust, job);
+}}/>}
         </div>
       </CIBTopBar>
 
@@ -5691,12 +5707,463 @@ const PageReports = () => {
   );
 };
 
+// ================================================================
+//  TIME TRACKING — Saisie des heures
+// ================================================================
+const INIT_TIME_ENTRIES = [
+  {id:"TE-001",empId:"E001",empName:"Marie Kamga",date:"2024-03-15",jobId:"JOB-001",jobName:"Installation 5G NR DLA-001",service:"Chef de Projet",hours:8,rate:53125,billable:true,note:"Supervision installation antennes DLA-001"},
+  {id:"TE-002",empId:"E002",empName:"Jean Fouda",date:"2024-03-15",jobId:"JOB-001",jobName:"Installation 5G NR DLA-001",service:"PM Terrain",hours:8,rate:46875,billable:true,note:"Coordination equipe terrain"},
+  {id:"TE-003",empId:"E003",empName:"Pierre Etoga",date:"2024-03-16",jobId:"JOB-003",jobName:"Infrastructure GAR-001",service:"Ingenieur Reseau",hours:10,rate:56250,billable:true,note:"Configuration equipements Garoua"},
+  {id:"TE-004",empId:"E001",empName:"Marie Kamga",date:"2024-03-18",jobId:"JOB-004",jobName:"Fibre Optique BFN-001",service:"Chef de Projet",hours:6,rate:0,billable:false,note:"Reunion preparation BFN-001"},
+  {id:"TE-005",empId:"E002",empName:"Jean Fouda",date:"2024-03-20",jobId:"JOB-002",jobName:"Maintenance 4G LTE YDE-001",service:"PM Terrain",hours:8,rate:46875,billable:true,note:"Cloture projet YDE-001"},
+  {id:"TE-006",empId:"E006",empName:"Samuel Djomo",date:"2024-03-16",jobId:"JOB-002",jobName:"Maintenance 4G LTE YDE-001",service:"Technicien Reseau",hours:10,rate:35000,billable:true,note:"Remplacement antennes defectueuses"},
+  {id:"TE-007",empId:"E007",empName:"Ali Moussa",date:"2024-03-17",jobId:"JOB-003",jobName:"Infrastructure GAR-001",service:"Technicien HSE",hours:8,rate:37500,billable:true,note:"Inspection securite pylone 45m"},
+  {id:"TE-008",empId:"E003",empName:"Pierre Etoga",date:"2024-03-20",jobId:"JOB-001",jobName:"Installation 5G NR DLA-001",service:"Ingenieur Reseau",hours:9,rate:56250,billable:true,note:"Tests end-to-end 5G NR"},
+];
+
+const EMPLOYEES_TT = [
+  {id:"E001",name:"Marie Kamga",      title:"Chef de Projet Senior", dept:"Operations", rate:53125},
+  {id:"E002",name:"Jean Fouda",       title:"Project Manager",       dept:"Operations", rate:46875},
+  {id:"E003",name:"Pierre Etoga",     title:"Ingenieur Reseau",      dept:"Technique",  rate:56250},
+  {id:"E004",name:"Alice Finance",    title:"Directrice Financiere", dept:"Finance",    rate:75000},
+  {id:"E005",name:"Bob Comptable",    title:"Chef Comptable",        dept:"Finance",    rate:46875},
+  {id:"E006",name:"Samuel Djomo",     title:"Technicien Reseau",     dept:"Technique",  rate:35000},
+  {id:"E007",name:"Ali Moussa",       title:"Technicien HSE",        dept:"Technique",  rate:37500},
+];
+
+const SERVICES_TT = ["Chef de Projet","Project Manager","Ingenieur Reseau","Technicien Reseau","Technicien HSE","Comptabilite","Direction","Transport","Autre"];
+
+const PageTimeTracking = () => {
+  const navigate   = useNavigate();
+  const [entries,  setEntries]   = useState(INIT_TIME_ENTRIES);
+  const [mode,     setMode]      = useState("list");
+  const [search,   setSearch]    = useState("");
+  const [filtreEmp,setFiltreEmp] = useState("Tous");
+  const [filtreJob,setFiltreJob] = useState("Tous");
+
+  const [empId,    setEmpId]    = useState("");
+  const [date,     setDate]     = useState(TODAY);
+  const [jobId,    setJobId]    = useState("");
+  const [service,  setService]  = useState("");
+  const [hours,    setHours]    = useState("");
+  const [rate,     setRate]     = useState("");
+  const [billable, setBillable] = useState(true);
+  const [note,     setNote]     = useState("");
+
+  const filtered = entries.filter(e=>{
+    const ms = !search||(e.empName+e.jobName+e.service+e.note).toLowerCase().includes(search.toLowerCase());
+    const me = filtreEmp==="Tous"||e.empId===filtreEmp;
+    const mj = filtreJob==="Tous"||e.jobId===filtreJob;
+    return ms&&me&&mj;
+  });
+
+  const totalHeures  = filtered.reduce((s,e)=>s+e.hours,0);
+  const totalMontant = filtered.reduce((s,e)=>s+e.hours*e.rate,0);
+  const totalBill    = filtered.filter(e=>e.billable).reduce((s,e)=>s+e.hours,0);
+  const totalNonBill = filtered.filter(e=>!e.billable).reduce((s,e)=>s+e.hours,0);
+
+  const handleEmpChange = (id) => {
+    setEmpId(id);
+    const emp = EMPLOYEES_TT.find(e=>e.id===id);
+    if(emp) setRate(String(emp.rate));
+  };
+
+  const saveEntry = () => {
+    if(!empId||!date||!jobId||!hours){alert("Employe, date, job et heures sont obligatoires");return;}
+    const emp = EMPLOYEES_TT.find(e=>e.id===empId);
+    const job = INIT_JOBS.find(j=>j.id===jobId);
+    const entry = {
+      id:"TE-"+String(Date.now()).slice(-6),
+      empId, empName:emp?emp.name:"",
+      date, jobId, jobName:job?job.name:"",
+      service, hours:+hours, rate:+rate||0,
+      billable, note,
+    };
+    setEntries(p=>[entry,...p]);
+    setMode("list");
+    setEmpId("");setJobId("");setHours("");setNote("");setService("");setRate("");
+  };
+
+  const DAYS     = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+  const weekBase = "2024-03-18";
+  const weekDates= Array.from({length:7},(_,i)=>{
+    const d = new Date(weekBase);
+    d.setDate(d.getDate()+i);
+    return d.toISOString().split("T")[0];
+  });
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+
+      <CIBTopBar title="Saisie des heures" icon="time" color={C.blue}>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {mode==="list"&&(
+            <div style={{display:"flex",alignItems:"center",gap:7,background:C.bg,border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
+              <Ico n="search" s={13} c={C.text4}/>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher..."
+                style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:140,fontFamily:"inherit"}}/>
+            </div>
+          )}
+          <div style={{display:"flex",gap:1,background:C.white,border:"1px solid "+C.border,borderRadius:4,overflow:"hidden"}}>
+            {[{id:"list",l:"Liste"},{id:"single",l:"Saisie rapide"},{id:"weekly",l:"Feuille hebdo"}].map(m=>(
+              <button key={m.id} onClick={()=>setMode(m.id)}
+                style={{padding:"6px 14px",border:"none",background:mode===m.id?C.blue:C.white,color:mode===m.id?"white":C.text3,fontSize:12,fontWeight:mode===m.id?700:400,cursor:"pointer",fontFamily:"inherit"}}>
+                {m.l}
+              </button>
+            ))}
+          </div>
+          <Btn label="Exporter" variant="light" sm icon="download" onClick={async ()=>{
+            const ExcelJS=(await import("exceljs")).default;
+            const wb=new ExcelJS.Workbook();
+            const ws=wb.addWorksheet("Heures");
+            ws.columns=[{key:"id",width:12,header:"ID"},{key:"emp",width:20,header:"Employe"},{key:"date",width:13,header:"Date"},{key:"job",width:30,header:"Job"},{key:"service",width:20,header:"Service"},{key:"hours",width:10,header:"Heures"},{key:"rate",width:14,header:"Taux/h"},{key:"montant",width:16,header:"Montant"},{key:"billable",width:12,header:"Facturable"},{key:"note",width:30,header:"Note"}];
+            ws.getRow(1).eachCell(cell=>{cell.font={name:"Calibri",bold:true,color:{argb:"FFFFFFFF"},size:10};cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF0077C5"}};cell.alignment={horizontal:"center",vertical:"middle"};});
+            filtered.forEach((e,i)=>{
+              const row=ws.addRow({id:e.id,emp:e.empName,date:e.date,job:e.jobName,service:e.service,hours:e.hours,rate:e.rate,montant:e.hours*e.rate,billable:e.billable?"Oui":"Non",note:e.note});
+              if(i%2===1) row.eachCell(cell=>cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFE5F2FC"}});
+            });
+            const buf=await wb.xlsx.writeBuffer();
+            const a=document.createElement("a");
+            a.href=URL.createObjectURL(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+            a.download="Heures_"+new Date().toISOString().split("T")[0]+".xlsx";a.click();
+          }}/>
+          {mode==="single"&&<Btn label="Enregistrer" variant="primary" sm icon="check" onClick={saveEntry}/>}
+        </div>
+      </CIBTopBar>
+
+      <div style={{padding:"24px",animation:"fadeUp .3s ease"}}>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+          {[
+            {l:"Total heures",      v:totalHeures+"h",    c:C.blue,   icon:"time"},
+            {l:"Heures facturables",v:totalBill+"h",      c:C.green,  icon:"invoice"},
+            {l:"Non facturables",   v:totalNonBill+"h",   c:C.orange, icon:"time"},
+            {l:"Montant total",     v:fM(totalMontant)+" F",c:C.purple,icon:"money"},
+          ].map((kpi,i)=>(
+            <div key={i} style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"14px 16px",borderTop:"3px solid "+kpi.c}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontSize:10,color:C.text3,textTransform:"uppercase",letterSpacing:.4,fontWeight:600}}>{kpi.l}</span>
+                <div style={{width:28,height:28,borderRadius:4,background:kpi.c+"15",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n={kpi.icon} s={14} c={kpi.c}/></div>
+              </div>
+              <div style={{fontSize:20,fontWeight:700,color:kpi.c}}>{kpi.v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* LISTE */}
+        {mode==="list"&&(
+          <div>
+            <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+              <Sel value={filtreEmp} onChange={setFiltreEmp} small
+                options={[{v:"Tous",l:"Tous les employes"},...EMPLOYEES_TT.map(e=>({v:e.id,l:e.name}))]}/>
+              <Sel value={filtreJob} onChange={setFiltreJob} small
+                options={[{v:"Tous",l:"Tous les jobs"},...INIT_JOBS.map(j=>({v:j.id,l:j.name}))]}/>
+              <div style={{marginLeft:"auto"}}>
+                <Btn label="+ Saisir des heures" variant="primary" sm icon="plus" onClick={()=>setMode("single")}/>
+              </div>
+            </div>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead>
+                  <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                    {["Employe","Date","Job","Service","Heures","Taux/h","Montant","Facturable","Note"].map((h,i)=>(
+                      <th key={i} style={{padding:"10px 14px",textAlign:i>=4&&i<=6?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length===0&&<tr><td colSpan={9} style={{padding:"48px",textAlign:"center",color:C.text4}}>Aucune entree</td></tr>}
+                  {filtered.map((e,i)=>(
+                    <tr key={e.id} style={{borderBottom:"1px solid "+C.border2,background:i%2===1?"#FAFAFA":C.white}}>
+                      <td style={{padding:"11px 14px",fontWeight:700,fontSize:12}}>{e.empName}</td>
+                      <td style={{padding:"11px 14px",color:C.text3,fontSize:12}}>{fD2(e.date)}</td>
+                      <td style={{padding:"11px 14px"}}>
+                        <div style={{fontSize:12,color:C.blue,cursor:"pointer",fontWeight:500}} onClick={()=>navigate("/cleanitbooks/jobs/"+e.jobId)}>{e.jobName}</div>
+                      </td>
+                      <td style={{padding:"11px 14px",fontSize:12,color:C.text3}}>{e.service}</td>
+                      <td style={{padding:"11px 14px",textAlign:"right",fontWeight:700,color:C.blue}}>{e.hours}h</td>
+                      <td style={{padding:"11px 14px",textAlign:"right",fontSize:12,color:C.text3}}>{e.rate>0?fN(e.rate)+" F":"—"}</td>
+                      <td style={{padding:"11px 14px",textAlign:"right",fontWeight:700,color:C.purple}}>{e.hours*e.rate>0?fN(e.hours*e.rate)+" F":"—"}</td>
+                      <td style={{padding:"11px 14px"}}>
+                        <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,fontWeight:600,background:e.billable?C.green_l:C.border2,color:e.billable?C.green:C.text3}}>
+                          {e.billable?"Facturable":"Non fact."}
+                        </span>
+                      </td>
+                      <td style={{padding:"11px 14px",fontSize:11,color:C.text4,fontStyle:"italic"}}>{e.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}>
+                    <td colSpan={4} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>{filtered.length} entree(s)</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.blue,fontSize:14}}>{totalHeures}h</td>
+                    <td/>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.purple,fontSize:14}}>{fN(totalMontant)} F</td>
+                    <td colSpan={2}/>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* SAISIE RAPIDE */}
+        {mode==="single"&&(
+          <div style={{maxWidth:680,margin:"0 auto"}}>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px"}}>
+              <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:20}}>Nouvelle entree de temps</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                <Field label="Employe" required>
+                  <Sel value={empId} onChange={handleEmpChange} placeholder="Selectionner..." options={EMPLOYEES_TT.map(e=>({v:e.id,l:e.name+" — "+e.title}))}/>
+                </Field>
+                <Field label="Date" required>
+                  <Inp type="date" value={date} onChange={setDate}/>
+                </Field>
+                <Field label="Job" required>
+                  <Sel value={jobId} onChange={setJobId} placeholder="Selectionner un job..." options={INIT_JOBS.map(j=>({v:j.id,l:j.name}))}/>
+                </Field>
+                <Field label="Type de service">
+                  <Sel value={service} onChange={setService} placeholder="Selectionner..." options={SERVICES_TT}/>
+                </Field>
+                <Field label="Duree en heures" required hint="Ex: 8 ou 7.5">
+                  <Inp type="number" value={hours} onChange={setHours} placeholder="0" suffix="h" min="0" max="24"/>
+                </Field>
+                <Field label="Taux horaire FCFA" hint="Auto selon employe">
+                  <Inp type="number" value={rate} onChange={setRate} prefix="FCFA" placeholder="0"/>
+                </Field>
+                <Field label="Facturable">
+                  <div style={{display:"flex",alignItems:"center",gap:10,paddingTop:8}}>
+                    <input type="checkbox" checked={billable} onChange={e=>setBillable(e.target.checked)} style={{width:18,height:18,accentColor:C.green,cursor:"pointer"}}/>
+                    <span style={{fontSize:13,color:C.text2}}>Facturable au client</span>
+                  </div>
+                </Field>
+                {hours&&rate&&+hours>0&&+rate>0&&(
+                  <div style={{padding:"12px 16px",background:C.blue_l,borderRadius:6,border:"1px solid "+C.blue+"30",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:12,color:C.blue}}>Montant calcule</span>
+                    <span style={{fontSize:16,fontWeight:700,color:C.blue}}>{fN(+hours*(+rate))} F</span>
+                  </div>
+                )}
+                <Field label="Note" span>
+                  <Txt value={note} onChange={setNote} placeholder="Description du travail effectue..." rows={3}/>
+                </Field>
+              </div>
+              <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:20}}>
+                <Btn label="Annuler" variant="light" onClick={()=>setMode("list")}/>
+                <Btn label="Enregistrer les heures" variant="primary" icon="check" onClick={saveEntry}/>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FEUILLE HEBDO */}
+        {mode==="weekly"&&(
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text}}>Feuille de temps — Semaine du 18 au 24 mars 2024</div>
+              <div style={{display:"flex",gap:8}}>
+                <Btn label="Semaine precedente" variant="light" sm/>
+                <Btn label="Semaine suivante" variant="light" sm/>
+                <Btn label="Soumettre" variant="primary" sm icon="check"/>
+              </div>
+            </div>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",minWidth:800}}>
+                  <thead>
+                    <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                      <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",width:220}}>Job / Service</th>
+                      {DAYS.map((d,i)=>(
+                        <th key={d} style={{padding:"10px 8px",textAlign:"center",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>
+                          <div>{d}</div>
+                          <div style={{fontSize:10,color:C.text4,fontWeight:400}}>{fD2(weekDates[i])}</div>
+                        </th>
+                      ))}
+                      <th style={{padding:"10px 14px",textAlign:"right",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {INIT_JOBS.slice(0,4).map((job,ji)=>(
+                      <tr key={job.id} style={{borderBottom:"1px solid "+C.border2,background:ji%2===1?"#FAFAFA":C.white}}>
+                        <td style={{padding:"8px 14px"}}>
+                          <div style={{fontSize:12,fontWeight:600,color:C.blue}}>{job.name}</div>
+                          <div style={{fontSize:11,color:C.text4}}>Service principal</div>
+                        </td>
+                        {DAYS.map((d,di)=>{
+                          const entry = entries.find(e=>e.jobId===job.id&&e.date===weekDates[di]);
+                          return(
+                            <td key={d} style={{padding:"6px 6px",width:55}}>
+                              <input type="number" defaultValue={entry?entry.hours:""} placeholder="0"
+                                style={{width:"100%",padding:"5px 4px",borderRadius:3,border:"1px solid "+C.border,fontSize:12,textAlign:"center",fontFamily:"inherit",outline:"none"}}
+                                onFocus={e=>e.target.style.borderColor=C.blue}
+                                onBlur={e=>e.target.style.borderColor=C.border}/>
+                            </td>
+                          );
+                        })}
+                        <td style={{padding:"8px 14px",textAlign:"right",fontWeight:700,color:C.blue}}>
+                          {entries.filter(e=>e.jobId===job.id&&weekDates.includes(e.date)).reduce((s,e)=>s+e.hours,0)}h
+                        </td>
+                      </tr>
+                    ))}
+                    <tr style={{background:C.bg,borderTop:"2px solid "+C.border}}>
+                      <td style={{padding:"10px 14px",fontWeight:700,color:C.text}}>TOTAL JOURNALIER</td>
+                      {DAYS.map((d,di)=>{
+                        const t=entries.filter(e=>e.date===weekDates[di]).reduce((s,e)=>s+e.hours,0);
+                        return <td key={d} style={{padding:"10px 8px",textAlign:"center",fontWeight:700,color:t>8?C.orange:C.text}}>{t>0?t+"h":"—"}</td>;
+                      })}
+                      <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.blue,fontSize:14}}>
+                        {entries.filter(e=>weekDates.includes(e.date)).reduce((s,e)=>s+e.hours,0)}h
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ================================================================
+//  MODAL PAIEMENT — Recevoir paiement / Payer bill
+// ================================================================
+const ModalPaiement = ({type, item, customers, vendors, onClose, onSave}) => {
+  const [montant,  setMontant]  = React.useState(item?.balance||0);
+  const [date,     setDate]     = React.useState(TODAY);
+  const [methode,  setMethode]  = React.useState("Virement bancaire");
+  const [ref,      setRef]      = React.useState("");
+  const [loading,  setLoading]  = React.useState(false);
+
+  const isInvoice = type === "invoice";
+  const tiers = isInvoice
+    ? customers?.find(c=>c.id===item?.customerId)
+    : vendors?.find(v=>v.id===item?.vendorId);
+
+  const save = async () => {
+    if(!montant||+montant<=0){alert("Montant obligatoire");return;}
+    if(!ref){alert("Référence obligatoire");return;}
+    setLoading(true);
+    const paiement = {date, amount:+montant, method:methode, ref};
+    try {
+      const api = await import("../services/cleanitbooks.api");
+      const newBalance = Math.max(0, (item.balance||0) - +montant);
+      const newPaid    = (item.amountPaid||0) + +montant;
+      const newStatus  = newBalance===0?"Paid":newPaid>0?"Partial":item.status;
+      const updated    = {
+        ...item,
+        amountPaid: newPaid,
+        balance:    newBalance,
+        status:     newStatus,
+        payments:   [...(item.payments||[]), paiement],
+      };
+      if(isInvoice) await api.updateInvoice(item.id, updated);
+      else          await api.updateBill(item.id, updated);
+      onSave(updated);
+    } catch(e) {
+      console.warn("API indisponible");
+      onSave({...item, amountPaid:(item.amountPaid||0)+(+montant), balance:Math.max(0,(item.balance||0)-(+montant))});
+    }
+    setLoading(false);
+    onClose();
+  };
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{background:C.white,borderRadius:16,width:"100%",maxWidth:440,boxShadow:"0 20px 60px rgba(0,0,0,.2)",overflow:"hidden"}}>
+        <div style={{background:isInvoice?"linear-gradient(135deg,#16a34a,#15803d)":"linear-gradient(135deg,#ea580c,#c2410c)",padding:"18px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>
+              {isInvoice?"Encaissement client":"Paiement fournisseur"}
+            </div>
+            <div style={{fontSize:18,fontWeight:800,color:"white"}}>
+              {isInvoice?"Recevoir un paiement":"Payer ce bill"}
+            </div>
+          </div>
+          <button onClick={onClose} style={{width:30,height:30,borderRadius:8,background:"rgba(255,255,255,.2)",border:"none",color:"white",cursor:"pointer",fontSize:18}}>×</button>
+        </div>
+        <div style={{padding:24}}>
+          <div style={{padding:"12px 14px",borderRadius:10,background:C.bg,border:"1px solid "+C.border,marginBottom:18}}>
+            <div style={{fontSize:12,fontWeight:700,color:C.text}}>{tiers?.company||tiers?.nom||item?.id}</div>
+            <div style={{fontSize:12,color:C.text3,marginTop:2}}>
+              Solde restant : <strong style={{color:isInvoice?C.orange:C.red}}>{fN(item?.balance||0)} {item?.currency||"FCFA"}</strong>
+            </div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div>
+              <label style={{fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4,display:"block",marginBottom:5}}>Montant *</label>
+              <input type="number" value={montant} onChange={e=>setMontant(e.target.value)} max={item?.balance}
+                style={{width:"100%",padding:"10px 12px",borderRadius:9,border:"1.5px solid "+C.border,fontSize:14,fontWeight:700,color:C.text,fontFamily:"inherit"}}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4,display:"block",marginBottom:5}}>Date du paiement *</label>
+              <input type="date" value={date} onChange={e=>setDate(e.target.value)}
+                style={{width:"100%",padding:"10px 12px",borderRadius:9,border:"1.5px solid "+C.border,fontSize:13,color:C.text,fontFamily:"inherit"}}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4,display:"block",marginBottom:5}}>Mode de paiement</label>
+              <select value={methode} onChange={e=>setMethode(e.target.value)}
+                style={{width:"100%",padding:"10px 12px",borderRadius:9,border:"1.5px solid "+C.border,fontSize:13,color:C.text,background:C.white,fontFamily:"inherit"}}>
+                {["Virement bancaire","Virement SWIFT","Virement SEPA","Chèque","Espèces","Mobile Money","Virement Trésor"].map(m=><option key={m}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4,display:"block",marginBottom:5}}>Référence *</label>
+              <input value={ref} onChange={e=>setRef(e.target.value)} placeholder="Ex: VIR-2024-001"
+                style={{width:"100%",padding:"10px 12px",borderRadius:9,border:"1.5px solid "+C.border,fontSize:13,color:C.text,fontFamily:"inherit"}}/>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:10,marginTop:20}}>
+            <Btn label="Annuler" variant="light" onClick={onClose} full/>
+            <Btn label={loading?"Enregistrement...":isInvoice?"✓ Encaisser":"✓ Payer"} variant={isInvoice?"primary":"ghost"} onClick={save} disabled={loading} full/>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function CleanITBooks() {
   const [jobs,      setJobs]      = useState(INIT_JOBS);
   const [customers, setCustomers] = useState(INIT_CUSTOMERS);
+  const [vendors,   setVendors]   = useState(INIT_VENDORS);
+  const [invoices,  setInvoices]  = useState(INIT_INVOICES_AR);
+  const [bills,     setBills]     = useState(INIT_BILLS_AP);
+  const [loading,   setLoading]   = useState(true);
   const params   = useParams();
   const navigate = useNavigate();
   const loc      = window.location.pathname;
+
+  // Charger les donnees depuis le backend
+  useEffect(()=>{
+    const load = async () => {
+      try {
+        const [j, c, v, i, b] = await Promise.all([
+          CIBApi.getJobs(),
+          CIBApi.getCustomers(),
+          CIBApi.getVendors(),
+          CIBApi.getInvoices(),
+          CIBApi.getBills(),
+        ]);
+        if(Array.isArray(j)&&j.length>0) setJobs(j);
+        if(Array.isArray(c)&&c.length>0) setCustomers(c);
+        if(Array.isArray(v)&&v.length>0) setVendors(v);
+        if(Array.isArray(i)&&i.length>0) setInvoices(i);
+        if(Array.isArray(b)&&b.length>0) setBills(b);
+      } catch(e) {
+        console.warn("CleanITBooks: backend indisponible, donnees statiques utilisees");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  },[]);
+
+  // Route: /cleanitbooks/time/*
+  if(loc.includes('/time')){
+    return <PageTimeTracking/>;
+  }
 
   // Route: /cleanitbooks/reports/*
   if(loc.includes('/reports')){
