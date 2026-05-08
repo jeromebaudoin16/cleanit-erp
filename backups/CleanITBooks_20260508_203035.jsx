@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 
 // ================================================================
 //  CLEANITBOOKS — MODULE 1 : JOB CENTER
@@ -1456,19 +1456,21 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
 //  COMPOSANT NAV PARTAGE — CIBTopBar
 // ================================================================
 const CIB_NAV = [
-  {id:"jobs",      l:"Job Center",      icon:"job",     url:"/cleanitbooks/jobs"},
-  {id:"customers", l:"Customer Center", icon:"customer",url:"/cleanitbooks/customers"},
-  {id:"vendors",   l:"Vendor Center",   icon:"vendor",  url:"/cleanitbooks/vendors"},
-  {id:"invoices",  l:"Facturation AR",  icon:"invoice", url:"/cleanitbooks/invoices"},
-  {id:"bills",     l:"Depenses AP",     icon:"bill",    url:"/cleanitbooks/bills"},
-  {id:"banking",   l:"Banking",         icon:"bank",    url:"/cleanitbooks/banking"},
-  {id:"payroll",   l:"Paie RH",         icon:"payroll", url:"/cleanitbooks/payroll"},
-  {id:"reports",   l:"Rapports",        icon:"report",  url:"/cleanitbooks/reports"},
+  {id:"jobs",      l:"Jobs",        icon:"job",     url:"/cleanitbooks/jobs"},
+  {id:"customers", l:"Clients",     icon:"customer",url:"/cleanitbooks/customers"},
+  {id:"vendors",   l:"Fournisseurs",icon:"vendor",  url:"/cleanitbooks/vendors"},
+  {id:"invoices",  l:"Factures AR", icon:"invoice", url:"/cleanitbooks/invoices"},
+  {id:"bills",     l:"Depenses AP", icon:"bill",    url:"/cleanitbooks/bills"},
+  {id:"banking",   l:"Banking",     icon:"bank",    url:"/cleanitbooks/banking"},
+  {id:"payroll",   l:"Paie RH",     icon:"payroll", url:"/cleanitbooks/payroll"},
+  {id:"time",      l:"Heures",      icon:"time",    url:"/cleanitbooks/time"},
+  {id:"reports",   l:"Rapports",    icon:"report",  url:"/cleanitbooks/reports"},
 ];
 
 const CIBTopBar = ({title,icon,color,children}) => {
   const navigate = useNavigate();
-  const loc      = window.location.pathname;
+  const location = useLocation();
+  const loc      = location.pathname;
   const activeId = CIB_NAV.find(n=>loc.includes("/"+n.id))?.id||"jobs";
   return(
     <div style={{background:C.white,borderBottom:"1px solid "+C.border,position:"sticky",top:0,zIndex:200,boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
@@ -1484,14 +1486,14 @@ const CIBTopBar = ({title,icon,color,children}) => {
         <div style={{flex:1}}/>
         {children}
       </div>
-      <div style={{display:"flex",padding:"0 24px",overflowX:"auto"}}>
+      <div style={{display:"flex",padding:"0 16px",overflowX:"auto",scrollbarWidth:"none"}}>
         {CIB_NAV.map(t=>(
           <button key={t.id} onClick={()=>navigate(t.url)}
-            style={{display:"flex",alignItems:"center",gap:6,padding:"0 16px",height:40,border:"none",background:"transparent",
+            style={{display:"flex",alignItems:"center",gap:4,padding:"0 10px",height:38,border:"none",background:"transparent",
               borderBottom:activeId===t.id?"2px solid "+C.green:"2px solid transparent",
               color:activeId===t.id?C.green:C.text3,fontWeight:activeId===t.id?700:400,
-              fontSize:12,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-            <Ico n={t.icon} s={13} c={activeId===t.id?C.green:C.text3}/>
+              fontSize:11,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap",flexShrink:0}}>
+            <Ico n={t.icon} s={12} c={activeId===t.id?C.green:C.text3}/>
             {t.l}
           </button>
         ))}
@@ -5425,12 +5427,636 @@ const PagePayroll = () => {
   );
 };
 
+// ================================================================
+//  RAPPORTS — Job Costing et Finance SYSCOHADA
+// ================================================================
+const PageReports = () => {
+  const navigate = useNavigate();
+  const [activeGroup, setActiveGroup] = useState(null);
+  const [selReport,   setSelReport]   = useState(null);
+
+  const REPORT_GROUPS = [
+    {id:"financial",  name:"Etats financiers SYSCOHADA", color:C.green,  icon:"chart", reports:[
+      {id:"pl",       name:"Compte de resultat (P&L)",          desc:"Produits, charges et resultat net"},
+      {id:"balance",  name:"Bilan comptable SYSCOHADA",          desc:"Actif, passif et capitaux propres"},
+      {id:"cashflow", name:"Tableau des flux de tresorerie",      desc:"Flux operationnels, investissement, financement"},
+      {id:"plcomp",   name:"P&L comparatif periode precedente",  desc:"Evolution des performances"},
+      {id:"budget",   name:"Budget vs Reel",                     desc:"Ecart entre previsions et realite"},
+    ]},
+    {id:"ar",         name:"Clients et Comptes Clients AR", color:C.blue,   icon:"invoice", reports:[
+      {id:"araging",  name:"AR Aging Summary",                   desc:"Encours clients par tranche d age"},
+      {id:"ardetail", name:"AR Aging Detail",                    desc:"Detail par facture et client"},
+      {id:"arbalance",name:"Balance clients",                    desc:"Solde ouvert par client"},
+      {id:"aroverdue",name:"Factures en retard",                 desc:"Factures echues non payees"},
+      {id:"collections",name:"Rapport de recouvrement",          desc:"Suivi des relances clients"},
+    ]},
+    {id:"sales",      name:"Ventes et Chiffre d Affaires", color:C.green,  icon:"chart", reports:[
+      {id:"sales_cust",name:"CA par client",                     desc:"Chiffre affaires par client"},
+      {id:"sales_job", name:"CA par job",                        desc:"Revenus par projet"},
+      {id:"sales_month",name:"CA mensuel",                       desc:"Evolution mensuelle du CA"},
+      {id:"invoices_pending",name:"Factures en attente",         desc:"Devis et factures non encaissees"},
+    ]},
+    {id:"ap",         name:"Fournisseurs et Comptes Fournisseurs AP", color:C.orange, icon:"bill", reports:[
+      {id:"apaging",  name:"AP Aging Summary",                   desc:"Dettes fournisseurs par tranche"},
+      {id:"apdetail", name:"AP Aging Detail",                    desc:"Detail par bill et fournisseur"},
+      {id:"apbalance",name:"Balance fournisseurs",               desc:"Solde du par fournisseur"},
+      {id:"bills_unpaid",name:"Bills non payes",                 desc:"Bills en attente de paiement"},
+      {id:"purchases",name:"Achats par fournisseur",             desc:"Historique achats fournisseurs"},
+    ]},
+    {id:"jobcosting", name:"Job Costing et Rentabilite", color:C.purple, icon:"job", reports:[
+      {id:"profitability",name:"Rentabilite par job",            desc:"Marge nette par projet"},
+      {id:"evactuals",name:"Estimates vs Actuals",               desc:"Budget prevu vs couts reels"},
+      {id:"jobcost",  name:"Couts par job",                      desc:"Detail des couts engages"},
+      {id:"unbilled", name:"Couts non factures",                 desc:"Depenses sans facture associee"},
+      {id:"jobtime",  name:"Temps par job",                      desc:"Heures enregistrees par projet"},
+      {id:"bc_tracker",name:"PO Tracker BC",                     desc:"Suivi des bons de commande"},
+    ]},
+    {id:"payroll",    name:"Paie et Ressources Humaines", color:C.blue,   icon:"payroll", reports:[
+      {id:"pay_summary",name:"Resume paie mensuelle",            desc:"Masse salariale par periode"},
+      {id:"pay_detail",name:"Detail paie par employe",           desc:"Fiche de paie individuelle"},
+      {id:"cnps_decl",name:"Declaration CNPS",                   desc:"Rapport CNPS mensuel"},
+      {id:"irpp_decl",name:"Declaration IRPP",                   desc:"Rapport IRPP mensuel"},
+      {id:"pay_annual",name:"Masse salariale annuelle",          desc:"Bilan RH annuel"},
+    ]},
+    {id:"banking",    name:"Banking et Tresorerie", color:C.green,  icon:"bank", reports:[
+      {id:"cashpos",  name:"Position de tresorerie",             desc:"Solde de chaque compte"},
+      {id:"cashflow2",name:"Flux de tresorerie",                 desc:"Entrees et sorties de fonds"},
+      {id:"recon",    name:"Historique rapprochements",          desc:"Rapprochements bancaires effectues"},
+      {id:"deposits", name:"Detail des depots",                  desc:"Virements recus par compte"},
+    ]},
+    {id:"tax",        name:"Fiscalite SYSCOHADA", color:C.red,    icon:"tax", reports:[
+      {id:"tva_decl", name:"Declaration TVA mensuelle",          desc:"TVA collectee et deductible"},
+      {id:"tva_coll", name:"TVA collectee par client",           desc:"Detail TVA par client"},
+      {id:"tva_ded",  name:"TVA deductible par fournisseur",     desc:"Detail TVA deductible"},
+      {id:"is_acompte",name:"Acomptes IS",                       desc:"Impot sur les societes"},
+    ]},
+  ];
+
+  const totalReports = REPORT_GROUPS.reduce((s,g)=>s+g.reports.length,0);
+
+  // Vue detail rapport simulee
+  const renderReportView = (report) => {
+    if(report.id==="pl"){
+      const rows = [
+        {label:"PRODUITS D EXPLOITATION",isHeader:true},
+        {label:"Chiffre d affaires",value:207432938,type:"income"},
+        {label:"Autres produits",value:0,type:"income"},
+        {label:"TOTAL PRODUITS",value:207432938,type:"total",color:C.green},
+        {label:"",isSpace:true},
+        {label:"CHARGES D EXPLOITATION",isHeader:true},
+        {label:"Achats de marchandises",value:110232000,type:"expense"},
+        {label:"Charges de personnel",value:29484000,type:"expense"},
+        {label:"Transport et deplacement",value:850000,type:"expense"},
+        {label:"Telecommunications",value:1200000,type:"expense"},
+        {label:"Autres charges",value:2400000,type:"expense"},
+        {label:"TOTAL CHARGES",value:144166000,type:"total",color:C.red},
+        {label:"",isSpace:true},
+        {label:"RESULTAT D EXPLOITATION",value:63266938,type:"result",color:C.green},
+        {label:"Charges financieres",value:450000,type:"expense"},
+        {label:"RESULTAT NET",value:62816938,type:"result",color:C.green},
+      ];
+      return(
+        <div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}>
+            {[{l:"Chiffre d affaires",v:fM(207432938)+" F",c:C.blue},{l:"Charges totales",v:fM(144166000)+" F",c:C.red},{l:"Resultat net",v:fM(62816938)+" F",c:C.green}].map((k,i)=>(
+              <div key={i} style={{padding:"14px 16px",background:C.white,border:"1px solid "+C.border,borderRadius:6,borderTop:"3px solid "+k.c,textAlign:"center"}}>
+                <div style={{fontSize:11,color:C.text3,textTransform:"uppercase",letterSpacing:.4,marginBottom:4}}>{k.l}</div>
+                <div style={{fontSize:20,fontWeight:700,color:k.c}}>{k.v}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead>
+                <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                  {["Libelle","Montant (FCFA)"].map((h,i)=>(
+                    <th key={i} style={{padding:"10px 14px",textAlign:i===1?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r,i)=>(
+                  r.isSpace?<tr key={i}><td colSpan={2} style={{padding:"4px"}}></td></tr>:
+                  r.isHeader?<tr key={i} style={{background:C.bg}}><td colSpan={2} style={{padding:"8px 14px",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.5}}>{r.label}</td></tr>:(
+                    <tr key={i} style={{borderBottom:"1px solid "+C.border2,background:r.type==="total"||r.type==="result"?C.bg:C.white}}>
+                      <td style={{padding:"10px 14px",fontSize:r.type==="total"||r.type==="result"?13:12,fontWeight:r.type==="total"||r.type==="result"?700:400,color:C.text,paddingLeft:r.type!=="total"&&r.type!=="result"?28:14}}>{r.label}</td>
+                      <td style={{padding:"10px 14px",textAlign:"right",fontSize:r.type==="total"||r.type==="result"?15:13,fontWeight:r.type==="total"||r.type==="result"?800:500,color:r.color||C.text}}>{r.value!==undefined?(r.type==="expense"?"("+fN(r.value)+")":fN(r.value))+" F":"—"}</td>
+                    </tr>
+                  )
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    if(report.id==="profitability"){
+      return(
+        <div>
+          <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead>
+                <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                  {["Job","Client","Contrat","Facture","Couts reels","Marge FCFA","Marge %"].map((h,i)=>(
+                    <th key={i} style={{padding:"10px 14px",textAlign:i>=2?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {INIT_JOBS.map((j,i)=>{
+                  const cust = INIT_CUSTOMERS.find(c=>c.id===j.customerId);
+                  const invoiced = j.invoices.reduce((s,inv)=>s+inv.amount,0);
+                  const costs    = Object.values(j.coutsReels).reduce((s,v)=>s+v,0);
+                  const marge    = invoiced - costs;
+                  const pct      = invoiced>0?Math.round(marge/invoiced*100):0;
+                  return(
+                    <tr key={j.id} style={{borderBottom:"1px solid "+C.border2,cursor:"pointer",background:i%2===1?"#FAFAFA":C.white}}
+                      onClick={()=>navigate("/cleanitbooks/jobs/"+j.id)}>
+                      <td style={{padding:"12px 14px",fontWeight:700,color:C.blue}}>{j.name}</td>
+                      <td style={{padding:"12px 14px",fontSize:12,color:C.text3}}>{cust?cust.company:"—"}</td>
+                      <td style={{padding:"12px 14px",textAlign:"right",fontWeight:600}}>{fN(j.contractAmount)} F</td>
+                      <td style={{padding:"12px 14px",textAlign:"right",fontWeight:600,color:C.green}}>{fN(invoiced)} F</td>
+                      <td style={{padding:"12px 14px",textAlign:"right",fontWeight:600,color:C.red}}>{fN(costs)} F</td>
+                      <td style={{padding:"12px 14px",textAlign:"right",fontWeight:700,color:marge>=0?C.green:C.red,fontSize:13}}>{marge>=0?"+":""}{fN(marge)} F</td>
+                      <td style={{padding:"12px 14px",textAlign:"right"}}>
+                        <span style={{fontSize:12,fontWeight:700,padding:"3px 9px",borderRadius:10,background:pct>=20?C.green_l:pct>=0?C.orange_l:C.red_l,color:pct>=20?C.green:pct>=0?C.orange:C.red}}>{pct}%</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}>
+                  <td colSpan={2} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>TOTAL</td>
+                  <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.blue}}>{fN(INIT_JOBS.reduce((s,j)=>s+j.contractAmount,0))} F</td>
+                  <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.green}}>{fN(INIT_JOBS.reduce((s,j)=>s+j.invoices.reduce((si,i)=>si+i.amount,0),0))} F</td>
+                  <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.red}}>{fN(INIT_JOBS.reduce((s,j)=>s+Object.values(j.coutsReels).reduce((sc,v)=>sc+v,0),0))} F</td>
+                  <td colSpan={2}/>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // Rapport generique
+    return(
+      <div style={{padding:"60px",textAlign:"center",background:C.white,border:"1px dashed "+C.border,borderRadius:6}}>
+        <Ico n="chart" s={48} c={C.border}/>
+        <div style={{fontSize:16,color:C.text4,marginTop:16,marginBottom:8}}>{report.name}</div>
+        <div style={{fontSize:13,color:C.text4,marginBottom:20}}>{report.desc}</div>
+        <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+          <Btn label="Generer le rapport" variant="primary" icon="chart"/>
+          <Btn label="Exporter Excel" variant="light" icon="download"/>
+          <Btn label="Imprimer" variant="light" icon="print"/>
+        </div>
+      </div>
+    );
+  };
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+
+      <CIBTopBar title="Rapports et Analyses" icon="report" color={C.text}>
+        <div style={{display:"flex",gap:8}}>
+          {selReport&&<Btn label="Retour aux rapports" variant="light" sm onClick={()=>setSelReport(null)}/>}
+          {selReport&&<Btn label="Exporter Excel" variant="light" sm icon="download"/>}
+          {selReport&&<Btn label="Imprimer" variant="default" sm icon="print"/>}
+        </div>
+      </CIBTopBar>
+
+      <div style={{padding:"24px",animation:"fadeUp .3s ease"}}>
+
+        {!selReport&&(
+          <div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+              <div>
+                <div style={{fontSize:18,fontWeight:700,color:C.text}}>Centre de rapports</div>
+                <div style={{fontSize:13,color:C.text3}}>{totalReports} rapports disponibles · SYSCOHADA · TVA 19.25%</div>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                {REPORT_GROUPS.map(g=>(
+                  <button key={g.id} onClick={()=>setActiveGroup(activeGroup===g.id?null:g.id)}
+                    style={{padding:"6px 12px",borderRadius:4,border:"1px solid "+(activeGroup===g.id?g.color:C.border),background:activeGroup===g.id?g.color+"15":C.white,color:activeGroup===g.id?g.color:C.text3,fontSize:11,cursor:"pointer",fontFamily:"inherit",fontWeight:activeGroup===g.id?700:400}}>
+                    {g.reports.length}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {REPORT_GROUPS.filter(g=>!activeGroup||g.id===activeGroup).map(group=>(
+              <div key={group.id} style={{marginBottom:24}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 16px",background:C.white,border:"1px solid "+C.border,borderRadius:6,marginBottom:10,borderLeft:"4px solid "+group.color}}>
+                  <div style={{width:30,height:30,borderRadius:5,background:group.color+"15",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <Ico n={group.icon} s={15} c={group.color}/>
+                  </div>
+                  <span style={{fontSize:13,fontWeight:700,color:C.text}}>{group.name}</span>
+                  <span style={{fontSize:11,color:C.text4,marginLeft:4}}>({group.reports.length} rapports)</span>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:8}}>
+                  {group.reports.map(report=>(
+                    <div key={report.id}
+                      style={{padding:"14px 16px",background:C.white,border:"1px solid "+C.border2,borderRadius:6,cursor:"pointer",transition:"all .15s"}}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor=group.color;e.currentTarget.style.background=group.color+"08";e.currentTarget.style.transform="translateY(-1px)";}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border2;e.currentTarget.style.background=C.white;e.currentTarget.style.transform="none";}}
+                      onClick={()=>setSelReport(report)}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                        <div>
+                          <div style={{fontSize:13,fontWeight:600,color:C.text,marginBottom:4}}>{report.name}</div>
+                          <div style={{fontSize:11,color:C.text4}}>{report.desc}</div>
+                        </div>
+                        <Ico n="chevr" s={14} c={C.text4}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {selReport&&(
+          <div>
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:11,color:C.text4,marginBottom:4}}>Rapports / {selReport.name}</div>
+              <div style={{fontSize:20,fontWeight:700,color:C.text,marginBottom:4}}>{selReport.name}</div>
+              <div style={{fontSize:13,color:C.text3}}>{selReport.desc}</div>
+            </div>
+            {renderReportView(selReport)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ================================================================
+//  TIME TRACKING — Saisie des heures
+// ================================================================
+const INIT_TIME_ENTRIES = [
+  {id:"TE-001",empId:"E001",empName:"Marie Kamga",date:"2024-03-15",jobId:"JOB-001",jobName:"Installation 5G NR DLA-001",service:"Chef de Projet",hours:8,rate:53125,billable:true,note:"Supervision installation antennes DLA-001"},
+  {id:"TE-002",empId:"E002",empName:"Jean Fouda",date:"2024-03-15",jobId:"JOB-001",jobName:"Installation 5G NR DLA-001",service:"PM Terrain",hours:8,rate:46875,billable:true,note:"Coordination equipe terrain"},
+  {id:"TE-003",empId:"E003",empName:"Pierre Etoga",date:"2024-03-16",jobId:"JOB-003",jobName:"Infrastructure GAR-001",service:"Ingenieur Reseau",hours:10,rate:56250,billable:true,note:"Configuration equipements Garoua"},
+  {id:"TE-004",empId:"E001",empName:"Marie Kamga",date:"2024-03-18",jobId:"JOB-004",jobName:"Fibre Optique BFN-001",service:"Chef de Projet",hours:6,rate:0,billable:false,note:"Reunion preparation BFN-001"},
+  {id:"TE-005",empId:"E002",empName:"Jean Fouda",date:"2024-03-20",jobId:"JOB-002",jobName:"Maintenance 4G LTE YDE-001",service:"PM Terrain",hours:8,rate:46875,billable:true,note:"Cloture projet YDE-001"},
+  {id:"TE-006",empId:"E006",empName:"Samuel Djomo",date:"2024-03-16",jobId:"JOB-002",jobName:"Maintenance 4G LTE YDE-001",service:"Technicien Reseau",hours:10,rate:35000,billable:true,note:"Remplacement antennes defectueuses"},
+  {id:"TE-007",empId:"E007",empName:"Ali Moussa",date:"2024-03-17",jobId:"JOB-003",jobName:"Infrastructure GAR-001",service:"Technicien HSE",hours:8,rate:37500,billable:true,note:"Inspection securite pylone 45m"},
+  {id:"TE-008",empId:"E003",empName:"Pierre Etoga",date:"2024-03-20",jobId:"JOB-001",jobName:"Installation 5G NR DLA-001",service:"Ingenieur Reseau",hours:9,rate:56250,billable:true,note:"Tests end-to-end 5G NR"},
+];
+
+const EMPLOYEES_TT = [
+  {id:"E001",name:"Marie Kamga",      title:"Chef de Projet Senior", dept:"Operations", rate:53125},
+  {id:"E002",name:"Jean Fouda",       title:"Project Manager",       dept:"Operations", rate:46875},
+  {id:"E003",name:"Pierre Etoga",     title:"Ingenieur Reseau",      dept:"Technique",  rate:56250},
+  {id:"E004",name:"Alice Finance",    title:"Directrice Financiere", dept:"Finance",    rate:75000},
+  {id:"E005",name:"Bob Comptable",    title:"Chef Comptable",        dept:"Finance",    rate:46875},
+  {id:"E006",name:"Samuel Djomo",     title:"Technicien Reseau",     dept:"Technique",  rate:35000},
+  {id:"E007",name:"Ali Moussa",       title:"Technicien HSE",        dept:"Technique",  rate:37500},
+];
+
+const SERVICES_TT = ["Chef de Projet","Project Manager","Ingenieur Reseau","Technicien Reseau","Technicien HSE","Comptabilite","Direction","Transport","Autre"];
+
+const PageTimeTracking = () => {
+  const navigate   = useNavigate();
+  const [entries,  setEntries]   = useState(INIT_TIME_ENTRIES);
+  const [mode,     setMode]      = useState("list");
+  const [search,   setSearch]    = useState("");
+  const [filtreEmp,setFiltreEmp] = useState("Tous");
+  const [filtreJob,setFiltreJob] = useState("Tous");
+
+  const [empId,    setEmpId]    = useState("");
+  const [date,     setDate]     = useState(TODAY);
+  const [jobId,    setJobId]    = useState("");
+  const [service,  setService]  = useState("");
+  const [hours,    setHours]    = useState("");
+  const [rate,     setRate]     = useState("");
+  const [billable, setBillable] = useState(true);
+  const [note,     setNote]     = useState("");
+
+  const filtered = entries.filter(e=>{
+    const ms = !search||(e.empName+e.jobName+e.service+e.note).toLowerCase().includes(search.toLowerCase());
+    const me = filtreEmp==="Tous"||e.empId===filtreEmp;
+    const mj = filtreJob==="Tous"||e.jobId===filtreJob;
+    return ms&&me&&mj;
+  });
+
+  const totalHeures  = filtered.reduce((s,e)=>s+e.hours,0);
+  const totalMontant = filtered.reduce((s,e)=>s+e.hours*e.rate,0);
+  const totalBill    = filtered.filter(e=>e.billable).reduce((s,e)=>s+e.hours,0);
+  const totalNonBill = filtered.filter(e=>!e.billable).reduce((s,e)=>s+e.hours,0);
+
+  const handleEmpChange = (id) => {
+    setEmpId(id);
+    const emp = EMPLOYEES_TT.find(e=>e.id===id);
+    if(emp) setRate(String(emp.rate));
+  };
+
+  const saveEntry = () => {
+    if(!empId||!date||!jobId||!hours){alert("Employe, date, job et heures sont obligatoires");return;}
+    const emp = EMPLOYEES_TT.find(e=>e.id===empId);
+    const job = INIT_JOBS.find(j=>j.id===jobId);
+    const entry = {
+      id:"TE-"+String(Date.now()).slice(-6),
+      empId, empName:emp?emp.name:"",
+      date, jobId, jobName:job?job.name:"",
+      service, hours:+hours, rate:+rate||0,
+      billable, note,
+    };
+    setEntries(p=>[entry,...p]);
+    setMode("list");
+    setEmpId("");setJobId("");setHours("");setNote("");setService("");setRate("");
+  };
+
+  const DAYS     = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+  const weekBase = "2024-03-18";
+  const weekDates= Array.from({length:7},(_,i)=>{
+    const d = new Date(weekBase);
+    d.setDate(d.getDate()+i);
+    return d.toISOString().split("T")[0];
+  });
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
+
+      <CIBTopBar title="Saisie des heures" icon="time" color={C.blue}>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {mode==="list"&&(
+            <div style={{display:"flex",alignItems:"center",gap:7,background:C.bg,border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
+              <Ico n="search" s={13} c={C.text4}/>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher..."
+                style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:140,fontFamily:"inherit"}}/>
+            </div>
+          )}
+          <div style={{display:"flex",gap:1,background:C.white,border:"1px solid "+C.border,borderRadius:4,overflow:"hidden"}}>
+            {[{id:"list",l:"Liste"},{id:"single",l:"Saisie rapide"},{id:"weekly",l:"Feuille hebdo"}].map(m=>(
+              <button key={m.id} onClick={()=>setMode(m.id)}
+                style={{padding:"6px 14px",border:"none",background:mode===m.id?C.blue:C.white,color:mode===m.id?"white":C.text3,fontSize:12,fontWeight:mode===m.id?700:400,cursor:"pointer",fontFamily:"inherit"}}>
+                {m.l}
+              </button>
+            ))}
+          </div>
+          <Btn label="Exporter" variant="light" sm icon="download" onClick={async ()=>{
+            const ExcelJS=(await import("exceljs")).default;
+            const wb=new ExcelJS.Workbook();
+            const ws=wb.addWorksheet("Heures");
+            ws.columns=[{key:"id",width:12,header:"ID"},{key:"emp",width:20,header:"Employe"},{key:"date",width:13,header:"Date"},{key:"job",width:30,header:"Job"},{key:"service",width:20,header:"Service"},{key:"hours",width:10,header:"Heures"},{key:"rate",width:14,header:"Taux/h"},{key:"montant",width:16,header:"Montant"},{key:"billable",width:12,header:"Facturable"},{key:"note",width:30,header:"Note"}];
+            ws.getRow(1).eachCell(cell=>{cell.font={name:"Calibri",bold:true,color:{argb:"FFFFFFFF"},size:10};cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF0077C5"}};cell.alignment={horizontal:"center",vertical:"middle"};});
+            filtered.forEach((e,i)=>{
+              const row=ws.addRow({id:e.id,emp:e.empName,date:e.date,job:e.jobName,service:e.service,hours:e.hours,rate:e.rate,montant:e.hours*e.rate,billable:e.billable?"Oui":"Non",note:e.note});
+              if(i%2===1) row.eachCell(cell=>cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFE5F2FC"}});
+            });
+            const buf=await wb.xlsx.writeBuffer();
+            const a=document.createElement("a");
+            a.href=URL.createObjectURL(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+            a.download="Heures_"+new Date().toISOString().split("T")[0]+".xlsx";a.click();
+          }}/>
+          {mode==="single"&&<Btn label="Enregistrer" variant="primary" sm icon="check" onClick={saveEntry}/>}
+        </div>
+      </CIBTopBar>
+
+      <div style={{padding:"24px",animation:"fadeUp .3s ease"}}>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+          {[
+            {l:"Total heures",      v:totalHeures+"h",    c:C.blue,   icon:"time"},
+            {l:"Heures facturables",v:totalBill+"h",      c:C.green,  icon:"invoice"},
+            {l:"Non facturables",   v:totalNonBill+"h",   c:C.orange, icon:"time"},
+            {l:"Montant total",     v:fM(totalMontant)+" F",c:C.purple,icon:"money"},
+          ].map((kpi,i)=>(
+            <div key={i} style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"14px 16px",borderTop:"3px solid "+kpi.c}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontSize:10,color:C.text3,textTransform:"uppercase",letterSpacing:.4,fontWeight:600}}>{kpi.l}</span>
+                <div style={{width:28,height:28,borderRadius:4,background:kpi.c+"15",display:"flex",alignItems:"center",justifyContent:"center"}}><Ico n={kpi.icon} s={14} c={kpi.c}/></div>
+              </div>
+              <div style={{fontSize:20,fontWeight:700,color:kpi.c}}>{kpi.v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* LISTE */}
+        {mode==="list"&&(
+          <div>
+            <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+              <Sel value={filtreEmp} onChange={setFiltreEmp} small
+                options={[{v:"Tous",l:"Tous les employes"},...EMPLOYEES_TT.map(e=>({v:e.id,l:e.name}))]}/>
+              <Sel value={filtreJob} onChange={setFiltreJob} small
+                options={[{v:"Tous",l:"Tous les jobs"},...INIT_JOBS.map(j=>({v:j.id,l:j.name}))]}/>
+              <div style={{marginLeft:"auto"}}>
+                <Btn label="+ Saisir des heures" variant="primary" sm icon="plus" onClick={()=>setMode("single")}/>
+              </div>
+            </div>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead>
+                  <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                    {["Employe","Date","Job","Service","Heures","Taux/h","Montant","Facturable","Note"].map((h,i)=>(
+                      <th key={i} style={{padding:"10px 14px",textAlign:i>=4&&i<=6?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length===0&&<tr><td colSpan={9} style={{padding:"48px",textAlign:"center",color:C.text4}}>Aucune entree</td></tr>}
+                  {filtered.map((e,i)=>(
+                    <tr key={e.id} style={{borderBottom:"1px solid "+C.border2,background:i%2===1?"#FAFAFA":C.white}}>
+                      <td style={{padding:"11px 14px",fontWeight:700,fontSize:12}}>{e.empName}</td>
+                      <td style={{padding:"11px 14px",color:C.text3,fontSize:12}}>{fD2(e.date)}</td>
+                      <td style={{padding:"11px 14px"}}>
+                        <div style={{fontSize:12,color:C.blue,cursor:"pointer",fontWeight:500}} onClick={()=>navigate("/cleanitbooks/jobs/"+e.jobId)}>{e.jobName}</div>
+                      </td>
+                      <td style={{padding:"11px 14px",fontSize:12,color:C.text3}}>{e.service}</td>
+                      <td style={{padding:"11px 14px",textAlign:"right",fontWeight:700,color:C.blue}}>{e.hours}h</td>
+                      <td style={{padding:"11px 14px",textAlign:"right",fontSize:12,color:C.text3}}>{e.rate>0?fN(e.rate)+" F":"—"}</td>
+                      <td style={{padding:"11px 14px",textAlign:"right",fontWeight:700,color:C.purple}}>{e.hours*e.rate>0?fN(e.hours*e.rate)+" F":"—"}</td>
+                      <td style={{padding:"11px 14px"}}>
+                        <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,fontWeight:600,background:e.billable?C.green_l:C.border2,color:e.billable?C.green:C.text3}}>
+                          {e.billable?"Facturable":"Non fact."}
+                        </span>
+                      </td>
+                      <td style={{padding:"11px 14px",fontSize:11,color:C.text4,fontStyle:"italic"}}>{e.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}>
+                    <td colSpan={4} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>{filtered.length} entree(s)</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.blue,fontSize:14}}>{totalHeures}h</td>
+                    <td/>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.purple,fontSize:14}}>{fN(totalMontant)} F</td>
+                    <td colSpan={2}/>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* SAISIE RAPIDE */}
+        {mode==="single"&&(
+          <div style={{maxWidth:680,margin:"0 auto"}}>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"28px"}}>
+              <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:20}}>Nouvelle entree de temps</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                <Field label="Employe" required>
+                  <Sel value={empId} onChange={handleEmpChange} placeholder="Selectionner..." options={EMPLOYEES_TT.map(e=>({v:e.id,l:e.name+" — "+e.title}))}/>
+                </Field>
+                <Field label="Date" required>
+                  <Inp type="date" value={date} onChange={setDate}/>
+                </Field>
+                <Field label="Job" required>
+                  <Sel value={jobId} onChange={setJobId} placeholder="Selectionner un job..." options={INIT_JOBS.map(j=>({v:j.id,l:j.name}))}/>
+                </Field>
+                <Field label="Type de service">
+                  <Sel value={service} onChange={setService} placeholder="Selectionner..." options={SERVICES_TT}/>
+                </Field>
+                <Field label="Duree en heures" required hint="Ex: 8 ou 7.5">
+                  <Inp type="number" value={hours} onChange={setHours} placeholder="0" suffix="h" min="0" max="24"/>
+                </Field>
+                <Field label="Taux horaire FCFA" hint="Auto selon employe">
+                  <Inp type="number" value={rate} onChange={setRate} prefix="FCFA" placeholder="0"/>
+                </Field>
+                <Field label="Facturable">
+                  <div style={{display:"flex",alignItems:"center",gap:10,paddingTop:8}}>
+                    <input type="checkbox" checked={billable} onChange={e=>setBillable(e.target.checked)} style={{width:18,height:18,accentColor:C.green,cursor:"pointer"}}/>
+                    <span style={{fontSize:13,color:C.text2}}>Facturable au client</span>
+                  </div>
+                </Field>
+                {hours&&rate&&+hours>0&&+rate>0&&(
+                  <div style={{padding:"12px 16px",background:C.blue_l,borderRadius:6,border:"1px solid "+C.blue+"30",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:12,color:C.blue}}>Montant calcule</span>
+                    <span style={{fontSize:16,fontWeight:700,color:C.blue}}>{fN(+hours*(+rate))} F</span>
+                  </div>
+                )}
+                <Field label="Note" span>
+                  <Txt value={note} onChange={setNote} placeholder="Description du travail effectue..." rows={3}/>
+                </Field>
+              </div>
+              <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:20}}>
+                <Btn label="Annuler" variant="light" onClick={()=>setMode("list")}/>
+                <Btn label="Enregistrer les heures" variant="primary" icon="check" onClick={saveEntry}/>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FEUILLE HEBDO */}
+        {mode==="weekly"&&(
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text}}>Feuille de temps — Semaine du 18 au 24 mars 2024</div>
+              <div style={{display:"flex",gap:8}}>
+                <Btn label="Semaine precedente" variant="light" sm/>
+                <Btn label="Semaine suivante" variant="light" sm/>
+                <Btn label="Soumettre" variant="primary" sm icon="check"/>
+              </div>
+            </div>
+            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",minWidth:800}}>
+                  <thead>
+                    <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
+                      <th style={{padding:"10px 14px",textAlign:"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",width:220}}>Job / Service</th>
+                      {DAYS.map((d,i)=>(
+                        <th key={d} style={{padding:"10px 8px",textAlign:"center",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>
+                          <div>{d}</div>
+                          <div style={{fontSize:10,color:C.text4,fontWeight:400}}>{fD2(weekDates[i])}</div>
+                        </th>
+                      ))}
+                      <th style={{padding:"10px 14px",textAlign:"right",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {INIT_JOBS.slice(0,4).map((job,ji)=>(
+                      <tr key={job.id} style={{borderBottom:"1px solid "+C.border2,background:ji%2===1?"#FAFAFA":C.white}}>
+                        <td style={{padding:"8px 14px"}}>
+                          <div style={{fontSize:12,fontWeight:600,color:C.blue}}>{job.name}</div>
+                          <div style={{fontSize:11,color:C.text4}}>Service principal</div>
+                        </td>
+                        {DAYS.map((d,di)=>{
+                          const entry = entries.find(e=>e.jobId===job.id&&e.date===weekDates[di]);
+                          return(
+                            <td key={d} style={{padding:"6px 6px",width:55}}>
+                              <input type="number" defaultValue={entry?entry.hours:""} placeholder="0"
+                                style={{width:"100%",padding:"5px 4px",borderRadius:3,border:"1px solid "+C.border,fontSize:12,textAlign:"center",fontFamily:"inherit",outline:"none"}}
+                                onFocus={e=>e.target.style.borderColor=C.blue}
+                                onBlur={e=>e.target.style.borderColor=C.border}/>
+                            </td>
+                          );
+                        })}
+                        <td style={{padding:"8px 14px",textAlign:"right",fontWeight:700,color:C.blue}}>
+                          {entries.filter(e=>e.jobId===job.id&&weekDates.includes(e.date)).reduce((s,e)=>s+e.hours,0)}h
+                        </td>
+                      </tr>
+                    ))}
+                    <tr style={{background:C.bg,borderTop:"2px solid "+C.border}}>
+                      <td style={{padding:"10px 14px",fontWeight:700,color:C.text}}>TOTAL JOURNALIER</td>
+                      {DAYS.map((d,di)=>{
+                        const t=entries.filter(e=>e.date===weekDates[di]).reduce((s,e)=>s+e.hours,0);
+                        return <td key={d} style={{padding:"10px 8px",textAlign:"center",fontWeight:700,color:t>8?C.orange:C.text}}>{t>0?t+"h":"—"}</td>;
+                      })}
+                      <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.blue,fontSize:14}}>
+                        {entries.filter(e=>weekDates.includes(e.date)).reduce((s,e)=>s+e.hours,0)}h
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function CleanITBooks() {
   const [jobs,      setJobs]      = useState(INIT_JOBS);
   const [customers, setCustomers] = useState(INIT_CUSTOMERS);
+  const [vendors,   setVendors]   = useState(INIT_VENDORS);
+  const [invoices,  setInvoices]  = useState(INIT_INVOICES_AR);
+  const [bills,     setBills]     = useState(INIT_BILLS_AP);
+  const [loading,   setLoading]   = useState(true);
   const params   = useParams();
   const navigate = useNavigate();
   const loc      = window.location.pathname;
+
+  // Charger les donnees depuis le backend
+  useEffect(()=>{
+    const load = async () => {
+      try {
+        const [j, c, v, i, b] = await Promise.all([
+          CIBApi.getJobs(),
+          CIBApi.getCustomers(),
+          CIBApi.getVendors(),
+          CIBApi.getInvoices(),
+          CIBApi.getBills(),
+        ]);
+        if(Array.isArray(j)&&j.length>0) setJobs(j);
+        if(Array.isArray(c)&&c.length>0) setCustomers(c);
+        if(Array.isArray(v)&&v.length>0) setVendors(v);
+        if(Array.isArray(i)&&i.length>0) setInvoices(i);
+        if(Array.isArray(b)&&b.length>0) setBills(b);
+      } catch(e) {
+        console.warn("CleanITBooks: backend indisponible, donnees statiques utilisees");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  },[]);
+
+  // Route: /cleanitbooks/time/*
+  if(loc.includes('/time')){
+    return <PageTimeTracking/>;
+  }
+
+  // Route: /cleanitbooks/reports/*
+  if(loc.includes('/reports')){
+    return <PageReports/>;
+  }
 
   // Route: /cleanitbooks/payroll/*
   if(loc.includes('/payroll')){

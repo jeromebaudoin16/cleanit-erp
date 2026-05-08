@@ -467,83 +467,141 @@ const PageDashboard = ({presences, historique, alertes, shifts, now, navigate}) 
 //  PAGE CARTE LIVE
 // ═══════════════════════════════════════════════════════════════════
 const PageMap = ({presences, navigate}) => {
-  const mapRef = useRef(null);
+  const mapRef      = useRef(null);
   const mapInstance = useRef(null);
+  const markersRef  = useRef({});
+  const [selUserId, setSelUserId] = useState(null);
+  const [mapReady,  setMapReady]  = useState(false);
+
+  // Simule des positions en mouvement pour les techniciens actifs
+  const [livePositions, setLivePositions] = useState(
+    presences.reduce((acc,p)=>({...acc,[p.userId]:{lat:p.lat,lng:p.lng,trail:[]}}),{})
+  );
+
+  // Simulation mouvement terrain toutes les 4s
+  useEffect(()=>{
+    const interval = setInterval(()=>{
+      setLivePositions(prev=>{
+        const next = {...prev};
+        presences.filter(p=>p.present&&p.lat&&getEmp(p.userId)?.typeEmploye==='externe').forEach(p=>{
+          const old = next[p.userId]||{lat:p.lat,lng:p.lng,trail:[]};
+          const newLat = old.lat + (Math.random()-0.5)*0.0008;
+          const newLng = old.lng + (Math.random()-0.5)*0.0008;
+          const trail = [...(old.trail||[]),{lat:old.lat,lng:old.lng}].slice(-20);
+          next[p.userId] = {lat:newLat, lng:newLng, trail};
+          // Mettre a jour marqueur sur carte
+          if(mapInstance.current && markersRef.current[p.userId]) {
+            markersRef.current[p.userId].setLngLat([newLng, newLat]);
+          }
+          // Mettre a jour tracé
+          if(mapInstance.current && mapInstance.current.getSource && mapInstance.current.getSource('trail-'+p.userId)) {
+            try {
+              mapInstance.current.getSource('trail-'+p.userId).setData({
+                type:'Feature',
+                geometry:{type:'LineString',coordinates:[...trail.map(t=>[t.lng,t.lat]),[newLng,newLat]]}
+              });
+            } catch(e){}
+          }
+        });
+        return next;
+      });
+    }, 4000);
+    return ()=>clearInterval(interval);
+  },[presences]);
+
+  const flyTo = useCallback((userId)=>{
+    const pos = livePositions[userId];
+    if(!pos||!pos.lat||!mapInstance.current) return;
+    setSelUserId(userId);
+    try {
+      mapInstance.current.flyTo({center:[pos.lng,pos.lat],zoom:17,speed:1.5,curve:1.4,essential:true});
+      if(markersRef.current[userId]) {
+        setTimeout(()=>markersRef.current[userId].getPopup()?.isOpen()===false&&markersRef.current[userId].togglePopup(),800);
+      }
+    } catch(e){}
+  },[livePositions]);
 
   useEffect(()=>{
-    if(!mapRef.current || mapInstance.current) return;
-    const script = document.createElement('script');
-    script.src = `https://cdn.maptiler.com/maptiler-sdk-js/v2.0.3/maptiler-sdk.umd.min.js`;
-    script.onload = () => {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'https://cdn.maptiler.com/maptiler-sdk-js/v2.0.3/maptiler-sdk.css';
-      document.head.appendChild(link);
+    if(!mapRef.current||mapInstance.current) return;
+    const initMap = ()=>{
+      if(!window.maptilersdk) return;
+      try {
+        window.maptilersdk.config.apiKey = MAPTILER_KEY;
+        const map = new window.maptilersdk.Map({
+          container:mapRef.current, style:window.maptilersdk.MapStyle.STREETS,
+          center:[9.7085,4.0511], zoom:10,
+        });
+        mapInstance.current = map;
 
-      setTimeout(()=>{
-        try {
-          window.maptilersdk.config.apiKey = MAPTILER_KEY;
-          const map = new window.maptilersdk.Map({
-            container: mapRef.current,
-            style: window.maptilersdk.MapStyle.STREETS,
-            center: [9.7085, 4.0511],
-            zoom: 10,
+        map.on('load',()=>{
+          setMapReady(true);
+
+          // Zones géofencing
+          Object.entries(ZONES).forEach(([key,zone])=>{
+            const circle=[];
+            for(let i=0;i<=64;i++){
+              const a=(i/64)*Math.PI*2;
+              circle.push([zone.lng+(zone.rayon/(111320*Math.cos(zone.lat*Math.PI/180)))*Math.sin(a), zone.lat+(zone.rayon/111320)*Math.cos(a)]);
+            }
+            map.addSource(`zone-${key}`,{type:'geojson',data:{type:'Feature',geometry:{type:'Polygon',coordinates:[circle]}}});
+            map.addLayer({id:`zone-fill-${key}`,type:'fill',source:`zone-${key}`,paint:{'fill-color':zone.couleur,'fill-opacity':.1}});
+            map.addLayer({id:`zone-line-${key}`,type:'line',source:`zone-${key}`,paint:{'line-color':zone.couleur,'line-width':2,'line-dasharray':[4,2]}});
+            const el=document.createElement('div');
+            el.style.cssText=`width:34px;height:34px;border-radius:9px;background:${zone.couleur};display:flex;align-items:center;justify-content:center;color:white;font-size:15px;font-weight:900;box-shadow:0 3px 10px ${zone.couleur}60;border:2px solid white;cursor:pointer;`;
+            el.innerText=zone.type==='bureau'?'🏢':'📍';
+            new window.maptilersdk.Marker({element:el}).setLngLat([zone.lng,zone.lat])
+              .setPopup(new window.maptilersdk.Popup({offset:20}).setHTML(`<div style="padding:10px;font-family:sans-serif"><b style="font-size:13px">${zone.nom}</b><br/><span style="font-size:11px;color:#6b7280">${zone.adresse}<br/>Rayon: ${zone.rayon}m</span></div>`))
+              .addTo(map);
           });
-          mapInstance.current = map;
 
-          map.on('load', ()=>{
-            // Ajouter zones géofencing
-            Object.entries(ZONES).forEach(([key, zone])=>{
-              const circle = [];
-              for(let i=0;i<=64;i++){
-                const angle = (i/64)*Math.PI*2;
-                const latOff = (zone.rayon/111320)*Math.cos(angle);
-                const lngOff = (zone.rayon/(111320*Math.cos(zone.lat*Math.PI/180)))*Math.sin(angle);
-                circle.push([zone.lng+lngOff, zone.lat+latOff]);
-              }
-              map.addSource(`zone-${key}`, {type:'geojson',data:{type:'Feature',geometry:{type:'Polygon',coordinates:[circle]}}});
-              map.addLayer({id:`zone-fill-${key}`,type:'fill',source:`zone-${key}`,paint:{'fill-color':zone.couleur,'fill-opacity':.12}});
-              map.addLayer({id:`zone-line-${key}`,type:'line',source:`zone-${key}`,paint:{'line-color':zone.couleur,'line-width':2,'line-dasharray':[3,2]}});
+          // Tracés et marqueurs employés
+          presences.forEach(p=>{
+            if(!p.lat||!p.lng||!p.present) return;
+            const emp=getEmp(p.userId);
+            if(!emp) return;
 
-              // Marqueur centre zone
-              const el = document.createElement('div');
-              el.style.cssText = `width:36px;height:36px;border-radius:10px;background:${zone.couleur};display:flex;align-items:center;justify-content:center;color:white;font-size:16px;font-weight:900;box-shadow:0 3px 10px ${zone.couleur}60;border:2px solid white;cursor:pointer;`;
-              el.innerText = zone.type==='bureau'?'🏢':'📍';
-              el.title = zone.nom;
-              new window.maptilersdk.Marker({element:el}).setLngLat([zone.lng,zone.lat]).setPopup(new window.maptilersdk.Popup().setHTML(`<div style="padding:8px;font-family:sans-serif"><div style="font-weight:800;font-size:13px">${zone.nom}</div><div style="font-size:11px;color:#6b7280">${zone.adresse}</div><div style="font-size:11px;color:#6b7280">Rayon: ${zone.rayon}m</div></div>`)).addTo(map);
-            });
+            // Tracé GPS (pour externes)
+            if(emp.typeEmploye==='externe') {
+              map.addSource('trail-'+p.userId,{type:'geojson',data:{type:'Feature',geometry:{type:'LineString',coordinates:[[p.lng,p.lat]]}}});
+              map.addLayer({id:'trail-'+p.userId,type:'line',source:'trail-'+p.userId,paint:{'line-color':emp.couleur,'line-width':3,'line-opacity':.7,'line-dasharray':[2,1]}});
+            }
 
-            // Ajouter marqueurs employés
-            presences.forEach(p=>{
-              if(!p.lat||!p.lng||!p.present) return;
-              const emp = getEmp(p.userId);
-              if(!emp) return;
-              const el = document.createElement('div');
-              el.style.cssText = `width:40px;height:40px;border-radius:12px;background:${emp.couleur};display:flex;align-items:center;justify-content:center;color:white;font-size:14px;font-weight:900;box-shadow:0 3px 12px ${emp.couleur}60;border:3px solid ${p.horsZone?'#dc2626':'white'};cursor:pointer;position:relative;`;
-              el.innerText = emp.avatar;
-              if(p.horsZone){
-                const pulse = document.createElement('div');
-                pulse.style.cssText = `position:absolute;inset:-4px;border-radius:16px;border:2px solid #dc2626;animation:pulse-ring 1.5s infinite;`;
-                el.appendChild(pulse);
-              }
-              new window.maptilersdk.Marker({element:el}).setLngLat([p.lng,p.lat]).setPopup(
-                new window.maptilersdk.Popup({offset:25}).setHTML(`
-                  <div style="padding:10px;font-family:sans-serif;min-width:180px">
-                    <div style="font-weight:800;font-size:14px;margin-bottom:4px">${emp.nom}</div>
-                    <div style="font-size:12px;color:#6b7280;margin-bottom:6px">${emp.poste}</div>
-                    <div style="font-size:11px;padding:4px 8px;border-radius:6px;background:${p.horsZone?'#fef2f2':'#f0fdf4'};color:${p.horsZone?'#dc2626':'#16a34a'};font-weight:700;">
-                      ${p.horsZone?'⚠ Hors zone — '+p.dist+'m':'✅ Dans la zone — '+p.dist+'m'}
-                    </div>
-                    <div style="font-size:11px;color:#9ca3af;margin-top:4px">🔋 ${p.battery||'—'}% · ${p.network||'—'}</div>
-                  </div>
-                `)
-              ).addTo(map);
-            });
+            // Marqueur employé
+            const el=document.createElement('div');
+            el.style.cssText=`width:42px;height:42px;border-radius:12px;background:${emp.couleur};display:flex;align-items:center;justify-content:center;color:white;font-size:15px;font-weight:900;box-shadow:0 4px 14px ${emp.couleur}70;border:3px solid ${p.horsZone?'#dc2626':'white'};cursor:pointer;transition:transform .2s;position:relative;`;
+            el.innerText=emp.avatar;
+            el.addEventListener('mouseenter',()=>el.style.transform='scale(1.15)');
+            el.addEventListener('mouseleave',()=>el.style.transform='scale(1)');
+            el.addEventListener('click',()=>flyTo(p.userId));
+            if(p.horsZone){
+              const pulse=document.createElement('div');
+              pulse.style.cssText=`position:absolute;inset:-5px;border-radius:17px;border:2px solid #dc2626;animation:pulse-ring 1.5s infinite;pointer-events:none;`;
+              el.appendChild(pulse);
+            }
+            const popup=new window.maptilersdk.Popup({offset:26,closeButton:false}).setHTML(`
+              <div style="padding:12px;font-family:sans-serif;min-width:200px">
+                <div style="font-weight:900;font-size:14px;margin-bottom:3px">${emp.nom}</div>
+                <div style="font-size:12px;color:#6b7280;margin-bottom:8px">${emp.poste}</div>
+                <div style="font-size:11px;padding:5px 9px;border-radius:7px;background:${p.horsZone?'#fef2f2':'#f0fdf4'};color:${p.horsZone?'#dc2626':'#16a34a'};font-weight:700;margin-bottom:6px">
+                  ${p.horsZone?'⚠ Hors zone — '+p.dist+'m':'✅ Dans la zone — '+p.dist+'m'}
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:10px;color:#9ca3af">
+                  <span>🔋 ${p.battery||'—'}%</span><span>📶 ${p.network||'—'}</span>
+                  <span>📍 ${p.lat?.toFixed(5)}°N</span><span>${p.lng?.toFixed(5)}°E</span>
+                </div>
+              </div>
+            `);
+            const marker=new window.maptilersdk.Marker({element:el}).setLngLat([p.lng,p.lat]).setPopup(popup).addTo(map);
+            markersRef.current[p.userId]=marker;
           });
-        } catch(e){ console.error('Map error:', e); }
-      }, 500);
+        });
+      } catch(e){ console.error('Map init error:',e); }
     };
-    document.head.appendChild(script);
+
+    if(window.maptilersdk){ initMap(); return; }
+    const link=document.createElement('link');link.rel='stylesheet';link.href='https://cdn.maptiler.com/maptiler-sdk-js/v2.0.3/maptiler-sdk.css';document.head.appendChild(link);
+    const script=document.createElement('script');script.src='https://cdn.maptiler.com/maptiler-sdk-js/v2.0.3/maptiler-sdk.umd.min.js';
+    script.onload=()=>setTimeout(initMap,300);document.head.appendChild(script);
   },[]);
 
   const horsZone = presences.filter(p=>p.horsZone&&p.present);
@@ -551,68 +609,95 @@ const PageMap = ({presences, navigate}) => {
   return(
     <div style={{animation:'slideIn .25s ease'}}>
       <div style={{display:'flex',gap:10,marginBottom:14,alignItems:'center',flexWrap:'wrap'}}>
-        <div style={{fontSize:14,fontWeight:800,color:C.text}}>Carte GPS Live</div>
-        <div style={{display:'flex',gap:8,marginLeft:'auto'}}>
-          <Badge label={`${presences.filter(p=>p.present).length} en ligne`} color={C.green} bg={C.green_l}/>
-          {horsZone.length>0&&<Badge label={`${horsZone.length} hors zone`} color={C.red} bg={C.red_l}/>}
-          <Btn label="Actualiser" onClick={()=>window.location.reload()} variant="light" sm icon="🔄"/>
+        <div style={{fontSize:14,fontWeight:800,color:C.text}}>🗺️ Carte GPS Live — Tracking temps réel</div>
+        <div style={{display:'flex',gap:8,marginLeft:'auto',alignItems:'center'}}>
+          <div style={{display:'flex',alignItems:'center',gap:5,fontSize:11,color:C.green,background:C.green_l,padding:'4px 10px',borderRadius:20,fontWeight:600}}>
+            <div style={{width:7,height:7,borderRadius:4,background:C.green,animation:'pulse-dot 1.5s infinite'}}/>
+            {presences.filter(p=>p.present).length} connectés
+          </div>
+          {horsZone.length>0&&<Badge label={`⚠ ${horsZone.length} hors zone`} color={C.red} bg={C.red_l}/>}
+          <Btn label="🔄" onClick={()=>{mapInstance.current=null;setMapReady(false);window.location.reload();}} variant="light" sm/>
         </div>
       </div>
 
-      <div style={{display:'grid',gridTemplateColumns:'1fr 280px',gap:14}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 300px',gap:14}}>
         {/* Carte */}
-        <div style={{borderRadius:14,overflow:'hidden',border:`1px solid ${C.border}`,boxShadow:C.shadow,height:520}}>
+        <div style={{borderRadius:14,overflow:'hidden',border:`1px solid ${C.border}`,boxShadow:C.shadow2,height:540,position:'relative'}}>
           <div ref={mapRef} style={{width:'100%',height:'100%'}}/>
+          {/* Légende */}
+          <div style={{position:'absolute',bottom:16,left:16,background:'rgba(255,255,255,.95)',borderRadius:10,padding:'10px 14px',boxShadow:C.shadow,backdropFilter:'blur(8px)'}}>
+            <div style={{fontSize:10,fontWeight:800,color:C.text3,textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>Légende</div>
+            {[{l:'Zone bureau',c:'#2563eb',d:'dashed'},{l:'Zone site terrain',c:'#ea580c',d:'dashed'},{l:'Position actuelle',c:C.green,d:'solid'},{l:'Tracé GPS',c:'#6b7280',d:'dashed'},{l:'Hors périmètre',c:C.red,d:'solid'}].map(i=>(
+              <div key={i.l} style={{display:'flex',alignItems:'center',gap:7,marginBottom:3}}>
+                <div style={{width:24,height:3,background:i.c,borderRadius:2,opacity:i.d==='dashed'?.6:1}}/>
+                <span style={{fontSize:10,color:C.text3}}>{i.l}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Panel positions */}
+        {/* Panel nav cliquable */}
         <div style={{background:C.white,borderRadius:14,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:C.shadow}}>
           <div style={{padding:'12px 16px',borderBottom:`1px solid ${C.border2}`,background:'#fafafa'}}>
-            <div style={{fontSize:13,fontWeight:800,color:C.text}}>Positions en temps réel</div>
+            <div style={{fontSize:13,fontWeight:800,color:C.text}}>Cliquer pour localiser</div>
+            <div style={{fontSize:10,color:C.text4,marginTop:2}}>La carte zoome sur la position</div>
           </div>
-          <div style={{overflowY:'auto',maxHeight:470}}>
-            {presences.filter(p=>p.present).map(p=>{
+          <div style={{overflowY:'auto',maxHeight:490}}>
+            {/* Présents */}
+            {presences.filter(p=>p.present&&p.lat).map(p=>{
               const emp=getEmp(p.userId);
               if(!emp) return null;
+              const isSel=selUserId===p.userId;
+              const lp=livePositions[p.userId]||{lat:p.lat,lng:p.lng};
               return(
-                <div key={p.userId} onClick={()=>navigate('/pointage/employes/'+p.userId)}
-                  style={{padding:'11px 14px',borderBottom:`1px solid ${C.border2}`,cursor:'pointer',transition:'background .1s'}}
-                  onMouseEnter={e=>e.currentTarget.style.background=C.blue_l}
-                  onMouseLeave={e=>e.currentTarget.style.background='white'}>
+                <div key={p.userId}
+                  onClick={()=>flyTo(p.userId)}
+                  style={{padding:'12px 14px',borderBottom:`1px solid ${C.border2}`,cursor:'pointer',
+                    background:isSel?C.blue_l:'white',borderLeft:isSel?`3px solid ${C.blue}`:'3px solid transparent',
+                    transition:'all .15s'}}>
                   <div style={{display:'flex',alignItems:'center',gap:9,marginBottom:6}}>
-                    <Av i={emp.avatar} color={emp.couleur} size={30} online={true} pulse={p.horsZone}/>
+                    <Av i={emp.avatar} color={emp.couleur} size={32} online={true} pulse={p.horsZone}/>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:12,fontWeight:700,color:C.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{emp.nom}</div>
-                      <div style={{fontSize:10,color:C.text3}}>{emp.poste}</div>
+                      <div style={{fontSize:12,fontWeight:700,color:isSel?C.blue:C.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{emp.nom}</div>
+                      <div style={{fontSize:10,color:C.text3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{emp.poste}</div>
                     </div>
-                    {p.horsZone&&<span style={{fontSize:14}}>⚠️</span>}
+                    <span style={{fontSize:11}}>{isSel?'📍':'→'}</span>
                   </div>
                   <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:4}}>
-                    {[
-                      {l:'Zone',v:ZONES[p.zone]?.nom?.substring(0,16)||p.zone},
-                      {l:'Distance',v:`${p.dist}m`,c:p.horsZone?C.red:C.green},
-                      {l:'Batterie',v:p.battery?`${p.battery}%`:'—',c:p.battery<30?C.red:C.text3},
-                      {l:'Réseau',v:p.network||'—'},
-                    ].map(item=>(
-                      <div key={item.l} style={{background:'#f8fafc',borderRadius:6,padding:'4px 7px'}}>
-                        <div style={{fontSize:8,color:C.text4,textTransform:'uppercase',letterSpacing:.3}}>{item.l}</div>
-                        <div style={{fontSize:11,fontWeight:700,color:item.c||C.text2}}>{item.v}</div>
-                      </div>
-                    ))}
+                    <div style={{background:'#f8fafc',borderRadius:5,padding:'3px 6px'}}>
+                      <div style={{fontSize:8,color:C.text4}}>ZONE</div>
+                      <div style={{fontSize:10,fontWeight:700,color:p.horsZone?C.red:C.text2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.horsZone?'⚠ ':''}{ZONES[p.zone]?.nom?.substring(0,14)||p.zone}</div>
+                    </div>
+                    <div style={{background:'#f8fafc',borderRadius:5,padding:'3px 6px'}}>
+                      <div style={{fontSize:8,color:C.text4}}>GPS</div>
+                      <div style={{fontSize:10,fontWeight:700,color:C.text2}}>{lp.lat?.toFixed(4)}°N</div>
+                    </div>
+                    <div style={{background:'#f8fafc',borderRadius:5,padding:'3px 6px'}}>
+                      <div style={{fontSize:8,color:C.text4}}>BATTERIE</div>
+                      <div style={{fontSize:10,fontWeight:700,color:p.battery<30?C.red:C.text2}}>🔋 {p.battery||'—'}%</div>
+                    </div>
+                    <div style={{background:'#f8fafc',borderRadius:5,padding:'3px 6px'}}>
+                      <div style={{fontSize:8,color:C.text4}}>RÉSEAU</div>
+                      <div style={{fontSize:10,fontWeight:700,color:C.text2}}>📶 {p.network||'—'}</div>
+                    </div>
                   </div>
+                  {emp.typeEmploye==='externe'&&(
+                    <div style={{marginTop:5,fontSize:9,color:C.blue,fontWeight:600}}>🔄 Tracé GPS en cours...</div>
+                  )}
                 </div>
               );
             })}
-            {presences.filter(p=>!p.present).map(p=>{
+            {/* Absents */}
+            {presences.filter(p=>!p.present||!p.lat).map(p=>{
               const emp=getEmp(p.userId);
               if(!emp) return null;
               return(
-                <div key={p.userId} style={{padding:'10px 14px',borderBottom:`1px solid ${C.border2}`,opacity:.5}}>
+                <div key={p.userId} style={{padding:'10px 14px',borderBottom:`1px solid ${C.border2}`,opacity:.45,borderLeft:'3px solid transparent'}}>
                   <div style={{display:'flex',alignItems:'center',gap:8}}>
                     <Av i={emp.avatar} color={emp.couleur} size={28} online={false}/>
                     <div>
                       <div style={{fontSize:12,fontWeight:600,color:C.text}}>{emp.nom}</div>
-                      <div style={{fontSize:10,color:C.text3}}>Absent</div>
+                      <div style={{fontSize:10,color:C.text3}}>Absent · Hors ligne</div>
                     </div>
                   </div>
                 </div>
