@@ -1,0 +1,58 @@
+import { Repository } from 'typeorm';
+import { TrackingPosition } from './tracking.entity';
+import { Pointage } from './pointage.entity';
+import { Shift } from './shift.entity';
+import { Alerte } from './alert.entity';
+export declare class TrackingService {
+    private posRepo;
+    private pointageRepo;
+    private shiftRepo;
+    private alertRepo;
+    constructor(posRepo: Repository<TrackingPosition>, pointageRepo: Repository<Pointage>, shiftRepo: Repository<Shift>, alertRepo: Repository<Alerte>);
+    getPositionsUser(userId: string, from: number, to: number): Promise<TrackingPosition[]>;
+    getLatestPositions(): Promise<any>;
+    getPointages(): Promise<Pointage[]>;
+    createPointage(dto: Partial<Pointage>): Promise<{
+        timestamp: number;
+        id?: string | undefined;
+        userId?: string | undefined;
+        userName?: string | undefined;
+        userType?: string | undefined;
+        typeEmploye?: string | undefined;
+        typePointage?: string | undefined;
+        lat?: number | undefined;
+        lng?: number | undefined;
+        zoneCode?: string | undefined;
+        jobId?: string | undefined;
+        horsZone?: boolean | undefined;
+        distanceZone?: number | undefined;
+        selfieUrl?: string | undefined;
+        selfieVerified?: boolean | undefined;
+        deviceId?: string | undefined;
+        notes?: string | undefined;
+        statut?: string | undefined;
+        validatedBy?: string | undefined;
+        validatedAt?: Date | undefined;
+        createdAt?: Date | undefined;
+    } & Pointage>;
+    validatePointage(id: string, managerId: string, statut: 'validated' | 'rejected'): Promise<import("typeorm").UpdateResult>;
+    getAllShifts(): Promise<Shift[]>;
+    getShiftsByTech(technicienId: string): Promise<Shift[]>;
+    getShiftsByJob(jobId: string): Promise<Shift[]>;
+    createShift(dto: Partial<Shift>): Promise<Partial<Shift> & Shift>;
+    updateShift(id: string, dto: Partial<Shift>): Promise<import("typeorm").UpdateResult>;
+    completeShift(id: string, rapport: string): Promise<import("typeorm").UpdateResult>;
+    validateShift(id: string): Promise<import("typeorm").UpdateResult>;
+    getAlerts(statut?: string): Promise<Alerte[]>;
+    getOpenAlerts(): Promise<Alerte[]>;
+    acknowledgeAlert(id: string, by: string): Promise<import("typeorm").UpdateResult>;
+    resolveAlert(id: string): Promise<import("typeorm").UpdateResult>;
+    getDashboardStats(): Promise<{
+        totalPointages: number;
+        openAlerts: number;
+        shiftsAssigned: number;
+        shiftsInProgress: number;
+        shiftsCompleted: number;
+        shiftsValidated: number;
+    }>;
+}

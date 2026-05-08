@@ -16,6 +16,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const schedule_1 = require("@nestjs/schedule");
 const auth_module_1 = require("./auth/auth.module");
 const cleanitbooks_module_1 = require("./cleanitbooks/cleanitbooks.module");
+const tracking_module_1 = require("./tracking/tracking.module");
 const users_module_1 = require("./users/users.module");
 const dashboard_module_1 = require("./dashboard/dashboard.module");
 const sites_module_1 = require("./sites/sites.module");
@@ -78,7 +79,8 @@ exports.AppModule = AppModule = __decorate([
             }),
             schedule_1.ScheduleModule.forRoot(),
             auth_module_1.AuthModule,
-            cleanitbooks_module_1.CleanITBooksModule, users_module_1.UsersModule, dashboard_module_1.DashboardModule,
+            cleanitbooks_module_1.CleanITBooksModule,
+            tracking_module_1.TrackingModule, users_module_1.UsersModule, dashboard_module_1.DashboardModule,
             sites_module_1.SitesModule, tickets_module_1.TicketsModule, technicians_module_1.TechniciansModule, interventions_module_1.InterventionsModule,
             planning_module_1.PlanningModule, inventaire_module_1.InventaireModule, contrats_module_1.ContratsModule, mediation_module_1.MediationModule,
             provisioning_module_1.ProvisioningModule, evidence_module_1.EvidenceModule, finance_module_1.FinanceModule, pointage_module_1.PointageModule,

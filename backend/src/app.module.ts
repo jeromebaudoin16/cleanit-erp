@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
 import { CleanITBooksModule } from './cleanitbooks/cleanitbooks.module';
+import { TrackingModule } from './tracking/tracking.module';
 import { UsersModule } from './users/users.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SitesModule } from './sites/sites.module';
@@ -50,7 +51,8 @@ import { ApprovalsService } from './approvals/approvals.service';
     }),
     ScheduleModule.forRoot(),
     AuthModule,
-    CleanITBooksModule, UsersModule, DashboardModule,
+    CleanITBooksModule,
+    TrackingModule, UsersModule, DashboardModule,
     SitesModule, TicketsModule, TechniciansModule, InterventionsModule,
     PlanningModule, InventaireModule, ContratsModule, MediationModule,
     ProvisioningModule, EvidenceModule, FinanceModule, PointageModule,
