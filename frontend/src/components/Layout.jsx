@@ -3,7 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { getUser, doLogout, api } from '../utils/api';
 
 const NAV = [
-  { section:'OPÉRATIONS', color:'#4f8ef7', items:[
+  { section:'OPÉRATIONS', color:'#64748b', items:[
     { path:'/dashboard', label:'Dashboard', icon:'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
     { path:'/sites', label:'Sites Réseau', icon:'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z' },
     { path:'/tickets', label:'Tickets', icon:'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
@@ -26,7 +26,7 @@ const NAV = [
     { path:'/finance', label:'Finance', icon:'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
     { path:'/projets', label:'Projets & Approvals', icon:'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z' },
     { path:'/pointage', label:'Pointage & Présence', icon:'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-  { path:'/chacha', label:'ChaCha IA', icon:'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
+
   { path:'/cleanitcomm', label:'CleanIT Comm', icon:'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
     { path:'/rh', label:'Ressources Humaines', icon:'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
     { path:'/crm', label:'CRM Clients', icon:'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
@@ -138,7 +138,7 @@ export default function Layout() {
 
         {/* Logo */}
         <div style={{padding:'18px 0', display:'flex', alignItems:'center', gap:12, borderBottom:'1px solid rgba(255,255,255,0.07)', cursor:'pointer', justifyContent: hovered?'flex-start':'center', paddingLeft: hovered?16:0}} onClick={() => nav('/dashboard')}>
-          <div style={{width:34, height:34, borderRadius:10, background:'linear-gradient(135deg,#4f8ef7,#6ea8fe)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 4px 12px rgba(79,142,247,0.4)', marginLeft: hovered?0:13}}>
+          <div style={{width:34, height:34, borderRadius:10, background:'linear-gradient(135deg,#334155,#475569)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 4px 12px rgba(51,65,85,0.4)', marginLeft: hovered?0:13}}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
           {hovered && (
@@ -205,7 +205,7 @@ export default function Layout() {
       <div style={{flex:1, display:'flex', flexDirection:'column', overflow:'hidden'}}>
 
         {/* TOPBAR */}
-        <div style={{height:56, background:'white', borderBottom:'1px solid #e8ecf0', display:'flex', alignItems:'center', padding:'0 20px', gap:12, flexShrink:0, boxShadow:'0 1px 4px rgba(0,0,0,0.05)'}}>
+        <div style={{height:56, background:'#fafafa', borderBottom:'1px solid #e8ecf0', display:'flex', alignItems:'center', padding:'0 20px', gap:12, flexShrink:0, boxShadow:'0 1px 4px rgba(0,0,0,0.05)'}}>
 
           {/* Breadcrumb */}
           <div style={{flex:1, display:'flex', alignItems:'center', gap:6, fontSize:13}}>
@@ -265,7 +265,7 @@ export default function Layout() {
               style={{display:'flex', alignItems:'center', gap:9, background:'white', border:'1px solid #e8ecf0', borderRadius:10, cursor:'pointer', padding:'5px 12px 5px 5px', transition:'all .2s'}}
               onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
               onMouseLeave={e => e.currentTarget.style.background='white'}>
-              <div style={{width:32, height:32, borderRadius:8, background:'linear-gradient(135deg,#4f8ef7,#6ea8fe)', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:800, fontSize:13, flexShrink:0}}>
+              <div style={{width:32, height:32, borderRadius:8, background:'linear-gradient(135deg,#334155,#475569)', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:800, fontSize:13, flexShrink:0}}>
                 {user?.firstName?.[0]?.toUpperCase() || 'U'}
               </div>
               <div style={{textAlign:'left'}}>
@@ -280,7 +280,7 @@ export default function Layout() {
                 {/* Header profil */}
                 <div style={{padding:'16px', background:'linear-gradient(135deg,#0f1b2d,#162032)', color:'white'}}>
                   <div style={{display:'flex', alignItems:'center', gap:10}}>
-                    <div style={{width:40, height:40, borderRadius:10, background:'linear-gradient(135deg,#4f8ef7,#6ea8fe)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:800, fontSize:16}}>
+                    <div style={{width:40, height:40, borderRadius:10, background:'linear-gradient(135deg,#334155,#475569)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:800, fontSize:16}}>
                       {user?.firstName?.[0]?.toUpperCase()||'U'}
                     </div>
                     <div>
