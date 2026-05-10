@@ -247,6 +247,10 @@ const PointageNav = ({alertCount, presences}) => {
             </div>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <button onClick={()=>navigate('/cleanitcomm/chat')}
+                style={{display:'flex',alignItems:'center',gap:5,padding:'6px 12px',borderRadius:8,border:'1px solid rgba(255,255,255,.2)',background:'transparent',color:'#94a3b8',fontSize:12,cursor:'pointer',fontWeight:600}}>
+                💬 Comm
+              </button>
             {horsZone>0&&(
               <div style={{display:'flex',alignItems:'center',gap:6,padding:'6px 12px',borderRadius:20,background:'#dc262620',border:'1px solid #dc262640',cursor:'pointer'}} onClick={()=>navigate('/pointage/alertes')}>
                 <div style={{width:8,height:8,borderRadius:4,background:'#dc2626',animation:'pulse-dot 1.5s infinite'}}/>

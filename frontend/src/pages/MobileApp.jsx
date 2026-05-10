@@ -660,7 +660,8 @@ const BottomNav = ({active, navigate, alertes=0}) => {
     {id:'pointage', icon:'⏱', label:'Pointer',   url:'/mobile/pointage'},
     {id:'camera',   icon:'📷', label:'CamIA',     url:'/mobile/camera'},
     {id:'planning', icon:'📅', label:'Planning',  url:'/mobile/planning'},
-    {id:'profil',   icon:'👤', label:'Profil',    url:'/mobile/profil'},
+    {id:'comm',     icon:'💬', label:'Comm',      url:'/cleanitcomm'},
+  {id:'profil',   icon:'👤', label:'Profil',    url:'/mobile/profil'},
   ];
   return(
     <div style={{position:'fixed',bottom:0,left:0,right:0,background:M.card,borderTop:`1px solid ${M.border}`,display:'flex',zIndex:100,paddingBottom:'env(safe-area-inset-bottom,0px)'}}>

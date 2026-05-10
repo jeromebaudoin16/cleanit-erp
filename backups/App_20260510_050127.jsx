@@ -14,7 +14,6 @@ import Projets from './pages/Projets';
 import RH from './pages/RH';
 import Pointage from './pages/Pointage';
 import MobileApp from './pages/MobileApp';
-import CleanITComm from './pages/CleanITComm';
 import Approvals from './pages/Approvals';
 import CRM from './pages/CRM';
 import Analytics from './pages/Analytics';
@@ -65,9 +64,6 @@ export default function App() {
           <Route path="bons-commande" element={<BonsCommande />} />
           <Route path="finance"         element={<Finance />} />
           <Route path="projets" element={<Projets />} />
-          <Route path="cleanitcomm" element={<CleanITComm />} />
-          <Route path="cleanitcomm/:section" element={<CleanITComm />} />
-          <Route path="cleanitcomm/:section/:id" element={<CleanITComm />} />
           <Route path="mobile" element={<MobileApp />} />
           <Route path="mobile/pointage" element={<MobileApp />} />
           <Route path="mobile/camera" element={<MobileApp />} />

@@ -1484,6 +1484,10 @@ const CIBTopBar = ({title,icon,color,children}) => {
         </div>
         <span style={{fontSize:12,color:C.text3,padding:"0 12px"}}>{title}</span>
         <div style={{flex:1}}/>
+        <button onClick={()=>navigate("/cleanitcomm")}
+          style={{display:"flex",alignItems:"center",gap:5,padding:"5px 11px",borderRadius:7,border:"1px solid "+C.border,background:C.bg,cursor:"pointer",fontSize:12,color:C.text3,fontFamily:"inherit",marginRight:8}}>
+          💬 Comm
+        </button>
         {children}
       </div>
       <div style={{display:"flex",padding:"0 16px",overflowX:"auto",scrollbarWidth:"none"}}>
