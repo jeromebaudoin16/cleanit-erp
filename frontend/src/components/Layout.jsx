@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import ChaCha from '../pages/ChaCha';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { getUser, doLogout, api } from '../utils/api';
 
@@ -321,6 +322,7 @@ export default function Layout() {
         {/* PAGE */}
         <div style={{flex:1, overflow:'auto'}}>
           <Outlet />
+      <ChaCha />
         </div>
       </div>
 
