@@ -4,6 +4,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
 import { CleanITBooksModule } from './cleanitbooks/cleanitbooks.module';
+import { Account }     from './cleanitbooks/account.entity';
+import { JournalEntry }from './cleanitbooks/journal_entry.entity';
+import { JournalLine } from './cleanitbooks/journal_line.entity';
+import { Payment }     from './cleanitbooks/payment.entity';
+import { FiscalYear }  from './cleanitbooks/fiscal_year.entity';
 import { TrackingModule } from './tracking/tracking.module';
 import { UsersModule } from './users/users.module';
 import { DashboardModule } from './dashboard/dashboard.module';
@@ -43,7 +48,9 @@ import { ApprovalsService } from './approvals/approvals.service';
         type: 'postgres',
         url: cfg.get('DATABASE_URL'),
         ssl: { rejectUnauthorized: false },
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        entities: [__dirname + '/**/*.entity{.ts,.js}',
+        Account, JournalEntry, JournalLine, Payment, FiscalYear,
+      ],
         synchronize: true,
         logging: false,
       }),

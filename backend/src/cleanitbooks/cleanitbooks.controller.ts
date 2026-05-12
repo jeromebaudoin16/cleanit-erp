@@ -54,3 +54,10 @@ export class CleanITBooksController {
   @Post('time')                  createTime(@Body() dto: any)            { return this.svc.createTimeEntry(dto); }
   @Delete('time/:id')            deleteTime(@Param('id') id: string)     { return this.svc.deleteTimeEntry(id); }
 }
+
+// ── Routes comptables ────────────────────────────────────────────
+import { AccountingService } from './accounting.service';
+
+// NOTA: Ces routes sont ajoutées dans le contrôleur existant
+// Les méthodes suivantes doivent être ajoutées manuellement
+// via le script de patch ci-dessous

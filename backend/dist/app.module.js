@@ -16,6 +16,11 @@ const typeorm_1 = require("@nestjs/typeorm");
 const schedule_1 = require("@nestjs/schedule");
 const auth_module_1 = require("./auth/auth.module");
 const cleanitbooks_module_1 = require("./cleanitbooks/cleanitbooks.module");
+const account_entity_1 = require("./cleanitbooks/account.entity");
+const journal_entry_entity_1 = require("./cleanitbooks/journal_entry.entity");
+const journal_line_entity_1 = require("./cleanitbooks/journal_line.entity");
+const payment_entity_1 = require("./cleanitbooks/payment.entity");
+const fiscal_year_entity_1 = require("./cleanitbooks/fiscal_year.entity");
 const tracking_module_1 = require("./tracking/tracking.module");
 const users_module_1 = require("./users/users.module");
 const dashboard_module_1 = require("./dashboard/dashboard.module");
@@ -71,7 +76,9 @@ exports.AppModule = AppModule = __decorate([
                     type: 'postgres',
                     url: cfg.get('DATABASE_URL'),
                     ssl: { rejectUnauthorized: false },
-                    entities: [__dirname + '/**/*.entity{.ts,.js}'],
+                    entities: [__dirname + '/**/*.entity{.ts,.js}',
+                        account_entity_1.Account, journal_entry_entity_1.JournalEntry, journal_line_entity_1.JournalLine, payment_entity_1.Payment, fiscal_year_entity_1.FiscalYear,
+                    ],
                     synchronize: true,
                     logging: false,
                 }),
