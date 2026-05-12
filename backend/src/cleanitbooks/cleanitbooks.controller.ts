@@ -1,11 +1,12 @@
 import { Controller, Get, Post, Put, Delete, Param, Body, UseGuards } from '@nestjs/common';
 import { CleanITBooksService } from './cleanitbooks.service';
+import { AccountingService } from './accounting.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('api/cleanitbooks')
 @UseGuards(JwtAuthGuard)
 export class CleanITBooksController {
-  constructor(private readonly svc: CleanITBooksService) {}
+  constructor(private readonly svc: CleanITBooksService, private readonly accountingService: AccountingService) {}
 
   // Dashboard
   @Get('dashboard') getDashboard() { return this.svc.getDashboardKpis(); }
@@ -53,11 +54,49 @@ export class CleanITBooksController {
   @Get('time/emp/:id')           getTimeByEmp(@Param('id') id: string)  { return this.svc.findTimeByEmp(id); }
   @Post('time')                  createTime(@Body() dto: any)            { return this.svc.createTimeEntry(dto); }
   @Delete('time/:id')            deleteTime(@Param('id') id: string)     { return this.svc.deleteTimeEntry(id); }
+  // ── Plan comptable ───────────────────────────────────────────────
+  @Get('accounts')
+  getAccounts(@Query('classe') classe?: string) {
+    if(classe) return this.accountingService.findAccountsByClasse(classe);
+    return this.accountingService.findAllAccounts();
+  }
+  @Post('accounts/init')
+  initPlanComptable() { return this.accountingService.initPlanComptable(); }
+
+  // ── Journal ──────────────────────────────────────────────────────
+  @Get('journal')
+  getJournal(@Query('type') type?: string) { return this.accountingService.findJournal(type); }
+
+  // ── Grand Livre ──────────────────────────────────────────────────
+  @Get('grandlivre')
+  getGrandLivre(@Query('account') account?: string) { return this.accountingService.getGrandLivre(account); }
+
+  // ── Balance ──────────────────────────────────────────────────────
+  @Get('balance')
+  getBalance() { return this.accountingService.getBalance(); }
+
+  // ── P&L ─────────────────────────────────────────────────────────
+  @Get('pl')
+  getPL() { return this.accountingService.getPL(); }
+
+  // ── Bilan ────────────────────────────────────────────────────────
+  @Get('bilan')
+  getBilan() { return this.accountingService.getBilan(); }
+
+  // ── Paiements ────────────────────────────────────────────────────
+  @Get('payments')
+  getPayments(@Query('type') type?: string) { return this.accountingService.findPayments(type); }
+  @Post('payments/receive')
+  receivePayment(@Body() dto: any) { return this.accountingService.receivePayment(dto); }
+  @Post('payments/pay-bill')
+  payBill(@Body() dto: any) { return this.accountingService.payBill(dto); }
+
+  // ── Exercices ────────────────────────────────────────────────────
+  @Get('fiscal-years')
+  getFiscalYears() { return this.accountingService.findFiscalYears(); }
+  @Post('fiscal-years')
+  createFiscalYear(@Body() dto: any) { return this.accountingService.createFiscalYear(dto); }
+  @Post('fiscal-years/:id/close')
+  closeFiscalYear(@Param('id') id: string) { return this.accountingService.closeFiscalYear(id); }
+
 }
-
-// ── Routes comptables ────────────────────────────────────────────
-import { AccountingService } from './accounting.service';
-
-// NOTA: Ces routes sont ajoutées dans le contrôleur existant
-// Les méthodes suivantes doivent être ajoutées manuellement
-// via le script de patch ci-dessous

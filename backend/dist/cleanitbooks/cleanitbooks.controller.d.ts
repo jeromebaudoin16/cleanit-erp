@@ -1,7 +1,9 @@
 import { CleanITBooksService } from './cleanitbooks.service';
+import { AccountingService } from './accounting.service';
 export declare class CleanITBooksController {
     private readonly svc;
-    constructor(svc: CleanITBooksService);
+    private readonly accountingService;
+    constructor(svc: CleanITBooksService, accountingService: AccountingService);
     getDashboard(): Promise<{
         totalCA: number;
         totalAR: number;
@@ -46,4 +48,73 @@ export declare class CleanITBooksController {
     getTimeByEmp(id: string): Promise<import("./timeentry.entity").TimeEntry[]>;
     createTime(dto: any): Promise<Partial<import("./timeentry.entity").TimeEntry> & import("./timeentry.entity").TimeEntry>;
     deleteTime(id: string): Promise<import("typeorm").DeleteResult>;
+    getAccounts(classe?: string): Promise<import("./account.entity").Account[]>;
+    initPlanComptable(): Promise<{
+        message: string;
+        count: number;
+    }>;
+    getJournal(type?: string): Promise<import("./journal_entry.entity").JournalEntry[]>;
+    getGrandLivre(account?: string): Promise<Record<string, any[]>>;
+    getBalance(): Promise<{
+        rows: {
+            code: string;
+            nom: string;
+            classe: string;
+            type: string;
+            debit: number;
+            credit: number;
+            solde: number;
+        }[];
+        totalDebit: number;
+        totalCredit: number;
+        equilibre: boolean;
+    }>;
+    getPL(): Promise<{
+        produits: {
+            code: string;
+            nom: string;
+            montant: number;
+        }[];
+        charges: {
+            code: string;
+            nom: string;
+            montant: number;
+        }[];
+        totalProduits: number;
+        totalCharges: number;
+        resultat: number;
+        beneficiaire: boolean;
+    }>;
+    getBilan(): Promise<{
+        actif: {
+            code: string;
+            nom: string;
+            classe: string;
+            solde: number;
+        }[];
+        passif: {
+            code: string;
+            nom: string;
+            classe: string;
+            solde: number;
+        }[];
+        totalActif: number;
+        totalPassif: number;
+        equilibre: boolean;
+    }>;
+    getPayments(type?: string): Promise<import("./payment.entity").Payment[]>;
+    receivePayment(dto: any): Promise<{
+        payment: import("./payment.entity").Payment;
+        entry: import("./journal_entry.entity").JournalEntry;
+        lettrage: string;
+    }>;
+    payBill(dto: any): Promise<{
+        payment: import("./payment.entity").Payment;
+        entry: import("./journal_entry.entity").JournalEntry;
+    }>;
+    getFiscalYears(): Promise<import("./fiscal_year.entity").FiscalYear[]>;
+    createFiscalYear(dto: any): Promise<Partial<import("./fiscal_year.entity").FiscalYear> & import("./fiscal_year.entity").FiscalYear>;
+    closeFiscalYear(id: string): Promise<{
+        message: string;
+    }>;
 }

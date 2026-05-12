@@ -15,11 +15,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CleanITBooksController = void 0;
 const common_1 = require("@nestjs/common");
 const cleanitbooks_service_1 = require("./cleanitbooks.service");
+const accounting_service_1 = require("./accounting.service");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 let CleanITBooksController = class CleanITBooksController {
     svc;
-    constructor(svc) {
+    accountingService;
+    constructor(svc, accountingService) {
         this.svc = svc;
+        this.accountingService = accountingService;
     }
     getDashboard() { return this.svc.getDashboardKpis(); }
     getCustomers() { return this.svc.findAllCustomers(); }
@@ -54,6 +57,23 @@ let CleanITBooksController = class CleanITBooksController {
     getTimeByEmp(id) { return this.svc.findTimeByEmp(id); }
     createTime(dto) { return this.svc.createTimeEntry(dto); }
     deleteTime(id) { return this.svc.deleteTimeEntry(id); }
+    getAccounts(classe) {
+        if (classe)
+            return this.accountingService.findAccountsByClasse(classe);
+        return this.accountingService.findAllAccounts();
+    }
+    initPlanComptable() { return this.accountingService.initPlanComptable(); }
+    getJournal(type) { return this.accountingService.findJournal(type); }
+    getGrandLivre(account) { return this.accountingService.getGrandLivre(account); }
+    getBalance() { return this.accountingService.getBalance(); }
+    getPL() { return this.accountingService.getPL(); }
+    getBilan() { return this.accountingService.getBilan(); }
+    getPayments(type) { return this.accountingService.findPayments(type); }
+    receivePayment(dto) { return this.accountingService.receivePayment(dto); }
+    payBill(dto) { return this.accountingService.payBill(dto); }
+    getFiscalYears() { return this.accountingService.findFiscalYears(); }
+    createFiscalYear(dto) { return this.accountingService.createFiscalYear(dto); }
+    closeFiscalYear(id) { return this.accountingService.closeFiscalYear(id); }
 };
 exports.CleanITBooksController = CleanITBooksController;
 __decorate([
@@ -285,9 +305,95 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], CleanITBooksController.prototype, "deleteTime", null);
+__decorate([
+    (0, common_1.Get)('accounts'),
+    __param(0, Query('classe')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], CleanITBooksController.prototype, "getAccounts", null);
+__decorate([
+    (0, common_1.Post)('accounts/init'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], CleanITBooksController.prototype, "initPlanComptable", null);
+__decorate([
+    (0, common_1.Get)('journal'),
+    __param(0, Query('type')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], CleanITBooksController.prototype, "getJournal", null);
+__decorate([
+    (0, common_1.Get)('grandlivre'),
+    __param(0, Query('account')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], CleanITBooksController.prototype, "getGrandLivre", null);
+__decorate([
+    (0, common_1.Get)('balance'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], CleanITBooksController.prototype, "getBalance", null);
+__decorate([
+    (0, common_1.Get)('pl'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], CleanITBooksController.prototype, "getPL", null);
+__decorate([
+    (0, common_1.Get)('bilan'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], CleanITBooksController.prototype, "getBilan", null);
+__decorate([
+    (0, common_1.Get)('payments'),
+    __param(0, Query('type')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], CleanITBooksController.prototype, "getPayments", null);
+__decorate([
+    (0, common_1.Post)('payments/receive'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], CleanITBooksController.prototype, "receivePayment", null);
+__decorate([
+    (0, common_1.Post)('payments/pay-bill'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], CleanITBooksController.prototype, "payBill", null);
+__decorate([
+    (0, common_1.Get)('fiscal-years'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], CleanITBooksController.prototype, "getFiscalYears", null);
+__decorate([
+    (0, common_1.Post)('fiscal-years'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], CleanITBooksController.prototype, "createFiscalYear", null);
+__decorate([
+    (0, common_1.Post)('fiscal-years/:id/close'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], CleanITBooksController.prototype, "closeFiscalYear", null);
 exports.CleanITBooksController = CleanITBooksController = __decorate([
     (0, common_1.Controller)('api/cleanitbooks'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
-    __metadata("design:paramtypes", [cleanitbooks_service_1.CleanITBooksService])
+    __metadata("design:paramtypes", [cleanitbooks_service_1.CleanITBooksService, accounting_service_1.AccountingService])
 ], CleanITBooksController);
 //# sourceMappingURL=cleanitbooks.controller.js.map
