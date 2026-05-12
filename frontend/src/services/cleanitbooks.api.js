@@ -48,3 +48,18 @@ export const createTimeEntry = (dto) => safe(fetch(`${API}/time`,       {method:
 export const deleteTimeEntry = (id) => safe(fetch(`${API}/time/${id}`,  {method:'DELETE',headers:headers()}));
 
 export const getDashboard   = () => safe(fetch(`${API}/dashboard`,      {headers:headers()}));
+
+// ── Comptabilité ────────────────────────────────────────────────────
+export const getAccounts      = (classe)  => safe(fetch(`${API}/accounts${classe?'?classe='+classe:''}`, {headers:headers()}));
+export const initPlanComptable= ()         => safe(fetch(`${API}/accounts/init`, {method:'POST',headers:headers()}));
+export const getJournal       = (type)    => safe(fetch(`${API}/journal${type?'?type='+type:''}`, {headers:headers()}));
+export const getGrandLivre    = (account) => safe(fetch(`${API}/grandlivre${account?'?account='+account:''}`, {headers:headers()}));
+export const getBalance       = ()         => safe(fetch(`${API}/balance`, {headers:headers()}));
+export const getPL            = ()         => safe(fetch(`${API}/pl`, {headers:headers()}));
+export const getBilan         = ()         => safe(fetch(`${API}/bilan`, {headers:headers()}));
+export const getPayments      = (type)    => safe(fetch(`${API}/payments${type?'?type='+type:''}`, {headers:headers()}));
+export const receivePayment   = (dto)      => safe(fetch(`${API}/payments/receive`, {method:'POST',headers:headers(),body:JSON.stringify(dto)}));
+export const payBill          = (dto)      => safe(fetch(`${API}/payments/pay-bill`, {method:'POST',headers:headers(),body:JSON.stringify(dto)}));
+export const getFiscalYears   = ()         => safe(fetch(`${API}/fiscal-years`, {headers:headers()}));
+export const createFiscalYear = (dto)      => safe(fetch(`${API}/fiscal-years`, {method:'POST',headers:headers(),body:JSON.stringify(dto)}));
+export const closeFiscalYear  = (id)       => safe(fetch(`${API}/fiscal-years/${id}/close`, {method:'POST',headers:headers()}));
