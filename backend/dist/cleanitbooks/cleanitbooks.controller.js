@@ -307,7 +307,7 @@ __decorate([
 ], CleanITBooksController.prototype, "deleteTime", null);
 __decorate([
     (0, common_1.Get)('accounts'),
-    __param(0, Query('classe')),
+    __param(0, (0, common_1.Query)('classe')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
@@ -320,14 +320,14 @@ __decorate([
 ], CleanITBooksController.prototype, "initPlanComptable", null);
 __decorate([
     (0, common_1.Get)('journal'),
-    __param(0, Query('type')),
+    __param(0, (0, common_1.Query)('type')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], CleanITBooksController.prototype, "getJournal", null);
 __decorate([
     (0, common_1.Get)('grandlivre'),
-    __param(0, Query('account')),
+    __param(0, (0, common_1.Query)('account')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
@@ -352,7 +352,7 @@ __decorate([
 ], CleanITBooksController.prototype, "getBilan", null);
 __decorate([
     (0, common_1.Get)('payments'),
-    __param(0, Query('type')),
+    __param(0, (0, common_1.Query)('type')),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)

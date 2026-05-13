@@ -6272,3 +6272,426 @@ export default function CleanITBooks() {
 // ================================================================
 //  PAGE CREATION / EDITION JOB — vraie page /cleanitbooks/jobs/new
 // ================================================================
+
+// ═══════════════════════════════════════════════════════════════════
+//  PAGES COMPTABLES — Journal, Grand Livre, Balance, P&L, Bilan
+// ═══════════════════════════════════════════════════════════════════
+
+import * as CIBAPI from '../services/cleanitbooks.api';
+
+// ── PAGE JOURNAL ──────────────────────────────────────────────────
+const PageJournal = () => {
+  const [entries, setEntries] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [filter,  setFilter]  = React.useState('');
+  const [sel,     setSel]     = React.useState(null);
+
+  React.useEffect(()=>{
+    CIBAPI.getJournal().then(d=>{ setEntries(Array.isArray(d)?d:[]); setLoading(false); });
+  },[]);
+
+  const JOURNALS = ['VENTES','ACHATS','BANQUE','CAISSE','OD'];
+  const filtered = entries.filter(e=>!filter||e.journal===filter);
+
+  const JOURNAL_COLORS = {VENTES:'#16a34a',ACHATS:'#ea580c',BANQUE:'#2563eb',CAISSE:'#7c3aed',OD:'#6b7280'};
+
+  if(loading) return <div style={{padding:40,textAlign:'center',color:C.text4}}>Chargement du journal...</div>;
+
+  return(
+    <div>
+      <CIBTopBar title="Journal des écritures" icon="📒" color="#2563eb">
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          {JOURNALS.map(j=>(
+            <button key={j} onClick={()=>setFilter(filter===j?'':j)}
+              style={{padding:'5px 12px',borderRadius:20,border:`1px solid ${filter===j?JOURNAL_COLORS[j]:C.border}`,background:filter===j?JOURNAL_COLORS[j]+'20':'transparent',color:filter===j?JOURNAL_COLORS[j]:C.text3,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+              {j}
+            </button>
+          ))}
+        </div>
+      </CIBTopBar>
+      <div style={{padding:'20px 24px'}}>
+        {filtered.length===0&&(
+          <div style={{background:C.white,borderRadius:12,padding:'60px',textAlign:'center',border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:48,marginBottom:12}}>📒</div>
+            <div style={{fontSize:16,fontWeight:700,color:C.text}}>Journal vide</div>
+            <div style={{fontSize:13,color:C.text3,marginTop:4}}>Les écritures sont générées automatiquement lors de la création de factures et paiements</div>
+          </div>
+        )}
+        {filtered.map((e,i)=>(
+          <div key={e.id} style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,marginBottom:10,overflow:'hidden',boxShadow:C.shadow}}>
+            <div onClick={()=>setSel(sel===e.id?null:e.id)}
+              style={{display:'flex',alignItems:'center',gap:14,padding:'12px 18px',cursor:'pointer',transition:'background .1s'}}
+              onMouseEnter={e=>e.currentTarget.style.background=C.bg}
+              onMouseLeave={e=>e.currentTarget.style.background='white'}>
+              <div style={{width:80,textAlign:'center',padding:'4px 8px',borderRadius:8,background:JOURNAL_COLORS[e.journal]+'15',border:`1px solid ${JOURNAL_COLORS[e.journal]}30`}}>
+                <div style={{fontSize:10,fontWeight:800,color:JOURNAL_COLORS[e.journal]}}>{e.journal}</div>
+              </div>
+              <div style={{width:130,fontFamily:'monospace',fontSize:12,color:C.text3}}>{e.numero}</div>
+              <div style={{width:100,fontSize:12,color:C.text3}}>{e.date}</div>
+              <div style={{flex:1,fontSize:13,fontWeight:600,color:C.text}}>{e.libelle}</div>
+              <div style={{textAlign:'right',minWidth:120}}>
+                <div style={{fontSize:13,fontWeight:700,color:C.blue}}>{fN(e.totalDebit)} FCFA</div>
+                <div style={{fontSize:10,color:C.text4}}>Débit = Crédit</div>
+              </div>
+              <div style={{fontSize:16,color:C.text4}}>{sel===e.id?'▲':'▼'}</div>
+            </div>
+            {sel===e.id&&(
+              <div style={{borderTop:`1px solid ${C.border}`,padding:'0 18px 14px'}}>
+                <table style={{width:'100%',borderCollapse:'collapse',marginTop:10}}>
+                  <thead>
+                    <tr style={{background:'#f8fafc'}}>
+                      {['Compte','Libellé','Tiers','Débit','Crédit','Lettrage'].map(h=>(
+                        <th key={h} style={{padding:'8px 10px',textAlign:'left',fontSize:10,fontWeight:800,color:C.text3,textTransform:'uppercase',letterSpacing:.4}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(e.lines||[]).map((l,i)=>(
+                      <tr key={i} style={{borderTop:`1px solid ${C.border2}`}}>
+                        <td style={{padding:'8px 10px',fontFamily:'monospace',fontSize:12,fontWeight:700,color:C.blue}}>{l.accountCode}</td>
+                        <td style={{padding:'8px 10px',fontSize:12,color:C.text2}}>{l.accountNom}</td>
+                        <td style={{padding:'8px 10px',fontSize:11,color:C.text3}}>{l.tiers||'—'}</td>
+                        <td style={{padding:'8px 10px',fontSize:12,fontWeight:700,color:l.debit>0?C.green:C.text4,textAlign:'right'}}>{l.debit>0?fN(l.debit):'—'}</td>
+                        <td style={{padding:'8px 10px',fontSize:12,fontWeight:700,color:l.credit>0?C.red:C.text4,textAlign:'right'}}>{l.credit>0?fN(l.credit):'—'}</td>
+                        <td style={{padding:'8px 10px',fontSize:10,color:C.purple,fontFamily:'monospace'}}>{l.lettrage||'—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{background:'#f8fafc',borderTop:`2px solid ${C.border}`}}>
+                      <td colSpan={3} style={{padding:'8px 10px',fontSize:11,fontWeight:700,color:C.text3}}>TOTAL</td>
+                      <td style={{padding:'8px 10px',fontSize:13,fontWeight:800,color:C.green,textAlign:'right'}}>{fN(e.totalDebit)}</td>
+                      <td style={{padding:'8px 10px',fontSize:13,fontWeight:800,color:C.red,textAlign:'right'}}>{fN(e.totalCredit)}</td>
+                      <td/>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ── PAGE PLAN COMPTABLE ────────────────────────────────────────────
+const PagePlanComptable = () => {
+  const [accounts, setAccounts] = React.useState([]);
+  const [loading,  setLoading]  = React.useState(true);
+  const [search,   setSearch]   = React.useState('');
+  const [classe,   setClasse]   = React.useState('');
+  const [init,     setInit]     = React.useState(false);
+
+  React.useEffect(()=>{
+    CIBAPI.getAccounts().then(d=>{ setAccounts(Array.isArray(d)?d:[]); setLoading(false); });
+  },[]);
+
+  const initPlan = async () => {
+    setInit(true);
+    await CIBAPI.initPlanComptable();
+    const d = await CIBAPI.getAccounts();
+    setAccounts(Array.isArray(d)?d:[]);
+    setInit(false);
+  };
+
+  const CLASSES = ['1','2','3','4','5','6','7','8','9'];
+  const CLASS_NAMES = {'1':'Ressources durables','2':'Actif immobilisé','3':'Stocks','4':'Tiers','5':'Trésorerie','6':'Charges','7':'Produits','8':'Comptes spéciaux','9':'Analytique'};
+  const TYPE_COLORS = {actif:'#2563eb',passif:'#ea580c',charge:'#dc2626',produit:'#16a34a',tresorerie:'#7c3aed'};
+
+  const filtered = accounts.filter(a=>
+    (!classe||a.classe===classe)&&
+    (!search||(a.code+a.nom).toLowerCase().includes(search.toLowerCase()))
+  );
+
+  if(loading) return <div style={{padding:40,textAlign:'center',color:C.text4}}>Chargement...</div>;
+
+  return(
+    <div>
+      <CIBTopBar title="Plan comptable SYSCOHADA" icon="📋" color="#7c3aed">
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher..."
+            style={{padding:'6px 12px',borderRadius:8,border:`1px solid ${C.border}`,fontSize:12,fontFamily:'inherit',width:180}}/>
+          {accounts.length===0&&(
+            <button onClick={initPlan} disabled={init}
+              style={{padding:'7px 16px',borderRadius:8,border:'none',background:'#7c3aed',color:'white',fontWeight:700,fontSize:12,cursor:'pointer'}}>
+              {init?'Initialisation...':'⚡ Initialiser SYSCOHADA'}
+            </button>
+          )}
+        </div>
+      </CIBTopBar>
+      <div style={{padding:'20px 24px'}}>
+        {/* Filtres classes */}
+        <div style={{display:'flex',gap:6,marginBottom:16,flexWrap:'wrap'}}>
+          <button onClick={()=>setClasse('')}
+            style={{padding:'5px 12px',borderRadius:20,border:`1px solid ${!classe?'#7c3aed':C.border}`,background:!classe?'#7c3aed20':'transparent',color:!classe?'#7c3aed':C.text3,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+            Toutes
+          </button>
+          {CLASSES.map(cl=>(
+            <button key={cl} onClick={()=>setClasse(classe===cl?'':cl)}
+              style={{padding:'5px 12px',borderRadius:20,border:`1px solid ${classe===cl?'#7c3aed':C.border}`,background:classe===cl?'#7c3aed20':'transparent',color:classe===cl?'#7c3aed':C.text3,fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:'inherit'}}>
+              Cl. {cl} — {CLASS_NAMES[cl]}
+            </button>
+          ))}
+        </div>
+
+        <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:C.shadow}}>
+          <div style={{display:'grid',gridTemplateColumns:'120px 1fr 80px 80px 130px 130px',gap:0,padding:'10px 16px',background:'#f8fafc',borderBottom:`2px solid ${C.border}`,fontSize:10,fontWeight:800,color:C.text3,textTransform:'uppercase',letterSpacing:.4}}>
+            <span>Code</span><span>Intitulé</span><span>Classe</span><span>Type</span><span>Solde Débit</span><span>Solde Crédit</span>
+          </div>
+          {filtered.length===0&&<div style={{padding:'40px',textAlign:'center',color:C.text4}}>
+            {accounts.length===0?'Plan comptable non initialisé — Cliquez sur "Initialiser SYSCOHADA"':'Aucun compte'}
+          </div>}
+          {filtered.map((a,i)=>(
+            <div key={a.id} style={{display:'grid',gridTemplateColumns:'120px 1fr 80px 80px 130px 130px',gap:0,padding:'10px 16px',borderBottom:`1px solid ${C.border2}`,background:i%2===0?C.white:'#fafafa',alignItems:'center'}}>
+              <span style={{fontFamily:'monospace',fontSize:12,fontWeight:700,color:'#7c3aed'}}>{a.code}</span>
+              <span style={{fontSize:12,color:C.text}}>{a.nom}</span>
+              <span style={{fontSize:11,color:C.text3}}>Classe {a.classe}</span>
+              <span style={{fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:10,background:TYPE_COLORS[a.type]+'15',color:TYPE_COLORS[a.type]}}>{a.type}</span>
+              <span style={{fontSize:12,fontWeight:700,color:Number(a.soldeDebit)>0?C.green:C.text4,textAlign:'right'}}>{Number(a.soldeDebit)>0?fN(a.soldeDebit):'—'}</span>
+              <span style={{fontSize:12,fontWeight:700,color:Number(a.soldeCredit)>0?C.red:C.text4,textAlign:'right'}}>{Number(a.soldeCredit)>0?fN(a.soldeCredit):'—'}</span>
+            </div>
+          ))}
+          <div style={{padding:'10px 16px',background:'#f8fafc',borderTop:`2px solid ${C.border}`,fontSize:11,color:C.text3}}>
+            {filtered.length} comptes · Plan comptable SYSCOHADA révisé
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── PAGE BALANCE GÉNÉRALE ──────────────────────────────────────────
+const PageBalance = () => {
+  const [balance, setBalance] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(()=>{
+    CIBAPI.getBalance().then(d=>{ setBalance(d); setLoading(false); });
+  },[]);
+
+  if(loading) return <div style={{padding:40,textAlign:'center',color:C.text4}}>Calcul de la balance...</div>;
+  if(!balance) return <div style={{padding:40,textAlign:'center',color:C.text4}}>Aucune donnée</div>;
+
+  const nonZero = (balance.rows||[]).filter(r=>r.debit>0||r.credit>0);
+
+  return(
+    <div>
+      <CIBTopBar title="Balance générale" icon="⚖️" color="#0891b2">
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{padding:'5px 14px',borderRadius:20,background:balance.equilibre?C.green_l:C.red_l,color:balance.equilibre?C.green:C.red,fontSize:12,fontWeight:700}}>
+            {balance.equilibre?'✅ Balance équilibrée':'⚠️ Balance déséquilibrée'}
+          </div>
+          <button onClick={()=>window.print()} style={{padding:'7px 14px',borderRadius:8,border:`1px solid ${C.border}`,background:C.white,color:C.text2,fontSize:12,cursor:'pointer',fontWeight:600}}>
+            🖨 Imprimer
+          </button>
+        </div>
+      </CIBTopBar>
+      <div style={{padding:'20px 24px'}}>
+        {/* KPIs */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,marginBottom:20}}>
+          {[
+            {l:'Total Débit',   v:fN(balance.totalDebit)+' FCFA',   c:'#16a34a', bg:'#f0fdf4'},
+            {l:'Total Crédit',  v:fN(balance.totalCredit)+' FCFA',  c:'#dc2626', bg:'#fef2f2'},
+            {l:'Écart',         v:fN(Math.abs(balance.totalDebit-balance.totalCredit))+' FCFA', c:balance.equilibre?'#16a34a':'#dc2626', bg:balance.equilibre?'#f0fdf4':'#fef2f2'},
+          ].map(k=>(
+            <div key={k.l} style={{background:k.bg,borderRadius:12,padding:'16px 20px',border:`1px solid ${k.c}20`}}>
+              <div style={{fontSize:11,color:C.text3,textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>{k.l}</div>
+              <div style={{fontSize:22,fontWeight:900,color:k.c}}>{k.v}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:C.shadow}}>
+          <div style={{display:'grid',gridTemplateColumns:'100px 1fr 80px 130px 130px 130px',padding:'10px 16px',background:'#f8fafc',borderBottom:`2px solid ${C.border}`,fontSize:10,fontWeight:800,color:C.text3,textTransform:'uppercase',letterSpacing:.4}}>
+            <span>Code</span><span>Intitulé</span><span>Classe</span><span>Débit</span><span>Crédit</span><span>Solde</span>
+          </div>
+          {nonZero.length===0&&<div style={{padding:'40px',textAlign:'center',color:C.text4}}>Aucune écriture enregistrée</div>}
+          {nonZero.map((r,i)=>(
+            <div key={r.code} style={{display:'grid',gridTemplateColumns:'100px 1fr 80px 130px 130px 130px',padding:'9px 16px',borderBottom:`1px solid ${C.border2}`,background:i%2===0?C.white:'#fafafa',alignItems:'center'}}>
+              <span style={{fontFamily:'monospace',fontSize:11,fontWeight:700,color:'#7c3aed'}}>{r.code}</span>
+              <span style={{fontSize:12,color:C.text}}>{r.nom}</span>
+              <span style={{fontSize:11,color:C.text3}}>{r.classe}</span>
+              <span style={{fontSize:12,fontWeight:700,color:C.green,textAlign:'right'}}>{fN(r.debit)}</span>
+              <span style={{fontSize:12,fontWeight:700,color:C.red,textAlign:'right'}}>{fN(r.credit)}</span>
+              <span style={{fontSize:12,fontWeight:800,color:r.solde>=0?C.blue:C.red,textAlign:'right'}}>{fN(Math.abs(r.solde))}</span>
+            </div>
+          ))}
+          <div style={{display:'grid',gridTemplateColumns:'100px 1fr 80px 130px 130px 130px',padding:'12px 16px',background:'#0f172a',fontSize:12,fontWeight:800,color:'white'}}>
+            <span colSpan={3}>TOTAUX</span><span/><span/>
+            <span style={{color:'#86efac',textAlign:'right'}}>{fN(balance.totalDebit)}</span>
+            <span style={{color:'#fca5a5',textAlign:'right'}}>{fN(balance.totalCredit)}</span>
+            <span style={{color:balance.equilibre?'#86efac':'#fca5a5',textAlign:'right'}}>{balance.equilibre?'ÉQUILIBRÉ':'ÉCART'}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── PAGE P&L ───────────────────────────────────────────────────────
+const PagePL = () => {
+  const [pl,      setPL]      = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(()=>{
+    CIBAPI.getPL().then(d=>{ setPL(d); setLoading(false); });
+  },[]);
+
+  if(loading) return <div style={{padding:40,textAlign:'center',color:C.text4}}>Calcul du P&L...</div>;
+  if(!pl) return <div style={{padding:40,textAlign:'center',color:C.text4}}>Aucune donnée</div>;
+
+  const marge = pl.totalProduits>0 ? Math.round(pl.resultat/pl.totalProduits*100) : 0;
+
+  return(
+    <div>
+      <CIBTopBar title="Compte de résultat" icon="📊" color="#16a34a">
+        <button onClick={()=>window.print()} style={{padding:'7px 14px',borderRadius:8,border:`1px solid ${C.border}`,background:C.white,color:C.text2,fontSize:12,cursor:'pointer',fontWeight:600}}>
+          🖨 Imprimer
+        </button>
+      </CIBTopBar>
+      <div style={{padding:'20px 24px'}}>
+        {/* KPIs */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:14,marginBottom:20}}>
+          {[
+            {l:'Total Produits', v:fN(pl.totalProduits)+' FCFA', c:'#16a34a', bg:'#f0fdf4'},
+            {l:'Total Charges',  v:fN(pl.totalCharges)+' FCFA',  c:'#dc2626', bg:'#fef2f2'},
+            {l:'Résultat net',   v:fN(pl.resultat)+' FCFA',      c:pl.beneficiaire?'#16a34a':'#dc2626', bg:pl.beneficiaire?'#f0fdf4':'#fef2f2'},
+            {l:'Marge nette',    v:marge+'%',                     c:marge>20?'#16a34a':marge>0?'#d97706':'#dc2626', bg:'#f8fafc'},
+          ].map(k=>(
+            <div key={k.l} style={{background:k.bg,borderRadius:12,padding:'16px 20px',border:`1px solid ${k.c}20`}}>
+              <div style={{fontSize:11,color:C.text3,textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>{k.l}</div>
+              <div style={{fontSize:22,fontWeight:900,color:k.c}}>{k.v}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+          {/* Produits */}
+          <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:C.shadow}}>
+            <div style={{padding:'14px 18px',background:'#f0fdf4',borderBottom:`1px solid #bbf7d0`,display:'flex',justifyContent:'space-between'}}>
+              <span style={{fontSize:14,fontWeight:800,color:'#16a34a'}}>PRODUITS</span>
+              <span style={{fontSize:14,fontWeight:900,color:'#16a34a'}}>{fN(pl.totalProduits)} FCFA</span>
+            </div>
+            {(pl.produits||[]).filter(p=>p.montant>0).map((p,i)=>(
+              <div key={p.code} style={{display:'flex',justifyContent:'space-between',padding:'10px 18px',borderBottom:`1px solid ${C.border2}`,background:i%2===0?C.white:'#fafafa'}}>
+                <div>
+                  <div style={{fontSize:11,fontFamily:'monospace',color:'#7c3aed'}}>{p.code}</div>
+                  <div style={{fontSize:12,color:C.text2}}>{p.nom}</div>
+                </div>
+                <div style={{fontSize:13,fontWeight:700,color:'#16a34a'}}>{fN(p.montant)}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Charges */}
+          <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:C.shadow}}>
+            <div style={{padding:'14px 18px',background:'#fef2f2',borderBottom:`1px solid #fecaca`,display:'flex',justifyContent:'space-between'}}>
+              <span style={{fontSize:14,fontWeight:800,color:'#dc2626'}}>CHARGES</span>
+              <span style={{fontSize:14,fontWeight:900,color:'#dc2626'}}>{fN(pl.totalCharges)} FCFA</span>
+            </div>
+            {(pl.charges||[]).filter(p=>p.montant>0).map((p,i)=>(
+              <div key={p.code} style={{display:'flex',justifyContent:'space-between',padding:'10px 18px',borderBottom:`1px solid ${C.border2}`,background:i%2===0?C.white:'#fafafa'}}>
+                <div>
+                  <div style={{fontSize:11,fontFamily:'monospace',color:'#7c3aed'}}>{p.code}</div>
+                  <div style={{fontSize:12,color:C.text2}}>{p.nom}</div>
+                </div>
+                <div style={{fontSize:13,fontWeight:700,color:'#dc2626'}}>{fN(p.montant)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Résultat */}
+        <div style={{marginTop:20,padding:'20px 24px',borderRadius:12,background:pl.beneficiaire?'linear-gradient(135deg,#f0fdf4,#dcfce7)':'linear-gradient(135deg,#fef2f2,#fee2e2)',border:`2px solid ${pl.beneficiaire?'#16a34a':'#dc2626'}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:pl.beneficiaire?'#16a34a':'#dc2626'}}>
+              {pl.beneficiaire?'✅ BÉNÉFICE NET':'❌ PERTE NETTE'}
+            </div>
+            <div style={{fontSize:11,color:C.text3,marginTop:2}}>Produits {fN(pl.totalProduits)} — Charges {fN(pl.totalCharges)}</div>
+          </div>
+          <div style={{fontSize:32,fontWeight:900,color:pl.beneficiaire?'#16a34a':'#dc2626'}}>
+            {fN(pl.resultat)} FCFA
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── PAGE BILAN ─────────────────────────────────────────────────────
+const PageBilan = () => {
+  const [bilan,   setBilan]   = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(()=>{
+    CIBAPI.getBilan().then(d=>{ setBilan(d); setLoading(false); });
+  },[]);
+
+  if(loading) return <div style={{padding:40,textAlign:'center',color:C.text4}}>Calcul du bilan...</div>;
+  if(!bilan) return <div style={{padding:40,textAlign:'center',color:C.text4}}>Aucune donnée</div>;
+
+  return(
+    <div>
+      <CIBTopBar title="Bilan comptable SYSCOHADA" icon="🏦" color="#0f172a">
+        <div style={{display:'flex',gap:8}}>
+          <div style={{padding:'5px 14px',borderRadius:20,background:bilan.equilibre?C.green_l:C.red_l,color:bilan.equilibre?C.green:C.red,fontSize:12,fontWeight:700}}>
+            {bilan.equilibre?'✅ Bilan équilibré':'⚠️ Bilan déséquilibré'}
+          </div>
+          <button onClick={()=>window.print()} style={{padding:'7px 14px',borderRadius:8,border:`1px solid ${C.border}`,background:C.white,color:C.text2,fontSize:12,cursor:'pointer',fontWeight:600}}>
+            🖨 Imprimer
+          </button>
+        </div>
+      </CIBTopBar>
+      <div style={{padding:'20px 24px'}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20,marginBottom:20}}>
+          {[
+            {l:'Total Actif', v:bilan.totalActif, c:C.blue, bg:C.blue_l},
+            {l:'Total Passif',v:bilan.totalPassif,c:C.orange,bg:C.orange_l},
+          ].map(k=>(
+            <div key={k.l} style={{background:k.bg,borderRadius:12,padding:'20px 24px',border:`1px solid ${k.c}30`,textAlign:'center'}}>
+              <div style={{fontSize:11,color:C.text3,textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>{k.l}</div>
+              <div style={{fontSize:28,fontWeight:900,color:k.c}}>{fN(k.v)} FCFA</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+          {/* ACTIF */}
+          <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:C.shadow}}>
+            <div style={{padding:'14px 18px',background:C.blue_l,borderBottom:`1px solid ${C.blue_m}`,display:'flex',justifyContent:'space-between'}}>
+              <span style={{fontSize:14,fontWeight:800,color:C.blue}}>ACTIF</span>
+              <span style={{fontSize:14,fontWeight:900,color:C.blue}}>{fN(bilan.totalActif)} FCFA</span>
+            </div>
+            {(bilan.actif||[]).filter(a=>a.solde>0).map((a,i)=>(
+              <div key={a.code} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 18px',borderBottom:`1px solid ${C.border2}`,background:i%2===0?C.white:'#fafafa'}}>
+                <div>
+                  <div style={{fontSize:11,fontFamily:'monospace',color:'#7c3aed'}}>{a.code} — Cl.{a.classe}</div>
+                  <div style={{fontSize:12,color:C.text2}}>{a.nom}</div>
+                </div>
+                <div style={{fontSize:13,fontWeight:700,color:C.blue}}>{fN(a.solde)}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* PASSIF */}
+          <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:C.shadow}}>
+            <div style={{padding:'14px 18px',background:C.orange_l,borderBottom:`1px solid ${C.orange_m}`,display:'flex',justifyContent:'space-between'}}>
+              <span style={{fontSize:14,fontWeight:800,color:C.orange}}>PASSIF</span>
+              <span style={{fontSize:14,fontWeight:900,color:C.orange}}>{fN(bilan.totalPassif)} FCFA</span>
+            </div>
+            {(bilan.passif||[]).filter(a=>a.solde>0).map((a,i)=>(
+              <div key={a.code} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 18px',borderBottom:`1px solid ${C.border2}`,background:i%2===0?C.white:'#fafafa'}}>
+                <div>
+                  <div style={{fontSize:11,fontFamily:'monospace',color:'#7c3aed'}}>{a.code} — Cl.{a.classe}</div>
+                  <div style={{fontSize:12,color:C.text2}}>{a.nom}</div>
+                </div>
+                <div style={{fontSize:13,fontWeight:700,color:C.orange}}>{fN(a.solde)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
