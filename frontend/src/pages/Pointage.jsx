@@ -217,7 +217,6 @@ const NAV_ITEMS = [
   { id:'planning',  l:'Planning',     icon:'📅', url:'/pointage/planning' },
   { id:'historique',l:'Historique',   icon:'📋', url:'/pointage/historique' },
   { id:'alertes',   l:'Alertes',      icon:'🚨', url:'/pointage/alertes' },
-  { id:'approbations',l:'Approbations',icon:'✅', url:'/pointage/approbations' },
   { id:'qrcodes',   l:'QR Codes',     icon:'⬛', url:'/pointage/qrcodes' },
   { id:'rapports',  l:'Rapports',     icon:'📈', url:'/pointage/rapports' },
 ];
