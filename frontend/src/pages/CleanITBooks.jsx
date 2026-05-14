@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { getPL, getBilan, getBalance, getInvoices, getBills, getJobs, getCustomers, getVendors, getPayments } from '../services/cleanitbooks.api';
 
 // ================================================================
 //  CLEANITBOOKS — MODULE 1 : JOB CENTER
