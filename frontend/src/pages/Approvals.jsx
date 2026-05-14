@@ -614,6 +614,7 @@ const ListPage = ({items,onAdd}) => {
     {id:"pending",label:"En attente",n:pending.length},
     {id:"approved",label:"Approuvées",n:approved.length},
     {id:"escalated",label:"Escalade",n:escalated.length,warn:true},
+    {id:"matrix",label:"Matrice",n:null},
   ];
 
   const getCol=item=>{
@@ -686,7 +687,8 @@ const ListPage = ({items,onAdd}) => {
           ))}
         </div>
 
-        {/* ALERTE ESCALADE */}
+        {tab==="matrix"&&<MatriceView matrix={MATRIX}/>}
+        {tab!=="matrix"&&<>{/* ALERTE ESCALADE */}<
         {escalated.length>0&&(
           <div style={{background:"#FEF2F2",borderRadius:8,padding:"12px 16px",border:`1px solid #FECACA`,marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -828,7 +830,8 @@ const ListPage = ({items,onAdd}) => {
           </div>
         )}
       </div>
-      {showNew&&<NewRequestModal onClose={()=>setShowNew(false)} onSave={onAdd}/>}
+      </>
+      }{showNew&&<NewRequestModal onClose={()=>setShowNew(false)} onSave={onAdd}/>}
     </div>
   );
 };
