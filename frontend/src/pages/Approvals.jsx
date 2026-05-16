@@ -72,15 +72,41 @@ const APR = {
 
 // ── MATRICE D'APPROBATION ─────────────────────────────────────
 const DEFAULT_MATRIX = {
-  payment_request:  [{max:500000,lvls:["manager","dg"],mode:"sequential"},{max:5000000,lvls:["manager","finance1","dg"],mode:"sequential"},{max:20000000,lvls:["manager","finance1","finance2","dg"],mode:"sequential"},{max:Infinity,lvls:["manager","finance1","finance2","cfo","dg"],mode:"sequential"}],
-  purchase_request: [{max:1000000,lvls:["manager","finance1","dg"],mode:"sequential"},{max:Infinity,lvls:["manager","finance1","finance2","dg"],mode:"sequential"}],
-  expense_report:   [{max:Infinity,lvls:["manager","finance1"],mode:"sequential"}],
-  leave_request:    [{max:Infinity,lvls:["manager","rh"],mode:"sequential"}],
-  advance_request:  [{max:Infinity,lvls:["manager","finance1","dg"],mode:"sequential"}],
-  mission_request:  [{max:Infinity,lvls:["manager","finance1","dg"],mode:"sequential"}],
-  training_request: [{max:Infinity,lvls:["manager","rh","dg"],mode:"sequential"}],
-  equipment_request:[{max:Infinity,lvls:["manager","finance1","dg"],mode:"sequential"}],
+  payment_request:  [
+    {max:250000,  lvls:["manager"],                              mode:"sequential", label:"Auto — Sous seuil"},
+    {max:500000,  lvls:["manager","dg"],                         mode:"sequential", label:"Standard"},
+    {max:5000000, lvls:["manager","finance1","dg"],              mode:"sequential", label:"Élevé"},
+    {max:20000000,lvls:["manager","finance1","finance2","dg"],   mode:"sequential", label:"Très élevé"},
+    {max:Infinity,lvls:["manager","finance1","finance2","cfo","dg"],mode:"sequential",label:"Exceptionnel"},
+  ],
+  purchase_request: [
+    {max:1000000, lvls:["manager","finance1","dg"],              mode:"sequential", label:"Standard"},
+    {max:Infinity,lvls:["manager","finance1","finance2","dg"],   mode:"sequential", label:"Élevé"},
+  ],
+  expense_report:   [{max:Infinity,lvls:["manager","finance1"],  mode:"parallel",   label:"Note de frais — Approbation parallèle"}],
+  leave_request:    [{max:Infinity,lvls:["manager","rh"],        mode:"parallel",   label:"Congé — RH + Manager simultané"}],
+  advance_request:  [{max:Infinity,lvls:["manager","finance1","dg"],mode:"sequential",label:"Avance salaire"}],
+  mission_request:  [
+    {max:1000000, lvls:["manager","finance1"],                   mode:"parallel",   label:"Mission courte"},
+    {max:Infinity,lvls:["manager","finance1","dg"],              mode:"sequential", label:"Mission longue"},
+  ],
+  training_request: [{max:Infinity,lvls:["manager","rh","dg"],  mode:"sequential", label:"Formation"}],
+  equipment_request:[{max:Infinity,lvls:["manager","finance1","dg"],mode:"sequential",label:"Équipement"}],
 };
+
+// Routage conditionnel — règles supplémentaires par condition
+const CONDITIONAL_ROUTES = [
+  {id:"cr1", label:"Site critique → DG obligatoire", active:true,
+   conditions:[{field:"site", operator:"in", values:["DLA-001","YDE-001","KRI-001"]}],
+   action:"add_level", level:"dg"},
+  {id:"cr2", label:"Montant > 10M → CFO requis", active:true,
+   conditions:[{field:"amount", operator:">", value:10000000}],
+   action:"add_level", level:"cfo"},
+  {id:"cr3", label:"Note de frais < 100K → Auto-approbation", active:true,
+   conditions:[{field:"type", operator:"eq", value:"expense_report"},{field:"amount", operator:"<", value:100000}],
+   action:"auto_approve"},
+];
+
 
 // ── PARAMÈTRES SYSTÈME ────────────────────────────────────────
 const DEFAULT_SETTINGS = {
@@ -104,12 +130,32 @@ const getLevels = (type,amount,matrix) => {
 };
 
 const getWF = (item,matrix) => {
-  const rule = getLevels(item.type, item.amount||0, matrix);
-  const lvls = rule.lvls, mode = rule.mode||"sequential";
+  const rule = getRule(item.type, item.amount, matrix);
+  let lvls = [...(rule.lvls||[])], mode = rule.mode||"sequential";
   const app = item.approvedBy||[];
+  // Appliquer routage conditionnel
+  (CONDITIONAL_ROUTES||[]).filter(r=>r.active).forEach(r=>{
+    const match = r.conditions.every(cond=>{
+      const val = item[cond.field];
+      if(cond.operator==="in") return cond.values?.includes(val);
+      if(cond.operator===">") return Number(val)>Number(cond.value);
+      if(cond.operator==="<") return Number(val)<Number(cond.value);
+      if(cond.operator==="eq") return val===cond.value;
+      return false;
+    });
+    if(match && r.action==="add_level" && !lvls.includes(r.level)) lvls.push(r.level);
+  });
+  // Mode parallèle : tous les niveaux peuvent approuver simultanément
+  if(mode==="parallel") {
+    const done = lvls.every(l=>app.includes(l));
+    const pending = lvls.filter(l=>!app.includes(l));
+    const cur = pending[0]||null;
+    return {lvls, app, cur, done, mode, totalSteps:lvls.length, pending, isParallel:true};
+  }
+  // Mode séquentiel (défaut)
   const done = app.length >= lvls.length;
   const cur = lvls[app.length]||null;
-  return {lvls, app, cur, done, mode, totalSteps:lvls.length};
+  return {lvls, app, cur, done, mode, totalSteps:lvls.length, pending:[], isParallel:false};
 };
 
 const getEsc = (item,settings) => {
@@ -210,6 +256,61 @@ const WFLine = ({item,matrix,compact=false}) => {
           </div>
         );
       })}
+    </div>
+  );
+};
+
+
+const ParallelBadge = ({lvls,app,config}) => (
+  <div style={{display:"flex",flexWrap:"wrap",gap:6,padding:"10px 14px",background:"#EFF6FF",borderRadius:8,border:"1px solid #BFDBFE"}}>
+    <div style={{width:"100%",fontSize:11,fontWeight:700,color:C.blue,marginBottom:4}}>⚡ Approbation parallèle — Tous les niveaux simultanément</div>
+    {lvls.map((lvl,i)=>{
+      const a=config?.approvers?.[lvl]||APR[lvl]||{label:lvl,color:C.blue};
+      const done=app.includes(lvl);
+      return (
+        <div key={lvl} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 10px",borderRadius:16,background:done?C.green+"18":"#fff",border:`1px solid ${done?C.green:C.border}`,fontSize:12}}>
+          <div style={{width:16,height:16,borderRadius:"50%",background:done?C.green:C.border,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            {done?<Ic d={I.check} size={10} color="#fff" sw={2.5}/>:<span style={{fontSize:8,color:"#fff",fontWeight:700}}>{i+1}</span>}
+          </div>
+          <span style={{fontWeight:600,color:done?C.green:C.text2}}>{a.label}</span>
+          {done&&<span style={{fontSize:10,color:C.green}}>✓</span>}
+        </div>
+      );
+    })}
+  </div>
+);
+
+
+const ConditionalRoutingSettings = ({routes,setRoutes}) => {
+  const [localRoutes, setLocalRoutes] = React.useState(routes||CONDITIONAL_ROUTES);
+  const toggle = id => {
+    const updated = localRoutes.map(r=>r.id===id?{...r,active:!r.active}:r);
+    setLocalRoutes(updated);
+    if(setRoutes) setRoutes(updated);
+  };
+  return (
+    <div>
+      <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:12}}>Routage Conditionnel</div>
+      <div style={{fontSize:11,color:C.text3,marginBottom:14}}>Ces règles modifient automatiquement le circuit d'approbation selon les conditions définies.</div>
+      {localRoutes.map((r,i)=>(
+        <div key={r.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:8,border:`1px solid ${C.border}`,background:r.active?C.blue+"06":C.bg,marginBottom:8}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,fontWeight:600,color:C.text}}>{r.label}</div>
+            <div style={{fontSize:11,color:C.text4,marginTop:2}}>
+              {r.conditions.map((cond,j)=>(
+                <span key={j} style={{marginRight:6,padding:"1px 7px",borderRadius:8,background:C.border2,color:C.text3}}>
+                  {cond.field} {cond.operator} {cond.value||cond.values?.join(',')||''}
+                </span>
+              ))}
+              → {r.action==="add_level"?`Ajouter ${r.level}`:"Auto-approbation"}
+            </div>
+          </div>
+          <div onClick={()=>toggle(r.id)}
+            style={{width:36,height:20,borderRadius:10,background:r.active?C.blue:"#D1D5DB",cursor:"pointer",position:"relative",transition:"background .2s"}}>
+            <div style={{position:"absolute",top:2,left:r.active?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left .2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
@@ -649,7 +750,10 @@ const DetailPage = ({items,onUpdate,settings,matrix}) => {
           </div>
           <div style={{padding:"14px 16px",background:C.bg,borderRadius:8,border:`1px solid ${C.border2}`}}>
             <div style={{fontSize:10,color:C.text3,textTransform:"uppercase",letterSpacing:.8,marginBottom:10,fontWeight:600}}>Workflow — {app.length}/{lvls.length} étapes</div>
-            <WFLine item={item} matrix={matrix}/>
+            {item.bkStatus && ["submitted","review_1","review_2","pending_boss"].includes(item.bkStatus) && 
+              getWF(item,matrix).isParallel ? 
+              <ParallelBadge lvls={getWF(item,matrix).lvls} app={item.approvedBy||[]} config={APR}/> : 
+              <WFLine item={item} matrix={matrix}/>}
           </div>
         </div>
       </div>
@@ -1086,6 +1190,7 @@ const ExpiryBadge = ({item}) => {
 export default function Approvals() {
   const {id}=useParams();
   const [items,setItems]=useState(SEED);
+  const [condRoutes,setCondRoutes]=useState(CONDITIONAL_ROUTES);
   const [selected,setSelected]=useState([]);
   const [showExpired,setShowExpired]=useState(false);
   const toggleSelect=id=>setSelected(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);

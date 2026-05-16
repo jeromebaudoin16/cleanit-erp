@@ -3,6 +3,44 @@ import * as XLSX from 'xlsx';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getPL, getBilan, getBalance, getInvoices, getBills, getJobs, getCustomers, getVendors, getPayments } from '../services/cleanitbooks.api';
 
+
+// ── EXPORT XLSX UTILITY ────────────────────────────────────────
+const exportXLSX = (rows, cols, filename) => {
+  try {
+    const data = rows.map(r => {
+      const obj = {};
+      cols.forEach(col => { obj[col.label] = r[col.key] !== undefined ? r[col.key] : ''; });
+      return obj;
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Export');
+    const today = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, filename + '_' + today + '.xlsx');
+  } catch(e) { alert('Erreur export: ' + e.message); }
+};
+const exportBalance = (rows) => exportXLSX(rows, [
+  {key:'code',label:'Code'},{key:'nom',label:'Compte'},{key:'classe',label:'Classe'},
+  {key:'debit',label:'Débit'},{key:'credit',label:'Crédit'},{key:'solde',label:'Solde'},
+], 'Balance_CleanIT');
+const exportPL = (pl) => {
+  if(!pl) return;
+  const rows = [
+    ...( pl.produits||[]).map(p=>({categorie:'Produit',libelle:p.nom,montant:p.montant})),
+    ...( pl.charges||[]).map(c=>({categorie:'Charge', libelle:c.nom,montant:c.montant})),
+    {categorie:'RÉSULTAT', libelle:pl.beneficiaire?'Bénéfice net':'Perte nette', montant:pl.resultat},
+  ];
+  exportXLSX(rows,[{key:'categorie',label:'Catégorie'},{key:'libelle',label:'Libellé'},{key:'montant',label:'Montant FCFA'}],'PL_CleanIT');
+};
+const exportInvoicesList = (invoices, customers) => exportXLSX(invoices.map(inv => {
+  const c = (customers||[]).find(x=>x.id===inv.customerId);
+  return { ref:inv.ref||inv.id, client:c?.company||c?.name||inv.customerId||'—', date:inv.date||'—', echeance:inv.dueDate||'—', total:inv.total||0, statut:inv.status||'—', balance:inv.balance||0 };
+}), [{key:'ref',label:'Référence'},{key:'client',label:'Client'},{key:'date',label:'Date'},{key:'echeance',label:'Échéance'},{key:'total',label:'Total'},{key:'statut',label:'Statut'},{key:'balance',label:'Solde dû'}], 'Factures_CleanIT');
+const exportBillsList = (bills, vendors) => exportXLSX(bills.map(b => {
+  const v = (vendors||[]).find(x=>x.id===b.vendorId);
+  return { ref:b.ref||b.id, fournisseur:v?.company||v?.name||b.vendorId||'—', date:b.date||'—', total:b.total||0, statut:b.status||'—', balance:b.balance||0 };
+}), [{key:'ref',label:'Référence'},{key:'fournisseur',label:'Fournisseur'},{key:'date',label:'Date'},{key:'total',label:'Total'},{key:'statut',label:'Statut'},{key:'balance',label:'Solde dû'}], 'Bills_CleanIT');
+
 // ================================================================
 //  CLEANITBOOKS — MODULE 1 : JOB CENTER
 //  Structure exacte QuickBooks Enterprise
@@ -6041,7 +6079,10 @@ export default function CleanITBooks() {
     return <PageAnalytics invoices={invoices} bills={bills} customers={customers} jobs={jobs}/>;
   }
   // Route: /cleanitbooks/bills/*
-  if(loc.includes('/bills')){
+  if(loc.includes('/avoirs')){
+    return <PageAvoir invoices={invoices} customers={customers} setInvoices={setInvoices}/>;
+  }
+    if(loc.includes('/bills')){
     const billId = params.billId;
     if(loc.endsWith('/new')){
       return <PageBillNew vendors={INIT_VENDORS} jobs={jobs}/>;
@@ -6632,6 +6673,125 @@ const PageAnalytics = ({invoices=[],bills=[],customers=[],jobs=[]}) => {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+};
+
+
+// ── PAGE AVOIRS / NOTES DE CRÉDIT ─────────────────────────────
+const PageAvoir = ({invoices=[], customers=[], setInvoices}) => {
+  const [avoirs, setAvoirs] = React.useState([]);
+  const [showForm, setShowForm] = React.useState(false);
+  const [form, setForm] = React.useState({invoiceRef:'', reason:'', amount:0, customerId:''});
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    // Les avoirs sont des factures avec type 'credit_note'
+    setAvoirs((invoices||[]).filter(i => i.type === 'credit_note' || i.creditNote));
+  }, [invoices]);
+
+  const createAvoir = async () => {
+    if(!form.invoiceRef || !form.amount) { alert('Référence facture et montant requis'); return; }
+    setLoading(true);
+    const origInv = (invoices||[]).find(i => i.ref === form.invoiceRef || String(i.id) === form.invoiceRef);
+    const newAvoir = {
+      id: 'AV-' + Date.now().toString().slice(-6),
+      ref: 'AV-' + Date.now().toString().slice(-6),
+      type: 'credit_note', creditNote: true,
+      originalRef: form.invoiceRef,
+      customerId: origInv?.customerId || form.customerId,
+      date: new Date().toISOString().slice(0,10),
+      dueDate: new Date().toISOString().slice(0,10),
+      total: -Math.abs(Number(form.amount)),
+      balance: -Math.abs(Number(form.amount)),
+      status: 'Open',
+      reason: form.reason,
+      lines: [{description: 'Avoir — ' + (form.reason||'Note de crédit'), qty:1, unitPrice:-Math.abs(Number(form.amount)), total:-Math.abs(Number(form.amount))}],
+    };
+    if(setInvoices) setInvoices(p => [newAvoir, ...p]);
+    setAvoirs(p => [newAvoir, ...p]);
+    setForm({invoiceRef:'', reason:'', amount:0, customerId:''});
+    setShowForm(false);
+    setLoading(false);
+  };
+
+  return (
+    <div>
+      <CIBTopBar title="Avoirs — Notes de crédit" icon="↩" color={C.orange}>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={() => exportXLSX(avoirs.map(a=>({ref:a.ref,date:a.date,montant:a.total,raison:a.reason||'—',statut:a.status})),
+            [{key:'ref',label:'Référence'},{key:'date',label:'Date'},{key:'montant',label:'Montant'},{key:'raison',label:'Raison'},{key:'statut',label:'Statut'}],
+            'Avoirs_CleanIT')} style={{padding:'7px 14px',borderRadius:8,border:`1px solid ${C.border}`,background:C.white,color:C.text2,fontSize:12,cursor:'pointer',fontWeight:600}}>
+            📥 Exporter Excel
+          </button>
+          <button onClick={()=>setShowForm(true)} style={{padding:'7px 14px',borderRadius:8,border:'none',background:C.blue,color:'#fff',fontSize:12,cursor:'pointer',fontWeight:700}}>
+            + Créer un avoir
+          </button>
+        </div>
+      </CIBTopBar>
+
+      {showForm && (
+        <div style={{padding:'20px 24px',background:C.blue_l,border:`1px solid ${C.blue_m}`,borderRadius:10,margin:'16px 24px'}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.blue,marginBottom:14}}>Nouvel avoir / Note de crédit</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:12}}>
+            <div>
+              <label style={{fontSize:11,color:C.text3,display:'block',marginBottom:4}}>Référence facture originale *</label>
+              <input value={form.invoiceRef} onChange={e=>setForm({...form,invoiceRef:e.target.value})}
+                placeholder="ex: INV-001" style={{width:'100%',padding:'8px 10px',borderRadius:6,border:`1px solid ${C.border}`,fontSize:13,outline:'none',boxSizing:'border-box'}}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,color:C.text3,display:'block',marginBottom:4}}>Montant de l'avoir (FCFA) *</label>
+              <input type="number" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})}
+                placeholder="0" style={{width:'100%',padding:'8px 10px',borderRadius:6,border:`1px solid ${C.border}`,fontSize:13,outline:'none',boxSizing:'border-box'}}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,color:C.text3,display:'block',marginBottom:4}}>Motif de l'avoir</label>
+              <input value={form.reason} onChange={e=>setForm({...form,reason:e.target.value})}
+                placeholder="Retour marchandise, erreur..." style={{width:'100%',padding:'8px 10px',borderRadius:6,border:`1px solid ${C.border}`,fontSize:13,outline:'none',boxSizing:'border-box'}}/>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:8}}>
+            <button onClick={createAvoir} disabled={loading} style={{padding:'8px 20px',borderRadius:6,border:'none',background:C.blue,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+              {loading?'Création...':'Créer l'avoir'}
+            </button>
+            <button onClick={()=>setShowForm(false)} style={{padding:'8px 20px',borderRadius:6,border:`1px solid ${C.border}`,background:C.white,color:C.text2,fontSize:13,cursor:'pointer'}}>
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div style={{padding:'16px 24px'}}>
+        {avoirs.length === 0 ? (
+          <div style={{textAlign:'center',padding:'60px 20px',color:C.text4}}>
+            <div style={{fontSize:40,marginBottom:12}}>↩</div>
+            <div style={{fontSize:15,fontWeight:600,marginBottom:6}}>Aucun avoir enregistré</div>
+            <div style={{fontSize:13}}>Créez un avoir pour annuler ou corriger une facture</div>
+          </div>
+        ) : (
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead>
+              <tr style={{background:C.bg,borderBottom:`2px solid ${C.border}`}}>
+                {['Référence','Facture originale','Date','Montant','Motif','Statut'].map(h=>(
+                  <th key={h} style={{padding:'10px 12px',textAlign:'left',fontSize:11,fontWeight:700,color:C.text3,textTransform:'uppercase',letterSpacing:.5}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {avoirs.map((a,i)=>(
+                <tr key={a.id} style={{borderBottom:`1px solid ${C.border2}`,background:i%2===0?C.white:'#fafafa'}}>
+                  <td style={{padding:'10px 12px',fontWeight:700,color:C.orange,fontFamily:'monospace',fontSize:12}}>{a.ref}</td>
+                  <td style={{padding:'10px 12px',fontSize:12,color:C.blue}}>{a.originalRef||'—'}</td>
+                  <td style={{padding:'10px 12px',fontSize:12,color:C.text2}}>{a.date||'—'}</td>
+                  <td style={{padding:'10px 12px',fontWeight:700,color:C.red,fontSize:13}}>{fN(a.total)} F</td>
+                  <td style={{padding:'10px 12px',fontSize:12,color:C.text3,fontStyle:'italic'}}>{a.reason||'—'}</td>
+                  <td style={{padding:'10px 12px'}}><span style={{padding:'3px 10px',borderRadius:10,background:C.orange_l,color:C.orange,fontSize:11,fontWeight:700}}>{a.status||'Émis'}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
