@@ -362,6 +362,29 @@ let AccountingService = class AccountingService {
         await this.fyRepo.update(id, { statut: 'closed', cloture: true });
         return { message: 'Exercice clôturé' };
     }
+    async generateApprovalPayment(approval) {
+        try {
+            const numero = await this.nextJnlNum();
+            const entry = this.jnlRepo.create({
+                numero, date: new Date().toISOString().split('T')[0], journal: 'BANQUE',
+                libelle: 'Pmt Approbation ' + approval.reference + ' — ' + approval.beneficiaryName,
+                pieceRef: approval.reference, pieceType: 'approval_payment',
+                totalDebit: approval.amount, totalCredit: approval.amount, statut: 'validated',
+                lines: [
+                    { accountCode: '401000', accountNom: 'Fournisseurs', libelle: 'Appro. ' + approval.reference, debit: approval.amount, credit: 0, tiers: approval.beneficiaryName },
+                    { accountCode: '521000', accountNom: 'BICEC Compte courant', libelle: 'Pmt ' + approval.reference, debit: 0, credit: approval.amount, tiers: approval.beneficiaryName },
+                ],
+            });
+            const saved = await this.jnlRepo.save(entry);
+            await this.updateAccountBalance('401000', approval.amount, 0);
+            await this.updateAccountBalance('521000', 0, approval.amount);
+            return saved;
+        }
+        catch (e) {
+            console.warn('generateApprovalPayment error:', e.message);
+            return null;
+        }
+    }
 };
 exports.AccountingService = AccountingService;
 exports.AccountingService = AccountingService = __decorate([

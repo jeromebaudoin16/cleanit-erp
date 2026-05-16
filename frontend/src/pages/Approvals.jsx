@@ -124,6 +124,21 @@ const getEsc = (item,settings) => {
 };
 
 // ── SEED DATA ─────────────────────────────────────────────────
+
+
+const getDaysOld = d => d ? Math.floor((Date.now()-new Date(d))/(1000*3600*24)) : 0;
+const isExpired = item => item.status==="pending" && getDaysOld(item.submittedAt) > 7;
+const getExpiryLabel = item => { const d=getDaysOld(item.submittedAt); if(d>7) return "Expiré ("+d+"j)"; if(d>=5) return "Expire bientôt"; return null; };
+
+const TEMPLATES = [
+  {type:"payment_request",  title:"Paiement sous-traitant",  amount:0,   justification:"Paiement prestation sous-traitant selon contrat.",      icon:"payment"},
+  {type:"purchase_request", title:"Achat matériel chantier", amount:0,   justification:"Achat matériel nécessaire pour le chantier.",            icon:"purchase"},
+  {type:"expense_report",   title:"Note de frais mission",   amount:0,   justification:"Remboursement frais déplacement mission terrain.",       icon:"expense"},
+  {type:"mission_request",  title:"Ordre de mission",        amount:0,   justification:"Déplacement site pour intervention technique.",          icon:"plane"},
+  {type:"advance_request",  title:"Avance sur salaire",      amount:0,   justification:"Demande avance sur salaire — urgence personnelle.",      icon:"dollar"},
+  {type:"leave_request",    title:"Congé annuel",            amount:0,   justification:"Demande congé annuel selon planning RH.",               icon:"leave"},
+];
+
 const SEED = [
   {id:"APV-2025-001",reference:"APV-2025-001",type:"payment_request",title:"Paiement sous-traitant Thomas Ngono — DLA-001 Phase 2",amount:18000000,currency:"FCFA",status:"pending",priority:"haute",submittedBy:"Marie Kamga",submittedAt:"2025-05-12T09:00:00",lastActionAt:"2025-05-13T10:00:00",beneficiaryName:"Thomas Ngono",beneficiaryBank:"BICEC",beneficiaryAccount:"CM21 1001 2345 6789",justification:"Paiement phase 2 projet DLA-001 (40%). Travaux validés chef de projet.",site:"DLA-001",project:"PROJ-2025-001",approvedBy:["manager","finance1"],attachments:[],history:[{action:"Soumis",by:"Marie Kamga",at:"2025-05-12T09:00:00",comment:""},{action:"Approuvé — Responsable direct",by:"Alice Finance",at:"2025-05-12T14:00:00",comment:"Budget OK"},{action:"Approuvé — Finance N1",by:"Bob Finance",at:"2025-05-13T10:00:00",comment:"Conforme au contrat"}]},
   {id:"APV-2025-002",reference:"APV-2025-002",type:"purchase_request",title:"Achat câbles fibre optique — Site YDE-001",amount:3500000,currency:"FCFA",status:"pending",priority:"normale",submittedBy:"Pierre Etoga",submittedAt:"2025-05-13T11:00:00",lastActionAt:"2025-05-13T11:00:00",beneficiaryName:"Tech Africa SARL",beneficiaryBank:"SGC",beneficiaryAccount:"CM21 2001 9876 5432",justification:"Câbles requis finalisation réseau fibre YDE-001.",site:"YDE-001",project:"PROJ-2025-002",approvedBy:["manager"],attachments:[],history:[{action:"Soumis",by:"Pierre Etoga",at:"2025-05-13T11:00:00",comment:""},{action:"Approuvé — Responsable direct",by:"Marie Kamga",at:"2025-05-13T14:00:00",comment:""}]},
@@ -1047,11 +1062,57 @@ const mapBkStatus=s=>{ if(!s||s==="draft") return "draft"; if(["submitted","revi
 const buildApprovedBy=a=>{ const l=[]; if(a.reviewer1Decision==="approved") l.push("manager"); if(a.reviewer2Decision==="approved") l.push("finance1"); if(["approved","paid"].includes(a.status)) l.push("dg"); return l; };
 const mapApproval=a=>({ id:String(a.id), _backendId:a.id, reference:a.reference||("APV-"+a.id), type:a.type||"payment_request", title:a.projectName||a.description||"Demande", amount:Number(a.amount)||0, currency:"FCFA", status:mapBkStatus(a.status), bkStatus:a.status, priority:Number(a.amount)>1000000?"haute":"normale", submittedBy:a.submittedBy||"Utilisateur", submittedAt:a.submittedAt||a.createdAt, lastActionAt:a.updatedAt||a.createdAt, beneficiaryName:a.beneficiaryName||"", beneficiaryBank:a.beneficiaryBank||"", beneficiaryAccount:a.beneficiaryAccount||"", beneficiaryMobile:a.beneficiaryMobile||"", justification:a.justification||a.description||"", site:a.siteCode||"", project:a.projectCode||"", history:Array.isArray(a.history)?a.history:[], attachments:[], approvedBy:buildApprovedBy(a), autoApproved:a.autoApproved||false, approvalComment:a.approvalComment||"", paidAt:a.paidAt, paymentReference:a.paymentReference, paymentMethod:a.paymentMethod });
 
+
+const BulkBar = ({selected,items,onBulkAction,onClear}) => {
+  if(!selected.length) return null;
+  return (
+    <div style={{position:"sticky",top:0,zIndex:50,background:"#0052CC",padding:"10px 20px",display:"flex",alignItems:"center",gap:12,boxShadow:"0 2px 12px rgba(0,82,204,.3)"}}>
+      <span style={{color:"#fff",fontSize:13,fontWeight:700}}>{selected.length} demande{selected.length>1?"s":""} sélectionnée{selected.length>1?"s":""}</span>
+      <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+        <button onClick={()=>onBulkAction("approve")} style={{padding:"6px 16px",borderRadius:6,border:"none",background:"#22c55e",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>Tout approuver</button>
+        <button onClick={()=>onBulkAction("reject")}  style={{padding:"6px 16px",borderRadius:6,border:"none",background:"#ef4444",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>Tout rejeter</button>
+        <button onClick={onClear} style={{padding:"6px 16px",borderRadius:6,border:"1px solid rgba(255,255,255,.4)",background:"none",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer"}}>Annuler</button>
+      </div>
+    </div>
+  );
+};
+const ExpiryBadge = ({item}) => {
+  const label = getExpiryLabel(item);
+  if(!label) return null;
+  const expired = isExpired(item);
+  return <span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:8,background:expired?"#FEE2E2":"#FEF3C7",color:expired?"#AE2A19":"#92400E",marginLeft:6}}>{label}</span>;
+};
+
 export default function Approvals() {
   const {id}=useParams();
   const [items,setItems]=useState(SEED);
+  const [selected,setSelected]=useState([]);
+  const [showExpired,setShowExpired]=useState(false);
+  const toggleSelect=id=>setSelected(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
+  const selectAll=ids=>{const all=ids.every(id=>selected.includes(id));setSelected(all?selected.filter(x=>!ids.includes(x)):[...new Set([...selected,...ids])]);};
   const reloadItems=()=>{ api.get("/approvals").then(res=>{ if(res.data&&Array.isArray(res.data)&&res.data.length>0) setItems(res.data.map(mapApproval)); }).catch(()=>{}); };
   useEffect(()=>{ reloadItems(); },[]);
+  const bulkAction = async (action) => {
+    const pendingSelected = selected.filter(id => {
+      const item = items.find(i => String(i.id)===String(id));
+      return item && item.status === "pending";
+    });
+    for(const id of pendingSelected) {
+      const item = items.find(i => String(i.id)===String(id));
+      if(!item?._backendId) continue;
+      const bid = item._backendId;
+      try {
+        if(action==="approve") {
+          await api.patch("/approvals/"+bid+"/review1",{reviewer:"Utilisateur",reviewerEmail:"",decision:"approve",comment:"Approbation en masse"});
+        } else {
+          await api.patch("/approvals/"+bid+"/review1",{reviewer:"Utilisateur",reviewerEmail:"",decision:"reject",comment:"Rejet en masse"});
+        }
+      } catch(e) { console.warn("Bulk action:", e); }
+    }
+    setSelected([]);
+    setTimeout(() => reloadItems(), 800);
+  };
+
   const [matrix,setMatrix]=useState(DEFAULT_MATRIX);
   const [settings,setSettings]=useState(DEFAULT_SETTINGS);
   const upd=u=>setItems(p=>p.map(i=>i.id===u.id?u:i));

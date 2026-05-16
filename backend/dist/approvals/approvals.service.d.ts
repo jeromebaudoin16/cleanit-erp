@@ -1,8 +1,10 @@
+import { AccountingService } from '../cleanitbooks/accounting.service';
 import { Repository } from 'typeorm';
 import { Approval } from './approval.entity';
 export declare class ApprovalsService {
     private repo;
-    constructor(repo: Repository<Approval>);
+    private accountingService;
+    constructor(repo: Repository<Approval>, accountingService: AccountingService);
     findAll(): Promise<Approval[]>;
     findOne(id: number): Promise<Approval | null>;
     getStats(): Promise<{

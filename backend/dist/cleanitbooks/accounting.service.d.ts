@@ -106,4 +106,11 @@ export declare class AccountingService {
     closeFiscalYear(id: string): Promise<{
         message: string;
     }>;
+    generateApprovalPayment(approval: {
+        reference: string;
+        amount: number;
+        beneficiaryName: string;
+        paymentMethod: string;
+        type: string;
+    }): Promise<any>;
 }

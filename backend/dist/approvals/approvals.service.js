@@ -14,14 +14,17 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ApprovalsService = void 0;
 const common_1 = require("@nestjs/common");
+const accounting_service_1 = require("../cleanitbooks/accounting.service");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const approval_entity_1 = require("./approval.entity");
 const LIMIT = 250000;
 let ApprovalsService = class ApprovalsService {
     repo;
-    constructor(repo) {
+    accountingService;
+    constructor(repo, accountingService) {
         this.repo = repo;
+        this.accountingService = accountingService;
     }
     findAll() { return this.repo.find({ order: { createdAt: 'DESC' } }); }
     findOne(id) { return this.repo.findOne({ where: { id } }); }
@@ -119,6 +122,16 @@ let ApprovalsService = class ApprovalsService {
         const prev = Array.isArray(a.history) ? a.history : [];
         const history = [...prev, { action: 'paid', by: 'Finance', at: new Date(), comment: `Paiement: ${paymentRef}` }];
         await this.repo.update(id, { status: 'paid', paidAt: new Date(), paymentReference: paymentRef, paymentMethod, history });
+        try {
+            await this.accountingService.generateApprovalPayment({
+                reference: a.reference || paymentRef, amount: a.amount || 0,
+                beneficiaryName: a.beneficiaryName || 'Bénéficiaire',
+                paymentMethod: paymentMethod || 'Virement', type: a.type || 'payment_request',
+            });
+        }
+        catch (e) {
+            console.warn('CleanITBooks sync:', e.message);
+        }
         return this.findOne(id);
     }
     async seedApprovals() {
@@ -142,6 +155,6 @@ exports.ApprovalsService = ApprovalsService;
 exports.ApprovalsService = ApprovalsService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, typeorm_1.InjectRepository)(approval_entity_1.Approval)),
-    __metadata("design:paramtypes", [typeorm_2.Repository])
+    __metadata("design:paramtypes", [typeorm_2.Repository, accounting_service_1.AccountingService])
 ], ApprovalsService);
 //# sourceMappingURL=approvals.service.js.map
