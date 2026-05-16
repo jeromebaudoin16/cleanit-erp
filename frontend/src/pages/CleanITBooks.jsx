@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
@@ -6181,12 +6181,12 @@ import * as CIBAPI from '../services/cleanitbooks.api';
 
 // ── PAGE JOURNAL ──────────────────────────────────────────────────
 const PageJournal = () => {
-  const [entries, setEntries] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
-  const [filter,  setFilter]  = React.useState('');
-  const [sel,     setSel]     = React.useState(null);
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter,  setFilter]  = useState('');
+  const [sel,     setSel]     = useState(null);
 
-  React.useEffect(()=>{
+  useEffect(()=>{
     CIBAPI.getJournal().then(d=>{ setEntries(Array.isArray(d)?d:[]); setLoading(false); });
   },[]);
 
@@ -6277,13 +6277,13 @@ const PageJournal = () => {
 
 // ── PAGE PLAN COMPTABLE ────────────────────────────────────────────
 const PagePlanComptable = () => {
-  const [accounts, setAccounts] = React.useState([]);
-  const [loading,  setLoading]  = React.useState(true);
-  const [search,   setSearch]   = React.useState('');
-  const [classe,   setClasse]   = React.useState('');
-  const [init,     setInit]     = React.useState(false);
+  const [accounts, setAccounts] = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [search,   setSearch]   = useState('');
+  const [classe,   setClasse]   = useState('');
+  const [init,     setInit]     = useState(false);
 
-  React.useEffect(()=>{
+  useEffect(()=>{
     CIBAPI.getAccounts().then(d=>{ setAccounts(Array.isArray(d)?d:[]); setLoading(false); });
   },[]);
 
@@ -6363,10 +6363,10 @@ const PagePlanComptable = () => {
 
 // ── PAGE BALANCE GÉNÉRALE ──────────────────────────────────────────
 const PageBalance = () => {
-  const [balance, setBalance] = React.useState(null);
-  const [loading, setLoading] = React.useState(true);
+  const [balance, setBalance] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  React.useEffect(()=>{
+  useEffect(()=>{
     CIBAPI.getBalance().then(d=>{ setBalance(d); setLoading(false); });
   },[]);
 
@@ -6431,10 +6431,10 @@ const PageBalance = () => {
 
 // ── PAGE P&L ───────────────────────────────────────────────────────
 const PagePL = () => {
-  const [pl,      setPL]      = React.useState(null);
-  const [loading, setLoading] = React.useState(true);
+  const [pl,      setPL]      = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  React.useEffect(()=>{
+  useEffect(()=>{
     CIBAPI.getPL().then(d=>{ setPL(d); setLoading(false); });
   },[]);
 
@@ -6523,15 +6523,15 @@ const PagePL = () => {
 // ── PAGE ANALYTICS ─────────────────────────────────────────────────────
 const PageAnalytics = ({invoices=[],bills=[],customers=[],jobs=[]}) => {
   // recharts importé en haut du fichier
-  const [plData,setPlData]=React.useState(null);
+  const [plData,setPlData]=useState(null);
 
-  React.useEffect(()=>{ CIBAPI.getPL().then(d=>setPlData(d)).catch(()=>{}); },[]);
+  useEffect(()=>{ CIBAPI.getPL().then(d=>setPlData(d)).catch(()=>{}); },[]);
 
   const COLORS=['#0052CC','#E05C5C','#006644','#974F0C','#403294'];
 
   // CA par mois depuis les factures
   const moisLabel=['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
-  const monthlyData = React.useMemo(()=>{
+  const monthlyData = useMemo(()=>{
     const months={};
     (invoices||[]).forEach(inv=>{
       const m=inv.date?.slice(0,7)||inv.dueDate?.slice(0,7);
@@ -6553,7 +6553,7 @@ const PageAnalytics = ({invoices=[],bills=[],customers=[],jobs=[]}) => {
   },[invoices,bills]);
 
   // CA par client
-  const clientData = React.useMemo(()=>{
+  const clientData = useMemo(()=>{
     const byC={};
     (invoices||[]).forEach(inv=>{
       const cust=(customers||[]).find(c=>c.id===inv.customerId);
@@ -6684,12 +6684,12 @@ const PageAnalytics = ({invoices=[],bills=[],customers=[],jobs=[]}) => {
 
 // ── PAGE AVOIRS / NOTES DE CRÉDIT ─────────────────────────────
 const PageAvoir = ({invoices=[], customers=[], setInvoices}) => {
-  const [avoirs, setAvoirs] = React.useState([]);
-  const [showForm, setShowForm] = React.useState(false);
-  const [form, setForm] = React.useState({invoiceRef:'', reason:'', amount:0, customerId:''});
-  const [loading, setLoading] = React.useState(false);
+  const [avoirs, setAvoirs] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({invoiceRef:'', reason:'', amount:0, customerId:''});
+  const [loading, setLoading] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     try {
       setAvoirs((invoices||[]).filter(i => i.type === 'credit_note' || i.creditNote));
     } catch(e) {}
@@ -6812,10 +6812,10 @@ const PageTimeTracking = () => (
 
 // ── PAGE BILAN ─────────────────────────────────────────────────────
 const PageBilan = () => {
-  const [bilan,   setBilan]   = React.useState(null);
-  const [loading, setLoading] = React.useState(true);
+  const [bilan,   setBilan]   = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  React.useEffect(()=>{
+  useEffect(()=>{
     CIBAPI.getBilan().then(d=>{ setBilan(d); setLoading(false); });
   },[]);
 
