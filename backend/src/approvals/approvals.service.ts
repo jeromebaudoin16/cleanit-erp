@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { AccountingService } from '../cleanitbooks/accounting.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Approval } from './approval.entity';
@@ -7,7 +8,7 @@ const LIMIT = 250000;
 
 @Injectable()
 export class ApprovalsService {
-  constructor(@InjectRepository(Approval) private repo: Repository<Approval>) {}
+  constructor(@InjectRepository(Approval) private repo: Repository<Approval>, private accountingService: AccountingService) {}
 
   findAll() { return this.repo.find({ order: { createdAt: 'DESC' } }); }
   findOne(id: number) { return this.repo.findOne({ where: { id } }); }
@@ -105,6 +106,13 @@ export class ApprovalsService {
     const prev = Array.isArray(a.history) ? a.history : [];
     const history = [...prev, { action:'paid', by:'Finance', at: new Date(), comment:`Paiement: ${paymentRef}` }];
     await this.repo.update(id, { status:'paid', paidAt:new Date(), paymentReference:paymentRef, paymentMethod, history });
+    try {
+      await this.accountingService.generateApprovalPayment({
+        reference: a.reference||paymentRef, amount: a.amount||0,
+        beneficiaryName: a.beneficiaryName||'Bénéficiaire',
+        paymentMethod: paymentMethod||'Virement', type: a.type||'payment_request',
+      });
+    } catch(e) { console.warn('CleanITBooks sync:', (e as Error).message); }
     return this.findOne(id);
   }
 

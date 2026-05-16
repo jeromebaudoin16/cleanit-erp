@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { api, getUser } from "../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
 import { getBalance } from "../services/cleanitbooks.api";
 
@@ -592,21 +593,7 @@ const DetailPage = ({items,onUpdate,settings,matrix}) => {
   const {lvls,app,cur,done}=getWF(item,matrix);
   const needsAmount=["payment_request","purchase_request","expense_report","advance_request","mission_request"].includes(item.type);
 
-  const doAction=action=>{
-    setActing(true);
-    let newApp=[...(item.approvedBy||[])],newStatus=item.status,label="";
-    if(action==="approve"){
-      // Vérifier auto-approbation
-      const autoOk=settings.autoApproval.enabled&&item.amount<=settings.autoApproval.maxAmount;
-      newApp=autoOk?[...lvls]:[...newApp,cur];
-      label=autoOk?"Auto-approuvé (sous seuil)":"Approuvé — "+(APR[cur]?.label||cur);
-      newStatus=newApp.length>=lvls.length?"approved":"pending";
-    } else if(action==="reject"){newStatus="rejected";label="Rejeté";}
-    else if(action==="pay"){newStatus="paid";label="Paiement effectué";}
-    else if(action==="submit"){newStatus="pending";label="Soumis pour approbation";}
-    const updated={...item,status:newStatus,approvedBy:newApp,lastActionAt:new Date().toISOString(),history:[...(item.history||[]),{action:label,by:"Utilisateur connecté",at:new Date().toISOString(),comment}]};
-    onUpdate(updated);setComment("");setActing(false);
-  };
+  const doAction=async action=>{ setActing(true); const bid=item._backendId; const u=getUser(); const uName=((u?.firstName||"")+" "+(u?.lastName||"")).trim()||u?.email?.split("@")[0]||"Utilisateur"; const uEmail=u?.email||""; let newApp=[...(item.approvedBy||[])],newStatus=item.status,label=""; if(action==="approve"){ const autoOk=settings.autoApproval.enabled&&item.amount<=settings.autoApproval.maxAmount; newApp=autoOk?[...lvls]:[...newApp,cur]; label=autoOk?"Auto-approuvé (sous seuil)":"Approuvé — "+(APR[cur]?.label||cur); newStatus=newApp.length>=lvls.length?"approved":"pending"; } else if(action==="reject"){newStatus="rejected";label="Rejeté";} else if(action==="pay"){newStatus="paid";label="Paiement effectué";} else if(action==="submit"){newStatus="pending";label="Soumis pour approbation";} const updated={...item,status:newStatus,approvedBy:newApp,bkStatus:newStatus,lastActionAt:new Date().toISOString(),history:[...(item.history||[]),{action:label,by:uName,at:new Date().toISOString(),comment}]}; onUpdate(updated);setComment(""); if(bid){ try{ const bks=item.bkStatus||"review_1"; if(action==="submit") await api.patch("/approvals/"+bid+"/submit",{submittedBy:uName,submittedByEmail:uEmail}); else if(action==="approve"){ if(bks==="submitted"||bks==="review_1"||bks==="draft") await api.patch("/approvals/"+bid+"/review1",{reviewer:uName,reviewerEmail:uEmail,decision:"approve",comment:comment||"Approuvé"}); else if(bks==="review_2") await api.patch("/approvals/"+bid+"/review2",{reviewer:uName,reviewerEmail:uEmail,decision:"approve",comment:comment||"Approuvé"}); else await api.patch("/approvals/"+bid+"/boss-approve",{boss:uName,decision:"approve",comment:comment||"Approuvé"}); } else if(action==="reject"){ if(bks==="submitted"||bks==="review_1"||bks==="draft") await api.patch("/approvals/"+bid+"/review1",{reviewer:uName,reviewerEmail:uEmail,decision:"reject",comment:comment||"Rejeté"}); else if(bks==="review_2") await api.patch("/approvals/"+bid+"/review2",{reviewer:uName,reviewerEmail:uEmail,decision:"reject",comment:comment||"Rejeté"}); else await api.patch("/approvals/"+bid+"/boss-approve",{boss:uName,decision:"reject",comment:comment||"Rejeté"}); } else if(action==="pay"){ await api.patch("/approvals/"+bid+"/mark-paid",{paymentRef:"PAY-"+Date.now().toString().slice(-6),paymentMethod:"Virement bancaire"}); } setTimeout(()=>reloadItems(),700); }catch(e){console.warn("Sync:",e.message);} } setActing(false); };
 
   const handleFile=e=>{
     const f=e.target.files[0]; if(!f) return;
@@ -1055,13 +1042,20 @@ const ListPage = ({items,onAdd,settings,setSettings,matrix,setMatrix}) => {
 };
 
 // ── COMPOSANT PRINCIPAL ───────────────────────────────────────
+
+const mapBkStatus=s=>{ if(!s||s==="draft") return "draft"; if(["submitted","review_1","review_2","pending_boss"].includes(s)) return "pending"; if(s==="approved") return "approved"; if(s==="paid") return "paid"; if(s==="rejected") return "rejected"; return "draft"; };
+const buildApprovedBy=a=>{ const l=[]; if(a.reviewer1Decision==="approved") l.push("manager"); if(a.reviewer2Decision==="approved") l.push("finance1"); if(["approved","paid"].includes(a.status)) l.push("dg"); return l; };
+const mapApproval=a=>({ id:String(a.id), _backendId:a.id, reference:a.reference||("APV-"+a.id), type:a.type||"payment_request", title:a.projectName||a.description||"Demande", amount:Number(a.amount)||0, currency:"FCFA", status:mapBkStatus(a.status), bkStatus:a.status, priority:Number(a.amount)>1000000?"haute":"normale", submittedBy:a.submittedBy||"Utilisateur", submittedAt:a.submittedAt||a.createdAt, lastActionAt:a.updatedAt||a.createdAt, beneficiaryName:a.beneficiaryName||"", beneficiaryBank:a.beneficiaryBank||"", beneficiaryAccount:a.beneficiaryAccount||"", beneficiaryMobile:a.beneficiaryMobile||"", justification:a.justification||a.description||"", site:a.siteCode||"", project:a.projectCode||"", history:Array.isArray(a.history)?a.history:[], attachments:[], approvedBy:buildApprovedBy(a), autoApproved:a.autoApproved||false, approvalComment:a.approvalComment||"", paidAt:a.paidAt, paymentReference:a.paymentReference, paymentMethod:a.paymentMethod });
+
 export default function Approvals() {
   const {id}=useParams();
   const [items,setItems]=useState(SEED);
+  const reloadItems=()=>{ api.get("/approvals").then(res=>{ if(res.data&&Array.isArray(res.data)&&res.data.length>0) setItems(res.data.map(mapApproval)); }).catch(()=>{}); };
+  useEffect(()=>{ reloadItems(); },[]);
   const [matrix,setMatrix]=useState(DEFAULT_MATRIX);
   const [settings,setSettings]=useState(DEFAULT_SETTINGS);
   const upd=u=>setItems(p=>p.map(i=>i.id===u.id?u:i));
-  const add=item=>setItems(p=>[item,...p]);
+  const add=async item=>{ setItems(p=>[item,...p]); try{ const res=await api.post("/approvals",{type:item.type,projectName:item.title,amount:item.amount,currency:"XAF",description:item.justification||"",justification:item.justification||"",beneficiaryName:item.beneficiaryName||"",beneficiaryBank:item.beneficiaryBank||"",beneficiaryAccount:item.beneficiaryAccount||"",beneficiaryMobile:item.beneficiaryMobile||"",siteCode:item.site||"",projectCode:item.project||"",submittedBy:item.submittedBy||"Utilisateur"}); if(res.data?.id) setTimeout(()=>reloadItems(),600); }catch(e){console.warn("Create:",e);} };
   if(id) return <DetailPage items={items} onUpdate={upd} settings={settings} matrix={matrix}/>;
   return <ListPage items={items} onAdd={add} settings={settings} setSettings={setSettings} matrix={matrix} setMatrix={setMatrix}/>;
 }
