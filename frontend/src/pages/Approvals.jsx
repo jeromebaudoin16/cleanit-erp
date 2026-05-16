@@ -299,11 +299,11 @@ const ConditionalRoutingSettings = ({routes,setRoutes}) => {
       <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:12}}>Routage Conditionnel</div>
       <div style={{fontSize:11,color:C.text3,marginBottom:14}}>Ces règles modifient automatiquement le circuit d'approbation selon les conditions définies.</div>
       {localRoutes.map((r,i)=>(
-        <div key={r.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:8,border:`1px solid ${C.border}`,background:r.active?C.blue+"06":C.bg,marginBottom:8}}>
+        <div key={r.id} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:8,border:`1px solid ${C.border}`,background:r.active?"#0052CC06":"#F4F6FB",marginBottom:8}}>
           <div style={{flex:1}}>
             <div style={{fontSize:13,fontWeight:600,color:C.text}}>{r.label}</div>
             <div style={{fontSize:11,color:C.text4,marginTop:2}}>
-              {r.conditions.map((cond,j)=>(
+              {(r.conditions||[]).map((cond,j)=>(
                 <span key={j} style={{marginRight:6,padding:"1px 7px",borderRadius:8,background:C.border2,color:C.text3}}>
                   {cond.field} {cond.operator} {cond.value||cond.values?.join(',')||''}
                 </span>

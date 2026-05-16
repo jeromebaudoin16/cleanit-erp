@@ -6218,7 +6218,7 @@ const PageJournal = () => {
           </div>
         )}
         {filtered.map((e,i)=>(
-          <div key={e.id} style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,marginBottom:10,overflow:'hidden',boxShadow:C.shadow}}>
+          <div key={e.id} style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,marginBottom:10,overflow:'hidden',boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
             <div onClick={()=>setSel(sel===e.id?null:e.id)}
               style={{display:'flex',alignItems:'center',gap:14,padding:'12px 18px',cursor:'pointer',transition:'background .1s'}}
               onMouseEnter={e=>e.currentTarget.style.background=C.bg}
@@ -6335,7 +6335,7 @@ const PagePlanComptable = () => {
           ))}
         </div>
 
-        <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:C.shadow}}>
+        <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
           <div style={{display:'grid',gridTemplateColumns:'120px 1fr 80px 80px 130px 130px',gap:0,padding:'10px 16px',background:'#f8fafc',borderBottom:`2px solid ${C.border}`,fontSize:10,fontWeight:800,color:C.text3,textTransform:'uppercase',letterSpacing:.4}}>
             <span>Code</span><span>Intitulé</span><span>Classe</span><span>Type</span><span>Solde Débit</span><span>Solde Crédit</span>
           </div>
@@ -6402,7 +6402,7 @@ const PageBalance = () => {
           ))}
         </div>
 
-        <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:C.shadow}}>
+        <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
           <div style={{display:'grid',gridTemplateColumns:'100px 1fr 80px 130px 130px 130px',padding:'10px 16px',background:'#f8fafc',borderBottom:`2px solid ${C.border}`,fontSize:10,fontWeight:800,color:C.text3,textTransform:'uppercase',letterSpacing:.4}}>
             <span>Code</span><span>Intitulé</span><span>Classe</span><span>Débit</span><span>Crédit</span><span>Solde</span>
           </div>
@@ -6468,7 +6468,7 @@ const PagePL = () => {
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
           {/* Produits */}
-          <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:C.shadow}}>
+          <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
             <div style={{padding:'14px 18px',background:'#f0fdf4',borderBottom:`1px solid #bbf7d0`,display:'flex',justifyContent:'space-between'}}>
               <span style={{fontSize:14,fontWeight:800,color:'#16a34a'}}>PRODUITS</span>
               <span style={{fontSize:14,fontWeight:900,color:'#16a34a'}}>{fN(pl.totalProduits)} FCFA</span>
@@ -6485,7 +6485,7 @@ const PagePL = () => {
           </div>
 
           {/* Charges */}
-          <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:C.shadow}}>
+          <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
             <div style={{padding:'14px 18px',background:'#fef2f2',borderBottom:`1px solid #fecaca`,display:'flex',justifyContent:'space-between'}}>
               <span style={{fontSize:14,fontWeight:800,color:'#dc2626'}}>CHARGES</span>
               <span style={{fontSize:14,fontWeight:900,color:'#dc2626'}}>{fN(pl.totalCharges)} FCFA</span>
@@ -6573,7 +6573,7 @@ const PageAnalytics = ({invoices=[],bills=[],customers=[],jobs=[]}) => {
 
   const CustomTooltip=({active,payload,label})=>{
     if(!active||!payload?.length) return null;
-    return <div style={{background:'#fff',border:'1px solid '+C.border,borderRadius:8,padding:'10px 14px',boxShadow:C.shadow,fontSize:11}}>
+    return <div style={{background:'#fff',border:'1px solid '+C.border,borderRadius:8,padding:'10px 14px',boxShadow:"0 1px 3px rgba(0,0,0,0.08)",fontSize:11}}>
       <div style={{fontWeight:700,color:C.text,marginBottom:4}}>{label}</div>
       {payload.map((p,i)=><div key={i} style={{display:'flex',gap:6,alignItems:'center',marginBottom:2}}><div style={{width:7,height:7,borderRadius:'50%',background:p.color}}/><span style={{color:C.text3}}>{p.name}:</span><span style={{fontWeight:700}}>{fN(p.value)} F</span></div>)}
     </div>;
@@ -6591,7 +6591,7 @@ const PageAnalytics = ({invoices=[],bills=[],customers=[],jobs=[]}) => {
           {l:'Marge Brute',v:marge+'%',c:marge>30?C.green:C.orange,icon:'💹'},
           {l:'Résultat Net',v:(plData?fN(plData.resultat):fN(totalCA-totalDep))+' F',c:C.green,icon:'🏆'},
         ].map((k,i)=>(
-          <div key={i} style={{background:C.white,borderRadius:12,padding:'18px 20px',border:'1px solid '+C.border,boxShadow:C.shadow}}>
+          <div key={i} style={{background:C.white,borderRadius:12,padding:'18px 20px',border:'1px solid '+C.border,boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
               <span style={{fontSize:20}}>{k.icon}</span>
               <div style={{height:3,flex:1,marginLeft:10,borderRadius:2,background:k.c+'30'}}><div style={{height:'100%',width:'70%',background:k.c,borderRadius:2}}/></div>
@@ -6604,7 +6604,7 @@ const PageAnalytics = ({invoices=[],bills=[],customers=[],jobs=[]}) => {
 
       <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:16,marginBottom:16}}>
         {/* Évolution CA & Dépenses */}
-        <div style={{background:C.white,borderRadius:12,border:'1px solid '+C.border,boxShadow:C.shadow,overflow:'hidden'}}>
+        <div style={{background:C.white,borderRadius:12,border:'1px solid '+C.border,boxShadow:"0 1px 3px rgba(0,0,0,0.08)",overflow:'hidden'}}>
           <div style={{padding:'14px 18px',borderBottom:'1px solid '+C.border2}}>
             <div style={{fontSize:13,fontWeight:700,color:C.text}}>Évolution CA & Dépenses — 6 mois</div>
             <div style={{fontSize:11,color:C.text4}}>Tendance mensuelle</div>
@@ -6627,7 +6627,7 @@ const PageAnalytics = ({invoices=[],bills=[],customers=[],jobs=[]}) => {
         </div>
 
         {/* CA par client */}
-        <div style={{background:C.white,borderRadius:12,border:'1px solid '+C.border,boxShadow:C.shadow,overflow:'hidden'}}>
+        <div style={{background:C.white,borderRadius:12,border:'1px solid '+C.border,boxShadow:"0 1px 3px rgba(0,0,0,0.08)",overflow:'hidden'}}>
           <div style={{padding:'14px 18px',borderBottom:'1px solid '+C.border2}}>
             <div style={{fontSize:13,fontWeight:700,color:C.text}}>Répartition CA par Client</div>
             <div style={{fontSize:11,color:C.text4}}>Concentration des revenus</div>
@@ -6659,7 +6659,7 @@ const PageAnalytics = ({invoices=[],bills=[],customers=[],jobs=[]}) => {
       </div>
 
       {/* Ratios financiers */}
-      <div style={{background:C.white,borderRadius:12,border:'1px solid '+C.border,boxShadow:C.shadow,padding:'18px 20px'}}>
+      <div style={{background:C.white,borderRadius:12,border:'1px solid '+C.border,boxShadow:"0 1px 3px rgba(0,0,0,0.08)",padding:'18px 20px'}}>
         <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:14}}>Ratios Financiers Clés</div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:12}}>
           {[
@@ -6667,7 +6667,7 @@ const PageAnalytics = ({invoices=[],bills=[],customers=[],jobs=[]}) => {
             {l:'Taux charges',v:totalCA>0?Math.round(totalDep/totalCA*100)+'%':'—',note:'Coût/CA',c:C.blue},
             {l:'CA moyen/mois',v:fN(Math.round(totalCA/6))+' F',note:'6 derniers mois',c:C.purple||'#7c3aed'},
             {l:'Top client',v:clientData[0]?.pct+'%',note:clientData[0]?.name||'—',c:clientData[0]?.pct>60?C.orange:C.green},
-            {l:'Jobs actifs',v:String((jobs||[]).filter(j=>j.statut==='En cours').length||4),note:'En cours',c:C.teal||'#0f766e'},
+            {l:'Jobs actifs',v:String((jobs||[]).filter(j=>j.statut==='En cours').length||4),note:'En cours',c:"#00626E"||'#0f766e'},
           ].map((r,i)=>(
             <div key={i} style={{background:C.bg,borderRadius:8,padding:'14px',textAlign:'center',border:'1px solid '+C.border2}}>
               <div style={{fontSize:20,fontWeight:800,color:r.c,marginBottom:3}}>{r.v}</div>
@@ -6736,7 +6736,7 @@ const PageAvoir = ({invoices=[], customers=[], setInvoices}) => {
       </CIBTopBar>
 
       {showForm && (
-        <div style={{padding:'20px 24px',background:C.blue_l,border:`1px solid ${C.blue_m}`,borderRadius:10,margin:'16px 24px'}}>
+        <div style={{padding:'20px 24px',background:C.blue_l,border:`1px solid ${"#BFDBFE"}`,borderRadius:10,margin:'16px 24px'}}>
           <div style={{fontSize:14,fontWeight:700,color:C.blue,marginBottom:14}}>Nouvel avoir / Note de crédit</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:12}}>
             <div>
@@ -6849,8 +6849,8 @@ const PageBilan = () => {
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
           {/* ACTIF */}
-          <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:C.shadow}}>
-            <div style={{padding:'14px 18px',background:C.blue_l,borderBottom:`1px solid ${C.blue_m}`,display:'flex',justifyContent:'space-between'}}>
+          <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
+            <div style={{padding:'14px 18px',background:C.blue_l,borderBottom:`1px solid ${"#BFDBFE"}`,display:'flex',justifyContent:'space-between'}}>
               <span style={{fontSize:14,fontWeight:800,color:C.blue}}>ACTIF</span>
               <span style={{fontSize:14,fontWeight:900,color:C.blue}}>{fN(bilan.totalActif)} FCFA</span>
             </div>
@@ -6866,7 +6866,7 @@ const PageBilan = () => {
           </div>
 
           {/* PASSIF */}
-          <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:C.shadow}}>
+          <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
             <div style={{padding:'14px 18px',background:C.orange_l,borderBottom:`1px solid ${C.orange_m}`,display:'flex',justifyContent:'space-between'}}>
               <span style={{fontSize:14,fontWeight:800,color:C.orange}}>PASSIF</span>
               <span style={{fontSize:14,fontWeight:900,color:C.orange}}>{fN(bilan.totalPassif)} FCFA</span>
