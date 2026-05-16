@@ -1503,7 +1503,9 @@ const CIB_NAV = [
   {id:"banking",   l:"Banking",     icon:"bank",    url:"/cleanitbooks/banking"},
   {id:"payroll",   l:"Paie RH",     icon:"payroll", url:"/cleanitbooks/payroll"},
   {id:"time",      l:"Heures",      icon:"time",    url:"/cleanitbooks/time"},
-  {id:"reports",   l:"Rapports",    icon:"report",  url:"/cleanitbooks/reports"},
+  {id:"avoirs",    l:"Avoirs",      icon:"credit",  url:"/cleanitbooks/avoirs"},
+  {id:"analytics",  l:"Analytics",   icon:"chart",   url:"/cleanitbooks/analytics"},
+  {id:"reports",    l:"Rapports",    icon:"report",  url:"/cleanitbooks/reports"},
 ];
 
 const CIBTopBar = ({title,icon,color,children}) => {
