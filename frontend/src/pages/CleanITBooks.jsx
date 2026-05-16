@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
+import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getPL, getBilan, getBalance, getInvoices, getBills, getJobs, getCustomers, getVendors, getPayments } from '../services/cleanitbooks.api';
 
@@ -6521,7 +6522,7 @@ const PagePL = () => {
 
 // ── PAGE ANALYTICS ─────────────────────────────────────────────────────
 const PageAnalytics = ({invoices=[],bills=[],customers=[],jobs=[]}) => {
-  const {AreaChart,Area,BarChart,Bar,PieChart,Pie,Cell,XAxis,YAxis,CartesianGrid,Tooltip,Legend,ResponsiveContainer} = window.Recharts||{};
+  // recharts importé en haut du fichier
   const [plData,setPlData]=React.useState(null);
 
   React.useEffect(()=>{ CIBAPI.getPL().then(d=>setPlData(d)).catch(()=>{}); },[]);
@@ -6689,8 +6690,9 @@ const PageAvoir = ({invoices=[], customers=[], setInvoices}) => {
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
-    // Les avoirs sont des factures avec type 'credit_note'
-    setAvoirs((invoices||[]).filter(i => i.type === 'credit_note' || i.creditNote));
+    try {
+      setAvoirs((invoices||[]).filter(i => i.type === 'credit_note' || i.creditNote));
+    } catch(e) {}
   }, [invoices]);
 
   const createAvoir = async () => {

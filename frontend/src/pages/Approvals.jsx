@@ -983,6 +983,7 @@ const NewModal = ({onClose,onSave,matrix,settings}) => {
 
 // ── PAGE LISTE ────────────────────────────────────────────────
 const ListPage = ({items,onAdd,settings,setSettings,matrix,setMatrix}) => {
+  const [condRoutes,setCondRoutes]=useState(CONDITIONAL_ROUTES||[]);
   const nav=useNavigate();
   const [tab,setTab]=useState("all"),[view,setView]=useState("list");
   const [search,setSearch]=useState(""),[ft,setFt]=useState(""),[showNew,setShowNew]=useState(false);
@@ -1054,7 +1055,7 @@ const ListPage = ({items,onAdd,settings,setSettings,matrix,setMatrix}) => {
         {tab==="settings"&&(
           <div>
             <div style={{marginBottom:20}}>
-              <ConditionalRoutingSettings routes={condRoutes} setRoutes={setCondRoutes}/>
+              {typeof ConditionalRoutingSettings==="function"&&<ConditionalRoutingSettings routes={condRoutes} setRoutes={setCondRoutes}/>}
             </div>
             <SettingsView settings={settings} setSettings={setSettings} matrix={matrix} setMatrix={setMatrix}/>
           </div>
@@ -1203,7 +1204,7 @@ const ExpiryBadge = ({item}) => {
 export default function Approvals() {
   const {id}=useParams();
   const [items,setItems]=useState(SEED);
-  const [condRoutes,setCondRoutes]=useState(CONDITIONAL_ROUTES);
+
   const [selected,setSelected]=useState([]);
   const [showExpired,setShowExpired]=useState(false);
   const toggleSelect=id=>setSelected(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
