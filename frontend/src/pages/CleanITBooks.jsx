@@ -6073,6 +6073,18 @@ export default function CleanITBooks() {
   }
 
   // Route: /cleanitbooks/banking/*
+    if(loc.includes('/budget')){
+    return <PageBudget invoices={invoices} bills={bills}/>;
+  }
+  if(loc.includes('/reconciliation')){
+    return <PageReconciliation invoices={invoices} bills={bills}/>;
+  }
+  if(loc.includes('/import-csv')){
+    return <PageImportCSV/>;
+  }
+  if(loc.includes('/recurring')){
+    return <PageRecurring customers={customers} invoices={invoices} setInvoices={setInvoices}/>;
+  }
   if(loc.includes('/banking')){
     return <PageBanking/>;
   }
@@ -6809,6 +6821,439 @@ const PageTimeTracking = () => (
     <div style={{fontSize:13}}>Module en cours de développement</div>
   </div>
 );
+
+
+// ── PAGE RAPPROCHEMENT BANCAIRE ────────────────────────────────
+const PageReconciliation = ({invoices=[], bills=[]}) => {
+  const [bankTx, setBankTx] = useState([
+    {id:'BK001', date:'2025-05-01', desc:'Virement MTN Cameroun', amount:45000000, matched:false, type:'credit'},
+    {id:'BK002', date:'2025-05-03', desc:'Paiement fournisseur Tech Africa', amount:-3500000, matched:false, type:'debit'},
+    {id:'BK003', date:'2025-05-05', desc:'Règlement Orange Cameroun', amount:28000000, matched:false, type:'credit'},
+    {id:'BK004', date:'2025-05-08', desc:'Frais bancaires BICEC', amount:-45000, matched:true, type:'debit'},
+    {id:'BK005', date:'2025-05-10', desc:'Virement CAMTEL', amount:12000000, matched:false, type:'credit'},
+  ]);
+  const [selected, setSelected] = useState(null);
+  const matched = bankTx.filter(t=>t.matched).length;
+  const unmatched = bankTx.filter(t=>!t.matched).length;
+  const matchTx = id => setBankTx(p=>p.map(t=>t.id===id?{...t,matched:!t.matched}:t));
+
+  return (
+    <div>
+      <CIBTopBar title="Rapprochement bancaire" icon="bank" color={C.blue}>
+        <button onClick={()=>exportXLSX(bankTx,[
+          {key:'date',label:'Date'},{key:'desc',label:'Description'},
+          {key:'amount',label:'Montant'},{key:'matched',label:'Rapproché'}
+        ],'Rapprochement')} style={{padding:'7px 14px',borderRadius:8,border:`1px solid ${C.border}`,background:C.white,color:C.text2,fontSize:12,cursor:'pointer',fontWeight:600}}>
+          📥 Exporter
+        </button>
+      </CIBTopBar>
+      <div style={{padding:'16px 24px'}}>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
+          {[
+            {l:'Transactions',v:bankTx.length,c:C.blue},
+            {l:'Rapprochées',v:matched,c:C.green},
+            {l:'Non rapprochées',v:unmatched,c:C.orange},
+            {l:'Taux',v:Math.round(matched/bankTx.length*100)+'%',c:matched===bankTx.length?C.green:C.red},
+          ].map((k,i)=>(
+            <div key={i} style={{background:C.white,borderRadius:10,padding:'14px 16px',border:`1px solid ${C.border}`,textAlign:'center'}}>
+              <div style={{fontSize:22,fontWeight:800,color:k.c}}>{k.v}</div>
+              <div style={{fontSize:11,color:C.text3,marginTop:2}}>{k.l}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,overflow:'hidden'}}>
+          <div style={{padding:'12px 16px',borderBottom:`1px solid ${C.border2}`,fontWeight:700,fontSize:13,color:C.text}}>
+            Transactions bancaires — BICEC Compte courant
+          </div>
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead>
+              <tr style={{background:C.bg}}>
+                {['Date','Description','Montant','Statut','Action'].map(h=>(
+                  <th key={h} style={{padding:'10px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:C.text3,textTransform:'uppercase',letterSpacing:.5}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {bankTx.map((tx,i)=>(
+                <tr key={tx.id} style={{borderBottom:`1px solid ${C.border2}`,background:tx.matched?C.green_l:'inherit'}}>
+                  <td style={{padding:'10px 14px',fontSize:12,color:C.text3}}>{tx.date}</td>
+                  <td style={{padding:'10px 14px',fontSize:13,color:C.text,fontWeight:500}}>{tx.desc}</td>
+                  <td style={{padding:'10px 14px',fontSize:13,fontWeight:700,color:tx.type==='credit'?C.green:C.red}}>
+                    {tx.type==='credit'?'+':''}{fN(tx.amount)} F
+                  </td>
+                  <td style={{padding:'10px 14px'}}>
+                    <span style={{padding:'3px 10px',borderRadius:10,fontSize:11,fontWeight:700,
+                      background:tx.matched?C.green_l:C.orange_l,color:tx.matched?C.green:C.orange}}>
+                      {tx.matched?'✓ Rapproché':'En attente'}
+                    </span>
+                  </td>
+                  <td style={{padding:'10px 14px'}}>
+                    <button onClick={()=>matchTx(tx.id)} style={{padding:'5px 12px',borderRadius:6,border:`1px solid ${tx.matched?C.red:C.green}`,
+                      background:'none',color:tx.matched?C.red:C.green,fontSize:11,cursor:'pointer',fontWeight:600}}>
+                      {tx.matched?'Annuler':'Rapprocher'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── PAGE IMPORT CSV BANCAIRE ────────────────────────────────────
+const PageImportCSV = () => {
+  const [rows, setRows] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const [done, setDone] = useState(false);
+  const fileRef = useRef(null);
+
+  const parseCSV = (text) => {
+    const lines = text.trim().split('
+');
+    return lines.slice(1).map((line,i) => {
+      const cols = line.split(',').map(c=>c.replace(/"/g,'').trim());
+      return {id:i+1, date:cols[0]||'', desc:cols[1]||'', credit:Number(cols[2])||0, debit:Number(cols[3])||0};
+    }).filter(r=>r.date||r.desc);
+  };
+
+  const handleFile = e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => { setRows(parseCSV(ev.target.result)); setDone(false); };
+    reader.readAsText(file);
+  };
+
+  const importRows = () => {
+    setImporting(true);
+    setTimeout(() => { setImporting(false); setDone(true); }, 1500);
+  };
+
+  return (
+    <div>
+      <CIBTopBar title="Import relevé bancaire — CSV" icon="download" color={C.blue}/>
+      <div style={{padding:'20px 24px'}}>
+        <div style={{background:C.blue_l,borderRadius:10,padding:'20px 24px',marginBottom:20,border:`1px solid #BFDBFE`}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.blue,marginBottom:8}}>Format CSV attendu</div>
+          <code style={{fontSize:12,color:C.text2,display:'block',background:C.white,padding:'10px',borderRadius:6}}>
+            Date,Description,Crédit,Débit{'
+'}
+            2025-05-01,"Virement MTN",45000000,0{'
+'}
+            2025-05-03,"Paiement fournisseur",0,3500000
+          </code>
+          <div style={{marginTop:12,display:'flex',gap:10}}>
+            <button onClick={()=>fileRef.current?.click()}
+              style={{padding:'9px 20px',borderRadius:8,border:'none',background:C.blue,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+              📂 Choisir fichier CSV
+            </button>
+            <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} style={{display:'none'}}/>
+            <button onClick={()=>{
+              const sample = `Date,Description,Crédit,Débit
+2025-05-01,"Virement MTN",45000000,0
+2025-05-03,"Paiement fournisseur",0,3500000
+2025-05-05,"Virement Orange",28000000,0`;
+              const b = new Blob([sample],{type:'text/csv'});
+              const a = document.createElement('a'); a.href=URL.createObjectURL(b); a.download='template_bancaire.csv'; a.click();
+            }} style={{padding:'9px 20px',borderRadius:8,border:`1px solid ${C.blue}`,background:'none',color:C.blue,fontSize:13,cursor:'pointer',fontWeight:600}}>
+              📥 Télécharger template
+            </button>
+          </div>
+        </div>
+
+        {rows.length>0&&(
+          <div>
+            <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,overflow:'hidden',marginBottom:16}}>
+              <div style={{padding:'12px 16px',borderBottom:`1px solid ${C.border2}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <span style={{fontWeight:700,fontSize:13,color:C.text}}>{rows.length} transactions importées</span>
+                {done&&<span style={{color:C.green,fontWeight:700,fontSize:13}}>✓ Import réussi</span>}
+              </div>
+              <table style={{width:'100%',borderCollapse:'collapse'}}>
+                <thead><tr style={{background:C.bg}}>
+                  {['Date','Description','Crédit','Débit'].map(h=><th key={h} style={{padding:'9px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:C.text3,textTransform:'uppercase'}}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {rows.slice(0,10).map((r,i)=>(
+                    <tr key={i} style={{borderBottom:`1px solid ${C.border2}`}}>
+                      <td style={{padding:'9px 14px',fontSize:12,color:C.text3}}>{r.date}</td>
+                      <td style={{padding:'9px 14px',fontSize:13,color:C.text}}>{r.desc}</td>
+                      <td style={{padding:'9px 14px',fontSize:13,fontWeight:700,color:C.green}}>{r.credit>0?fN(r.credit)+' F':'—'}</td>
+                      <td style={{padding:'9px 14px',fontSize:13,fontWeight:700,color:C.red}}>{r.debit>0?fN(r.debit)+' F':'—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <button onClick={importRows} disabled={importing||done}
+              style={{padding:'10px 24px',borderRadius:8,border:'none',background:done?C.green:C.blue,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer'}}>
+              {importing?'Import en cours..':done?'✓ Importé dans CleanITBooks':'Importer dans CleanITBooks'}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── PAGE FACTURES RÉCURRENTES ───────────────────────────────────
+const PageRecurring = ({customers=[], invoices=[], setInvoices}) => {
+  const [templates, setTemplates] = useState([
+    {id:'REC001', name:'Abonnement mensuel MTN', customerId:'C001', amount:5000000, freq:'Mensuelle', nextDate:'2025-06-01', active:true, lastGen:'2025-05-01'},
+    {id:'REC002', name:'Maintenance Orange trimestriel', customerId:'C002', amount:12000000, freq:'Trimestrielle', nextDate:'2025-07-01', active:true, lastGen:'2025-04-01'},
+    {id:'REC003', name:'Contrat annuel CAMTEL', customerId:'C005', amount:48000000, freq:'Annuelle', nextDate:'2026-01-01', active:false, lastGen:'2025-01-01'},
+  ]);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({name:'',customerId:'',amount:0,freq:'Mensuelle',nextDate:TODAY});
+
+  const generate = (tpl) => {
+    const cust = (customers||[]).find(c=>c.id===tpl.customerId);
+    const newInv = {
+      id:'INV-REC-'+Date.now().toString().slice(-4), ref:'INV-REC-'+Date.now().toString().slice(-4),
+      customerId:tpl.customerId, date:TODAY, dueDate:TODAY,
+      total:tpl.amount, balance:tpl.amount, status:'Open',
+      recurring:true, templateId:tpl.id,
+      lines:[{description:tpl.name, qty:1, unitPrice:tpl.amount, total:tpl.amount}],
+    };
+    if(setInvoices) setInvoices(p=>[newInv,...p]);
+    setTemplates(p=>p.map(t=>t.id===tpl.id?{...t,lastGen:TODAY}:t));
+    alert('Facture générée: '+newInv.ref);
+  };
+
+  const addTemplate = () => {
+    if(!form.name||!form.amount) return;
+    setTemplates(p=>[...p,{...form,id:'REC'+Date.now().toString().slice(-3),active:true,lastGen:'—'}]);
+    setForm({name:'',customerId:'',amount:0,freq:'Mensuelle',nextDate:TODAY});
+    setShowForm(false);
+  };
+
+  return (
+    <div>
+      <CIBTopBar title="Factures récurrentes" icon="time" color={C.blue}>
+        <button onClick={()=>setShowForm(true)} style={{padding:'7px 14px',borderRadius:8,border:'none',background:C.blue,color:'#fff',fontSize:12,cursor:'pointer',fontWeight:700}}>
+          + Nouveau modèle
+        </button>
+      </CIBTopBar>
+      <div style={{padding:'16px 24px'}}>
+        {showForm&&(
+          <div style={{background:C.blue_l,borderRadius:10,padding:'18px 20px',marginBottom:20,border:`1px solid #BFDBFE`}}>
+            <div style={{fontSize:14,fontWeight:700,color:C.blue,marginBottom:14}}>Nouveau modèle récurrent</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:12}}>
+              {[
+                {l:'Nom du modèle',k:'name',type:'text',ph:'Ex: Abonnement mensuel MTN'},
+                {l:'Montant FCFA',k:'amount',type:'number',ph:'0'},
+                {l:'Prochaine date',k:'nextDate',type:'date',ph:''},
+              ].map(({l,k,type,ph})=>(
+                <div key={k}>
+                  <label style={{fontSize:11,color:C.text3,display:'block',marginBottom:4}}>{l}</label>
+                  <input type={type} value={form[k]} placeholder={ph} onChange={e=>setForm({...form,[k]:e.target.value})}
+                    style={{width:'100%',padding:'8px 10px',borderRadius:6,border:`1px solid ${C.border}`,fontSize:13,outline:'none',boxSizing:'border-box'}}/>
+                </div>
+              ))}
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
+              <div>
+                <label style={{fontSize:11,color:C.text3,display:'block',marginBottom:4}}>Client</label>
+                <select value={form.customerId} onChange={e=>setForm({...form,customerId:e.target.value})}
+                  style={{width:'100%',padding:'8px 10px',borderRadius:6,border:`1px solid ${C.border}`,fontSize:13,outline:'none',boxSizing:'border-box'}}>
+                  <option value="">Choisir client</option>
+                  {(customers||[]).map(c=><option key={c.id} value={c.id}>{c.company||c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{fontSize:11,color:C.text3,display:'block',marginBottom:4}}>Fréquence</label>
+                <select value={form.freq} onChange={e=>setForm({...form,freq:e.target.value})}
+                  style={{width:'100%',padding:'8px 10px',borderRadius:6,border:`1px solid ${C.border}`,fontSize:13,outline:'none',boxSizing:'border-box'}}>
+                  {['Hebdomadaire','Mensuelle','Trimestrielle','Semestrielle','Annuelle'].map(f=><option key={f}>{f}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={addTemplate} style={{padding:'8px 20px',borderRadius:6,border:'none',background:C.blue,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+                Créer le modèle
+              </button>
+              <button onClick={()=>setShowForm(false)} style={{padding:'8px 20px',borderRadius:6,border:`1px solid ${C.border}`,background:C.white,color:C.text2,fontSize:13,cursor:'pointer'}}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        )}
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          {templates.map((tpl,i)=>{
+            const cust=(customers||[]).find(c=>c.id===tpl.customerId);
+            return (
+              <div key={tpl.id} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:'16px 20px',display:'flex',alignItems:'center',gap:16}}>
+                <div style={{width:40,height:40,borderRadius:10,background:tpl.active?C.blue_l:C.gray_l,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <span style={{fontSize:18}}>🔄</span>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:3}}>{tpl.name}</div>
+                  <div style={{fontSize:12,color:C.text3}}>
+                    {cust?.company||cust?.name||'—'} · {tpl.freq} · Prochaine: {tpl.nextDate} · Dernière: {tpl.lastGen}
+                  </div>
+                </div>
+                <div style={{textAlign:'right',flexShrink:0}}>
+                  <div style={{fontSize:18,fontWeight:800,color:C.blue}}>{fM(tpl.amount)} F</div>
+                  <span style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:8,background:tpl.active?C.green_l:C.gray_l,color:tpl.active?C.green:C.gray}}>
+                    {tpl.active?'Actif':'Inactif'}
+                  </span>
+                </div>
+                <div style={{display:'flex',gap:8,flexShrink:0}}>
+                  <button onClick={()=>generate(tpl)} style={{padding:'7px 14px',borderRadius:6,border:'none',background:C.green,color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer'}}>
+                    Générer maintenant
+                  </button>
+                  <button onClick={()=>setTemplates(p=>p.map(t=>t.id===tpl.id?{...t,active:!t.active}:t))}
+                    style={{padding:'7px 14px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',color:C.text2,fontSize:12,cursor:'pointer'}}>
+                    {tpl.active?'Désactiver':'Activer'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// ── PAGE BUDGET PRÉVU VS RÉEL ───────────────────────────────────
+const PageBudget = ({invoices=[], bills=[]}) => {
+  const [budgets, setBudgets] = useState([
+    {id:'B001', category:'Chiffre d'affaires', compte:'7',    prevue:120000000, type:'produit'},
+    {id:'B002', category:'Sous-traitants',       compte:'611',  prevue:45000000,  type:'charge'},
+    {id:'B003', category:'Transport',            compte:'624',  prevue:8000000,   type:'charge'},
+    {id:'B004', category:'Télécom & Internet',   compte:'626',  prevue:3000000,   type:'charge'},
+    {id:'B005', category:'Frais de personnel',   compte:'66',   prevue:25000000,  type:'charge'},
+    {id:'B006', category:'Matériels & EPI',      compte:'605',  prevue:12000000,  type:'charge'},
+  ]);
+  const [editing, setEditing] = useState(null);
+
+  const totalCA = (invoices||[]).reduce((s,i)=>s+Number(i.total||0),0);
+  const totalCharges = (bills||[]).reduce((s,b)=>s+Number(b.total||0),0);
+
+  const getActual = (b) => {
+    if(b.type==='produit') return totalCA * (b.id==='B001'?1:0.1);
+    return totalCharges * ({B002:0.6,B003:0.1,B004:0.04,B005:0.33,B006:0.16}[b.id]||0.1);
+  };
+
+  return (
+    <div>
+      <CIBTopBar title="Budget prévu vs réel" icon="chart" color={C.blue}>
+        <button onClick={()=>exportXLSX(budgets.map(b=>({
+          categorie:b.category, prevu:b.prevue, reel:Math.round(getActual(b)),
+          ecart:Math.round(getActual(b)-b.prevue), pct:Math.round(getActual(b)/b.prevue*100)+'%'
+        })),[
+          {key:'categorie',label:'Catégorie'},{key:'prevu',label:'Prévu'},{key:'reel',label:'Réel'},
+          {key:'ecart',label:'Écart'},{key:'pct',label:'% réalisé'}
+        ],'Budget_CleanIT')} style={{padding:'7px 14px',borderRadius:8,border:`1px solid ${C.border}`,background:C.white,color:C.text2,fontSize:12,cursor:'pointer',fontWeight:600}}>
+          📥 Exporter
+        </button>
+      </CIBTopBar>
+      <div style={{padding:'16px 24px'}}>
+        <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,overflow:'hidden'}}>
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead>
+              <tr style={{background:C.bg}}>
+                {['Catégorie','Compte','Budget prévu','Réel','Écart','% réalisé',''].map(h=>(
+                  <th key={h} style={{padding:'11px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:C.text3,textTransform:'uppercase',letterSpacing:.5}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {budgets.map((b,i)=>{
+                const actual = Math.round(getActual(b));
+                const ecart = actual - b.prevue;
+                const pct = Math.round(actual/b.prevue*100);
+                const over = b.type==='charge'&&actual>b.prevue;
+                const under = b.type==='produit'&&actual<b.prevue;
+                const bad = over||under;
+                return (
+                  <tr key={b.id} style={{borderBottom:`1px solid ${C.border2}`}}>
+                    <td style={{padding:'11px 14px',fontWeight:600,color:C.text}}>{b.category}</td>
+                    <td style={{padding:'11px 14px',fontSize:11,color:C.text3,fontFamily:'monospace'}}>{b.compte}</td>
+                    <td style={{padding:'11px 14px',fontWeight:700,color:C.blue}}>
+                      {editing===b.id?(
+                        <input type="number" defaultValue={b.prevue} onBlur={e=>{setBudgets(p=>p.map(x=>x.id===b.id?{...x,prevue:Number(e.target.value)}:x));setEditing(null);}}
+                          style={{width:100,padding:'4px 8px',borderRadius:4,border:`1px solid ${C.blue}`,fontSize:12,outline:'none'}} autoFocus/>
+                      ):fN(b.prevue)+' F'}
+                    </td>
+                    <td style={{padding:'11px 14px',fontWeight:700,color:bad?C.red:C.green}}>{fN(actual)} F</td>
+                    <td style={{padding:'11px 14px',fontWeight:700,color:bad?C.red:C.green}}>
+                      {ecart>0?'+':''}{fN(ecart)} F
+                    </td>
+                    <td style={{padding:'11px 14px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                        <div style={{flex:1,height:6,borderRadius:3,background:C.border2,overflow:'hidden',minWidth:60}}>
+                          <div style={{width:Math.min(pct,100)+'%',height:'100%',background:bad?C.red:C.green,borderRadius:3}}/>
+                        </div>
+                        <span style={{fontSize:12,fontWeight:700,color:bad?C.red:C.green,minWidth:36}}>{pct}%</span>
+                      </div>
+                    </td>
+                    <td style={{padding:'11px 14px'}}>
+                      <button onClick={()=>setEditing(b.id)} style={{padding:'4px 10px',borderRadius:4,border:`1px solid ${C.border}`,background:'none',color:C.text3,fontSize:11,cursor:'pointer'}}>
+                        Modifier
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── EMAIL FACTURE — Modale ───────────────────────────────────────
+const EmailInvoiceModal = ({invoice, customer, onClose}) => {
+  const [email, setEmail] = useState(customer?.email||'');
+  const [msg, setMsg] = useState('Veuillez trouver ci-joint votre facture. Cordialement, CleanIT.');
+  const [sent, setSent] = useState(false);
+
+  const sendEmail = () => {
+    const subject = encodeURIComponent('Facture '+( invoice?.ref||invoice?.id||''));
+    const body = encodeURIComponent(msg+'
+
+Montant: '+fN(invoice?.total||0)+' FCFA
+Échéance: '+(invoice?.dueDate||'—'));
+    window.open('mailto:'+email+'?subject='+subject+'&body='+body);
+    setSent(true);
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <div style={{background:C.white,borderRadius:14,padding:28,width:440,boxShadow:'0 8px 40px rgba(0,0,0,0.2)'}}>
+        <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:16}}>📧 Envoyer la facture par email</div>
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:11,fontWeight:600,color:C.text3,display:'block',marginBottom:4}}>Email destinataire</label>
+          <input value={email} onChange={e=>setEmail(e.target.value)} type="email"
+            style={{width:'100%',padding:'9px 12px',borderRadius:6,border:`1px solid ${C.border}`,fontSize:13,outline:'none',boxSizing:'border-box'}}/>
+        </div>
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:11,fontWeight:600,color:C.text3,display:'block',marginBottom:4}}>Message</label>
+          <textarea value={msg} onChange={e=>setMsg(e.target.value)} rows={3}
+            style={{width:'100%',padding:'9px 12px',borderRadius:6,border:`1px solid ${C.border}`,fontSize:13,outline:'none',boxSizing:'border-box',resize:'vertical'}}/>
+        </div>
+        <div style={{background:C.bg,borderRadius:8,padding:'10px 14px',marginBottom:16,fontSize:12,color:C.text3}}>
+          <strong>Facture:</strong> {invoice?.ref||invoice?.id} · <strong>Montant:</strong> {fN(invoice?.total||0)} FCFA
+        </div>
+        {sent&&<div style={{color:C.green,fontWeight:600,fontSize:13,marginBottom:12}}>✓ Client de messagerie ouvert</div>}
+        <div style={{display:'flex',gap:8'}}>
+          <button onClick={sendEmail} style={{flex:1,padding:'10px',borderRadius:7,border:'none',background:C.blue,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer'}}>
+            Envoyer
+          </button>
+          <button onClick={onClose} style={{padding:'10px 20px',borderRadius:7,border:`1px solid ${C.border}`,background:'none',color:C.text2,fontSize:13,cursor:'pointer'}}>
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ── PAGE BILAN ─────────────────────────────────────────────────────
 const PageBilan = () => {

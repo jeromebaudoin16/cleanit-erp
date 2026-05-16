@@ -321,6 +321,152 @@ const ConditionalRoutingSettings = ({routes,setRoutes}) => {
   );
 };
 
+
+// ── QUORUM HELPER ─────────────────────────────────────────────
+const getQuorum = (matrix, type, amount) => {
+  const rules = (matrix||DEFAULT_MATRIX)[type]||[{max:Infinity,lvls:["manager","dg"],mode:"sequential"}];
+  const rule = rules.find(r=>amount<=(r.max||Infinity))||rules[rules.length-1];
+  return rule.quorum||null; // {required:2, total:3}
+};
+
+// ── BC MATCHING COMPONENT ─────────────────────────────────────
+const BCMatchingPanel = ({item, onMatch}) => {
+  const [bcRef, setBcRef] = useState(item.bcRef||'');
+  const [searching, setSearching] = useState(false);
+  const [found, setFound] = useState(null);
+  const SAMPLE_BC = [
+    {ref:'BC-MTN-2025-047', client:'MTN Cameroun', amount:45000000, date:'2025-05-01'},
+    {ref:'BC-ORA-2025-031', client:'Orange Cameroun', amount:28000000, date:'2025-04-15'},
+    {ref:'BC-CAM-2025-019', client:'CAMTEL', amount:12000000, date:'2025-04-20'},
+  ];
+  const search = () => {
+    setSearching(true);
+    setTimeout(()=>{
+      const bc = SAMPLE_BC.find(b=>b.ref.toLowerCase().includes(bcRef.toLowerCase()));
+      setFound(bc||null); setSearching(false);
+    },800);
+  };
+  const amountMatch = found && Math.abs(found.amount - item.amount) < found.amount * 0.05;
+  return (
+    <div style={{background:C.bg,borderRadius:8,padding:'14px 16px',border:`1px solid ${C.border}`}}>
+      <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:10}}>🔗 Matching Bon de Commande</div>
+      <div style={{display:'flex',gap:8,marginBottom:10}}>
+        <input value={bcRef} onChange={e=>setBcRef(e.target.value)} placeholder="Réf. BC (ex: BC-MTN-2025-047)"
+          style={{flex:1,padding:'7px 10px',borderRadius:6,border:`1px solid ${C.border}`,fontSize:12,outline:'none'}}/>
+        <Btn label={searching?'Recherche...':'Rechercher'} onClick={search} disabled={!bcRef||searching} sm color={C.blue}/>
+      </div>
+      {found&&(
+        <div style={{background:amountMatch?C.green_l:C.orange_l,borderRadius:6,padding:'10px 12px',border:`1px solid ${amountMatch?C.green:C.orange}`}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:C.text}}>{found.ref} — {found.client}</div>
+              <div style={{fontSize:11,color:C.text3}}>Montant BC: {fN(found.amount)} FCFA · Date: {found.date}</div>
+              {!amountMatch&&<div style={{fontSize:11,color:C.orange,fontWeight:600}}>⚠ Écart montant détecté</div>}
+              {amountMatch&&<div style={{fontSize:11,color:C.green,fontWeight:600}}>✓ Montant conforme</div>}
+            </div>
+            <Btn label="Associer" onClick={()=>onMatch&&onMatch(found)} sm color={C.green}/>
+          </div>
+        </div>
+      )}
+      {found===null&&searching===false&&bcRef&&<div style={{fontSize:12,color:C.red}}>Aucun BC trouvé</div>}
+    </div>
+  );
+};
+
+// ── APPROBATION LIEN EMAIL ─────────────────────────────────────
+const EmailApprovalLink = ({item}) => {
+  const [copied, setCopied] = useState(false);
+  const link = `${window.location.origin}/approvals/${item.id}?action=approve&token=${btoa(item.id+'_'+Date.now())}`;
+  const copy = () => { navigator.clipboard?.writeText(link).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);}); };
+  const sendMail = () => {
+    const subj = encodeURIComponent(`Action requise: ${item.title} — ${item.reference}`);
+    const body = encodeURIComponent(`Bonjour,
+
+Votre approbation est requise pour:
+${item.title}
+Montant: ${fN(item.amount)} FCFA
+
+Cliquez pour approuver: ${link}
+
+Cordialement,
+CleanIT ERP`);
+    window.open('mailto:?subject='+subj+'&body='+body);
+  };
+  return (
+    <div style={{background:C.bg,borderRadius:8,padding:'12px 14px',border:`1px solid ${C.border}`}}>
+      <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:8}}>📧 Approuver depuis email</div>
+      <div style={{fontSize:11,color:C.text3,fontFamily:'monospace',background:C.white,padding:'6px 10px',borderRadius:4,marginBottom:8,wordBreak:'break-all'}}>
+        {link.slice(0,60)}...
+      </div>
+      <div style={{display:'flex',gap:8}}>
+        <Btn label={copied?'✓ Copié!':'Copier lien'} onClick={copy} sm color={copied?C.green:C.blue}/>
+        <Btn label="Envoyer par email" onClick={sendMail} sm ghost color={C.blue}/>
+      </div>
+    </div>
+  );
+};
+
+// ── NOTIFICATIONS PANEL ────────────────────────────────────────
+const NotificationsPanel = ({items}) => {
+  const pending = (items||[]).filter(i=>i.status==="pending");
+  const urgent  = (items||[]).filter(i=>i.priority==="haute"&&i.status==="pending");
+  return (
+    <div>
+      {urgent.length>0&&(
+        <div style={{background:'#FEF2F2',borderRadius:8,padding:'10px 14px',marginBottom:12,border:'1px solid #FECACA'}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.red}}>🔔 {urgent.length} demande{urgent.length>1?"s":""} urgente{urgent.length>1?"s":""} en attente</div>
+          {urgent.slice(0,3).map(i=>(
+            <div key={i.id} style={{fontSize:11,color:C.text2,marginTop:4}}>• {i.title} — {fN(i.amount)} FCFA</div>
+          ))}
+        </div>
+      )}
+      {pending.length>0&&(
+        <div style={{background:'#FFF7ED',borderRadius:8,padding:'10px 14px',border:'1px solid #FED7AA'}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.orange}}>⏳ {pending.length} demande{pending.length>1?"s":""} en attente d'approbation</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── RÉCURRENTES APPROVAL ───────────────────────────────────────
+const RecurringApprovalPanel = ({onAdd}) => {
+  const [templates, setTemplates] = useState([
+    {id:'RA001', title:'Frais mensuels équipe terrain', type:'expense_report', amount:500000, freq:'Mensuelle', active:true},
+    {id:'RA002', title:'Abonnement logiciels', type:'purchase_request', amount:250000, freq:'Mensuelle', active:true},
+  ]);
+  const generate = (tpl) => {
+    const newItem = {
+      id:`APV-REC-${Date.now().toString().slice(-4)}`, reference:`APV-REC-${Date.now().toString().slice(-4)}`,
+      type:tpl.type, title:tpl.title, amount:tpl.amount, currency:'FCFA',
+      status:'draft', priority:'normale', submittedBy:'Système Récurrent',
+      submittedAt:new Date().toISOString(), lastActionAt:new Date().toISOString(),
+      justification:`Demande récurrente ${tpl.freq.toLowerCase()} — générée automatiquement`,
+      approvedBy:[], attachments:[], history:[],
+    };
+    if(onAdd) onAdd(newItem);
+    alert('Demande récurrente créée: '+newItem.reference);
+  };
+  return (
+    <div style={{marginTop:16}}>
+      <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>🔄 Demandes récurrentes</div>
+      {templates.map(tpl=>(
+        <div key={tpl.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',background:C.white,borderRadius:8,border:`1px solid ${C.border}`,marginBottom:8}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,fontWeight:600,color:C.text}}>{tpl.title}</div>
+            <div style={{fontSize:11,color:C.text3}}>{tpl.freq} · {fN(tpl.amount)} FCFA</div>
+          </div>
+          <Btn label="Générer" onClick={()=>generate(tpl)} sm color={C.blue}/>
+          <button onClick={()=>setTemplates(p=>p.map(t=>t.id===tpl.id?{...t,active:!t.active}:t))}
+            style={{width:36,height:20,borderRadius:10,border:'none',background:tpl.active?C.green:'#D1D5DB',cursor:'pointer',position:'relative'}}>
+            <div style={{position:'absolute',top:2,left:tpl.active?18:2,width:16,height:16,borderRadius:'50%',background:'#fff',transition:'left .2s'}}/>
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 // ── BUDGET CHECK ──────────────────────────────────────────────
 const BudgetCheck = ({amount}) => {
   const [bal,setBal]=useState(null);
@@ -809,6 +955,8 @@ const DetailPage = ({items,onUpdate,settings,matrix}) => {
               <div style={{padding:14}}>
                 <textarea value={comment} onChange={e=>setComment(e.target.value)} rows={3} placeholder="Commentaire (facultatif)..." style={{width:"100%",padding:"8px 10px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:13,fontFamily:"inherit",outline:"none",resize:"vertical",boxSizing:"border-box",marginBottom:10}}/>
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {item.status==="pending"&&item._backendId&&<BCMatchingPanel item={item} onMatch={bc=>{const u={...item,bcRef:bc.ref};onUpdate(u);}}/>}
+                  {item.status==="pending"&&<EmailApprovalLink item={item}/>}
                   {item.status==="draft"&&<Btn label="Soumettre pour approbation" onClick={()=>doAction("submit")} disabled={acting} icon="send" full color={C.blue}/>}
                   {item.status==="pending"&&!done&&cur&&<Btn label={"Approuver — "+(APR[cur]?.label||cur)} onClick={()=>doAction("approve")} disabled={acting} icon="check" full color={APR[cur]?.color||C.green}/>}
                   {(done||item.status==="approved")&&item.status!=="paid"&&<Btn label="Confirmer paiement" onClick={()=>doAction("pay")} disabled={acting} icon="bank" full color={C.green}/>}
@@ -1050,6 +1198,7 @@ const ListPage = ({items,onAdd,settings,setSettings,matrix,setMatrix}) => {
       </div>
       <div style={{maxWidth:1300,margin:"0 auto",padding:"18px 24px"}}>
         {tab==="reports"&&<ReportsView items={items} matrix={matrix} settings={settings}/>}
+        {tab==="notifications"&&<div style={{padding:16}}><NotificationsPanel items={items}/><RecurringApprovalPanel onAdd={add}/></div>}
         {tab==="audit"&&<AuditView items={items}/>}
         {tab==="matrix"&&<MatriceView matrix={matrix}/>}
         {tab==="settings"&&(
