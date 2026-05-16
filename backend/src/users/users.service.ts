@@ -42,5 +42,18 @@ export class UsersService {
       await this.create({ email: 'terrain@cleanit.cm', password: 'Terrain123!', firstName: 'Thomas', lastName: 'Ngono', role: UserRole.TECHNICIAN });
       console.log('✅ Comptes créés: admin | jerome | finance | hr | chef | terrain | pm | tech');
     }
+    // Ajouter comptes manquants même si admin existe
+    const accts = [
+      {email:'finance@cleanit.cm', password:'Finance123!', firstName:'Alice', lastName:'Finance', role:UserRole.FINANCE},
+      {email:'hr@cleanit.cm', password:'HR123!', firstName:'Clara', lastName:'RH', role:UserRole.HR},
+      {email:'chef@cleanit.cm', password:'Chef123!', firstName:'Pierre', lastName:'Etoga', role:UserRole.PROJECT_MANAGER},
+      {email:'terrain@cleanit.cm', password:'Terrain123!', firstName:'Thomas', lastName:'Ngono', role:UserRole.TECHNICIAN},
+    ];
+    for(const a of accts){
+      const ex = await this.findByEmail(a.email);
+      if(!ex) { await this.create(a); console.log('Créé:', a.email); }
+    }
+    if(false) {
+    }
   }
 }
