@@ -53,7 +53,5 @@ export class UsersService {
       const ex = await this.findByEmail(a.email);
       if(!ex) { await this.create(a); console.log('Créé:', a.email); }
     }
-    if(false) {
-    }
   }
 }
