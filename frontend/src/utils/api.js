@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE = import.meta.env.VITE_API_URL || 'https://cleanit-erp-production.up.railway.app';
+const BASE = import.meta.env.VITE_API_URL || 'https://cleanit-erp.onrender.com';
 
 export const api = axios.create({ baseURL: BASE });
 
