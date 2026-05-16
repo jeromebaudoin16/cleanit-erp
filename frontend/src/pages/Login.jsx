@@ -7,22 +7,22 @@ const DEMO = [
   { email:'jerome@cleanit.cm',  password:'Jerome123!',  role:'DG',          color:'#E05C5C', initials:'JB' },
   { email:'finance@cleanit.cm', password:'Finance123!', role:'Comptable',    color:'#888',    initials:'AF' },
   { email:'chef@cleanit.cm',    password:'Chef123!',    role:'Chef Projet',  color:'#E05C5C', initials:'PE' },
-  { email:'terrain@cleanit.cm', password:'Terrain123!', role:'Chef Terrain', color:'#888',    initials:'TN' },
+  { email:'terrain@cleanit.cm', password:'Terrain123!', role:'Terrain',      color:'#888',    initials:'TN' },
   { email:'hr@cleanit.cm',      password:'HR123!',      role:'RH',           color:'#E05C5C', initials:'CR' },
   { email:'admin@cleanit.cm',   password:'Admin123!',   role:'Admin',        color:'#888',    initials:'AD' },
 ];
 
 const CleanITLogo = () => (
-  <svg width="130" height="36" viewBox="0 0 140 38" fill="none">
-    <circle cx="19" cy="19" r="14" stroke="#888" strokeWidth="1.6" fill="none"/>
-    <circle cx="19" cy="6.5" r="3"  fill="#E05C5C"/>
-    <circle cx="8"  cy="26" r="3"   fill="#E05C5C"/>
-    <circle cx="30" cy="26" r="3"   fill="#E05C5C"/>
-    <line x1="19" y1="9.5" x2="10" y2="23.5" stroke="#ccc" strokeWidth="1.3"/>
-    <line x1="19" y1="9.5" x2="28" y2="23.5" stroke="#ccc" strokeWidth="1.3"/>
-    <line x1="11" y1="26"  x2="27" y2="26"   stroke="#ccc" strokeWidth="1.3"/>
-    <text x="42" y="27" fontFamily="'Inter','Segoe UI',Arial,sans-serif" fontSize="19" fontWeight="700" fill="#888">CLEAN</text>
-    <text x="103" y="27" fontFamily="'Inter','Segoe UI',Arial,sans-serif" fontSize="19" fontWeight="700" fill="#E05C5C">IT</text>
+  <svg width="118" height="30" viewBox="0 0 128 32" fill="none">
+    <circle cx="16" cy="16" r="11" stroke="#999" strokeWidth="1.3" fill="none"/>
+    <circle cx="16" cy="6"  r="2.2" fill="#E05C5C"/>
+    <circle cx="7"  cy="21" r="2.2" fill="#E05C5C"/>
+    <circle cx="25" cy="21" r="2.2" fill="#E05C5C"/>
+    <line x1="16" y1="8"  x2="9"    y2="19.5" stroke="#ddd" strokeWidth="1.1"/>
+    <line x1="16" y1="8"  x2="23"   y2="19.5" stroke="#ddd" strokeWidth="1.1"/>
+    <line x1="9.5" y1="21" x2="22.5" y2="21"  stroke="#ddd" strokeWidth="1.1"/>
+    <text x="34" y="22" fontFamily="'Inter','Segoe UI',Arial,sans-serif" fontSize="16" fontWeight="700" fill="#999">CLEAN</text>
+    <text x="88" y="22" fontFamily="'Inter','Segoe UI',Arial,sans-serif" fontSize="16" fontWeight="700" fill="#E05C5C">IT</text>
   </svg>
 );
 
@@ -33,7 +33,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [focused, setFocused] = useState('');
-  const [showDemo, setShowDemo] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   const submit = async e => {
     e.preventDefault(); setLoading(true); setError('');
@@ -56,141 +56,127 @@ export default function Login() {
     } catch { setError('Compte non disponible.'); setLoading(false); }
   };
 
-  const inp = focused_key => ({
-    width: '100%',
-    padding: '10px 0',
-    border: 'none',
-    borderBottom: focused === focused_key ? '2px solid #E05C5C' : '1.5px solid #e8e8e8',
-    fontSize: 14,
-    outline: 'none',
-    background: 'transparent',
-    color: '#444',
-    boxSizing: 'border-box',
-    transition: 'border-color .2s',
+  const visibleDemo = showAll ? DEMO : DEMO.slice(0, 3);
+
+  const inputStyle = k => ({
+    width: '100%', padding: '8px 0', border: 'none', outline: 'none',
+    borderBottom: focused === k ? '1.5px solid #E05C5C' : '1.5px solid #eee',
+    fontSize: 13, background: 'transparent', color: '#333',
+    boxSizing: 'border-box', transition: 'border-color .2s',
     fontFamily: "'Inter','Segoe UI',Arial,sans-serif",
   });
 
   return (
     <div style={{
-      minHeight: '100vh',
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      fontFamily: "'Inter','Segoe UI',Arial,sans-serif",
-      background: '#fff',
+      minHeight: '100vh', display: 'grid', gridTemplateColumns: '1fr 1fr',
+      fontFamily: "'Inter','Segoe UI',Arial,sans-serif", background: '#fff',
     }}>
 
-      {/* ── GAUCHE — Illustration ──────────────────────────── */}
-      <div style={{ overflow: 'hidden', background: '#fff' }}>
+      {/* ── GAUCHE — illustration sans cadre ── */}
+      <div style={{
+        background: '#fff', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', padding: 32,
+      }}>
         <img
           src={loginIllustration}
-          alt="CleanIT ERP"
+          alt="CleanIT"
           style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            objectPosition: 'center',
-            display: 'block',
+            maxWidth: '100%', maxHeight: '80vh',
+            objectFit: 'contain', display: 'block',
           }}
         />
       </div>
 
-      {/* ── DROITE — Formulaire ────────────────────────────── */}
+      {/* ── DROITE — formulaire ── */}
       <div style={{
-        background: '#fff',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        padding: '48px 56px',
-        borderLeft: '1px solid #f0f0f0',
+        background: '#fff', display: 'flex', flexDirection: 'column',
+        justifyContent: 'center', padding: '48px 52px',
+        borderLeft: '1px solid #f5f5f5',
       }}>
 
         {/* Logo */}
-        <div style={{ marginBottom: 32 }}>
-          <CleanITLogo/>
-        </div>
+        <div style={{ marginBottom: 36 }}><CleanITLogo/></div>
 
-        {/* Titre */}
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#888', margin: '0 0 6px', lineHeight: 1.2 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 5px', letterSpacing: '-.3px' }}>
           Connexion
         </h1>
-        <p style={{ fontSize: 13, color: '#E05C5C', margin: '0 0 36px', fontWeight: 500 }}>
-          Accédez à votre espace de travail
+        <p style={{ fontSize: 12, color: '#aaa', margin: '0 0 28px', lineHeight: 1.6 }}>
+          Bienvenue. Entrez vos identifiants<br/>pour accéder à votre espace.
         </p>
 
-        {/* Erreur */}
         {error && (
-          <div style={{ background: '#fff5f5', padding: '10px 14px', borderRadius: 8, color: '#E05C5C', fontSize: 13, marginBottom: 20, border: '1px solid #ffd5d5' }}>
+          <div style={{ background: '#fff5f5', border: '1px solid #ffd5d5', borderRadius: 7, padding: '9px 12px', color: '#E05C5C', fontSize: 12, marginBottom: 16 }}>
             {error}
           </div>
         )}
 
         <form onSubmit={submit}>
-          {/* Email */}
-          <div style={{ marginBottom: 24 }}>
-            <label style={{ fontSize: 10, fontWeight: 700, color: focused === 'email' ? '#E05C5C' : '#aaa', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 4 }}>
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: focused === 'email' ? '#E05C5C' : '#bbb', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 5 }}>
               Email
-            </label>
+            </div>
             <input
               type="email" value={form.email} required
               onChange={e => setForm({ ...form, email: e.target.value })}
               onFocus={() => setFocused('email')} onBlur={() => setFocused('')}
               placeholder="votre@cleanit.cm"
-              style={inp('email')}
+              style={inputStyle('email')}
             />
           </div>
 
-          {/* Mot de passe */}
-          <div style={{ marginBottom: 36 }}>
-            <label style={{ fontSize: 10, fontWeight: 700, color: focused === 'pwd' ? '#E05C5C' : '#aaa', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 4 }}>
+          <div style={{ marginBottom: 26 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: focused === 'pwd' ? '#E05C5C' : '#bbb', textTransform: 'uppercase', letterSpacing: .8, marginBottom: 5 }}>
               Mot de passe
-            </label>
+            </div>
             <div style={{ position: 'relative' }}>
               <input
                 type={showPass ? 'text' : 'password'} value={form.password} required
                 onChange={e => setForm({ ...form, password: e.target.value })}
                 onFocus={() => setFocused('pwd')} onBlur={() => setFocused('')}
                 placeholder="••••••••"
-                style={inp('pwd')}
+                style={inputStyle('pwd')}
               />
               <button type="button" onClick={() => setShowPass(!showPass)}
-                style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#aaa', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', fontSize: 10, color: '#ccc', cursor: 'pointer', fontFamily: 'inherit' }}>
                 {showPass ? 'Masquer' : 'Afficher'}
               </button>
             </div>
           </div>
 
-          {/* Bouton */}
           <button type="submit" disabled={loading}
-            style={{ width: '100%', padding: '13px', borderRadius: 28, border: 'none', background: '#E05C5C', color: '#fff', fontWeight: 700, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', transition: 'background .2s', opacity: loading ? .7 : 1, fontFamily: 'inherit', letterSpacing: '.2px' }}>
-            {loading ? 'Connexion...' : 'Se connecter →'}
+            style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: '#E05C5C', color: '#fff', fontSize: 13, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? .7 : 1, fontFamily: 'inherit', marginBottom: 20 }}>
+            {loading ? 'Connexion...' : 'Se connecter'}
           </button>
         </form>
 
-        {/* Accès démo */}
-        <div style={{ marginTop: 28, textAlign: 'center' }}>
-          <button onClick={() => setShowDemo(!showDemo)}
-            style={{ background: 'none', border: 'none', fontSize: 11, color: '#ccc', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit', transition: 'color .2s' }}
-            onMouseEnter={e => e.target.style.color = '#E05C5C'}
-            onMouseLeave={e => e.target.style.color = '#ccc'}>
-            {showDemo ? 'Masquer les comptes démo ›' : 'Accès démo ›'}
-          </button>
+        {/* Séparateur démo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <div style={{ flex: 1, height: 1, background: '#f4f4f4' }}/>
+          <span style={{ fontSize: 9, color: '#ddd', letterSpacing: .6, textTransform: 'uppercase' }}>accès démo</span>
+          <div style={{ flex: 1, height: 1, background: '#f4f4f4' }}/>
+        </div>
 
-          {showDemo && (
-            <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {DEMO.map(u => (
-                <button key={u.email} onClick={() => loginAs(u)} disabled={loading}
-                  style={{ width: '100%', textAlign: 'left', padding: '8px 12px', border: '1px solid #f5f5f5', borderRadius: 8, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, transition: 'all .15s', fontFamily: 'inherit' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#fff5f5'}
-                  onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
-                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: u.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 8, fontWeight: 800, flexShrink: 0 }}>
-                    {u.initials}
-                  </div>
-                  <span style={{ flex: 1, fontSize: 11, color: '#666' }}>{u.email.split('@')[0]}</span>
-                  <span style={{ fontSize: 10, color: u.color, fontWeight: 700 }}>{u.role}</span>
-                </button>
-              ))}
-            </div>
-          )}
+        <div>
+          {visibleDemo.map(u => (
+            <button key={u.email} onClick={() => loginAs(u)} disabled={loading}
+              style={{ width: '100%', textAlign: 'left', padding: '8px 10px', border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5, fontFamily: 'inherit', transition: 'background .15s' }}
+              onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
+              onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
+              <div style={{ width: 20, height: 20, borderRadius: '50%', background: u.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 7, fontWeight: 700, flexShrink: 0 }}>
+                {u.initials}
+              </div>
+              <span style={{ flex: 1, fontSize: 11, color: '#555' }}>{u.email.split('@')[0]}</span>
+              <span style={{ fontSize: 9, color: u.color, fontWeight: 700 }}>{u.role}</span>
+            </button>
+          ))}
+          <div style={{ textAlign: 'center', marginTop: 6 }}>
+            <button onClick={() => setShowAll(!showAll)}
+              style={{ background: 'none', border: 'none', fontSize: 10, color: '#ccc', cursor: 'pointer', fontFamily: 'inherit' }}
+              onMouseEnter={e => e.target.style.color = '#E05C5C'}
+              onMouseLeave={e => e.target.style.color = '#ccc'}>
+              {showAll ? '− réduire' : '+ voir tous les comptes'}
+            </button>
+          </div>
         </div>
 
       </div>
