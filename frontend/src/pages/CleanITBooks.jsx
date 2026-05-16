@@ -7209,9 +7209,7 @@ const EmailInvoiceModal = ({invoice, customer, onClose}) => {
 
   const sendEmail = () => {
     const subject = encodeURIComponent('Facture '+( invoice?.ref||invoice?.id||''));
-    const body = encodeURIComponent(msg+'
-
-Montant: '+fN(invoice?.total||0)+' FCFA
+    const body = encodeURIComponent(msg + String.fromCharCode(10) + String.fromCharCode(10) + 'Facture: '+(invoice?.ref||'')+ ' - Montant: '+fN(invoice?.total||0)+' FCFA')+' FCFA
 Échéance: '+(invoice?.dueDate||'—'));
     window.open('mailto:'+email+'?subject='+subject+'&body='+body);
     setSent(true);
