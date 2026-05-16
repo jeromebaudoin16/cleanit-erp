@@ -288,7 +288,7 @@ const ParallelBadge = ({lvls,app,config}) => (
 
 
 const ConditionalRoutingSettings = ({routes,setRoutes}) => {
-  const [localRoutes, setLocalRoutes] = React.useState(routes||CONDITIONAL_ROUTES);
+  const [localRoutes, setLocalRoutes] = useState(routes||CONDITIONAL_ROUTES);
   const toggle = id => {
     const updated = localRoutes.map(r=>r.id===id?{...r,active:!r.active}:r);
     setLocalRoutes(updated);
