@@ -6911,8 +6911,7 @@ const PageImportCSV = () => {
   const fileRef = useRef(null);
 
   const parseCSV = (text) => {
-    const lines = text.trim().split('
-');
+    const lines = text.trim().split(/\r?\n/);
     return lines.slice(1).map((line,i) => {
       const cols = line.split(',').map(c=>c.replace(/"/g,'').trim());
       return {id:i+1, date:cols[0]||'', desc:cols[1]||'', credit:Number(cols[2])||0, debit:Number(cols[3])||0};
