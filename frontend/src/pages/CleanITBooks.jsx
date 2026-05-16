@@ -6797,6 +6797,15 @@ const PageAvoir = ({invoices=[], customers=[], setInvoices}) => {
   );
 };
 
+
+const PageTimeTracking = () => (
+  <div style={{padding:40,textAlign:"center",color:"#94a3b8"}}>
+    <div style={{fontSize:40,marginBottom:12}}>⏱</div>
+    <div style={{fontSize:16,fontWeight:700,marginBottom:6,color:"#374151"}}>Suivi des heures</div>
+    <div style={{fontSize:13}}>Module en cours de développement</div>
+  </div>
+);
+
 // ── PAGE BILAN ─────────────────────────────────────────────────────
 const PageBilan = () => {
   const [bilan,   setBilan]   = React.useState(null);

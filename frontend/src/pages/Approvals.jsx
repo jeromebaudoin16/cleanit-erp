@@ -130,32 +130,38 @@ const getLevels = (type,amount,matrix) => {
 };
 
 const getWF = (item,matrix) => {
-  const rule = getRule(item.type, item.amount, matrix);
-  let lvls = [...(rule.lvls||[])], mode = rule.mode||"sequential";
-  const app = item.approvedBy||[];
-  // Appliquer routage conditionnel
-  (CONDITIONAL_ROUTES||[]).filter(r=>r.active).forEach(r=>{
-    const match = r.conditions.every(cond=>{
-      const val = item[cond.field];
-      if(cond.operator==="in") return cond.values?.includes(val);
-      if(cond.operator===">") return Number(val)>Number(cond.value);
-      if(cond.operator==="<") return Number(val)<Number(cond.value);
-      if(cond.operator==="eq") return val===cond.value;
-      return false;
-    });
-    if(match && r.action==="add_level" && !lvls.includes(r.level)) lvls.push(r.level);
-  });
-  // Mode parallèle : tous les niveaux peuvent approuver simultanément
-  if(mode==="parallel") {
-    const done = lvls.every(l=>app.includes(l));
-    const pending = lvls.filter(l=>!app.includes(l));
-    const cur = pending[0]||null;
-    return {lvls, app, cur, done, mode, totalSteps:lvls.length, pending, isParallel:true};
+  try {
+    const type = item.type||"payment_request";
+    const amount = Number(item.amount)||0;
+    const rules = (matrix||DEFAULT_MATRIX)[type]||[{max:Infinity,lvls:["manager","dg"],mode:"sequential"}];
+    const rule = rules.find(r=>amount<=(r.max||Infinity))||rules[rules.length-1]||{lvls:["manager","dg"],mode:"sequential"};
+    let lvls = [...(rule.lvls||["manager","dg"])];
+    const mode = rule.mode||"sequential";
+    const app = item.approvedBy||[];
+    // Routage conditionnel
+    try {
+      (CONDITIONAL_ROUTES||[]).filter(r=>r.active).forEach(r=>{
+        const match = r.conditions.every(cond=>{
+          const val = item[cond.field];
+          if(cond.operator==="in") return (cond.values||[]).includes(val);
+          if(cond.operator===">") return Number(val)>Number(cond.value);
+          if(cond.operator==="<") return Number(val)<Number(cond.value);
+          if(cond.operator==="eq") return val===cond.value;
+          return false;
+        });
+        if(match && r.action==="add_level" && !lvls.includes(r.level)) lvls.push(r.level);
+      });
+    } catch(e) {}
+    if(mode==="parallel") {
+      const done = lvls.every(l=>app.includes(l));
+      const pending = lvls.filter(l=>!app.includes(l));
+      return {lvls,app,cur:pending[0]||null,done,mode,totalSteps:lvls.length,pending,isParallel:true};
+    }
+    const done = app.length>=lvls.length;
+    return {lvls,app,cur:lvls[app.length]||null,done,mode,totalSteps:lvls.length,pending:[],isParallel:false};
+  } catch(e) {
+    return {lvls:["manager","dg"],app:[],cur:"manager",done:false,mode:"sequential",totalSteps:2,pending:[],isParallel:false};
   }
-  // Mode séquentiel (défaut)
-  const done = app.length >= lvls.length;
-  const cur = lvls[app.length]||null;
-  return {lvls, app, cur, done, mode, totalSteps:lvls.length, pending:[], isParallel:false};
 };
 
 const getEsc = (item,settings) => {
