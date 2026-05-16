@@ -1051,7 +1051,14 @@ const ListPage = ({items,onAdd,settings,setSettings,matrix,setMatrix}) => {
         {tab==="reports"&&<ReportsView items={items} matrix={matrix} settings={settings}/>}
         {tab==="audit"&&<AuditView items={items}/>}
         {tab==="matrix"&&<MatriceView matrix={matrix}/>}
-        {tab==="settings"&&<SettingsView settings={settings} setSettings={setSettings} matrix={matrix} setMatrix={setMatrix}/>}
+        {tab==="settings"&&(
+          <div>
+            <div style={{marginBottom:20}}>
+              <ConditionalRoutingSettings routes={condRoutes} setRoutes={setCondRoutes}/>
+            </div>
+            <SettingsView settings={settings} setSettings={setSettings} matrix={matrix} setMatrix={setMatrix}/>
+          </div>
+        )}
         {!isSpecial&&(
           <>
             <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:18}}>
