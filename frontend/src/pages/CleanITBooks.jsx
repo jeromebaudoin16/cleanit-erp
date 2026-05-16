@@ -6937,13 +6937,7 @@ const PageImportCSV = () => {
       <div style={{padding:'20px 24px'}}>
         <div style={{background:C.blue_l,borderRadius:10,padding:'20px 24px',marginBottom:20,border:`1px solid #BFDBFE`}}>
           <div style={{fontSize:14,fontWeight:700,color:C.blue,marginBottom:8}}>Format CSV attendu</div>
-          <code style={{fontSize:12,color:C.text2,display:'block',background:C.white,padding:'10px',borderRadius:6}}>
-            Date,Description,Crédit,Débit{'
-'}
-            2025-05-01,"Virement MTN",45000000,0{'
-'}
-            2025-05-03,"Paiement fournisseur",0,3500000
-          </code>
+          <pre style={{fontSize:11,fontFamily:"monospace",background:C.white,padding:10,borderRadius:6,margin:0}}>Date,Description,Credit,Debit{String.fromCharCode(10)}2025-05-01,Virement MTN,45000000,0{String.fromCharCode(10)}2025-05-03,Paiement fournisseur,0,3500000</pre>
           <div style={{marginTop:12,display:'flex',gap:10}}>
             <button onClick={()=>fileRef.current?.click()}
               style={{padding:'9px 20px',borderRadius:8,border:'none',background:C.blue,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer'}}>
