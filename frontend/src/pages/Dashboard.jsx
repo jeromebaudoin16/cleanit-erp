@@ -48,12 +48,20 @@ const I = {
 // Déterminer le rôle depuis l'utilisateur connecté
 const getRoleFromUser = (user) => {
   if(!user) return 'chef_proj';
+  const role = (user.role||'').toLowerCase();
   const email = (user.email||'').toLowerCase();
-  const name = (user.name||user.username||'').toLowerCase();
-  if(email.includes('dg')||email.includes('directeur')||name.includes('directeur')||name.includes('bell')) return 'dg';
-  if(email.includes('comptable')||email.includes('finance')||name.includes('finance')) return 'comptable';
-  if(email.includes('terrain')||email.includes('supervisor')||name.includes('terrain')) return 'chef_terrain';
-  if(email.includes('rh')||email.includes('hr')||name.includes('rh')) return 'rh';
+  const lastName = (user.lastName||'').toLowerCase();
+  // Mapping exact depuis les rôles backend
+  if(role === 'finance') return 'comptable';
+  if(role === 'hr') return 'rh';
+  if(role === 'technician') return 'chef_terrain';
+  if(role === 'project_manager') return 'chef_proj';
+  if(role === 'viewer') return 'chef_proj';
+  // ADMIN: jerome Bell = DG, sinon vue admin système
+  if(role === 'admin') {
+    if(email.includes('jerome')||lastName.includes('bell')||email.includes('dg')) return 'dg';
+    return 'admin_sys';
+  }
   return 'chef_proj';
 };
 
@@ -63,6 +71,7 @@ const ROLE_CONFIG = {
   chef_proj:    { label:'Chef de Projet',        color:C.purple, gradient:'linear-gradient(135deg,#403294,#5243AA)', icon:'chart' },
   chef_terrain: { label:'Chef Terrain',          color:C.teal,   gradient:'linear-gradient(135deg,#00626E,#00877A)', icon:'map' },
   rh:           { label:'Responsable RH',        color:C.orange, gradient:'linear-gradient(135deg,#974F0C,#B65C02)', icon:'users' },
+  admin_sys:    { label:'Administrateur Système', color:'#374151', gradient:'linear-gradient(135deg,#1F2937,#374151)', icon:'settings' },
 };
 
 const TODAY_MEETINGS = [
@@ -163,17 +172,17 @@ const AIBrief = ({user, role, dashData}) => {
       ].join('. ');
 
       const rolePrompts = {
-        dg: `Tu es ChaCha, assistant IA de CleanIT ERP. Génère un brief matinal personnalisé pour ${userName} (Directeur Général) en 2-3 phrases. Parle-lui directement. Inclus: situation financière, nouveaux projets clients, points d'attention stratégiques. ${context}`,
-        comptable: `Tu es ChaCha, assistant IA de CleanIT ERP. Génère un brief matinal pour ${userName} (Comptable) en 2-3 phrases. Parle-lui directement. Inclus: trésorerie, factures à traiter, déclarations fiscales imminentes. ${context}`,
-        chef_proj: `Tu es ChaCha, assistant IA de CleanIT ERP. Génère un brief matinal pour ${userName} (Chef de Projet) en 2-3 phrases. Parle-lui directement. Inclus: état des jobs, jalons critiques, ressources disponibles. ${context}`,
-        chef_terrain: `Tu es ChaCha, assistant IA de CleanIT ERP. Génère un brief matinal pour ${userName} (Chef Terrain) en 2-3 phrases. Parle-lui directement. Inclus: équipes déployées, jobs du jour, conditions opérationnelles. ${context}`,
-        rh: `Tu es ChaCha, assistant IA de CleanIT ERP. Génère un brief matinal pour ${userName} (Responsable RH) en 2-3 phrases. Parle-lui directement. Inclus: présences, demandes RH en attente, points RH du jour. ${context}`,
+        dg: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, génère un brief matinal pour ${userName} (Directeur Général) en 2-3 phrases. Parle-lui directement. Inclus: situation financière, nouveaux projets clients, points d'attention stratégiques. ${context}`,
+        comptable: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, brief pour ${userName} (Comptable) en 2-3 phrases. Parle-lui directement. Inclus: trésorerie, factures à traiter, déclarations fiscales imminentes. ${context}`,
+        chef_proj: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, brief pour ${userName} (Chef de Projet) en 2-3 phrases. Parle-lui directement. Inclus: état des jobs, jalons critiques, ressources disponibles. ${context}`,
+        chef_terrain: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, brief pour ${userName} (Chef Terrain) en 2-3 phrases. Parle-lui directement. Inclus: équipes déployées, jobs du jour, conditions opérationnelles. ${context}`,
+        rh: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, brief pour ${userName} (Responsable RH) en 2-3 phrases. Parle-lui directement. Inclus: présences, demandes RH en attente, points RH du jour. ${context}`,
       };
 
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+import.meta.env.VITE_GROQ_API_KEY},
-        body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:180,messages:[{role:'user',content:rolePrompts[role.id]||rolePrompts.chef_proj}]})
+        body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:100,messages:[{role:'user',content:rolePrompts[role.id]||rolePrompts.chef_proj}]})
       });
       const d = await res.json();
       setBrief(d.choices?.[0]?.message?.content||'Données insuffisantes.');
@@ -647,6 +656,70 @@ const RHView = ({nav}) => {
   );
 };
 
+
+// ── VUE ADMIN SYSTÈME ─────────────────────────────────────────
+const AdminSysView = ({nav}) => {
+  const ACCOUNTS = [
+    {email:'jerome@cleanit.cm',  name:'Jérôme Bell',    role:'Directeur Général', pwd:'Jerome123!',  color:'#0052CC'},
+    {email:'finance@cleanit.cm', name:'Alice Finance',   role:'Comptable',         pwd:'Finance123!', color:'#006644'},
+    {email:'pm@cleanit.cm',      name:'Marie Kamga',     role:'Chef de Projet',    pwd:'PM123!',      color:'#403294'},
+    {email:'chef@cleanit.cm',    name:'Pierre Etoga',    role:'Chef de Projet',    pwd:'Chef123!',    color:'#403294'},
+    {email:'terrain@cleanit.cm', name:'Thomas Ngono',    role:'Chef Terrain',      pwd:'Terrain123!', color:'#00626E'},
+    {email:'tech@cleanit.cm',    name:'Thomas Ngono',    role:'Technicien',        pwd:'Tech123!',    color:'#00626E'},
+    {email:'hr@cleanit.cm',      name:'Clara RH',        role:'Responsable RH',    pwd:'HR123!',      color:'#974F0C'},
+  ];
+  return (
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
+      <KPI label="Utilisateurs actifs" value={ACCOUNTS.length} color={'#374151'} icon="users" sub="Comptes système"/>
+      <KPI label="Modules actifs" value={12} color={'#374151'} icon="chart" sub="Modules ERP"/>
+      <KPI label="Backend" value="En ligne" color={C.green} icon="check" sub="Railway + Neon DB"/>
+      <div style={{gridColumn:'1/-1'}}>
+        <Card>
+          <CardHdr title="Comptes utilisateurs — Accès démo" icon="users" color={'#374151'}/>
+          <div style={{padding:'8px 0'}}>
+            {ACCOUNTS.map((acc,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 18px',borderBottom:i<ACCOUNTS.length-1?`1px solid ${C.border2}`:'none'}}>
+                <div style={{width:36,height:36,borderRadius:'50%',background:acc.color+'18',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <Ic d={I.person} size={15} color={acc.color}/>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{acc.name}</div>
+                  <div style={{fontSize:11,color:C.text3}}>{acc.email} · Mot de passe: <strong style={{fontFamily:'monospace'}}>{acc.pwd}</strong></div>
+                </div>
+                <span style={{fontSize:11,fontWeight:700,padding:'3px 10px',borderRadius:10,background:acc.color+'15',color:acc.color}}>{acc.role}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+      <div style={{gridColumn:'1/-1'}}>
+        <Card>
+          <CardHdr title="Modules ERP" icon="chart" color={'#374151'}/>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,padding:14}}>
+            {[
+              {name:'CleanITBooks',path:'/cleanitbooks',status:'actif',c:C.green},
+              {name:'Approvals',path:'/approvals',status:'actif',c:C.green},
+              {name:'Pointage',path:'/pointage',status:'actif',c:C.green},
+              {name:'CleanIT Comm',path:'/cleanitcomm',status:'actif',c:C.green},
+              {name:'Projets',path:'/projets',status:'actif',c:C.green},
+              {name:'RH',path:'/rh',status:'actif',c:C.green},
+              {name:'CRM',path:'/crm',status:'actif',c:C.green},
+              {name:'BI',path:'/bi',status:'actif',c:C.green},
+            ].map((m,i)=>(
+              <div key={i} onClick={()=>nav(m.path)} style={{padding:'12px',borderRadius:8,border:`1px solid ${C.border}`,background:C.white,cursor:'pointer',textAlign:'center',transition:'all .15s'}}
+                onMouseEnter={e=>{e.currentTarget.style.background=C.bg;e.currentTarget.style.transform='translateY(-1px)';}}
+                onMouseLeave={e=>{e.currentTarget.style.background=C.white;e.currentTarget.style.transform='none';}}>
+                <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:4}}>{m.name}</div>
+                <span style={{fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:8,background:m.c+'15',color:m.c}}>{m.status}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
 // ── DASHBOARD PRINCIPAL ───────────────────────────────────────
 export default function Dashboard() {
   const nav = useNavigate();
@@ -687,6 +760,7 @@ export default function Dashboard() {
       case 'chef_proj':    return <ChefProjView jobs={jobs} nav={nav}/>;
       case 'chef_terrain': return <ChefTerrainView nav={nav}/>;
       case 'rh':           return <RHView nav={nav}/>;
+      case 'admin_sys':    return <AdminSysView nav={nav}/>;
       default:             return <DGView jobs={jobs} invoices={invoices} customers={customers} nav={nav}/>;
     }
   };

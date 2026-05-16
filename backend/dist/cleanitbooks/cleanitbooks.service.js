@@ -22,6 +22,7 @@ const job_entity_1 = require("./job.entity");
 const invoice_entity_1 = require("./invoice.entity");
 const bill_entity_1 = require("./bill.entity");
 const timeentry_entity_1 = require("./timeentry.entity");
+const accounting_service_1 = require("./accounting.service");
 let CleanITBooksService = class CleanITBooksService {
     customerRepo;
     vendorRepo;
@@ -29,13 +30,15 @@ let CleanITBooksService = class CleanITBooksService {
     invoiceRepo;
     billRepo;
     timeRepo;
-    constructor(customerRepo, vendorRepo, jobRepo, invoiceRepo, billRepo, timeRepo) {
+    accounting;
+    constructor(customerRepo, vendorRepo, jobRepo, invoiceRepo, billRepo, timeRepo, accounting) {
         this.customerRepo = customerRepo;
         this.vendorRepo = vendorRepo;
         this.jobRepo = jobRepo;
         this.invoiceRepo = invoiceRepo;
         this.billRepo = billRepo;
         this.timeRepo = timeRepo;
+        this.accounting = accounting;
     }
     findAllCustomers() { return this.customerRepo.find(); }
     findCustomer(id) { return this.customerRepo.findOneBy({ id }); }
@@ -47,24 +50,52 @@ let CleanITBooksService = class CleanITBooksService {
     createVendor(dto) { return this.vendorRepo.save(dto); }
     updateVendor(id, dto) { return this.vendorRepo.update(id, dto); }
     deleteVendor(id) { return this.vendorRepo.delete(id); }
-    findAllJobs() { return this.jobRepo.find({ order: { createdAt: 'DESC' } }); }
+    findAllJobs() { return this.jobRepo.find({ order: { createdAt: "DESC" } }); }
     findJob(id) { return this.jobRepo.findOneBy({ id }); }
     createJob(dto) { return this.jobRepo.save(dto); }
     updateJob(id, dto) { return this.jobRepo.update(id, dto); }
     deleteJob(id) { return this.jobRepo.delete(id); }
-    findAllInvoices() { return this.invoiceRepo.find({ order: { createdAt: 'DESC' } }); }
+    findAllInvoices() { return this.invoiceRepo.find({ order: { createdAt: "DESC" } }); }
     findInvoicesByCustomer(customerId) { return this.invoiceRepo.findBy({ customerId }); }
     findInvoicesByJob(jobId) { return this.invoiceRepo.findBy({ jobId }); }
     findInvoice(id) { return this.invoiceRepo.findOneBy({ id }); }
-    createInvoice(dto) { return this.invoiceRepo.save(dto); }
-    updateInvoice(id, dto) { return this.invoiceRepo.update(id, dto); }
-    findAllBills() { return this.billRepo.find({ order: { createdAt: 'DESC' } }); }
+    async createInvoice(dto) {
+        const invoice = await this.invoiceRepo.save({
+            ...dto,
+            status: dto.status || "Draft",
+            balance: dto.total,
+            amountPaid: 0,
+        });
+        try {
+            await this.accounting.generateInvoiceEntry(invoice);
+        }
+        catch (e) {
+            console.warn("Accounting skip:", e.message);
+        }
+        return invoice;
+    }
+    async updateInvoice(id, dto) { return this.invoiceRepo.update(id, dto); }
+    findAllBills() { return this.billRepo.find({ order: { createdAt: "DESC" } }); }
     findBillsByVendor(vendorId) { return this.billRepo.findBy({ vendorId }); }
     findBillsByJob(jobId) { return this.billRepo.findBy({ jobId }); }
     findBill(id) { return this.billRepo.findOneBy({ id }); }
-    createBill(dto) { return this.billRepo.save(dto); }
-    updateBill(id, dto) { return this.billRepo.update(id, dto); }
-    findAllTimeEntries() { return this.timeRepo.find({ order: { createdAt: 'DESC' } }); }
+    async createBill(dto) {
+        const bill = await this.billRepo.save({
+            ...dto,
+            status: dto.status || "Draft",
+            balance: dto.total,
+            amountPaid: 0,
+        });
+        try {
+            await this.accounting.generateBillEntry(bill);
+        }
+        catch (e) {
+            console.warn("Accounting skip:", e.message);
+        }
+        return bill;
+    }
+    async updateBill(id, dto) { return this.billRepo.update(id, dto); }
+    findAllTimeEntries() { return this.timeRepo.find({ order: { createdAt: "DESC" } }); }
     findTimeByJob(jobId) { return this.timeRepo.findBy({ jobId }); }
     findTimeByEmp(empId) { return this.timeRepo.findBy({ empId }); }
     createTimeEntry(dto) { return this.timeRepo.save(dto); }
@@ -81,14 +112,14 @@ let CleanITBooksService = class CleanITBooksService {
         const totalAR = invoices.reduce((s, i) => s + Number(i.balance), 0);
         const totalAP = bills.reduce((s, b) => s + Number(b.balance), 0);
         const totalContrats = jobs.reduce((s, j) => s + Number(j.contractAmount), 0);
-        const jobsInProgress = jobs.filter(j => j.statut === 'In Progress').length;
         return {
             totalCA, totalAR, totalAP, totalContrats,
-            jobsCount: jobs.length, jobsInProgress,
+            jobsCount: jobs.length,
+            jobsInProgress: jobs.filter(j => j.statut === "In Progress").length,
             customersCount: customers.length,
             vendorsCount: vendors.length,
             invoicesCount: invoices.length,
-            overdueInvoices: invoices.filter(i => i.status === 'Overdue').length,
+            overdueInvoices: invoices.filter(i => i.status === "Overdue").length,
         };
     }
 };
@@ -106,6 +137,7 @@ exports.CleanITBooksService = CleanITBooksService = __decorate([
         typeorm_2.Repository,
         typeorm_2.Repository,
         typeorm_2.Repository,
-        typeorm_2.Repository])
+        typeorm_2.Repository,
+        accounting_service_1.AccountingService])
 ], CleanITBooksService);
 //# sourceMappingURL=cleanitbooks.service.js.map

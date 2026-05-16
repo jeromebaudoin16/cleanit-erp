@@ -81,7 +81,11 @@ let UsersService = class UsersService {
             await this.create({ email: 'pm@cleanit.cm', password: 'PM123!', firstName: 'Marie', lastName: 'Kamga', role: user_entity_1.UserRole.PROJECT_MANAGER });
             await this.create({ email: 'tech@cleanit.cm', password: 'Tech123!', firstName: 'Thomas', lastName: 'Ngono', role: user_entity_1.UserRole.TECHNICIAN });
             await this.create({ email: 'jerome@cleanit.cm', password: 'Jerome123!', firstName: 'Jérôme', lastName: 'Bell', role: user_entity_1.UserRole.ADMIN });
-            console.log('✅ Comptes créés: admin@cleanit.cm/Admin123! | jerome@cleanit.cm/Jerome123!');
+            await this.create({ email: 'finance@cleanit.cm', password: 'Finance123!', firstName: 'Alice', lastName: 'Finance', role: user_entity_1.UserRole.FINANCE });
+            await this.create({ email: 'hr@cleanit.cm', password: 'HR123!', firstName: 'Clara', lastName: 'RH', role: user_entity_1.UserRole.HR });
+            await this.create({ email: 'chef@cleanit.cm', password: 'Chef123!', firstName: 'Pierre', lastName: 'Etoga', role: user_entity_1.UserRole.PROJECT_MANAGER });
+            await this.create({ email: 'terrain@cleanit.cm', password: 'Terrain123!', firstName: 'Thomas', lastName: 'Ngono', role: user_entity_1.UserRole.TECHNICIAN });
+            console.log('✅ Comptes créés: admin | jerome | finance | hr | chef | terrain | pm | tech');
         }
     }
 };
