@@ -6753,7 +6753,7 @@ const PageAvoir = ({invoices=[], customers=[], setInvoices}) => {
           </div>
           <div style={{display:'flex',gap:8}}>
             <button onClick={createAvoir} disabled={loading} style={{padding:'8px 20px',borderRadius:6,border:'none',background:C.blue,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer'}}>
-              {loading?'Création...':'Créer l'avoir'}
+              {loading?'Création...':"Créer l'avoir"}
             </button>
             <button onClick={()=>setShowForm(false)} style={{padding:'8px 20px',borderRadius:6,border:`1px solid ${C.border}`,background:C.white,color:C.text2,fontSize:13,cursor:'pointer'}}>
               Annuler
