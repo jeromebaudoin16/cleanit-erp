@@ -1504,7 +1504,11 @@ const CIB_NAV = [
   {id:"banking",   l:"Banking",     icon:"bank",    url:"/cleanitbooks/banking"},
   {id:"payroll",   l:"Paie RH",     icon:"payroll", url:"/cleanitbooks/payroll"},
   {id:"time",      l:"Heures",      icon:"time",    url:"/cleanitbooks/time"},
-  {id:"avoirs",    l:"Avoirs",      icon:"credit",  url:"/cleanitbooks/avoirs"},
+  {id:"reconciliation",l:"Rapprochement",icon:"bank",   url:"/cleanitbooks/reconciliation"},
+  {id:"import-csv", l:"Import CSV",   icon:"download",url:"/cleanitbooks/import-csv"},
+  {id:"recurring",  l:"Recurrentes", icon:"time",    url:"/cleanitbooks/recurring"},
+  {id:"budget",     l:"Budget",      icon:"chart",   url:"/cleanitbooks/budget"},
+  {id:"avoirs",     l:"Avoirs",      icon:"credit",  url:"/cleanitbooks/avoirs"},
   {id:"analytics",  l:"Analytics",   icon:"chart",   url:"/cleanitbooks/analytics"},
   {id:"reports",    l:"Rapports",    icon:"report",  url:"/cleanitbooks/reports"},
 ];
