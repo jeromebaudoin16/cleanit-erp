@@ -7115,7 +7115,7 @@ const PageRecurring = ({customers=[], invoices=[], setInvoices}) => {
 // ── PAGE BUDGET PRÉVU VS RÉEL ───────────────────────────────────
 const PageBudget = ({invoices=[], bills=[]}) => {
   const [budgets, setBudgets] = useState([
-    {id:'B001', category:'Chiffre d'affaires', compte:'7',    prevue:120000000, type:'produit'},
+    {id:'B001', category:"Chiffre d'affaires", compte:'7',    prevue:120000000, type:'produit'},
     {id:'B002', category:'Sous-traitants',       compte:'611',  prevue:45000000,  type:'charge'},
     {id:'B003', category:'Transport',            compte:'624',  prevue:8000000,   type:'charge'},
     {id:'B004', category:'Télécom & Internet',   compte:'626',  prevue:3000000,   type:'charge'},
