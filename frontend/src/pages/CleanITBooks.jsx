@@ -7232,7 +7232,7 @@ const EmailInvoiceModal = ({invoice, customer, onClose}) => {
           <strong>Facture:</strong> {invoice?.ref||invoice?.id} · <strong>Montant:</strong> {fN(invoice?.total||0)} FCFA
         </div>
         {sent&&<div style={{color:C.green,fontWeight:600,fontSize:13,marginBottom:12}}>✓ Client de messagerie ouvert</div>}
-        <div style={{display:'flex',gap:8'}}>
+        <div style={{display:'flex',gap:8}}>
           <button onClick={sendEmail} style={{flex:1,padding:'10px',borderRadius:7,border:'none',background:C.blue,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer'}}>
             Envoyer
           </button>
