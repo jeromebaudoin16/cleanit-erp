@@ -118,34 +118,39 @@ const SEED = [
 function SiteSheet({ site, tech, onBack }) {
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
-      <div style={{padding:'11px 20px',borderBottom:`1px solid ${C.border}`,background:C.white,display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
-        <button onClick={onBack} style={{fontSize:12,padding:'4px 10px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text3}}>
-          ← {tech.name}
+      <div style={{padding:'16px 24px',borderBottom:`1px solid ${C.border}`,background:C.white,flexShrink:0}}>
+        <button onClick={onBack} style={{fontSize:12,padding:'5px 14px',borderRadius:20,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text3,marginBottom:12,display:'flex',alignItems:'center',gap:5}}>
+          ← Retour — {tech.name}
         </button>
-        <span style={{fontSize:14,fontWeight:700,color:C.text}}>{site.n}</span>
+        <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:4}}>{site.n}</div>
+        <div style={{display:'flex',gap:8}}>
+          <span style={{fontSize:12,padding:'3px 10px',borderRadius:20,background:C.blue_l,color:C.blue_d,fontWeight:600}}>{site.cl}</span>
+          <span style={{fontSize:12,padding:'3px 10px',borderRadius:20,background:C.bg,color:C.text3}}>{site.reg}</span>
+          <span style={{fontSize:12,padding:'3px 10px',borderRadius:20,background:C.bg,color:C.text3}}>{site.per}</span>
+        </div>
       </div>
       <div style={{flex:1,overflowY:'auto'}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,padding:'14px 20px',borderBottom:`1px solid ${C.border2}`}}>
-          <div style={{background:C.bg,borderRadius:8,padding:12}}>
-            <div style={{fontSize:11,color:C.text3,marginBottom:4}}>Perçu par {tech.name.split(' ')[0]}</div>
-            <div style={{fontSize:18,fontWeight:700,color:C.green}}>+{fN(site.p)} F</div>
+          <div style={{background:site.p>0?C.green_l:C.bg,borderRadius:10,padding:'16px 20px',border:`1px solid ${site.p>0?C.green:C.border}`}}>
+            <div style={{fontSize:11,fontWeight:600,color:C.text3,textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>Perçu par {tech.name.split(' ')[0]}</div>
+            <div style={{fontSize:24,fontWeight:700,color:C.green}}>+{fN(site.p)} F</div>
           </div>
-          <div style={{background:C.bg,borderRadius:8,padding:12}}>
-            <div style={{fontSize:11,color:C.text3,marginBottom:4}}>Montant dû</div>
-            <div style={{fontSize:18,fontWeight:700,color:site.d>0?C.red:C.green}}>{site.d>0?fN(site.d)+' F':'Soldé'}</div>
+          <div style={{background:site.d>0?C.red_l:C.green_l,borderRadius:10,padding:'16px 20px',border:`1px solid ${site.d>0?C.red:C.green}`}}>
+            <div style={{fontSize:11,fontWeight:600,color:C.text3,textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>Montant dû</div>
+            <div style={{fontSize:24,fontWeight:700,color:site.d>0?C.red:C.green}}>{site.d>0?fN(site.d)+' F':'Soldé ✓'}</div>
           </div>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',borderBottom:`1px solid ${C.border2}`}}>
-          <div style={{padding:'14px 20px',borderRight:`1px solid ${C.border2}`}}>
-            <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,color:C.text3,marginBottom:10}}>Côté client</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,padding:'0 20px 16px',borderBottom:`1px solid ${C.border2}`}}>
+          <div style={{background:C.bg,borderRadius:10,padding:'14px 16px',border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,color:C.text3,marginBottom:10,display:'flex',alignItems:'center',gap:5}}>🏢 Côté client</div>
             {[['Client',site.cl],['Responsable',site.resp.n],['Rôle',site.resp.r],['Tél.',site.resp.t],['Email',site.resp.em]].map(([l,v])=>(
               <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:`1px solid ${C.border2}`,fontSize:12}}>
                 <span style={{color:C.text3}}>{l}</span><span style={{fontWeight:600,fontSize:11}}>{v}</span>
               </div>
             ))}
           </div>
-          <div style={{padding:'14px 20px'}}>
-            <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,color:C.text3,marginBottom:10}}>Côté CleanIT</div>
+          <div style={{background:C.bg,borderRadius:10,padding:'14px 16px',border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,color:C.text3,marginBottom:10,display:'flex',alignItems:'center',gap:5}}>👥 Côté CleanIT</div>
             {[['Chef de projet',site.pm.n],['Rôle',site.pm.r],['Chef terrain',site.ct.n],['Période',site.per],['Région',site.reg]].map(([l,v])=>(
               <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:`1px solid ${C.border2}`,fontSize:12}}>
                 <span style={{color:C.text3}}>{l}</span><span style={{fontWeight:600,fontSize:11}}>{v}</span>
@@ -191,20 +196,22 @@ function DetailPage({ tech, onBack }) {
 
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
-      <div style={{padding:'11px 20px',borderBottom:`1px solid ${C.border}`,background:C.white,display:'flex',alignItems:'center',gap:10,flexShrink:0,flexWrap:'wrap'}}>
-        <button onClick={onBack} style={{fontSize:12,padding:'4px 10px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text3}}>← Techniciens</button>
-        <div style={{width:36,height:36,borderRadius:'50%',background:C.blue_l,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,color:C.blue_d,flexShrink:0}}>{tech.initials}</div>
-        <div style={{flex:1}}>
-          <div style={{display:'flex',alignItems:'center',gap:8}}>
-            <span style={{fontSize:14,fontWeight:700,color:C.text}}>{tech.name}</span>
-            <span style={{fontSize:11,padding:'2px 10px',borderRadius:20,background:ss.bg,color:ss.c,fontWeight:700}}>{tech.statut}</span>
+      <div style={{padding:'16px 24px',borderBottom:`1px solid ${C.border}`,background:C.white,flexShrink:0}}>
+        <div style={{display:'flex',alignItems:'flex-start',gap:16}}>
+          <button onClick={onBack} style={{fontSize:12,padding:'5px 14px',borderRadius:20,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text3,flexShrink:0,marginTop:2}}>← Retour</button>
+          <div style={{width:52,height:52,borderRadius:'50%',background:C.blue_l,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,fontWeight:700,color:C.blue_d,flexShrink:0}}>{tech.initials}</div>
+          <div style={{flex:1}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:4,flexWrap:'wrap'}}>
+              <span style={{fontSize:17,fontWeight:700,color:C.text}}>{tech.name}</span>
+              <span style={{fontSize:12,padding:'3px 12px',borderRadius:20,background:ss.bg,color:ss.c,fontWeight:700}}>{tech.statut}</span>
+            </div>
+            <div style={{fontSize:13,color:C.text3,marginBottom:10}}>{tech.role} · {tech.region}</div>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              <button style={{fontSize:12,padding:'6px 16px',borderRadius:20,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text2,fontWeight:500}}>📞 Appeler</button>
+              <button style={{fontSize:12,padding:'6px 16px',borderRadius:20,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text2,fontWeight:500}}>💬 WhatsApp</button>
+              <button onClick={()=>setShowLoc(!showLoc)} style={{fontSize:12,padding:'6px 16px',borderRadius:20,border:`1px solid ${C.blue}`,background:C.blue_l,color:C.blue_d,cursor:'pointer',fontFamily:'inherit',fontWeight:600}}>📍 Localiser</button>
+            </div>
           </div>
-          <div style={{fontSize:11,color:C.text3}}>{tech.role} · {tech.region}</div>
-        </div>
-        <div style={{display:'flex',gap:6,flexShrink:0}}>
-          <button style={{fontSize:11,padding:'4px 10px',borderRadius:20,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>Appeler</button>
-          <button style={{fontSize:11,padding:'4px 10px',borderRadius:20,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>WhatsApp</button>
-          <button onClick={()=>setShowLoc(!showLoc)} style={{fontSize:11,padding:'4px 10px',borderRadius:20,border:`1px solid ${C.blue}`,background:C.blue_l,color:C.blue_d,cursor:'pointer',fontFamily:'inherit',fontWeight:600}}>Localiser</button>
         </div>
       </div>
 
@@ -330,13 +337,13 @@ function DetailPage({ tech, onBack }) {
         {tab==='sites' && (
           <div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,padding:'14px 20px',borderBottom:`1px solid ${C.border2}`,background:C.white}}>
-              <div style={{background:C.bg,borderRadius:8,padding:12}}>
-                <div style={{fontSize:11,color:C.text3,marginBottom:3}}>Total perçu</div>
-                <div style={{fontSize:18,fontWeight:700,color:C.green}}>{fN(tp)} F</div>
+              <div style={{background:C.green_l,borderRadius:10,padding:'16px 20px',border:`1px solid ${C.green}`}}>
+                <div style={{fontSize:11,fontWeight:600,color:C.text3,textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>Total perçu</div>
+                <div style={{fontSize:24,fontWeight:700,color:C.green}}>{fN(tp)} F</div>
               </div>
-              <div style={{background:C.bg,borderRadius:8,padding:12}}>
-                <div style={{fontSize:11,color:C.text3,marginBottom:3}}>Montant dû</div>
-                <div style={{fontSize:18,fontWeight:700,color:td>0?C.red:C.green}}>{fN(td)} F</div>
+              <div style={{background:td>0?C.red_l:C.green_l,borderRadius:10,padding:'16px 20px',border:`1px solid ${td>0?C.red:C.green}`}}>
+                <div style={{fontSize:11,fontWeight:600,color:C.text3,textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>Montant dû</div>
+                <div style={{fontSize:24,fontWeight:700,color:td>0?C.red:C.green}}>{td>0?fN(td)+' F':'Tout soldé ✓'}</div>
               </div>
             </div>
             {(tech.sites||[]).map((s,i)=>(
