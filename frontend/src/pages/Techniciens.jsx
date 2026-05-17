@@ -1,256 +1,450 @@
 import { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 
-const STATUTS = {
-  disponible:   { label:'Disponible',   color:'#16a34a', bg:'#f0fdf4', dot:'#16a34a' },
-  en_mission:   { label:'En mission',   color:'#0078d4', bg:'#eff6ff', dot:'#0078d4' },
-  en_conge:     { label:'En congé',     color:'#f59e0b', bg:'#fefce8', dot:'#f59e0b' },
-  indisponible: { label:'Indisponible', color:'#dc2626', bg:'#fef2f2', dot:'#dc2626' },
+const C = {
+  blue:'#185FA5', blue_l:'#E6F1FB', blue_d:'#0C447C',
+  green:'#3B6D11', green_l:'#EAF3DE',
+  orange:'#854F0B', orange_l:'#FAEEDA',
+  red:'#A32D2D', red_l:'#FCEBEB',
+  border:'#E5E7EB', border2:'#F3F4F6',
+  text:'#111827', text2:'#374151', text3:'#6B7280',
+  white:'#FFFFFF', bg:'#F9FAFB',
 };
 
+const SS = {
+  'Disponible': { bg:C.green_l, c:C.green, dot:C.green },
+  'En mission': { bg:C.blue_l,  c:C.blue_d, dot:C.blue },
+  'En congé':   { bg:C.orange_l,c:C.orange, dot:C.orange },
+};
+
+const CS = {
+  ok:          [C.green_l, C.green,  'Valide'],
+  expire:      [C.red_l,   C.red,    'Expirée'],
+  expire_soon: [C.orange_l,C.orange, 'Expire bientôt'],
+};
+
+const DI = { pdf:'📄', xlsx:'📊', zip:'🗜️', doc:'📝' };
+const fN = n => new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
+
 const SEED = [
-  { id:1, firstName:'Thomas', lastName:'Ngono', email:'thomas@cleanit.cm', phone:'+237 677 001 001', region:'Littoral', ville:'Douala', status:'en_mission', skills:['5G NR','4G LTE','Installation'], certifications:['HCNP-5G','HCIP-Carrier'], missionsTotal:47, rating:4.8, latitude:4.0511, longitude:9.7085 },
-  { id:2, firstName:'Jean', lastName:'Mbarga', email:'jean@cleanit.cm', phone:'+237 677 001 002', region:'Centre', ville:'Yaoundé', status:'disponible', skills:['5G NR','Survey','Démantèlement'], certifications:['HCNA-5G'], missionsTotal:32, rating:4.5, latitude:3.8480, longitude:11.5021 },
-  { id:3, firstName:'Samuel', lastName:'Djomo', email:'samuel@cleanit.cm', phone:'+237 677 001 003', region:'Ouest', ville:'Bafoussam', status:'disponible', skills:['4G LTE','Maintenance','Swap'], certifications:['HCNP-4G'], missionsTotal:28, rating:4.6, latitude:5.4764, longitude:10.4214 },
-  { id:4, firstName:'Ali', lastName:'Moussa', email:'ali@cleanit.cm', phone:'+237 677 001 004', region:'Nord', ville:'Garoua', status:'en_mission', skills:['3G','4G LTE','Survey'], certifications:['HCNA-3G'], missionsTotal:19, rating:4.2, latitude:9.3019, longitude:13.3920 },
-  { id:5, firstName:'Pierre', lastName:'Etoga', email:'pierre@cleanit.cm', phone:'+237 677 001 005', region:'Littoral', ville:'Douala', status:'disponible', skills:['5G NR','4G LTE','Fibre'], certifications:['HCIP-5G','HCNP-4G'], missionsTotal:55, rating:4.9, latitude:4.0469, longitude:9.6952 },
-  { id:6, firstName:'Alain', lastName:'Biya', email:'alain@cleanit.cm', phone:'+237 677 001 006', region:'Centre', ville:'Yaoundé', status:'en_conge', skills:['4G LTE','Maintenance'], certifications:['HCNA-4G'], missionsTotal:15, rating:4.0, latitude:3.8833, longitude:11.5167 },
-  { id:7, firstName:'Martin', lastName:'Kameni', email:'martin@cleanit.cm', phone:'+237 677 001 007', region:'Sud-Ouest', ville:'Limbé', status:'disponible', skills:['3G','4G LTE','Swap'], certifications:['HCNA-3G'], missionsTotal:22, rating:4.3, latitude:4.0167, longitude:9.2000 },
-  { id:8, firstName:'David', lastName:'Fon', email:'david@cleanit.cm', phone:'+237 677 001 008', region:'Nord-Ouest', ville:'Bamenda', status:'disponible', skills:['4G LTE','Survey','Installation'], certifications:['HCNP-4G'], missionsTotal:38, rating:4.7, latitude:5.9597, longitude:10.1458 },
+  { id:1, initials:'AM', name:'Ali Moussa', role:'Technicien fibre', region:'Douala',
+    statut:'Disponible', phone:'655 001 122', email:'ali.moussa@cleanit.cm', missions:12, sites_count:3, debut:'Mars 2022',
+    pos:'DLA-001, Bassa — 4.0511N 9.7679E · Hier 17h32',
+    certs:[{n:'Travail en hauteur',e:'2024-12-15',s:'expire'},{n:'Habilitation H2B2',e:'2025-08-20',s:'ok'},{n:'Fibre FTTH',e:'2025-11-30',s:'ok'}],
+    sites:[
+      {n:'DLA-001 Tour MTN Bassa',cl:'MTN',role:'Tech. principal',p:450000,d:0,dt:'Jan 2024',
+       resp:{n:'Alain Fouda',r:'Resp. Réseau MTN',t:'679 000 001',em:'a.fouda@mtn.cm'},
+       pm:{n:'Marie Kamga',r:'Chef projet CleanIT'},ct:{n:'Thomas Ngono'},per:'15 Jan - 28 Jan 2024',reg:'Bassa, Douala',
+       docs:[{n:'Bon de commande MTN-DLA001',t:'pdf',s:'245 Ko',d:'12 Jan 2024'},{n:'Contrat signé',t:'pdf',s:'1.2 Mo',d:'13 Jan 2024'},{n:'PV réception',t:'pdf',s:'380 Ko',d:'28 Jan 2024'},{n:'Photos livraison',t:'zip',s:'8.4 Mo',d:'28 Jan 2024'}]},
+      {n:'KRI-001 Station CAMTEL Kribi',cl:'CAMTEL',role:'Tech. senior',p:380000,d:120000,dt:'Nov 2023',
+       resp:{n:'Ibrahim Sali',r:'Dir. Technique CAMTEL',t:'677 200 003',em:'i.sali@camtel.cm'},
+       pm:{n:'Marie Kamga',r:'Chef projet CleanIT'},ct:{n:'Thomas Ngono'},per:'01 Nov - 22 Nov 2023',reg:'Kribi',
+       docs:[{n:'Bon de commande CAMTEL-KRI001',t:'pdf',s:'198 Ko',d:'28 Oct 2023'},{n:'Contrat prestation',t:'pdf',s:'980 Ko',d:'30 Oct 2023'},{n:'PV réception partiel',t:'pdf',s:'290 Ko',d:'22 Nov 2023'}]},
+      {n:'DLA-002 Pylône Orange Akwa',cl:'Orange',role:'Tech. fibre',p:290000,d:0,dt:'Fév 2024',
+       resp:{n:'Claude Mvondo',r:'Chef projet Orange',t:'699 300 002',em:'c.mvondo@orange.cm'},
+       pm:{n:'Pierre Etoga',r:'Chef projet CleanIT'},ct:{n:'Pierre Etoga'},per:'10 Fév - 18 Fév 2024',reg:'Akwa, Douala',
+       docs:[{n:'Bon de commande Orange-DLA002',t:'pdf',s:'167 Ko',d:'08 Fév 2024'},{n:'Rapport technique',t:'pdf',s:'440 Ko',d:'18 Fév 2024'}]},
+    ],
+    feed:[
+      {ty:'photo',dt:'Aujourd\'hui 08:32',li:'DLA-001, Bassa — 4.0511N 9.7679E',tx:'Arrivée sur site — photos état initial',ph:3},
+      {ty:'msg',dt:'Hier 16:45',canal:'#DLA-001',tx:'Câbles posés au secteur Nord. En attente validation chef terrain.'},
+      {ty:'photo',dt:'Hier 09:10',li:'DLA-001, Bassa — 4.0511N 9.7679E',tx:'Installation antenne secteur Nord phase 2',ph:2},
+      {ty:'inter',dt:'12 mai 2025',tx:'Intervention terminée — DLA-001 phase 2',det:'Durée: 6h · Statut: Complet'},
+      {ty:'msg',dt:'11 mai 11:20',canal:'#general',tx:'Disponible demain matin pour renfort si besoin.'},
+      {ty:'checkin',dt:'10 mai 07:58',li:'DLA-002, Akwa — 4.0478N 9.6952E',tx:'Pointage arrivée sur site'},
+    ]},
+  { id:2, initials:'JM', name:'Jean Mbarga', role:'Électricien', region:'Douala',
+    statut:'En mission', phone:'677 334 455', email:'jean.mbarga@cleanit.cm', missions:8, sites_count:2, debut:'Juin 2023',
+    pos:'GRA-001, Garoua — 9.3013N 13.3924E · Aujourd\'hui 09h15',
+    certs:[{n:'Habilitation H2B2',e:'2025-03-10',s:'expire_soon'},{n:'CACES R386',e:'2026-01-15',s:'ok'}],
+    sites:[
+      {n:'DLA-001 Tour MTN Bassa',cl:'MTN',role:'Électricien',p:320000,d:80000,dt:'Jan 2024',
+       resp:{n:'Alain Fouda',r:'Resp. Réseau MTN',t:'679 000 001',em:'a.fouda@mtn.cm'},
+       pm:{n:'Marie Kamga',r:'Chef projet CleanIT'},ct:{n:'Thomas Ngono'},per:'15 Jan - 28 Jan 2024',reg:'Bassa, Douala',
+       docs:[{n:'Bon de commande MTN-DLA001',t:'pdf',s:'245 Ko',d:'12 Jan 2024'},{n:'PV réception',t:'pdf',s:'380 Ko',d:'28 Jan 2024'}]},
+      {n:'GRA-001 Tour MTN Garoua',cl:'MTN',role:'Électricien',p:410000,d:0,dt:'Déc 2023',
+       resp:{n:'Alain Fouda',r:'Resp. Réseau MTN',t:'679 000 001',em:'a.fouda@mtn.cm'},
+       pm:{n:'Pierre Etoga',r:'Chef projet CleanIT'},ct:{n:'Pierre Etoga'},per:'01 Déc - 20 Déc 2023',reg:'Garoua Nord',
+       docs:[{n:'Bon de commande MTN-GRA001',t:'pdf',s:'211 Ko',d:'28 Nov 2023'},{n:'Rapport intervention',t:'pdf',s:'410 Ko',d:'20 Déc 2023'}]},
+    ],
+    feed:[
+      {ty:'checkin',dt:'Aujourd\'hui 07:45',li:'GRA-001, Garoua — 9.3013N 13.3924E',tx:'Pointage arrivée sur site'},
+      {ty:'msg',dt:'Hier 18:00',canal:'#GRA-001',tx:'Coupure secteur détectée. Reprise travaux demain 6h.'},
+      {ty:'photo',dt:'Hier 14:20',li:'GRA-001, Garoua — 9.3013N 13.3924E',tx:'État câblage avant intervention',ph:2},
+      {ty:'inter',dt:'13 mai 2025',tx:'Remplacement transformateur — en cours',det:'Durée estimée: 2 jours · En cours'},
+    ]},
+  { id:3, initials:'SD', name:'Samuel Djomo', role:'Chef équipe', region:'Yaoundé',
+    statut:'Disponible', phone:'699 887 766', email:'samuel.djomo@cleanit.cm', missions:15, sites_count:2, debut:'Jan 2022',
+    pos:'Siège CleanIT, Yaoundé — 3.8667N 11.5167E · Aujourd\'hui 08h00',
+    certs:[{n:'Management chantier',e:'2026-06-01',s:'ok'},{n:'Travail en hauteur',e:'2025-07-30',s:'ok'},{n:'Habilitation électrique',e:'2025-02-28',s:'expire'}],
+    sites:[
+      {n:'YDE-001 Pylône Orange Essos',cl:'Orange',role:'Chef équipe',p:550000,d:0,dt:'Mar 2024',
+       resp:{n:'Claude Mvondo',r:'Chef projet Orange',t:'699 300 002',em:'c.mvondo@orange.cm'},
+       pm:{n:'Marie Kamga',r:'Chef projet CleanIT'},ct:{n:'Samuel Djomo'},per:'01 Mar - 25 Mar 2024',reg:'Essos, Yaoundé',
+       docs:[{n:'Bon de commande Orange-YDE001',t:'pdf',s:'178 Ko',d:'27 Fév 2024'},{n:'PV livraison final',t:'pdf',s:'310 Ko',d:'25 Mar 2024'}]},
+      {n:'KRI-001 Station CAMTEL Kribi',cl:'CAMTEL',role:'Chef équipe',p:620000,d:0,dt:'Nov 2022',
+       resp:{n:'Ibrahim Sali',r:'Dir. Technique CAMTEL',t:'677 200 003',em:'i.sali@camtel.cm'},
+       pm:{n:'Marie Kamga',r:'Chef projet CleanIT'},ct:{n:'Samuel Djomo'},per:'01 Nov - 30 Nov 2022',reg:'Kribi',
+       docs:[{n:'Bon de commande CAMTEL-KRI001',t:'pdf',s:'195 Ko',d:'28 Oct 2022'},{n:'Rapport final',t:'pdf',s:'520 Ko',d:'30 Nov 2022'}]},
+    ],
+    feed:[
+      {ty:'msg',dt:'Aujourd\'hui 09:00',canal:'#general',tx:'Disponible cette semaine pour nouvelles missions.'},
+      {ty:'inter',dt:'8 mai 2025',tx:'Mission YDE-001 terminée et validée',det:'Durée: 14 jours · Livraison acceptée'},
+      {ty:'photo',dt:'7 mai 16:30',li:'YDE-001, Essos — 3.848N 11.502E',tx:'Photos finales livraison site',ph:3},
+      {ty:'msg',dt:'6 mai 11:00',canal:'#YDE-001',tx:'Dernier câble raccordé. Test signal en cours.'},
+    ]},
+  { id:4, initials:'PE', name:'Pierre Etoga', role:'Chef terrain', region:'Douala',
+    statut:'Disponible', phone:'677 112 233', email:'pierre.etoga@cleanit.cm', missions:20, sites_count:3, debut:'Sep 2021',
+    pos:'Siège CleanIT, Douala — 4.0511N 9.7679E · Aujourd\'hui 07h30',
+    certs:[{n:'Chef chantier télécom',e:'2026-03-15',s:'ok'},{n:'CACES R482',e:'2025-09-20',s:'ok'},{n:'Travail en hauteur',e:'2025-12-10',s:'ok'}],
+    sites:[
+      {n:'GRA-001 Tour MTN Garoua',cl:'MTN',role:'Chef terrain',p:780000,d:200000,dt:'Déc 2023',
+       resp:{n:'Alain Fouda',r:'Resp. Réseau MTN',t:'679 000 001',em:'a.fouda@mtn.cm'},
+       pm:{n:'Pierre Etoga',r:'Chef projet CleanIT'},ct:{n:'Pierre Etoga'},per:'01 Déc - 20 Déc 2023',reg:'Garoua Nord',
+       docs:[{n:'Bon de commande MTN-GRA001',t:'pdf',s:'211 Ko',d:'28 Nov 2023'},{n:'Contrat',t:'pdf',s:'870 Ko',d:'29 Nov 2023'}]},
+      {n:'DLA-002 Pylône Orange Akwa',cl:'Orange',role:'Chef terrain',p:450000,d:0,dt:'Fév 2024',
+       resp:{n:'Claude Mvondo',r:'Chef projet Orange',t:'699 300 002',em:'c.mvondo@orange.cm'},
+       pm:{n:'Pierre Etoga',r:'Chef projet CleanIT'},ct:{n:'Pierre Etoga'},per:'10 Fév - 18 Fév 2024',reg:'Akwa, Douala',
+       docs:[{n:'Bon de commande',t:'pdf',s:'167 Ko',d:'08 Fév 2024'},{n:'Rapport final',t:'pdf',s:'440 Ko',d:'18 Fév 2024'}]},
+    ],
+    feed:[
+      {ty:'msg',dt:'Hier 14:30',canal:'#chefs-terrain',tx:'Planning semaine 21 confirmé. Départ BAF-001 lundi 06h.'},
+      {ty:'checkin',dt:'12 mai 08:00',li:'BAF-001, Bafoussam — 5.4734N 10.4178E',tx:'Inspection pré-chantier BAF-001'},
+      {ty:'photo',dt:'10 mai 09:45',li:'BAF-001, Bafoussam — 5.4734N 10.4178E',tx:'État initial du site avant travaux',ph:3},
+      {ty:'msg',dt:'9 mai 17:00',canal:'#general',tx:'Rapport journalier envoyé. Avancement conforme.'},
+    ]},
 ];
+
+function SiteSheet({ site, tech, onBack }) {
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
+      <div style={{padding:'11px 20px',borderBottom:`1px solid ${C.border}`,background:C.white,display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
+        <button onClick={onBack} style={{fontSize:12,padding:'4px 10px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text3}}>
+          ← {tech.name}
+        </button>
+        <span style={{fontSize:14,fontWeight:700,color:C.text}}>{site.n}</span>
+      </div>
+      <div style={{flex:1,overflowY:'auto'}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,padding:'14px 20px',borderBottom:`1px solid ${C.border2}`}}>
+          <div style={{background:C.bg,borderRadius:8,padding:12}}>
+            <div style={{fontSize:11,color:C.text3,marginBottom:4}}>Perçu par {tech.name.split(' ')[0]}</div>
+            <div style={{fontSize:18,fontWeight:700,color:C.green}}>+{fN(site.p)} F</div>
+          </div>
+          <div style={{background:C.bg,borderRadius:8,padding:12}}>
+            <div style={{fontSize:11,color:C.text3,marginBottom:4}}>Montant dû</div>
+            <div style={{fontSize:18,fontWeight:700,color:site.d>0?C.red:C.green}}>{site.d>0?fN(site.d)+' F':'Soldé'}</div>
+          </div>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',borderBottom:`1px solid ${C.border2}`}}>
+          <div style={{padding:'14px 20px',borderRight:`1px solid ${C.border2}`}}>
+            <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,color:C.text3,marginBottom:10}}>Côté client</div>
+            {[['Client',site.cl],['Responsable',site.resp.n],['Rôle',site.resp.r],['Tél.',site.resp.t],['Email',site.resp.em]].map(([l,v])=>(
+              <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:`1px solid ${C.border2}`,fontSize:12}}>
+                <span style={{color:C.text3}}>{l}</span><span style={{fontWeight:600,fontSize:11}}>{v}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{padding:'14px 20px'}}>
+            <div style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,color:C.text3,marginBottom:10}}>Côté CleanIT</div>
+            {[['Chef de projet',site.pm.n],['Rôle',site.pm.r],['Chef terrain',site.ct.n],['Période',site.per],['Région',site.reg]].map(([l,v])=>(
+              <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:`1px solid ${C.border2}`,fontSize:12}}>
+                <span style={{color:C.text3}}>{l}</span><span style={{fontWeight:600,fontSize:11}}>{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{padding:'12px 20px 4px',fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,color:C.text3}}>Documents</div>
+        {(site.docs||[]).map((d,i)=>(
+          <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 20px',borderBottom:`1px solid ${C.border2}`,cursor:'pointer'}}
+            onMouseEnter={e=>e.currentTarget.style.background=C.bg} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+            <span style={{fontSize:20,flexShrink:0}}>{DI[d.t]||'📄'}</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,fontWeight:600,color:C.text}}>{d.n}</div>
+              <div style={{fontSize:11,color:C.text3}}>{d.s} · {d.d}</div>
+            </div>
+            <span style={{fontSize:12,color:C.text3}}>↓</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DetailPage({ tech, onBack }) {
+  const [tab, setTab] = useState('activite');
+  const [openSite, setOpenSite] = useState(null);
+  const [showLoc, setShowLoc] = useState(false);
+  const ss = SS[tech.statut] || SS['Disponible'];
+  const TABS = [
+    {id:'activite',l:'Activité'},
+    {id:'profil',l:'Profil'},
+    {id:'certs',l:'Certifications'},
+    {id:'sites',l:'Sites & paiements'},
+  ];
+
+  if (openSite !== null) {
+    return <SiteSheet site={tech.sites[openSite]} tech={tech} onBack={()=>setOpenSite(null)}/>;
+  }
+
+  const tp = (tech.sites||[]).reduce((s,x)=>s+x.p,0);
+  const td = (tech.sites||[]).reduce((s,x)=>s+x.d,0);
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
+      <div style={{padding:'11px 20px',borderBottom:`1px solid ${C.border}`,background:C.white,display:'flex',alignItems:'center',gap:10,flexShrink:0,flexWrap:'wrap'}}>
+        <button onClick={onBack} style={{fontSize:12,padding:'4px 10px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text3}}>← Techniciens</button>
+        <div style={{width:36,height:36,borderRadius:'50%',background:C.blue_l,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,color:C.blue_d,flexShrink:0}}>{tech.initials}</div>
+        <div style={{flex:1}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:14,fontWeight:700,color:C.text}}>{tech.name}</span>
+            <span style={{fontSize:11,padding:'2px 10px',borderRadius:20,background:ss.bg,color:ss.c,fontWeight:700}}>{tech.statut}</span>
+          </div>
+          <div style={{fontSize:11,color:C.text3}}>{tech.role} · {tech.region}</div>
+        </div>
+        <div style={{display:'flex',gap:6,flexShrink:0}}>
+          <button style={{fontSize:11,padding:'4px 10px',borderRadius:20,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>Appeler</button>
+          <button style={{fontSize:11,padding:'4px 10px',borderRadius:20,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>WhatsApp</button>
+          <button onClick={()=>setShowLoc(!showLoc)} style={{fontSize:11,padding:'4px 10px',borderRadius:20,border:`1px solid ${C.blue}`,background:C.blue_l,color:C.blue_d,cursor:'pointer',fontFamily:'inherit',fontWeight:600}}>Localiser</button>
+        </div>
+      </div>
+
+      {showLoc && (
+        <div style={{padding:'9px 20px',background:C.blue_l,borderBottom:`1px solid #B5D4F4`,display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+          <span style={{fontSize:12,color:C.blue_d}}>Dernière position — {tech.pos}</span>
+          <button onClick={()=>setShowLoc(false)} style={{fontSize:11,border:'none',background:'none',cursor:'pointer',color:C.blue,fontFamily:'inherit'}}>Fermer</button>
+        </div>
+      )}
+
+      <div style={{display:'flex',borderBottom:`1px solid ${C.border}`,background:C.white,padding:'0 20px',overflowX:'auto',flexShrink:0}}>
+        {TABS.map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'10px 15px',border:'none',background:'none',cursor:'pointer',fontSize:13,fontFamily:'inherit',color:tab===t.id?C.blue:C.text3,fontWeight:tab===t.id?700:400,borderBottom:tab===t.id?`2px solid ${C.blue}`:'2px solid transparent',marginBottom:-1,whiteSpace:'nowrap',flexShrink:0}}>
+            {t.l}
+          </button>
+        ))}
+      </div>
+
+      <div style={{flex:1,overflowY:'auto',background:C.bg}}>
+        {tab==='activite' && (
+          <div>
+            {(tech.feed||[]).map((f,i)=>(
+              <div key={i} style={{padding:'12px 20px',borderBottom:`1px solid ${C.border2}`,background:C.white,marginBottom:4}}>
+                {f.ty==='photo' && (
+                  <>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:7}}>
+                      <div style={{width:28,height:28,borderRadius:'50%',background:C.blue_l,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:C.blue_d}}>{tech.initials}</div>
+                      <span style={{fontSize:13,fontWeight:700}}>{tech.name}</span>
+                      <span style={{fontSize:11,color:C.text3}}>a partagé des photos</span>
+                    </div>
+                    <div style={{fontSize:13,marginBottom:7,color:C.text}}>{f.tx}</div>
+                    <div style={{display:'grid',gridTemplateColumns:`repeat(${Math.min(f.ph,3)},1fr)`,gap:3,borderRadius:8,overflow:'hidden',maxWidth:220,marginBottom:6}}>
+                      {Array(f.ph).fill(0).map((_,j)=>(
+                        <div key={j} style={{aspectRatio:'1',background:C.border2,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>📸</div>
+                      ))}
+                    </div>
+                    <div style={{fontSize:11,color:C.text3}}>📍 {f.li}</div>
+                    <div style={{fontSize:11,color:C.text3,marginTop:2}}>🕐 {f.dt}</div>
+                  </>
+                )}
+                {f.ty==='msg' && (
+                  <>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                      <div style={{width:28,height:28,borderRadius:'50%',background:C.green_l,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:C.green}}>{tech.initials}</div>
+                      <span style={{fontSize:13,fontWeight:700}}>{tech.name}</span>
+                      <span style={{fontSize:12,padding:'1px 8px',borderRadius:10,background:C.blue_l,color:C.blue}}>{f.canal}</span>
+                    </div>
+                    <div style={{background:C.bg,borderRadius:'0 10px 10px 10px',padding:'8px 12px',fontSize:13,display:'inline-block',maxWidth:'90%',color:C.text}}>{f.tx}</div>
+                    <div style={{fontSize:11,color:C.text3,marginTop:4}}>🕐 {f.dt}</div>
+                  </>
+                )}
+                {f.ty==='checkin' && (
+                  <>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
+                      <div style={{width:28,height:28,borderRadius:'50%',background:C.orange_l,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:C.orange}}>{tech.initials}</div>
+                      <span style={{fontSize:13,fontWeight:700}}>{tech.name}</span>
+                      <span style={{fontSize:11,color:C.text3}}>a pointé sur site</span>
+                    </div>
+                    <div style={{fontSize:13,color:C.text}}>📍 {f.tx}</div>
+                    <div style={{fontSize:11,color:C.text3,marginTop:2}}>🗺️ {f.li}</div>
+                    <div style={{fontSize:11,color:C.text3,marginTop:2}}>🕐 {f.dt}</div>
+                  </>
+                )}
+                {f.ty==='inter' && (
+                  <>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                      <div style={{width:28,height:28,borderRadius:'50%',background:C.border2,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>🔧</div>
+                      <span style={{fontSize:13,fontWeight:700}}>Intervention</span>
+                    </div>
+                    <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:3}}>{f.tx}</div>
+                    <div style={{fontSize:12,color:C.text3}}>{f.det}</div>
+                    <div style={{fontSize:11,color:C.text3,marginTop:3}}>📅 {f.dt}</div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab==='profil' && (
+          <div style={{padding:'16px 20px',background:C.white}}>
+            <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:20}}>
+              <div style={{width:56,height:56,borderRadius:'50%',background:C.blue_l,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:700,color:C.blue_d,flexShrink:0}}>{tech.initials}</div>
+              <div>
+                <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:2}}>{tech.name}</div>
+                <div style={{fontSize:12,color:C.text3}}>{tech.role} · {tech.region}</div>
+                <div style={{display:'flex',gap:16,marginTop:8}}>
+                  {[[tech.missions,'missions'],[tech.sites_count,'sites'],[tech.certs.filter(c=>c.s==='ok').length,'certs valides']].map(([v,l])=>(
+                    <div key={l} style={{textAlign:'center'}}>
+                      <div style={{fontSize:16,fontWeight:700,color:C.text}}>{v}</div>
+                      <div style={{fontSize:10,color:C.text3}}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {[['Téléphone',tech.phone],['Email',tech.email],['Région',tech.region],['Dans l\'équipe depuis',tech.debut],['Statut actuel',tech.statut]].map(([l,v])=>(
+              <div key={l} style={{display:'flex',justifyContent:'space-between',padding:'9px 0',borderBottom:`1px solid ${C.border2}`,fontSize:13}}>
+                <span style={{color:C.text3}}>{l}</span><span style={{fontWeight:600,color:C.text}}>{v}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab==='certs' && (
+          <div style={{background:C.white}}>
+            <div style={{padding:'12px 20px 4px',fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,color:C.text3}}>Certifications & habilitations</div>
+            {(tech.certs||[]).map((cert,i)=>{
+              const [bg,col,label] = CS[cert.s]||CS.ok;
+              return (
+                <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 20px',borderBottom:`1px solid ${C.border2}`}}>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:600,color:C.text}}>{cert.n}</div>
+                    <div style={{fontSize:11,color:C.text3}}>Expire le {cert.e}</div>
+                  </div>
+                  <span style={{fontSize:11,padding:'3px 10px',borderRadius:20,background:bg,color:col,fontWeight:700}}>{label}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {tab==='sites' && (
+          <div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,padding:'14px 20px',borderBottom:`1px solid ${C.border2}`,background:C.white}}>
+              <div style={{background:C.bg,borderRadius:8,padding:12}}>
+                <div style={{fontSize:11,color:C.text3,marginBottom:3}}>Total perçu</div>
+                <div style={{fontSize:18,fontWeight:700,color:C.green}}>{fN(tp)} F</div>
+              </div>
+              <div style={{background:C.bg,borderRadius:8,padding:12}}>
+                <div style={{fontSize:11,color:C.text3,marginBottom:3}}>Montant dû</div>
+                <div style={{fontSize:18,fontWeight:700,color:td>0?C.red:C.green}}>{fN(td)} F</div>
+              </div>
+            </div>
+            {(tech.sites||[]).map((s,i)=>(
+              <div key={i} onClick={()=>setOpenSite(i)}
+                style={{display:'flex',alignItems:'center',padding:'12px 20px',borderBottom:`1px solid ${C.border2}`,cursor:'pointer',background:C.white}}
+                onMouseEnter={e=>e.currentTarget.style.background=C.bg}
+                onMouseLeave={e=>e.currentTarget.style.background=C.white}>
+                <div style={{display:'flex',alignItems:'center',gap:10,flex:1}}>
+                  <div style={{width:3,height:34,borderRadius:2,background:s.d>0?C.red:C.green,flexShrink:0}}/>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:600,color:C.text}}>{s.n}</div>
+                    <div style={{fontSize:11,color:C.text3}}>{s.cl} · {s.role} · {s.dt}</div>
+                  </div>
+                </div>
+                <div style={{textAlign:'right',flexShrink:0,marginRight:8}}>
+                  <div style={{fontSize:13,color:C.green,fontWeight:700}}>+{fN(s.p)} F</div>
+                  {s.d>0?<div style={{fontSize:11,color:C.red}}>Dû: {fN(s.d)} F</div>:<div style={{fontSize:11,color:C.green}}>Soldé</div>}
+                </div>
+                <span style={{fontSize:14,color:C.text3}}>›</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Techniciens() {
   const [techs, setTechs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('tous');
-  const [filterRegion, setFilterRegion] = useState('tous');
   const [selected, setSelected] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [view, setView] = useState('cards');
-  const [form, setForm] = useState({ firstName:'', lastName:'', email:'', phone:'', region:'', ville:'', skills:'', certifications:'', status:'disponible' });
-  const [saving, setSaving] = useState(false);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { loadTechs(); }, []);
 
-  const load = async () => {
+  const loadTechs = async () => {
     setLoading(true);
     try {
-      const r = await api.get('/technicians');
-      const data = Array.isArray(r.data) ? r.data : [];
-      setTechs(data.length > 0 ? data : SEED);
+      const res = await api.get('/technicians');
+      setTechs(res.data && res.data.length > 0 ? res.data : SEED);
     } catch { setTechs(SEED); }
-    finally { setLoading(false); }
+    setLoading(false);
   };
 
-  const save = async () => {
-    setSaving(true);
-    try {
-      await api.post('/technicians', { ...form, skills: form.skills.split(',').map(s=>s.trim()), certifications: form.certifications.split(',').map(s=>s.trim()) });
-      setShowForm(false); load();
-    } catch {
-      setTechs(p => [...p, { ...form, id: Date.now(), skills: form.skills.split(',').map(s=>s.trim()), certifications: form.certifications.split(',').map(s=>s.trim()), missionsTotal:0, rating:0 }]);
-      setShowForm(false);
-    } finally { setSaving(false); }
+  if (selected) return <DetailPage tech={selected} onBack={() => setSelected(null)} />;
+
+  const expiredCerts = techs.flatMap(t =>
+    (t.certs||[]).filter(c => c.s === 'expire' || c.s === 'expire_soon')
+      .map(c => ({ tech: t.name, cert: c.n, expire: c.e, soon: c.s === 'expire_soon' }))
+  );
+
+  const counts = {
+    dispo: techs.filter(t => t.statut === 'Disponible').length,
+    mission: techs.filter(t => t.statut === 'En mission').length,
+    conge: techs.filter(t => t.statut === 'En congé').length,
   };
-
-  const changeStatus = async (id, status) => {
-    try { await api.put(`/technicians/${id}`, { status }); }
-    catch { setTechs(p => p.map(t => t.id===id ? {...t,status} : t)); return; }
-    load();
-  };
-
-  const regions = [...new Set(techs.map(t=>t.region).filter(Boolean))];
-  const filtered = techs.filter(t => {
-    const ms = filterStatus==='tous' || t.status===filterStatus;
-    const mr = filterRegion==='tous' || t.region===filterRegion;
-    const mq = !search || `${t.firstName} ${t.lastName}`.toLowerCase().includes(search.toLowerCase()) || t.region?.toLowerCase().includes(search.toLowerCase());
-    return ms && mr && mq;
-  });
-
-  const stars = n => '★'.repeat(Math.round(n||0)) + '☆'.repeat(5-Math.round(n||0));
-
-  if (loading) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',flexDirection:'column',gap:12}}><div style={{width:40,height:40,borderRadius:'50%',border:'3px solid #16a34a',borderTopColor:'transparent',animation:'spin 1s linear infinite'}} /><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style><span style={{color:'#64748b'}}>Chargement des techniciens...</span></div>;
 
   return (
-    <div style={{padding:24,background:'#f0f2f5',minHeight:'100%'}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20,flexWrap:'wrap',gap:12}}>
-        <div>
-          <h1 style={{fontSize:22,fontWeight:800,color:'#1e293b',margin:0}}>Techniciens Terrain</h1>
-          <p style={{color:'#64748b',fontSize:13,margin:'4px 0 0'}}>Gestion des équipes terrain · {techs.length} techniciens</p>
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:C.bg }}>
+      <div style={{ padding:'14px 24px', borderBottom:`1px solid ${C.border}`, background:C.white, display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <span style={{ fontSize:15, fontWeight:700, color:C.text }}>Techniciens</span>
+          <span style={{ fontSize:12, padding:'2px 10px', borderRadius:20, background:C.bg, color:C.text3, fontWeight:600 }}>{techs.length}</span>
         </div>
-        <div style={{display:'flex',gap:8}}>
-          {['cards','table'].map(v=><button key={v} onClick={()=>setView(v)} style={{padding:'7px 14px',borderRadius:6,border:'none',background:view===v?'#0078d4':'#f1f5f9',color:view===v?'white':'#64748b',fontSize:12,cursor:'pointer',fontWeight:view===v?600:400}}>{v==='cards'?'⊞ Cartes':'☰ Liste'}</button>)}
-          <button onClick={()=>setShowForm(true)} style={{padding:'9px 16px',borderRadius:8,border:'none',background:'#16a34a',color:'white',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ Nouveau Technicien</button>
+        <div style={{ display:'flex', gap:6 }}>
+          {counts.dispo > 0 && <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:C.green_l, color:C.green, fontWeight:700 }}>{counts.dispo} disponible{counts.dispo > 1 ? 's' : ''}</span>}
+          {counts.mission > 0 && <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:C.blue_l, color:C.blue_d, fontWeight:700 }}>{counts.mission} en mission</span>}
+          {counts.conge > 0 && <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:C.orange_l, color:C.orange, fontWeight:700 }}>{counts.conge} en congé</span>}
         </div>
       </div>
 
-      {/* Stats */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:10,marginBottom:20}}>
-        {[{l:'Total',v:techs.length,c:'#0078d4'},{l:'Disponibles',v:techs.filter(t=>t.status==='disponible').length,c:'#16a34a'},{l:'En mission',v:techs.filter(t=>t.status==='en_mission').length,c:'#0078d4'},{l:'En congé',v:techs.filter(t=>t.status==='en_conge').length,c:'#f59e0b'},{l:'Indisponibles',v:techs.filter(t=>t.status==='indisponible').length,c:'#dc2626'}].map(s=>(
-          <div key={s.l} style={{background:'white',borderRadius:10,padding:'14px 16px',border:'1px solid #e2e8f0',textAlign:'center',borderTop:`3px solid ${s.c}`}}>
-            <div style={{fontSize:24,fontWeight:800,color:s.c}}>{s.v}</div>
-            <div style={{fontSize:12,color:'#64748b',marginTop:2}}>{s.l}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div style={{background:'white',borderRadius:10,padding:'12px 16px',border:'1px solid #e2e8f0',marginBottom:16,display:'flex',gap:10,flexWrap:'wrap',alignItems:'center'}}>
-        <div style={{position:'relative',flex:1,minWidth:200}}>
-          <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'#94a3b8'}}>🔍</span>
-          <input placeholder="Rechercher par nom, région..." value={search} onChange={e=>setSearch(e.target.value)} style={{width:'100%',padding:'8px 12px 8px 32px',border:'1px solid #e2e8f0',borderRadius:8,fontSize:13,outline:'none',boxSizing:'border-box'}} />
+      {expiredCerts.length > 0 && (
+        <div style={{ padding:'10px 24px', background:C.red_l, borderBottom:`1px solid #FCA5A5`, display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+          <span style={{ fontSize:14 }}>⚠️</span>
+          <span style={{ fontSize:12, color:C.red }}>
+            {expiredCerts.map((e, i) => (
+              <span key={i}>{i > 0 && ' · '}<strong>{e.tech}</strong> — {e.cert} ({e.soon ? 'expire bientôt' : 'EXPIRÉE'} {e.expire})</span>
+            ))}
+          </span>
         </div>
-        <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e2e8f0',borderRadius:8,fontSize:13,background:'white'}}>
-          <option value="tous">Tous les statuts</option>
-          {Object.entries(STATUTS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-        </select>
-        <select value={filterRegion} onChange={e=>setFilterRegion(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e2e8f0',borderRadius:8,fontSize:13,background:'white'}}>
-          <option value="tous">Toutes les régions</option>
-          {regions.map(r=><option key={r} value={r}>{r}</option>)}
-        </select>
-        <span style={{fontSize:12,color:'#94a3b8',marginLeft:'auto'}}>{filtered.length} technicien(s)</span>
-      </div>
+      )}
 
-      {/* Cards View */}
-      {view==='cards' && (
-        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:14}}>
-          {filtered.map(t => {
-            const st = STATUTS[t.status] || STATUTS.disponible;
-            return (
-              <div key={t.id} onClick={()=>setSelected(t)}
-                style={{background:'white',borderRadius:12,border:'1px solid #e2e8f0',overflow:'hidden',cursor:'pointer',transition:'all .2s'}}
-                onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,0.1)';e.currentTarget.style.transform='translateY(-2px)';}}
-                onMouseLeave={e=>{e.currentTarget.style.boxShadow='none';e.currentTarget.style.transform='none';}}>
-                <div style={{height:4,background:st.color}} />
-                <div style={{padding:'16px 18px'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14}}>
-                    <div style={{width:48,height:48,borderRadius:'50%',background:`linear-gradient(135deg,${st.color},${st.color}aa)`,display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:800,fontSize:18,flexShrink:0}}>
-                      {t.firstName?.[0]}{t.lastName?.[0]}
-                    </div>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:15,fontWeight:700,color:'#1e293b'}}>{t.firstName} {t.lastName}</div>
-                      <div style={{fontSize:11,color:'#64748b',marginTop:1}}>{t.ville}, {t.region}</div>
-                    </div>
-                    <span style={{padding:'3px 9px',borderRadius:10,fontSize:11,fontWeight:600,background:st.bg,color:st.color,border:`1px solid ${st.color}30`,whiteSpace:'nowrap'}}>{st.label}</span>
+      {loading ? (
+        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', color:C.text3 }}>Chargement...</div>
+      ) : (
+        <div style={{ flex:1, overflowY:'auto', padding:'16px 24px' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:12 }}>
+            {techs.map(t => {
+              const ss = SS[t.statut] || SS['Disponible'];
+              const hasExpired = (t.certs||[]).some(c => c.s === 'expire');
+              return (
+                <div key={t.id} onClick={() => setSelected(t)}
+                  style={{ background:C.white, border:`1px solid ${C.border}`, borderRadius:12, padding:'16px 14px', cursor:'pointer', textAlign:'center', transition:'border-color .15s' }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = C.blue}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = C.border}>
+                  <div style={{ position:'relative', width:52, height:52, margin:'0 auto 10px' }}>
+                    <div style={{ width:52, height:52, borderRadius:'50%', background:C.blue_l, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:700, color:C.blue_d }}>{t.initials}</div>
+                    <div style={{ position:'absolute', bottom:1, right:1, width:13, height:13, borderRadius:'50%', background:ss.dot, border:`2px solid ${C.white}` }}/>
                   </div>
-                  <div style={{display:'flex',flexDirection:'column',gap:5,marginBottom:12}}>
-                    <div style={{fontSize:12,color:'#374151'}}>📞 {t.phone}</div>
-                    <div style={{fontSize:12,color:'#374151'}}>✉ {t.email}</div>
-                    <div style={{fontSize:12,color:'#f59e0b'}}>{'★'.repeat(Math.round(t.rating||0))} {t.rating?.toFixed(1)} · {t.missionsTotal} missions</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:C.text, marginBottom:3, display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
+                    {t.name}
+                    {hasExpired && <span style={{ fontSize:13 }}>⚠️</span>}
                   </div>
-                  {t.skills?.length>0 && <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:10}}>
-                    {(Array.isArray(t.skills)?t.skills:t.skills?.split(',').map(s=>s.trim())||[]).map(s=><span key={s} style={{padding:'2px 8px',borderRadius:10,fontSize:10,fontWeight:600,background:'#eff6ff',color:'#2563eb'}}>{s}</span>)}
-                  </div>}
-                  {t.certifications?.length>0 && <div style={{display:'flex',flexWrap:'wrap',gap:5,marginBottom:12}}>
-                    {(Array.isArray(t.certifications)?t.certifications:t.certifications?.split(',').map(s=>s.trim())||[]).map(c=><span key={c} style={{padding:'2px 8px',borderRadius:10,fontSize:10,fontWeight:600,background:'#f5f3ff',color:'#7c3aed'}}>🏆 {c}</span>)}
-                  </div>}
-                  <div style={{display:'flex',gap:6}}>
-                    {t.status!=='disponible' && <button onClick={e=>{e.stopPropagation();changeStatus(t.id,'disponible');}} style={{flex:1,padding:'6px',borderRadius:6,border:'1px solid #16a34a',background:'white',color:'#16a34a',fontSize:11,cursor:'pointer',fontWeight:600}}>✓ Disponible</button>}
-                    {t.status!=='en_mission' && <button onClick={e=>{e.stopPropagation();changeStatus(t.id,'en_mission');}} style={{flex:1,padding:'6px',borderRadius:6,border:'1px solid #0078d4',background:'white',color:'#0078d4',fontSize:11,cursor:'pointer',fontWeight:600}}>→ En mission</button>}
-                  </div>
+                  <div style={{ fontSize:11, color:C.text3, marginBottom:8 }}>{t.role}</div>
+                  <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:ss.bg, color:ss.c, fontWeight:700 }}>{t.statut}</span>
                 </div>
-              </div>
-            );
-          })}
-          {filtered.length===0 && <div style={{gridColumn:'1/-1',padding:48,textAlign:'center',color:'#94a3b8',background:'white',borderRadius:10,border:'1px solid #e2e8f0'}}>Aucun technicien trouvé</div>}
-        </div>
-      )}
-
-      {/* Table View */}
-      {view==='table' && (
-        <div style={{background:'white',borderRadius:10,border:'1px solid #e2e8f0',overflow:'hidden'}}>
-          <table style={{width:'100%',borderCollapse:'collapse'}}>
-            <thead><tr style={{background:'#f8fafc',borderBottom:'2px solid #e2e8f0'}}>{['Nom','Contact','Région','Statut','Compétences','Missions','Note','Actions'].map(h=><th key={h} style={{padding:'11px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:'#374151',textTransform:'uppercase',letterSpacing:'0.5px'}}>{h}</th>)}</tr></thead>
-            <tbody>
-              {filtered.map(t=>{
-                const st=STATUTS[t.status]||STATUTS.disponible;
-                return (
-                  <tr key={t.id} style={{borderBottom:'1px solid #f8fafc',cursor:'pointer'}} onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'} onMouseLeave={e=>e.currentTarget.style.background='white'}>
-                    <td style={{padding:'11px 14px'}}>
-                      <div style={{display:'flex',alignItems:'center',gap:10}}>
-                        <div style={{width:36,height:36,borderRadius:'50%',background:st.color,display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:700,fontSize:13,flexShrink:0}}>{t.firstName?.[0]}{t.lastName?.[0]}</div>
-                        <div><div style={{fontSize:13,fontWeight:600,color:'#1e293b'}}>{t.firstName} {t.lastName}</div><div style={{fontSize:11,color:'#94a3b8'}}>{t.email}</div></div>
-                      </div>
-                    </td>
-                    <td style={{padding:'11px 14px',fontSize:12,color:'#374151'}}>{t.phone}</td>
-                    <td style={{padding:'11px 14px',fontSize:12,color:'#374151'}}>{t.ville}, {t.region}</td>
-                    <td style={{padding:'11px 14px'}}><span style={{padding:'3px 9px',borderRadius:10,fontSize:11,fontWeight:600,background:st.bg,color:st.color}}>{st.label}</span></td>
-                    <td style={{padding:'11px 14px'}}><div style={{display:'flex',flexWrap:'wrap',gap:4}}>{(Array.isArray(t.skills)?t.skills:[]).slice(0,2).map(s=><span key={s} style={{padding:'1px 7px',borderRadius:8,fontSize:10,background:'#eff6ff',color:'#2563eb'}}>{s}</span>)}</div></td>
-                    <td style={{padding:'11px 14px',fontSize:12,fontWeight:600,color:'#374151'}}>{t.missionsTotal||0}</td>
-                    <td style={{padding:'11px 14px',fontSize:12,color:'#f59e0b'}}>{t.rating?.toFixed(1)||'—'}</td>
-                    <td style={{padding:'11px 14px'}}><button onClick={()=>setSelected(t)} style={{padding:'4px 12px',borderRadius:6,border:'1px solid #0078d4',background:'white',color:'#0078d4',fontSize:11,cursor:'pointer',fontWeight:600}}>Voir</button></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Modal Detail */}
-      {selected && !showForm && (
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
-          <div style={{background:'white',borderRadius:14,width:'100%',maxWidth:520,maxHeight:'85vh',overflow:'auto',boxShadow:'0 24px 64px rgba(0,0,0,0.25)'}}>
-            <div style={{padding:'16px 20px',background:`linear-gradient(135deg,#1e3a5f,${STATUTS[selected.status]?.color||'#0078d4'})`,color:'white',display:'flex',justifyContent:'space-between',alignItems:'center',borderRadius:'14px 14px 0 0',position:'sticky',top:0}}>
-              <div>
-                <div style={{fontSize:17,fontWeight:800}}>{selected.firstName} {selected.lastName}</div>
-                <div style={{fontSize:12,opacity:0.8,marginTop:2}}>{selected.ville}, {selected.region}</div>
-              </div>
-              <button onClick={()=>setSelected(null)} style={{background:'rgba(255,255,255,0.2)',border:'none',color:'white',width:28,height:28,borderRadius:'50%',cursor:'pointer',fontSize:16}}>✕</button>
-            </div>
-            <div style={{padding:24}}>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:16}}>
-                {[{l:'Email',v:selected.email},{l:'Téléphone',v:selected.phone},{l:'Région',v:selected.region},{l:'Ville',v:selected.ville},{l:'Statut',v:STATUTS[selected.status]?.label||selected.status},{l:'Missions totales',v:selected.missionsTotal||0},{l:'Note',v:`${selected.rating?.toFixed(1)||'—'} / 5.0`}].map(i=>(
-                  <div key={i.l} style={{background:'#f8fafc',borderRadius:8,padding:'10px 14px'}}>
-                    <div style={{fontSize:10,color:'#94a3b8',fontWeight:700,textTransform:'uppercase',letterSpacing:'0.5px'}}>{i.l}</div>
-                    <div style={{fontSize:13,fontWeight:600,color:'#1e293b',marginTop:3}}>{i.v}</div>
-                  </div>
-                ))}
-              </div>
-              {selected.skills?.length>0 && <div style={{marginBottom:12}}>
-                <div style={{fontSize:11,color:'#94a3b8',fontWeight:700,marginBottom:6}}>COMPÉTENCES</div>
-                <div style={{display:'flex',flexWrap:'wrap',gap:5}}>{(Array.isArray(selected.skills)?selected.skills:selected.skills?.split(',')||[]).map(s=><span key={s} style={{padding:'3px 10px',borderRadius:10,fontSize:12,fontWeight:600,background:'#eff6ff',color:'#2563eb'}}>{s.trim()}</span>)}</div>
-              </div>}
-              {selected.certifications?.length>0 && <div style={{marginBottom:16}}>
-                <div style={{fontSize:11,color:'#94a3b8',fontWeight:700,marginBottom:6}}>CERTIFICATIONS CLIENT</div>
-                <div style={{display:'flex',flexWrap:'wrap',gap:5}}>{(Array.isArray(selected.certifications)?selected.certifications:selected.certifications?.split(',')||[]).map(c=><span key={c} style={{padding:'3px 10px',borderRadius:10,fontSize:12,fontWeight:600,background:'#f5f3ff',color:'#7c3aed'}}>🏆 {c.trim()}</span>)}</div>
-              </div>}
-              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                {Object.entries(STATUTS).map(([k,v])=>(
-                  <button key={k} onClick={()=>{changeStatus(selected.id,k);setSelected(p=>({...p,status:k}));}}
-                    style={{flex:1,minWidth:120,padding:10,borderRadius:8,border:`1px solid ${v.color}`,background:selected.status===k?v.color:'white',color:selected.status===k?'white':v.color,cursor:'pointer',fontSize:12,fontWeight:600}}>
-                    {v.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Form */}
-      {showForm && (
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
-          <div style={{background:'white',borderRadius:14,width:'100%',maxWidth:520,overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,0.25)'}}>
-            <div style={{padding:'16px 20px',background:'linear-gradient(135deg,#1e3a5f,#16a34a)',color:'white',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div style={{fontSize:16,fontWeight:800}}>+ Nouveau Technicien</div>
-              <button onClick={()=>setShowForm(false)} style={{background:'rgba(255,255,255,0.2)',border:'none',color:'white',width:28,height:28,borderRadius:'50%',cursor:'pointer',fontSize:16}}>✕</button>
-            </div>
-            <div style={{padding:24,display:'flex',flexDirection:'column',gap:12}}>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-                {[{l:'Prénom *',k:'firstName',ph:'Thomas'},{l:'Nom *',k:'lastName',ph:'Ngono'},{l:'Email *',k:'email',ph:'thomas@cleanit.cm'},{l:'Téléphone',k:'phone',ph:'+237 677 000 000'},{l:'Région',k:'region',ph:'Littoral'},{l:'Ville',k:'ville',ph:'Douala'}].map(f=>(
-                  <div key={f.k}><label style={{fontSize:12,fontWeight:700,color:'#64748b',display:'block',marginBottom:5}}>{f.l}</label><input value={form[f.k]||''} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:8,fontSize:13,outline:'none',boxSizing:'border-box'}} /></div>
-                ))}
-              </div>
-              {[{l:'Compétences (séparées par virgule)',k:'skills',ph:'5G NR, 4G LTE, Installation'},{l:'Certifications Client',k:'certifications',ph:'HCNP-5G, HCIP-Carrier'}].map(f=>(
-                <div key={f.k}><label style={{fontSize:12,fontWeight:700,color:'#64748b',display:'block',marginBottom:5}}>{f.l}</label><input value={form[f.k]||''} onChange={e=>setForm(p=>({...p,[f.k]:e.target.value}))} placeholder={f.ph} style={{width:'100%',padding:'9px 12px',border:'1px solid #e2e8f0',borderRadius:8,fontSize:13,outline:'none',boxSizing:'border-box'}} /></div>
-              ))}
-              <div style={{display:'flex',gap:10}}>
-                <button onClick={()=>setShowForm(false)} style={{flex:1,padding:11,borderRadius:8,border:'1px solid #e2e8f0',background:'white',cursor:'pointer',fontSize:13,color:'#374151'}}>Annuler</button>
-                <button onClick={save} disabled={!form.firstName||!form.lastName||saving} style={{flex:2,padding:11,borderRadius:8,border:'none',background:(form.firstName&&form.lastName)?'#16a34a':'#e2e8f0',color:(form.firstName&&form.lastName)?'white':'#94a3b8',cursor:(form.firstName&&form.lastName)?'pointer':'not-allowed',fontSize:13,fontWeight:700}}>{saving?'Création...':'✓ Ajouter le technicien'}</button>
-              </div>
-            </div>
+              );
+            })}
           </div>
         </div>
       )}
