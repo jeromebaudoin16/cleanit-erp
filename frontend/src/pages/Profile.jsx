@@ -537,9 +537,9 @@ function TabApparence(){
 
 function TabIntegrations(){
   const [integrations]=useState([
-    {id:'claude',name:'Claude API (Anthropic)',desc:'Alimentant l\'assistant ChaCha',status:'connecté',color:'#403294'},
+    {id:'claude',name:'Groq API — Llama 3',desc:'Moteur IA de ChaCha — déjà connecté et actif',status:'connecté',color:'#403294'},
     {id:'sendgrid',name:'SendGrid — Email',desc:'Notifications et alertes email',status:'non configuré',color:C.text3},
-    {id:'zoom',name:'Zoom',desc:'Intégration réunions externes Planning',status:'non configuré',color:C.text3},
+    {id:'cleanitcomm',name:'CleanIT Comm',desc:'Communication interne native — pas besoin d\'intégration externe',status:'natif',color:C.green},
     {id:'googlecal',name:'Google Calendar',desc:'Synchronisation agenda externe',status:'non configuré',color:C.text3},
     {id:'whatsapp',name:'WhatsApp Business API',desc:'Notifications WhatsApp aux techniciens',status:'non configuré',color:C.text3},
   ]);
@@ -555,7 +555,7 @@ function TabIntegrations(){
           <div key={i} style={{padding:'14px 20px',borderBottom:i<integrations.length-1?`1px solid ${C.border2}`:'none',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div style={{display:'flex',alignItems:'center',gap:12}}>
               <div style={{width:40,height:40,borderRadius:9,background:integ.status==='connecté'?'#F3EEF9':C.bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,border:`1px solid ${C.border}`,flexShrink:0}}>
-                {integ.id==='claude'?'🧠':integ.id==='sendgrid'?'📧':integ.id==='zoom'?'📹':integ.id==='googlecal'?'📅':'💬'}
+                {integ.id==='groq'?'🧠':integ.id==='sendgrid'?'📧':integ.id==='googlecal'?'📅':integ.id==='cleanitcomm'?'💬':'📱'}
               </div>
               <div>
                 <div style={{fontSize:13,fontWeight:500,color:C.text}}>{integ.name}</div>
@@ -563,8 +563,8 @@ function TabIntegrations(){
               </div>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <span style={{fontSize:11,padding:'3px 9px',borderRadius:20,background:integ.status==='connecté'?C.green_l:C.border2,color:integ.status==='connecté'?C.green:C.text3,fontWeight:600}}>
-                {integ.status==='connecté'?'✓ Connecté':'Non configuré'}
+              <span style={{fontSize:11,padding:'3px 9px',borderRadius:20,background:integ.status==='connecté'?C.green_l:integ.status==='natif'?C.blue_l:C.border2,color:integ.status==='connecté'?C.green:integ.status==='natif'?C.blue:C.text3,fontWeight:600}}>
+                {integ.status==='connecté'?'✓ Connecté':integ.status==='natif'?'✓ Natif':'Non configuré'}
               </span>
               <button style={{fontSize:11,padding:'4px 10px',borderRadius:5,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text3}}>
                 {integ.status==='connecté'?'Configurer':'Connecter'}
