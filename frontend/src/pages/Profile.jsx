@@ -665,20 +665,15 @@ export default function Profile(){
   const [loading,setLoading]=useState(true);
 
   useEffect(()=>{
-    const load=async()=>{
-      try{
-        const stored=localStorage.getItem('cleanit_user');
-        if(stored) setUser(JSON.parse(stored));
-        const r=await api.get('/auth/me');
-        setUser(r.data);
-        localStorage.setItem('cleanit_user',JSON.stringify(r.data));
-      }catch(e){
-        const stored=localStorage.getItem('cleanit_user');
-        if(stored) setUser(JSON.parse(stored));
-      }
-      setLoading(false);
-    };
-    load();
+    // Charger depuis localStorage IMMÉDIATEMENT
+    const stored=localStorage.getItem('cleanit_user');
+    if(stored){try{setUser(JSON.parse(stored));}catch{}}
+    setLoading(false);
+    // Rafraîchir depuis l'API en arrière-plan
+    api.get('/auth/me').then(r=>{
+      setUser(r.data);
+      localStorage.setItem('cleanit_user',JSON.stringify(r.data));
+    }).catch(()=>{});
   },[]);
 
   const isAdmin=['ADMIN','DG'].includes(user?.role);
