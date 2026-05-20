@@ -213,6 +213,16 @@ export default function Layout() {
             </>}
           </div>
 
+          {/* Notifications */}
+          <div style={{position:'relative'}}>
+            <button onClick={() => {setShowNotif(!showNotif); setShowProfile(false);}}
+              style={{width:38, height:38, borderRadius:10, background:'white', border:'1px solid #e8ecf0', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', position:'relative', transition:'all .2s'}}
+              onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
+              onMouseLeave={e => e.currentTarget.style.background='white'}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              {unread > 0 && <div style={{position:'absolute', top:6, right:6, width:8, height:8, borderRadius:'50%', background:'#ef4444'}}/>}
+            </button>
+
             {showNotif && (
               <div style={{position:'absolute', top:'calc(100% + 8px)', right:0, width:320, background:'white', borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.12)', border:'1px solid #e8ecf0', zIndex:9999, overflow:'hidden'}}>
                 <div style={{padding:'12px 16px', borderBottom:'1px solid #f1f5f9', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
