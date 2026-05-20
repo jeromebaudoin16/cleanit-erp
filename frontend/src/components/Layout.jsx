@@ -286,7 +286,6 @@ export default function Layout() {
         </div>
       </div>
 
-rm:translateY(-5px)}} @keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
