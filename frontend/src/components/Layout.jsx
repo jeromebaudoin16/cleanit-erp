@@ -213,16 +213,15 @@ export default function Layout() {
             </>}
           </div>
 
-          {/* Notifications */}
-          <div style={{position:'relative'}}>
+          {/* Notifs */}
+          <div style={{position:'relative'}} ref={notifRef}>
             <button onClick={() => {setShowNotif(!showNotif); setShowProfile(false);}}
-              style={{width:38, height:38, borderRadius:10, background:'white', border:'1px solid #e8ecf0', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', position:'relative', transition:'all .2s'}}
+              style={{width:38, height:38, borderRadius:10, border:'1px solid #e8ecf0', background:'white', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', position:'relative', transition:'all .2s'}}
               onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
               onMouseLeave={e => e.currentTarget.style.background='white'}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-              {unread > 0 && <div style={{position:'absolute', top:6, right:6, width:8, height:8, borderRadius:'50%', background:'#ef4444'}}/>}
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+              {unread > 0 && <span style={{position:'absolute', top:7, right:7, width:8, height:8, borderRadius:'50%', background:'#ef4444', border:'2px solid white'}} />}
             </button>
-
             {showNotif && (
               <div style={{position:'absolute', top:'calc(100% + 8px)', right:0, width:320, background:'white', borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.12)', border:'1px solid #e8ecf0', zIndex:9999, overflow:'hidden'}}>
                 <div style={{padding:'12px 16px', borderBottom:'1px solid #f1f5f9', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
@@ -310,5 +309,57 @@ export default function Layout() {
           <Outlet />
         </div>
       </div>
+
+      {/* ===== AGENT IA PANEL ===== */}
+      {showChat && (
+        <div style={{width:340, background:'white', borderLeft:'1px solid #e8ecf0', display:'flex', flexDirection:'column', boxShadow:'-4px 0 20px rgba(0,0,0,0.06)', flexShrink:0}}>
+          <div style={{padding:'14px 16px', background:'linear-gradient(135deg,#4c1d95,#7c3aed)', color:'white', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+            <div>
+              <div style={{fontSize:14, fontWeight:700, display:'flex', alignItems:'center', gap:6}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                Agent IA CleanIT
+              </div>
+              <div style={{fontSize:10, opacity:0.75, marginTop:2}}>Powered by Claude · OpenCAW Ready</div>
+            </div>
+            <button onClick={() => setShowChat(false)} style={{background:'rgba(255,255,255,0.15)', border:'none', color:'white', width:26, height:26, borderRadius:'50%', cursor:'pointer', fontSize:14}}>✕</button>
+          </div>
+          <div style={{flex:1, overflowY:'auto', padding:12, display:'flex', flexDirection:'column', gap:10, background:'#f8fafc'}}>
+            {chatMsgs.length===0 && (
+              <div style={{textAlign:'center', padding:'20px 10px'}}>
+                <div style={{width:48, height:48, borderRadius:'50%', background:'#f5f3ff', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 10px'}}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                </div>
+                <div style={{fontSize:14, fontWeight:700, color:'#1e293b', marginBottom:4}}>Agent IA CleanIT</div>
+                <div style={{fontSize:12, color:'#64748b', marginBottom:14}}>Posez vos questions sur le réseau, les interventions ou les KPIs.</div>
+                <div style={{display:'flex', flexDirection:'column', gap:6}}>
+                  {['Sites en alerte ?','KPIs réseau du jour','Technicien disponible ?','Analyser les tickets'].map(s => (
+                    <button key={s} onClick={() => setChatInput(s)} style={{padding:'7px 12px', borderRadius:20, border:'1px solid #ede9fe', background:'white', color:'#7c3aed', fontSize:12, cursor:'pointer', fontWeight:500}}>{s}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {chatMsgs.map((m,i) => (
+              <div key={i} style={{display:'flex', flexDirection: m.role==='user'?'row-reverse':'row', gap:8, alignItems:'flex-end'}}>
+                {m.role==='assistant' && <div style={{width:28, height:28, borderRadius:'50%', background:'#7c3aed', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div>}
+                <div style={{maxWidth:'80%'}}>
+                  <div style={{padding:'9px 13px', borderRadius: m.role==='user'?'16px 16px 4px 16px':'16px 16px 16px 4px', background: m.role==='user'?'#7c3aed':'white', color: m.role==='user'?'white':'#1e293b', fontSize:13, lineHeight:1.5, boxShadow:'0 1px 4px rgba(0,0,0,0.06)', border: m.role==='assistant'?'1px solid #f1f5f9':'none'}}>{m.content}</div>
+                  <div style={{fontSize:10, color:'#94a3b8', marginTop:3, textAlign: m.role==='user'?'right':'left'}}>{m.time}</div>
+                </div>
+              </div>
+            ))}
+            {chatLoading && <div style={{display:'flex', gap:8, alignItems:'flex-end'}}><div style={{width:28, height:28, borderRadius:'50%', background:'#7c3aed', display:'flex', alignItems:'center', justifyContent:'center'}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div><div style={{padding:'9px 13px', borderRadius:'16px 16px 16px 4px', background:'white', border:'1px solid #f1f5f9', display:'flex', gap:4, alignItems:'center'}}>{[0,1,2].map(j=><div key={j} style={{width:6, height:6, borderRadius:'50%', background:'#94a3b8', animation:`bounce 1s ${j*0.2}s infinite`}} />)}</div></div>}
+          </div>
+          <div style={{padding:'10px 12px', borderTop:'1px solid #e8ecf0'}}>
+            <div style={{display:'flex', gap:8, alignItems:'center', background:'#f8fafc', borderRadius:24, padding:'8px 14px', border:'1px solid #e8ecf0'}}>
+              <input placeholder="Question à l'agent IA..." value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => {if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}} style={{flex:1, border:'none', background:'transparent', fontSize:13, outline:'none', color:'#1e293b'}} />
+              <button onClick={sendChat} disabled={!chatInput.trim()} style={{background: chatInput.trim()?'#7c3aed':'#e2e8f0', border:'none', borderRadius:'50%', width:30, height:30, cursor: chatInput.trim()?'pointer':'default', display:'flex', alignItems:'center', justifyContent:'center'}}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <style>{`@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}} @keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
   );
 }
