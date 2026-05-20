@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import ChaCha from '../pages/ChaCha';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { getUser, doLogout, api } from '../utils/api';
 
@@ -49,10 +48,6 @@ export default function Layout() {
   const [notifs, setNotifs] = useState([]);
   const [showNotif, setShowNotif] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [showChat, setShowChat] = useState(false);
-  const [chatMsgs, setChatMsgs] = useState([]);
-  const [chatInput, setChatInput] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
   const sidebarRef = useRef(null);
   const profileRef = useRef(null);
   const notifRef = useRef(null);
@@ -85,26 +80,7 @@ export default function Layout() {
     }
   };
 
-  const sendChat = async () => {
-    if (!chatInput.trim()) return;
-    const msg = { role:'user', content:chatInput, time:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) };
-    setChatMsgs(p => [...p, msg]);
-    const q = chatInput; setChatInput(''); setChatLoading(true);
-    try {
-      const r = await api.post('/ai/chat', { message: q });
-      setChatMsgs(p => [...p, { role:'assistant', content: r.data.reply||r.data.message||'Réponse IA', time:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) }]);
-    } catch {
-      const replies = {
-        'site':'Vous avez 10 sites actifs au Cameroun. 3 sont en alerte: DLA-003, YDE-003, KRI-001.',
-        'ticket':'38 tickets ouverts. 4 critiques nécessitent une attention immédiate.',
-        'tech':'18 techniciens disponibles sur 24. Thomas Ngono est le plus proche de YDE-003.',
-        'default':`Bonjour ${user?.firstName||''}! Je suis l'Agent IA CleanIT. Comment puis-je vous aider?`
-      };
-      const key = Object.keys(replies).find(k => q.toLowerCase().includes(k)) || 'default';
-      setChatMsgs(p => [...p, { role:'assistant', content:replies[key], time:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) }]);
-    }
-    setChatLoading(false);
-  };
+
 
   const unread = notifs.filter(n => !n.read).length;
   const currentSection = NAV.find(s => s.items.some(i => i.path === loc.pathname));
