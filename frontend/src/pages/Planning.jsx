@@ -339,6 +339,25 @@ function AddModal({onClose,onAdd}){
             </select>
           </div>
           <div><label style={lbl}>Notes</label><textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} rows={2} placeholder="Lieu, lien de réunion, contexte..." style={{...inp,resize:'vertical'}}/></div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <div><label style={lbl}>Répétition</label>
+              <select value={form.recurrence||'none'} onChange={e=>setForm({...form,recurrence:e.target.value})} style={inp}>
+                <option value="none">Pas de répétition</option>
+                <option value="daily">Chaque jour</option>
+                <option value="weekly">Chaque semaine</option>
+                <option value="biweekly">Toutes les 2 semaines</option>
+                <option value="monthly">Chaque mois</option>
+              </select>
+            </div>
+            <div><label style={lbl}>Priorité</label>
+              <select value={form.priority||'normale'} onChange={e=>setForm({...form,priority:e.target.value})} style={inp}>
+                <option value="faible">Faible</option>
+                <option value="normale">Normale</option>
+                <option value="haute">Haute</option>
+                <option value="critique">Critique</option>
+              </select>
+            </div>
+          </div>
           <div style={{padding:'9px 12px',borderRadius:7,background:C.purple_l,border:`1px solid #D4C5F9`,fontSize:11,color:C.purple_d,display:'flex',alignItems:'center',gap:7}}>
             <span style={{fontSize:14}}>⚡</span>ChaCha vérifiera les disponibilités et notifiera automatiquement les participants
           </div>
@@ -393,7 +412,15 @@ export default function Planning(){
   const SUGGS=['Réunion MTN lundi 10h','Génère planning semaine prochaine','Conflit vendredi — résoudre','Bloque 2h demain matin'];
   const filteredEvs=events.filter(e=>depts[e.dept]);
   const conflits=events.filter(e=>e.conflit);
-  const VIEWS=[{id:'semaine',l:'Semaine'},{id:'mois',l:'Mois'},{id:'agenda',l:'Agenda'}];
+  const VIEWS=[{id:'semaine',l:'Semaine'},{id:'mois',l:'Mois'},{id:'agenda',l:'Agenda'},{id:'taches',l:'Tâches ⚡'}];
+  const [tasks,setTasks]=useState([
+    {id:1,titre:'Finaliser rapport DLA-001',duree:90,deadline:'2025-05-16',priorite:'haute',done:false,dept:'terrain'},
+    {id:2,titre:'Préparer présentation Orange Q2',duree:60,deadline:'2025-05-14',priorite:'critique',done:false,dept:'commercial'},
+    {id:3,titre:'Déclaration TVA mai',duree:45,deadline:'2025-05-16',priorite:'critique',done:false,dept:'finance'},
+    {id:4,titre:'Évaluation mensuelle équipe',duree:120,deadline:'2025-05-20',priorite:'normale',done:false,dept:'rh'},
+    {id:5,titre:'Mise à jour certifications terrain',duree:30,deadline:'2025-05-22',priorite:'haute',done:false,dept:'terrain'},
+  ]);
+  const [newTask,setNewTask]=useState({titre:'',duree:30,deadline:'',priorite:'normale',dept:'terrain'});
 
   return (
     <div style={{display:'flex',height:'100%',fontFamily:'inherit'}}>
@@ -509,6 +536,48 @@ export default function Planning(){
         {view==='semaine'&&<WeekView events={filteredEvs} weekIdx={weekIdx} onEventClick={setSelEv}/>}
         {view==='mois'&&<MonthView events={filteredEvs} onEventClick={setSelEv}/>}
         {view==='agenda'&&<AgendaView events={filteredEvs} onEventClick={setSelEv}/>}
+        {view==='taches'&&(
+          <div style={{flex:1,overflowY:'auto',padding:'16px'}}>
+            <div style={{maxWidth:720,margin:'0 auto'}}>
+              <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 16px',marginBottom:12,display:'flex',gap:8,alignItems:'flex-end'}}>
+                <div style={{flex:1}}><div style={{fontSize:10,color:C.text3,marginBottom:3}}>Nouvelle tâche</div><input value={newTask.titre} onChange={e=>setNewTask({...newTask,titre:e.target.value})} onKeyDown={e=>{if(e.key==='Enter'&&newTask.titre){setTasks(p=>[...p,{...newTask,id:Date.now(),done:false}]);setNewTask({titre:'',duree:30,deadline:'',priorite:'normale',dept:'terrain'});}} } placeholder="Ajouter une tâche... (Entrée pour valider)" style={{width:'100%',padding:'8px 10px',borderRadius:7,border:`1px solid ${C.border}`,fontSize:13,fontFamily:'inherit',outline:'none',boxSizing:'border-box'}}/></div>
+                <div><div style={{fontSize:10,color:C.text3,marginBottom:3}}>Durée</div><select value={newTask.duree} onChange={e=>setNewTask({...newTask,duree:Number(e.target.value)})} style={{padding:'8px',borderRadius:7,border:`1px solid ${C.border}`,fontSize:12,fontFamily:'inherit'}}><option value={15}>15 min</option><option value={30}>30 min</option><option value={45}>45 min</option><option value={60}>1h</option><option value={90}>1h30</option><option value={120}>2h</option></select></div>
+                <div><div style={{fontSize:10,color:C.text3,marginBottom:3}}>Deadline</div><input type="date" value={newTask.deadline} onChange={e=>setNewTask({...newTask,deadline:e.target.value})} style={{padding:'8px',borderRadius:7,border:`1px solid ${C.border}`,fontSize:12,fontFamily:'inherit'}}/></div>
+                <div><div style={{fontSize:10,color:C.text3,marginBottom:3}}>Priorité</div><select value={newTask.priorite} onChange={e=>setNewTask({...newTask,priorite:e.target.value})} style={{padding:'8px',borderRadius:7,border:`1px solid ${C.border}`,fontSize:12,fontFamily:'inherit'}}><option value="faible">Faible</option><option value="normale">Normale</option><option value="haute">Haute</option><option value="critique">Critique</option></select></div>
+              </div>
+              <div style={{padding:'7px 12px',background:C.purple_l,border:`1px solid #D4C5F9`,borderRadius:8,marginBottom:12,fontSize:11,color:'#26215C',display:'flex',alignItems:'center',gap:6}}>
+                ⚡ ChaCha auto-schedule les tâches non terminées dans vos créneaux libres — tapez "planifie mes tâches" dans la barre
+              </div>
+              <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,overflow:'hidden'}}>
+                <div style={{padding:'10px 16px',borderBottom:`1px solid ${C.border2}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <span style={{fontSize:12,fontWeight:600,color:C.text}}>{tasks.filter(t=>!t.done).length} tâche{tasks.filter(t=>!t.done).length>1?'s':''} en attente</span>
+                  <span style={{fontSize:11,color:C.text3}}>{tasks.filter(t=>t.done).length} terminée{tasks.filter(t=>t.done).length>1?'s':''}</span>
+                </div>
+                {tasks.sort((a,b)=>a.done===b.done?0:a.done?1:-1).map((task,i)=>{
+                  const pColors={critique:[C.red_l,C.red],haute:[C.orange_l,C.orange],normale:[C.blue_l,C.blue],faible:[C.border2,C.text3]};
+                  const [pbg,pc]=pColors[task.priorite]||pColors.normale;
+                  const overdue=task.deadline&&new Date(task.deadline)<new Date()&&!task.done;
+                  return (
+                    <div key={task.id} style={{padding:'11px 16px',borderBottom:`1px solid ${C.border2}`,display:'flex',alignItems:'center',gap:12,background:task.done?C.bg:'transparent',opacity:task.done?.6:1}}>
+                      <div onClick={()=>setTasks(p=>p.map(t=>t.id===task.id?{...t,done:!t.done}:t))} style={{width:18,height:18,borderRadius:4,border:`2px solid ${task.done?C.green:C.border}`,background:task.done?C.green:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                        {task.done&&<span style={{color:'#fff',fontSize:11,lineHeight:1,fontWeight:700}}>✓</span>}
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:task.done?400:500,color:task.done?C.text3:C.text,textDecoration:task.done?'line-through':'none'}}>{task.titre}</div>
+                        <div style={{fontSize:11,color:overdue?C.red:C.text3,marginTop:2,display:'flex',gap:8}}>
+                          <span>{task.duree} min</span>
+                          {task.deadline&&<span style={{color:overdue?C.red:C.text3,fontWeight:overdue?600:400}}>{overdue?'⚠️ ':''}Deadline {task.deadline}</span>}
+                        </div>
+                      </div>
+                      <span style={{fontSize:10,padding:'2px 8px',borderRadius:20,background:pbg,color:pc,fontWeight:600,flexShrink:0}}>{task.priorite}</span>
+                      <button onClick={()=>setTasks(p=>p.filter(t=>t.id!==task.id))} style={{border:'none',background:'none',cursor:'pointer',fontSize:14,color:C.text3,padding:'0 4px',flexShrink:0}}>×</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* PANEL DÉTAIL */}

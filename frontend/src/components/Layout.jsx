@@ -213,22 +213,6 @@ export default function Layout() {
             </>}
           </div>
 
-          {/* Agent IA */}
-          <button onClick={() => setShowChat(!showChat)}
-            style={{padding:'6px 14px', borderRadius:20, border:`1px solid ${showChat?'#7c3aed':'#e2e8f0'}`, background: showChat?'#7c3aed':'white', color: showChat?'white':'#7c3aed', fontSize:12, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:6, transition:'all .2s'}}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
-            Agent IA
-          </button>
-
-          {/* Notifs */}
-          <div style={{position:'relative'}} ref={notifRef}>
-            <button onClick={() => {setShowNotif(!showNotif); setShowProfile(false);}}
-              style={{width:38, height:38, borderRadius:10, border:'1px solid #e8ecf0', background:'white', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', position:'relative', transition:'all .2s'}}
-              onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
-              onMouseLeave={e => e.currentTarget.style.background='white'}>
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-              {unread > 0 && <span style={{position:'absolute', top:7, right:7, width:8, height:8, borderRadius:'50%', background:'#ef4444', border:'2px solid white'}} />}
-            </button>
             {showNotif && (
               <div style={{position:'absolute', top:'calc(100% + 8px)', right:0, width:320, background:'white', borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.12)', border:'1px solid #e8ecf0', zIndex:9999, overflow:'hidden'}}>
                 <div style={{padding:'12px 16px', borderBottom:'1px solid #f1f5f9', display:'flex', justifyContent:'space-between', alignItems:'center'}}>
