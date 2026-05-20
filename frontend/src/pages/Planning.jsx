@@ -13,23 +13,23 @@ const C = {
 };
 
 const DEPT = {
-  terrain:   { color:C.blue,   bg:C.blue_l,   dc:C.blue_d,   label:'Terrain',    emoji:'🔧' },
-  commercial:{ color:C.green,  bg:C.green_l,  dc:C.green_d,  label:'Commercial', emoji:'🤝' },
-  rh:        { color:C.orange, bg:C.orange_l, dc:C.orange_d, label:'RH & Équipe',emoji:'👥' },
+  terrain:   { color:C.blue,   bg:C.blue_l,   dc:C.blue_d,   label:'Terrain',    emoji:'⚒' },
+  commercial:{ color:C.green,  bg:C.green_l,  dc:C.green_d,  label:'Commercial', emoji:'⊕' },
+  rh:        { color:C.orange, bg:C.orange_l, dc:C.orange_d, label:'RH & Équipe',emoji:'⊗' },
   finance:   { color:C.purple, bg:C.purple_l, dc:C.purple_d, label:'Finance',    emoji:'💰' },
-  direction: { color:C.red,    bg:C.red_l,    dc:C.red_d,    label:'Direction',  emoji:'🎯' },
-  personnel: { color:C.text3,  bg:C.border2,  dc:C.text2,    label:'Personnel',  emoji:'👤' },
+  direction: { color:C.red,    bg:C.red_l,    dc:C.red_d,    label:'Direction',  emoji:'◎' },
+  personnel: { color:C.text3,  bg:C.border2,  dc:C.text2,    label:'Personnel',  emoji:'◯' },
 };
 
 const EV_TYPES = [
-  {id:'reunion_interne', label:'Réunion interne (CleanIT Comm)', emoji:'💬'},
-  {id:'reunion_externe', label:'Réunion externe (Zoom/Teams/Meet)', emoji:'🌐'},
-  {id:'mission',         label:'Mission terrain', emoji:'🔧'},
-  {id:'formation',       label:'Formation / Certification', emoji:'🎓'},
-  {id:'conge',           label:'Congé / Absence', emoji:'🏖️'},
-  {id:'jalon',           label:'Jalon projet', emoji:'📌'},
-  {id:'echeance',        label:'Échéance financière', emoji:'💰'},
-  {id:'personnel',       label:'Événement personnel', emoji:'👤'},
+  {id:'reunion_interne', label:'Réunion interne (CleanIT Comm)', emoji:'RéInt'},
+  {id:'reunion_externe', label:'Réunion externe (Zoom/Teams/Meet)', emoji:'RéExt'},
+  {id:'mission',         label:'Mission terrain', emoji:'⚒'},
+  {id:'formation',       label:'Formation / Certification', emoji:'Form.'},
+  {id:'conge',           label:'Congé / Absence', emoji:'Congé'},
+  {id:'jalon',           label:'Jalon projet', emoji:'Jalon'},
+  {id:'echeance',        label:'Échéance financière', emoji:'Éch.'},
+  {id:'personnel',       label:'Événement personnel', emoji:'◯'},
 ];
 
 const VISIBILITY = [
@@ -238,7 +238,7 @@ function MonthView({events,onEventClick}){
               <div style={{fontSize:10,fontWeight:500,marginBottom:2,display:'inline-flex',alignItems:'center',justifyContent:'center',width:18,height:18,borderRadius:'50%',background:isToday?C.blue:'transparent',color:isToday?'#fff':C.text}}>{day}</div>
               {dayEvs.slice(0,2).map(ev=>{
                 const d=DEPT[ev.dept]||DEPT.terrain;
-                return <div key={ev.id} onClick={()=>onEventClick(ev)} style={{fontSize:9,padding:'1px 4px',borderRadius:3,background:ev.urgent?C.red_l:d.bg,color:d.dc,marginBottom:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500,cursor:'pointer'}}>{d.emoji} {ev.titre.slice(0,14)}</div>;
+                return <div key={ev.id} onClick={()=>onEventClick(ev)} style={{fontSize:9,padding:'1px 4px',borderRadius:3,background:ev.urgent?C.red_l:d.bg,color:d.dc,marginBottom:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontWeight:500,cursor:'pointer'}}>{ev.titre.slice(0,16)}</div>;
               })}
               {dayEvs.length>2&&<div style={{fontSize:9,color:C.text3}}>+{dayEvs.length-2}</div>}
             </div>
@@ -274,7 +274,7 @@ function AgendaView({events,onEventClick}){
                   onMouseLeave={e=>e.currentTarget.style.background=ev.conflit?'rgba(133,79,11,.04)':ev.urgent?'rgba(163,45,45,.04)':'transparent'}>
                   <div style={{fontSize:10,color:C.text3,marginBottom:3}}>{ev.hStart}h{ev.hEnd!==ev.hStart?`–${ev.hEnd}h`:' · Toute la journée'}{ev.urgent?' · ⚠️ Urgent':''}{ev.conflit?' · ⚠️ Conflit':''}</div>
                   <div style={{fontSize:13,fontWeight:500,color:C.text,marginBottom:3,display:'flex',alignItems:'center',gap:7}}>
-                    <span style={{fontSize:14}}>{type.emoji||d.emoji}</span>{ev.titre}
+                    <span style={{fontSize:10,padding:'2px 6px',borderRadius:4,background:d.bg,color:d.dc,fontWeight:600}}>{d.label.split(' ')[0]}</span>{ev.titre}
                     {ev.ai&&<span style={{fontSize:10,color:C.purple,opacity:.7}}>⚡</span>}
                   </div>
                   <div style={{fontSize:11,color:C.text3,display:'flex',alignItems:'center',gap:5}}><Av photo={ev.photo} name={ev.resp} size={16}/>{ev.resp} · {d.label}</div>
