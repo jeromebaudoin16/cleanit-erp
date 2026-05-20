@@ -355,7 +355,7 @@ function TabPlanning(){
         <Row label="Jours travaillés">
           <div style={{display:'flex',gap:5}}>
             {JOURS.map((j,i)=>(
-              <button key={i} onClick={()=>setP(prev=>{const jrs=prev.jours||[];return {...prev,jours:jrs.includes(i+1)?jrs.filter(d=>d!==i+1):[...jrs,i+1]};});}
+              <button key={i} onClick={()=>{const jrs=(p.jours||[]);setP({...p,jours:jrs.includes(i+1)?jrs.filter(d=>d!==i+1):[...jrs,i+1]});}}
                 style={{width:34,height:34,borderRadius:7,border:`1px solid ${(p.jours||[]).includes(i+1)?C.blue:C.border}`,background:(p.jours||[]).includes(i+1)?C.blue_l:'none',color:(p.jours||[]).includes(i+1)?C.blue:C.text3,cursor:'pointer',fontSize:11,fontWeight:600,fontFamily:'inherit'}}>
                 {j}
               </button>
