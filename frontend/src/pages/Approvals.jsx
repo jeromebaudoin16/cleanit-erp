@@ -57,7 +57,6 @@ const TYPES = [
   {id:"mission_request",  label:"Ordre de mission",       color:"#006E5A", ik:"mission"},
   {id:"training_request", label:"Demande de formation",   color:"#7600BC", ik:"training"},
   {id:"equipment_request",label:"Demande matériel",       color:"#003F87", ik:"equipment"},
-  {id:"bc_facturation",   label:"Facturation BC — MTN/Orange/CAMTEL", color:"#185FA5", ik:"audit"},
 ];
 const gType = id => TYPES.find(t=>t.id===id)||TYPES[0];
 
@@ -93,11 +92,6 @@ const DEFAULT_MATRIX = {
   ],
   training_request: [{max:Infinity,lvls:["manager","rh","dg"],  mode:"sequential", label:"Formation"}],
   equipment_request:[{max:Infinity,lvls:["manager","finance1","dg"],mode:"sequential",label:"Équipement"}],
-  bc_facturation:[
-    {max:5000000,  lvls:["manager","finance1"],                     mode:"sequential",label:"BC — Standard (<5M FCFA)"},
-    {max:20000000, lvls:["manager","finance1","dg"],                mode:"sequential",label:"BC — Élevé (<20M FCFA)"},
-    {max:Infinity, lvls:["manager","finance1","finance2","cfo","dg"],mode:"sequential",label:"BC — Exceptionnel (>20M FCFA)"},
-  ],
 };
 
 // Routage conditionnel — règles supplémentaires par condition
@@ -1004,7 +998,7 @@ const DetailPage = ({items,onUpdate,settings,matrix}) => {
 // ── MODAL NOUVELLE DEMANDE ────────────────────────────────────
 const NewModal = ({onClose,onSave,matrix,settings}) => {
   const [step,setStep]=useState(1),[type,setType]=useState(""),[saving,setSaving]=useState(false);
-  const [form,setForm]=useState({title:"",amount:"",currency:"FCFA",priority:"normale",justification:"",site:"",project:"",beneficiaryName:"",beneficiaryBank:"",beneficiaryAccount:"",beneficiaryMobile:"",beneficiaryEmail:"",dateDebut:"",dateFin:"",destination:"",transportMode:""});
+  const [form,setForm]=useState({title:"",amount:"",currency:"FCFA",priority:"normale",justification:"",site:"",project:"",beneficiaryName:"",beneficiaryBank:"",beneficiaryAccount:"",beneficiaryMobile:"",beneficiaryEmail:"",dateDebut:"",dateFin:"",destination:"",transportMode:"",bcPo:"",bcProject:"",bcSiteCode:"",bcDuid:""});
   const upd=(k,v)=>setForm(p=>({...p,[k]:v}));
   const t=TYPES.find(tt=>tt.id===type);
   const rule=type?getLevels(type,Number(form.amount)||0,matrix):{lvls:[],mode:"sequential"};
@@ -1083,6 +1077,11 @@ const NewModal = ({onClose,onSave,matrix,settings}) => {
                 {needsDates&&<><Inp label="Date début" k="dateDebut" tp="date"/><Inp label="Date fin" k="dateFin" tp="date"/></>}
                 {type==="mission_request"&&<><Inp label="Destination" k="destination"/><Sel label="Transport" k="transportMode" opts={["Véhicule société","Avion","Bus","Taxi","Véhicule personnel"]}/></>}
                 {withSite&&<><Sel label="Site" k="site" opts={["DLA-001","DLA-003","YDE-001","KRI-001","GAR-001","LIM-001","Bureau principal"]}/><Inp label="Projet" k="project" ph="PROJ-2025-001"/></>}
+                {type==="payment_request"&&<div style={{gridColumn:"1/-1",padding:"8px 12px",background:"#EFF6FF",borderRadius:6,border:"1px solid #BFDBFE",fontSize:11,color:"#0066CC",fontWeight:600}}>Bon de Commande — Champs optionnels (si paiement lié à un BC client)</div>}
+                {type==="payment_request"&&<Inp label="N° BC / PO" k="bcPo" ph="ex: 416121376123-2"/>}
+                {type==="payment_request"&&<Inp label="Code Projet BC" k="bcProject" ph="ex: 56A0KY1 — DWDM"/>}
+                {type==="payment_request"&&<Inp label="Code Site" k="bcSiteCode" ph="ex: GN-CEN-BOUMNYEBEL_eLTE"/>}
+                {type==="payment_request"&&<Inp label="DUID Équipement" k="bcDuid" ph="ex: ON-OSN9800-SWAP-T46-031"/>}
                 <div style={{gridColumn:"1/-1"}}>
                   <label style={{display:"block",fontSize:11,fontWeight:600,color:C.text2,marginBottom:3,textTransform:"uppercase",letterSpacing:.5}}>Justification <span style={{color:C.red}}>*</span></label>
                   <textarea value={form.justification} onChange={e=>upd("justification",e.target.value)} rows={3} placeholder="Décrivez la raison de cette demande..." style={{width:"100%",padding:"8px 10px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:13,fontFamily:"inherit",outline:"none",resize:"vertical",boxSizing:"border-box"}}/>
