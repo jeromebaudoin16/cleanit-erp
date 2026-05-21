@@ -106,6 +106,8 @@ export default function PurchaseOrders(){
       const r = await api.get('/purchase-orders');
       const data = Array.isArray(r.data) && r.data.length > 0 ? r.data : SEED_BC;
       setBcs(data);
+      // Sauvegarder les sites BC pour liaison avec Approvals et CleanITBooks
+      try{localStorage.setItem('cleanit_bc_sites',JSON.stringify(data.map(b=>({site_id:b.site_id,site_code:b.site_code,duid:b.duid,po:b.po,project_code:b.project_code,project_name:b.project_name}))));}catch{}
     }catch{
       setBcs(SEED_BC);
     }

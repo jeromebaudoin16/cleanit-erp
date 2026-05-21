@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { api, getUser } from "../utils/api";
 import { useNavigate, useParams } from "react-router-dom";
 import { getBalance } from "../services/cleanitbooks.api";
@@ -1000,6 +1000,17 @@ const NewModal = ({onClose,onSave,matrix,settings}) => {
   const [step,setStep]=useState(1),[type,setType]=useState(""),[saving,setSaving]=useState(false);
   const [form,setForm]=useState({title:"",amount:"",currency:"FCFA",priority:"normale",justification:"",site:"",project:"",beneficiaryName:"",beneficiaryBank:"",beneficiaryAccount:"",beneficiaryMobile:"",beneficiaryEmail:"",dateDebut:"",dateFin:"",destination:"",transportMode:"",bcPo:"",bcProject:"",bcSiteCode:"",bcDuid:""});
   const upd=(k,v)=>setForm(p=>({...p,[k]:v}));
+  // Charger les sites BC depuis localStorage (alimenté par module Bons de Commande)
+  const bcSites=React.useMemo(()=>{try{return JSON.parse(localStorage.getItem('cleanit_bc_sites')||'[]');}catch{return[];}}, []);
+  const handleSiteChange=(siteId)=>{
+    upd('site',siteId);
+    if(type==="payment_request"&&bcSites.length>0){
+      const bc=bcSites.find(s=>s.site_id===siteId);
+      if(bc){upd('bcPo',bc.po||'');upd('bcProject',(bc.project_code||'')+' — '+(bc.project_name||''));upd('bcSiteCode',bc.site_code||'');upd('bcDuid',bc.duid||'');}
+    }
+  };
+  const siteOpts=bcSites.length>0?[...(new Set(bcSites.map(s=>s.site_id).filter(Boolean)))]
+    :["DLA-001","DLA-003","YDE-001","KRI-001","GAR-001","LIM-001","Bureau principal"];
   const t=TYPES.find(tt=>tt.id===type);
   const rule=type?getLevels(type,Number(form.amount)||0,matrix):{lvls:[],mode:"sequential"};
   const lvls=rule.lvls;
@@ -1076,7 +1087,19 @@ const NewModal = ({onClose,onSave,matrix,settings}) => {
                 {needsAmt&&<Sel label="Devise" k="currency" opts={["FCFA","USD","EUR","CNY"]}/>}
                 {needsDates&&<><Inp label="Date début" k="dateDebut" tp="date"/><Inp label="Date fin" k="dateFin" tp="date"/></>}
                 {type==="mission_request"&&<><Inp label="Destination" k="destination"/><Sel label="Transport" k="transportMode" opts={["Véhicule société","Avion","Bus","Taxi","Véhicule personnel"]}/></>}
-                {withSite&&<><Sel label="Site" k="site" opts={["DLA-001","DLA-003","YDE-001","KRI-001","GAR-001","LIM-001","Bureau principal"]}/><Inp label="Projet" k="project" ph="PROJ-2025-001"/></>}
+                {withSite&&<>
+                  <div style={{marginBottom:12}}>
+                    <label style={{display:"block",fontSize:11,fontWeight:600,color:C.text2,marginBottom:3,textTransform:"uppercase",letterSpacing:.5}}>
+                      Site {type==="payment_request"&&bcSites.length>0&&<span style={{fontSize:10,color:"#0066CC",fontWeight:400,textTransform:"none"}}> — {siteOpts.length} sites BC disponibles</span>}
+                    </label>
+                    <select value={form.site} onChange={e=>handleSiteChange(e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid "+C.border,fontSize:13,fontFamily:"inherit",outline:"none",background:C.white}}>
+                      <option value="">Sélectionner un site...</option>
+                      {siteOpts.map(s=><option key={s} value={s}>{s}</option>)}
+                    </select>
+                    {type==="payment_request"&&form.site&&bcSites.find(s=>s.site_id===form.site)&&<div style={{fontSize:10,color:"#0066CC",marginTop:3}}>✓ Champs BC remplis automatiquement</div>}
+                  </div>
+                  <Inp label="Projet" k="project" ph="PROJ-2025-001"/>
+                </>}
                 {type==="payment_request"&&<div style={{gridColumn:"1/-1",padding:"8px 12px",background:"#EFF6FF",borderRadius:6,border:"1px solid #BFDBFE",fontSize:11,color:"#0066CC",fontWeight:600}}>Bon de Commande — Champs optionnels (si paiement lié à un BC client)</div>}
                 {type==="payment_request"&&<Inp label="N° BC / PO" k="bcPo" ph="ex: 416121376123-2"/>}
                 {type==="payment_request"&&<Inp label="Code Projet BC" k="bcProject" ph="ex: 56A0KY1 — DWDM"/>}
