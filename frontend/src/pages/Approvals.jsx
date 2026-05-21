@@ -57,6 +57,7 @@ const TYPES = [
   {id:"mission_request",  label:"Ordre de mission",       color:"#006E5A", ik:"mission"},
   {id:"training_request", label:"Demande de formation",   color:"#7600BC", ik:"training"},
   {id:"equipment_request",label:"Demande matériel",       color:"#003F87", ik:"equipment"},
+  {id:"bc_facturation",   label:"Facturation BC — MTN/Orange/CAMTEL", color:"#185FA5", ik:"audit"},
 ];
 const gType = id => TYPES.find(t=>t.id===id)||TYPES[0];
 
@@ -92,6 +93,11 @@ const DEFAULT_MATRIX = {
   ],
   training_request: [{max:Infinity,lvls:["manager","rh","dg"],  mode:"sequential", label:"Formation"}],
   equipment_request:[{max:Infinity,lvls:["manager","finance1","dg"],mode:"sequential",label:"Équipement"}],
+  bc_facturation:[
+    {max:5000000,  lvls:["manager","finance1"],                     mode:"sequential",label:"BC — Standard (<5M FCFA)"},
+    {max:20000000, lvls:["manager","finance1","dg"],                mode:"sequential",label:"BC — Élevé (<20M FCFA)"},
+    {max:Infinity, lvls:["manager","finance1","finance2","cfo","dg"],mode:"sequential",label:"BC — Exceptionnel (>20M FCFA)"},
+  ],
 };
 
 // Routage conditionnel — règles supplémentaires par condition

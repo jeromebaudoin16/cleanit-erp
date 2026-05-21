@@ -4508,7 +4508,10 @@ const PageInvoiceNew = ({invoices,setInvoices,customers,jobs}) => {
               </Field>
             )}
             <Field label="Date echeance"><Inp type="date" value={dueDate} onChange={setDueDate}/></Field>
-            <Field label="N PO client"><Inp value={poNum} onChange={setPoNum} placeholder="PO du client"/></Field>
+            <Field label="N° PO client (MTN/Orange)"><Inp value={poNum} onChange={setPoNum} placeholder="ex: 416121376123-2"/></Field>
+            <Field label="Project Code BC"><Inp value={bcProject||""} onChange={v=>setBcProject&&setBcProject(v)} placeholder="ex: 56A0KY1 — DWDM"/></Field>
+            <Field label="Site Code MTN"><Inp value={bcSiteCode||""} onChange={v=>setBcSiteCode&&setBcSiteCode(v)} placeholder="ex: GN-CEN-BOUMNYEBEL_eLTE"/></Field>
+            <Field label="DUID équipement"><Inp value={bcDuid||""} onChange={v=>setBcDuid&&setBcDuid(v)} placeholder="ex: ON-OSN9800-SWAP-T46-031-MTNC"/></Field>
             <Field label="Devise"><Sel value={currency} onChange={setCurrency} options={["FCFA","USD","EUR"]}/></Field>
           </div>
           <div style={{border:"1px solid "+C.border,borderRadius:4,overflow:"hidden",marginBottom:16}}>
