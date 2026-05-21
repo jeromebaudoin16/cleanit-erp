@@ -998,7 +998,9 @@ const DetailPage = ({items,onUpdate,settings,matrix}) => {
 // ── MODAL NOUVELLE DEMANDE ────────────────────────────────────
 const NewModal = ({onClose,onSave,matrix,settings}) => {
   const [step,setStep]=useState(1),[type,setType]=useState(""),[saving,setSaving]=useState(false);
-  const [form,setForm]=useState({title:"",amount:"",currency:"FCFA",priority:"normale",justification:"",site:"",project:"",beneficiaryName:"",beneficiaryBank:"",beneficiaryAccount:"",beneficiaryMobile:"",beneficiaryEmail:"",dateDebut:"",dateFin:"",destination:"",transportMode:"",bcPo:"",bcProject:"",bcSiteCode:"",bcDuid:""});
+  const [form,setForm]=useState({title:"",amount:"",currency:"FCFA",priority:"normale",justification:"",site:"",project:"",beneficiaryType:"",beneficiaryName:"",beneficiaryBank:"",beneficiaryAccount:"",beneficiaryMobile:"",beneficiaryEmail:"",dateDebut:"",dateFin:"",destination:"",transportMode:"",bcPo:"",bcProject:"",bcSiteCode:"",bcDuid:""});
+  const [collabs,setCollabs]=React.useState([]);
+  React.useEffect(()=>{api.get("/users").then(r=>{if(Array.isArray(r.data))setCollabs(r.data);}).catch(()=>{const stored=localStorage.getItem("cleanit_user");if(stored){try{const u=JSON.parse(stored);setCollabs([u]);}catch{}}});},[]);
   const upd=(k,v)=>setForm(p=>({...p,[k]:v}));
   // Charger les sites BC depuis localStorage (alimenté par module Bons de Commande)
   const bcSites=React.useMemo(()=>{try{return JSON.parse(localStorage.getItem('cleanit_bc_sites')||'[]');}catch{return[];}}, []);
@@ -1122,14 +1124,65 @@ const NewModal = ({onClose,onSave,matrix,settings}) => {
             <div>
               {needsBenef&&(
                 <div style={{marginBottom:14}}>
-                  <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:10,textTransform:"uppercase",letterSpacing:.5}}>Bénéficiaire</div>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
-                    <Inp label="Nom complet" k="beneficiaryName" ph="Prénom Nom" req/>
-                    <Inp label="Email" k="beneficiaryEmail" tp="email"/>
-                    <Sel label="Banque" k="beneficiaryBank" opts={["BICEC","Société Générale Cameroun","Afriland First Bank","UBA Cameroun","Ecobank","BGFI Bank"]}/>
-                    <Inp label="Numéro de compte" k="beneficiaryAccount" ph="CM21 XXXX XXXX XXXX"/>
-                    <Inp label="Mobile Money" k="beneficiaryMobile" ph="6XX XXX XXX"/>
+                  <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:8,textTransform:"uppercase",letterSpacing:.5}}>Bénéficiaire du paiement</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7,marginBottom:12}}>
+                    {[["collab","Collaborateur","Technicien ou employé"],["fournisseur","Fournisseur","Prestataire externe"],["autre","Autre","Loyer, TVA, CNPS..."]].map(([id,l,sub])=>(
+                      <div key={id} onClick={()=>upd("beneficiaryType",id)}
+                        style={{padding:"10px 8px",border:`2px solid ${form.beneficiaryType===id?C.blue:C.border}`,borderRadius:8,cursor:"pointer",textAlign:"center",background:form.beneficiaryType===id?C.blue+"0A":"transparent",transition:"all .15s"}}>
+                        <div style={{fontSize:12,fontWeight:600,color:form.beneficiaryType===id?C.blue:C.text,marginBottom:2}}>{l}</div>
+                        <div style={{fontSize:10,color:C.text3}}>{sub}</div>
+                      </div>
+                    ))}
                   </div>
+                  {form.beneficiaryType==="collab"&&(
+                    <div>
+                      <div style={{marginBottom:10}}>
+                        <label style={{display:"block",fontSize:11,fontWeight:600,color:C.text2,marginBottom:3,textTransform:"uppercase",letterSpacing:.5}}>Sélectionner le collaborateur <span style={{color:C.red}}>*</span></label>
+                        <select value={form.beneficiaryName} onChange={e=>{const sel=collabs.find(u=>(u.firstName+" "+u.lastName)===e.target.value||u.email===e.target.value);upd("beneficiaryName",e.target.value);if(sel){upd("beneficiaryEmail",sel.email||"");upd("beneficiaryBank",sel.bank||sel.profile?.bank||"BICEC");upd("beneficiaryAccount",sel.account||sel.profile?.account||"");upd("beneficiaryMobile",sel.phone||sel.profile?.phone||"");}}}
+                          style={{width:"100%",padding:"8px 10px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:13,fontFamily:"inherit",outline:"none",background:C.white}}>
+                          <option value="">Choisir un collaborateur...</option>
+                          {collabs.map(u=><option key={u.id||u.email} value={(u.firstName||"")+" "+(u.lastName||"")}>{u.firstName} {u.lastName} — {u.role}</option>)}
+                        </select>
+                      </div>
+                      {form.beneficiaryName&&(
+                        <div style={{padding:"10px 12px",background:C.bg,borderRadius:6,border:`1px solid ${C.border}`,display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 12px",fontSize:12}}>
+                          <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:C.text3}}>Email</span><span style={{fontWeight:600}}>{form.beneficiaryEmail||"—"}</span></div>
+                          <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:C.text3}}>Banque</span><span style={{fontWeight:600}}>{form.beneficiaryBank||"—"}</span></div>
+                          <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:C.text3}}>Compte</span><span style={{fontWeight:500,fontSize:11,fontFamily:"monospace"}}>{form.beneficiaryAccount||"À compléter"}</span></div>
+                          <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:C.text3}}>Mobile Money</span><span style={{fontWeight:600}}>{form.beneficiaryMobile||"—"}</span></div>
+                          <div style={{gridColumn:"1/-1",fontSize:10,color:C.green,display:"flex",alignItems:"center",gap:4,marginTop:4,paddingTop:6,borderTop:`1px solid ${C.border2}`}}>
+                            <Ic d={I.check} size={11} color={C.green}/>Informations importées depuis le profil
+                          </div>
+                        </div>
+                      )}
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px",marginTop:8}}>
+                        <div style={{gridColumn:"1/-1"}}>
+                          <label style={{display:"block",fontSize:11,fontWeight:600,color:C.text2,marginBottom:3,textTransform:"uppercase",letterSpacing:.5}}>Banque</label>
+                          <select value={form.beneficiaryBank} onChange={e=>upd("beneficiaryBank",e.target.value)} style={{width:"100%",padding:"8px 10px",borderRadius:6,border:`1px solid ${C.border}`,fontSize:13,fontFamily:"inherit",outline:"none",background:C.white,marginBottom:8}}>
+                            {["BICEC","Société Générale Cameroun","Afriland First Bank","UBA Cameroun","Ecobank","BGFI Bank"].map(b=><option key={b}>{b}</option>)}
+                          </select>
+                        </div>
+                        <Inp label="Numéro de compte" k="beneficiaryAccount" ph="CM21 XXXX XXXX XXXX"/>
+                        <Inp label="Mobile Money" k="beneficiaryMobile" ph="6XX XXX XXX"/>
+                      </div>
+                    </div>
+                  )}
+                  {form.beneficiaryType==="fournisseur"&&(
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+                      <div style={{gridColumn:"1/-1"}}><Inp label="Nom du fournisseur" k="beneficiaryName" ph="Huawei Cameroun SARL" req/></div>
+                      <Sel label="Banque" k="beneficiaryBank" opts={["BICEC","Société Générale Cameroun","Afriland First Bank","UBA Cameroun","Ecobank","BGFI Bank"]}/>
+                      <Inp label="Numéro de compte" k="beneficiaryAccount" ph="CM21 XXXX XXXX XXXX"/>
+                      <Inp label="Email" k="beneficiaryEmail" tp="email"/>
+                      <Inp label="Téléphone" k="beneficiaryMobile" ph="+237 6XX XXX XXX"/>
+                    </div>
+                  )}
+                  {form.beneficiaryType==="autre"&&(
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+                      <div style={{gridColumn:"1/-1"}}><Inp label="Nature du paiement" k="beneficiaryName" ph="ex: Loyer bureaux mai 2025 / TVA / CNPS" req/></div>
+                      <Inp label="Référence / N° avis" k="beneficiaryAccount" ph="ex: CNPS-2025-Q1"/>
+                      <Inp label="Contact / Email" k="beneficiaryEmail" tp="email" ph="dgi@impots.cm"/>
+                    </div>
+                  )}
                 </div>
               )}
               <div style={{background:C.bg,borderRadius:6,padding:12,marginBottom:12,fontSize:12}}>

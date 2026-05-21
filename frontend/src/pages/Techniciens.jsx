@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 
 const C = {
@@ -334,16 +334,23 @@ function DetailPage({ tech, onBack }) {
           </div>
         )}
 
-        {tab==='sites' && (
+        {tab==='sites' && (()=>{
+          const approvalsPay = loadApprovalsPaiements(tech.name);
+          const {paid: aPaid, pending: aPending} = calcFromApprovals(approvalsPay);
+          const totalPercu = tp + aPaid;
+          const totalDu = td + aPending;
+          return (
           <div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,padding:'14px 20px',borderBottom:`1px solid ${C.border2}`,background:C.white}}>
               <div style={{background:C.green_l,borderRadius:10,padding:'16px 20px',border:`1px solid ${C.green}`}}>
                 <div style={{fontSize:11,fontWeight:600,color:C.text3,textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>Total perçu</div>
-                <div style={{fontSize:24,fontWeight:700,color:C.green}}>{fN(tp)} F</div>
+                <div style={{fontSize:24,fontWeight:700,color:C.green}}>{fN(totalPercu)} F</div>
+                {aPaid>0&&<div style={{fontSize:10,color:C.green,marginTop:3}}>dont {fN(aPaid)} F via Approvals</div>}
               </div>
-              <div style={{background:td>0?C.red_l:C.green_l,borderRadius:10,padding:'16px 20px',border:`1px solid ${td>0?C.red:C.green}`}}>
+              <div style={{background:totalDu>0?C.red_l:C.green_l,borderRadius:10,padding:'16px 20px',border:`1px solid ${totalDu>0?C.red:C.green}`}}>
                 <div style={{fontSize:11,fontWeight:600,color:C.text3,textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>Montant dû</div>
-                <div style={{fontSize:24,fontWeight:700,color:td>0?C.red:C.green}}>{td>0?fN(td)+' F':'Tout soldé ✓'}</div>
+                <div style={{fontSize:24,fontWeight:700,color:totalDu>0?C.red:C.green}}>{totalDu>0?fN(totalDu)+' F':'Tout soldé ✓'}</div>
+                {aPending>0&&<div style={{fontSize:10,color:C.orange,marginTop:3}}>{fN(aPending)} F approuvé en cours</div>}
               </div>
             </div>
             {(tech.sites||[]).map((s,i)=>(
@@ -366,10 +373,54 @@ function DetailPage({ tech, onBack }) {
               </div>
             ))}
           </div>
-        )}
+          {approvalsPay.length>0&&(
+            <div style={{borderTop:`1px solid ${C.border2}`,background:C.white}}>
+              <div style={{padding:'10px 20px',fontSize:11,fontWeight:600,color:C.text3,textTransform:'uppercase',letterSpacing:.5,borderBottom:`1px solid ${C.border2}`}}>Paiements Approvals liés ({approvalsPay.length})</div>
+              {approvalsPay.map((ap,i)=>{
+                const stC=ap.status==='paid'?C.green:ap.status==='rejected'?C.red:C.orange;
+                const stL=ap.status==='paid'?'Payé ✓':ap.status==='rejected'?'Rejeté':ap.status==='approved'?'Approuvé':'En attente';
+                return (
+                  <div key={i} style={{padding:'10px 20px',borderBottom:`1px solid ${C.border2}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:500,marginBottom:2}}>{ap.title||ap.site+' — '+ap.project}</div>
+                      <div style={{fontSize:10,color:C.text3}}>
+                        {ap.site&&<span>Site: {ap.site} · </span>}
+                        {ap.bcPo&&<span style={{fontFamily:'monospace'}}>PO: {ap.bcPo} · </span>}
+                        {ap.paymentRef&&<span style={{color:C.green}}>Réf: {ap.paymentRef} · </span>}
+                        <span>Soumis: {ap.submittedAt?.slice(0,10)||'—'}</span>
+                      </div>
+                    </div>
+                    <div style={{textAlign:'right',flexShrink:0,marginLeft:12}}>
+                      <div style={{fontSize:12,fontWeight:600,marginBottom:3}}>{new Intl.NumberFormat('fr-FR').format(ap.amount||0)} F</div>
+                      <span style={{fontSize:10,padding:'2px 7px',borderRadius:20,background:stC+'15',color:stC,fontWeight:600}}>{stL}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          </div>
+          );
+        })()}
       </div>
     </div>
   );
+}
+
+
+// Charger les paiements Approvals pour un technicien depuis localStorage
+function loadApprovalsPaiements(techName) {
+  try {
+    const stored = localStorage.getItem('cleanit_approvals_cache');
+    if (!stored) return [];
+    const items = JSON.parse(stored);
+    return items.filter(i => i.type === 'payment_request' && i.beneficiaryName === techName);
+  } catch { return []; }
+}
+function calcFromApprovals(items) {
+  const paid = items.filter(i => i.status === 'paid').reduce((s, i) => s + (i.amount || 0), 0);
+  const pending = items.filter(i => ['pending','approved'].includes(i.status)).reduce((s, i) => s + (i.amount || 0), 0);
+  return { paid, pending };
 }
 
 export default function Techniciens() {
