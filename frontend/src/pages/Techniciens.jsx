@@ -340,6 +340,7 @@ function DetailPage({ tech, onBack }) {
           const totalPercu = tp + aPaid;
           const totalDu = td + aPending;
           return (
+          <>
           <div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,padding:'14px 20px',borderBottom:`1px solid ${C.border2}`,background:C.white}}>
               <div style={{background:C.green_l,borderRadius:10,padding:'16px 20px',border:`1px solid ${C.green}`}}>
@@ -399,7 +400,7 @@ function DetailPage({ tech, onBack }) {
               })}
             </div>
           )}
-          </div>
+          </>
           );
         })()}
       </div>
