@@ -107,8 +107,8 @@ export default function Layout() {
 
         {/* Logo */}
         <div style={{padding:'18px 0', display:'flex', alignItems:'center', gap:12, borderBottom:'1px solid rgba(255,255,255,0.07)', cursor:'pointer', justifyContent: hovered?'flex-start':'center', paddingLeft: hovered?16:0}} onClick={() => nav('/dashboard')}>
-          <div style={{width:34, height:34, borderRadius:10, background:'linear-gradient(135deg,#334155,#475569)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:'0 4px 12px rgba(51,65,85,0.4)', marginLeft: hovered?0:13}}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <div style={{width:34,height:34,borderRadius:8,overflow:'hidden',flexShrink:0,marginLeft:hovered?0:13,display:'flex',alignItems:'center',justifyContent:'center',background:'#fff'}}>
+            <img src="/logo.png" alt="CleanIT" style={{width:34,height:34,objectFit:'contain'}} onError={e=>{e.target.style.display='none';}}/>
           </div>
           {hovered && (
             <div>

@@ -697,7 +697,10 @@ export default function Profile(){
       {/* Sidebar paramètres */}
       <div style={{width:230,borderRight:`1px solid ${C.border}`,background:C.white,flexShrink:0,display:'flex',flexDirection:'column'}}>
         <div style={{padding:'18px 16px',borderBottom:`1px solid ${C.border2}`}}>
-          <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:2}}>Paramètres</div>
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+          <img src="/logo.png" alt="CleanIT" style={{height:22,objectFit:'contain'}}/>
+        </div>
+        <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:2}}>Paramètres</div>
           {user&&<div style={{fontSize:12,color:C.text3}}>{user.firstName} {user.lastName} · {ROLES[user.role]||user.role}</div>}
         </div>
         <nav style={{padding:'8px 0',flex:1,overflowY:'auto'}}>
