@@ -428,20 +428,14 @@ function loadApprovalsPaiements(techName) {
 }
 
 export default function Techniciens() {
-  const [techs, setTechs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [techs, setTechs] = useState(SEED);
+  const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
-
-  useEffect(() => { loadTechs(); }, []);
-
-  const loadTechs = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/technicians');
-      setTechs(res.data && res.data.length > 0 ? res.data : SEED);
-    } catch { setTechs(SEED); }
-    setLoading(false);
-  };
+  useEffect(() => {
+    api.get('/technicians').then(res => {
+      if(res.data && res.data.length > 0) setTechs(res.data);
+    }).catch(() => {});
+  }, []);
 
   if (selected) return <DetailPage tech={selected} onBack={() => setSelected(null)} />;
 
