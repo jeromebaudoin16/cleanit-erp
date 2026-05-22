@@ -151,7 +151,6 @@ const NAV_ITEMS=[
   {id:'',l:'Dashboard',icon:IC.dashboard,url:'/pointage'},
   {id:'map',l:'Carte Live',icon:IC.map,url:'/pointage/map'},
   {id:'equipe',l:'Équipe',icon:IC.users,url:'/pointage/employes'},
-  {id:'planning',l:'Missions',icon:IC.calendar,url:'/pointage/planning'},
   {id:'historique',l:'Historique',icon:IC.history,url:'/pointage/historique'},
   {id:'alertes',l:'Alertes',icon:IC.alert,url:'/pointage/alertes'},
   {id:'rapports',l:'Rapports',icon:IC.report,url:'/pointage/rapports'},
@@ -380,73 +379,6 @@ function Equipe(){
   );
 }
 
-// ===== MISSIONS (Planning sync) =====
-function PlanningMissions(){
-  const [missions,setMissions]=useState(MISSIONS);
-  const prioriteC={critique:C.red,haute:C.orange,normale:C.blue};
-  const statutC={in_progress:{l:'En cours',c:C.blue,bg:C.blue_l},completed:{l:'Terminée',c:C.green,bg:C.green_l},assigned:{l:'Assignée',c:C.purple,bg:C.purple_l},alerte_absence:{l:'⚠ Absence',c:C.red,bg:C.red_l}};
-
-  const validerMission=(id)=>{
-    setMissions(p=>p.map(m=>m.id===id?{...m,valide_pm:true,statut:'in_progress'}:m));
-  };
-
-  return (
-    <div style={{padding:'14px 20px',display:'flex',flexDirection:'column',gap:12}}>
-      <div style={{padding:'9px 12px',background:C.purple_l,borderRadius:8,border:`1px solid #D4C5F9`,fontSize:12,color:'#26215C',display:'flex',alignItems:'center',gap:7}}>
-        <Icon d={IC.calendar} size={14} color={C.purple}/>
-        Planning propose les missions · Le responsable de projet valide ou modifie avant démarrage
-      </div>
-      <div style={{display:'flex',flexDirection:'column',gap:8}}>
-        {missions.map(m=>{
-          const st=statutC[m.statut]||statutC.assigned;
-          const pc=prioriteC[m.priorite]||C.text3;
-          const tech=TERRAIN.find(t=>t.id===m.techId);
-          const stTech=tech?statutTerrain(tech):null;
-          return (
-            <div key={m.id} style={{background:C.white,border:`1px solid ${m.statut==='alerte_absence'?C.red:C.border}`,borderRadius:10,overflow:'hidden'}}>
-              <div style={{padding:'11px 14px',display:'flex',alignItems:'center',gap:10,borderBottom:`1px solid ${C.border2}`}}>
-                <div style={{width:3,height:36,borderRadius:2,background:pc,flexShrink:0}}/>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,fontWeight:600,marginBottom:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.jobName}</div>
-                  <div style={{fontSize:11,color:C.text3}}>{m.zone} · {m.dateDebut} → {m.dateFin} · {m.hStart}–{m.hEnd}</div>
-                </div>
-                <div style={{display:'flex',gap:6,flexShrink:0}}>
-                  <Badge label={m.priorite} color={pc}/>
-                  <Badge label={st.l} color={st.c} bg={st.bg}/>
-                  {!m.valide_pm&&<Badge label="En attente PM" color={C.orange}/>}
-                </div>
-              </div>
-              <div style={{padding:'9px 14px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
-                <div style={{display:'flex',alignItems:'center',gap:16,fontSize:12}}>
-                  <div style={{display:'flex',alignItems:'center',gap:6}}>
-                    {tech&&<Av initials={tech.avatar} size={24} color={C.orange}/>}
-                    <div>
-                      <div style={{fontWeight:500}}>{m.techNom}</div>
-                      {stTech&&<div style={{fontSize:10,color:stTech.color}}>{stTech.label}</div>}
-                    </div>
-                  </div>
-                  <div style={{fontSize:11,color:C.text3}}>PM: {m.pmNom}</div>
-                </div>
-                <div style={{display:'flex',gap:6}}>
-                  {!m.valide_pm&&(
-                    <button onClick={()=>validerMission(m.id)} style={{fontSize:11,padding:'5px 12px',borderRadius:6,border:'none',background:C.green,color:C.white,cursor:'pointer',fontFamily:'inherit',fontWeight:500,display:'flex',alignItems:'center',gap:4}}>
-                      <Icon d={IC.check} size={12} color={C.white}/>Valider
-                    </button>
-                  )}
-                  {m.statut==='alerte_absence'&&(
-                    <button style={{fontSize:11,padding:'5px 12px',borderRadius:6,border:`1px solid ${C.red}`,background:C.red_l,color:C.red,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',gap:4}}>
-                      <Icon d={IC.send} size={12} color={C.red}/>Contacter
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 // ===== HISTORIQUE =====
 function Historique(){
@@ -580,7 +512,6 @@ export default function Pointage(){
         {(()=>{
           const seg=loc.pathname.split('/')[2]||'';
           if(seg==='equipe'||seg==='employes'||seg==='qrcodes') return <Equipe/>;
-          if(seg==='planning') return <PlanningMissions/>;
           if(seg==='historique') return <Historique/>;
           if(seg==='alertes') return <Alertes/>;
           if(seg==='rapports') return <Rapports/>;
