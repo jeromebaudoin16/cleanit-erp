@@ -1,6 +1,30 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import "../components/RHDesign.css";
 
+
+// ===== CALCUL PAIE CAMEROUNAISE (OHADA/SYSCOHADA) =====
+const calcIRPP = (salaireImposableAnnuel) => {
+  let irpp = 0;
+  if (salaireImposableAnnuel <= 2000000) irpp = salaireImposableAnnuel * 0.10;
+  else if (salaireImposableAnnuel <= 3000000) irpp = 200000 + (salaireImposableAnnuel - 2000000) * 0.15;
+  else if (salaireImposableAnnuel <= 5000000) irpp = 350000 + (salaireImposableAnnuel - 3000000) * 0.25;
+  else irpp = 850000 + (salaireImposableAnnuel - 5000000) * 0.35;
+  return Math.round(irpp / 12); // mensuel
+};
+const calcPaie = (salaireBase, primes=0, avantages=0) => {
+  const brut = salaireBase + primes + avantages;
+  const cnpsPlafond = Math.min(brut, 750000);
+  const cnpsEmploye = Math.round(cnpsPlafond * 0.042); // 4.2% vieillesse
+  const cnpsEmployeur = Math.round(cnpsPlafond * 0.07); // 7% employeur
+  const imposable = brut - cnpsEmploye;
+  const irpp = calcIRPP(imposable * 12);
+  const cac = Math.round(irpp * 0.10); // Centimes additionnels communaux
+  const rav = 7500; // Redevance audiovisuelle
+  const totalDed = cnpsEmploye + irpp + cac + rav;
+  const net = brut - totalDed;
+  return { brut, cnpsEmploye, cnpsEmployeur, irpp, cac, rav, totalDed, net, imposable };
+};
+
 // ===== CONSTANTES =====
 const fmtN = n => new Intl.NumberFormat("fr-FR").format(Math.round(n||0));
 const fmtD = d => d ? new Date(d).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric"}) : "—";
@@ -321,7 +345,7 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast}) => {
 
   const TABS = isExt
     ? [{id:"info",l:"Informations"},{id:"projects",l:"Projets & Paiements"},{id:"perf",l:"Performance"}]
-    : [{id:"info",l:"Informations personnelles"},{id:"job",l:"Emploi & Contrat"},{id:"payroll",l:"Paie & Rémunération"},{id:"docs",l:"Documents RH"},{id:"history",l:"Historique"}];
+    : [{id:"info",l:"Informations personnelles"},{id:"job",l:"Emploi & Contrat"},{id:"payroll",l:"Paie & Rémunération"},{id:"docs",l:"Documents RH"},{id:"history",l:"Historique"},{id:"conge",l:"Congés"}];
 
   return (
     <div>
@@ -332,7 +356,7 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast}) => {
         <div className="rh-profile-header" style={{position:"relative"}}>
           {/* Background photo blur */}
           {photo&&!photoError&&(
-            <div style={{position:"absolute",inset:0,overflow:"hidden",borderRadius:0}}>
+            <div style={{position:"absolute",inset:0,overflow:"hidden",borderRadius:0,pointerEvents:"none"}}>
               <img src={photo} onError={()=>setPhotoError(true)}
                 style={{width:"100%",height:"100%",objectFit:"cover",opacity:0.12,filter:"blur(20px) saturate(0.5)",transform:"scale(1.1)"}} alt=""/>
             </div>
@@ -570,6 +594,42 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast}) => {
           )}
 
           {/* Projets externes */}
+          {tab==="conge"&&(
+            <div style={{animation:"fadeUp 0.3s ease both"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"20px"}}>
+                <div>
+                  <div style={{fontSize:"16px",fontWeight:700,color:"#1B3A52",marginBottom:"4px"}}>Congés & Absences</div>
+                  <div style={{fontSize:"13px",color:"#89898B"}}>Solde et historique des congés</div>
+                </div>
+                <button style={{padding:"8px 16px",borderRadius:"7px",border:"none",background:"#0070F2",color:"#fff",cursor:"pointer",fontFamily:"inherit",fontSize:"12px",fontWeight:600}} onClick={()=>window.location.href="/approvals"}>
+                  Demande dans Approvals →
+                </button>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"12px",marginBottom:"20px"}}>
+                {[["Congés annuels","18 / 25 jours","#107E3E"],["RTT disponibles","3 jours","#0070F2"],["Absences ce mois","0","#89898B"]].map(([l,v,c_])=>(
+                  <div key={l} style={{background:"#F8F9FA",borderRadius:"10px",padding:"16px",borderLeft:"3px solid "+c_}}>
+                    <div style={{fontSize:"11px",color:"#89898B",marginBottom:"6px",textTransform:"uppercase",letterSpacing:".5px"}}>{l}</div>
+                    <div style={{fontSize:"22px",fontWeight:700,color:c_}}>{v}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{background:"#F8F9FA",borderRadius:"10px",padding:"16px",border:"1px solid #EBEBEB"}}>
+                <div style={{fontSize:"13px",fontWeight:600,marginBottom:"12px",color:"#1B3A52"}}>Historique des congés</div>
+                {[{type:"Congé annuel",debut:"15/01/2025",fin:"25/01/2025",jours:8,statut:"Approuvé"},{type:"RTT",debut:"05/03/2025",fin:"07/03/2025",jours:3,statut:"Approuvé"},{type:"Congé maladie",debut:"10/02/2025",fin:"12/02/2025",jours:2,statut:"Approuvé"}].map((cg,i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #F0F0F0"}}>
+                    <div>
+                      <div style={{fontSize:"13px",fontWeight:500}}>{cg.type}</div>
+                      <div style={{fontSize:"11px",color:"#89898B"}}>{cg.debut} → {cg.fin} · {cg.jours} jours</div>
+                    </div>
+                    <span style={{fontSize:"11px",padding:"3px 9px",borderRadius:"20px",background:"#DAFBE1",color:"#107E3E",fontWeight:500}}>{cg.statut}</span>
+                  </div>
+                ))}
+                <div style={{marginTop:"12px",padding:"10px 12px",background:"#EFF6FF",borderRadius:"7px",fontSize:"12px",color:"#0070F2"}}>
+                  Pour soumettre une demande de congé → aller dans <strong>Approvals → Demande de congé</strong>
+                </div>
+              </div>
+            </div>
+          )}
           {tab==="projects"&&(
             <div style={{animation:"fadeUp 0.3s ease both"}}>
               <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"14px",marginBottom:"24px"}}>
@@ -953,7 +1013,7 @@ const Dashboard = ({employees,externals,bulletins,payExt,setTab}) => {
       {/* KPIs */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"14px",marginBottom:"20px"}}>
         <KpiCard title="Effectif interne" value={employees.length} subtitle={`${active} actifs · ${employees.length-active} congé`} color="#0070F2" icon="group" trend={5} onClick={()=>setTab("employees")} delay={0}/>
-        <KpiCard title="Techniciens externes" value={externals.length} subtitle={`${externals.filter(e=>e.status==="actif").length} actifs`} color="#6B00A4" icon="person" onClick={()=>setTab("externals")} delay={0.06}/>
+        <KpiCard title="Techniciens" value={externals.length} subtitle={`${externals.filter(e=>e.status==="actif").length} actifs`} color="#6B00A4" icon="person" onClick={()=>setTab("externals")} delay={0.06}/>
         <KpiCard title="Présents aujourd'hui" value={present} subtitle={`${late} retard(s) · ${absent} absent(s)`} color="#107E3E" icon="clock" onClick={()=>setTab("attendance")} delay={0.12}/>
         <KpiCard title="Bulletins en attente" value={pendingB.length} subtitle="À valider avant fin du mois" color={pendingB.length>0?"#E76500":"#107E3E"} icon="doc" onClick={()=>setTab("payroll")} delay={0.18}/>
       </div>
@@ -1443,11 +1503,11 @@ const EmployeeForm = ({type,onClose,onSave}) => {
 const NAV = [
   {id:"dashboard",    l:"Tableau de bord",     i:"home"},
   {id:"employees",    l:"Employés internes",    i:"group"},
-  {id:"externals",    l:"Techniciens externes", i:"person"},
+  {id:"externals",    l:"Techniciens", i:"person"},
   {id:"leaves",       l:"Congés & Absences",    i:"cal"},
   {id:"attendance",   l:"Pointage & Présence",  i:"clock"},
   {id:"payroll",      l:"Bulletins de paie",    i:"doc"},
-  {id:"ext_payments", l:"Paiements externes",   i:"pay"},
+  {id:"ext_payments", l:"Paiements techniciens",   i:"pay"},
 ];
 
 // ===== COMPOSANT PRINCIPAL =====
@@ -1541,8 +1601,8 @@ export default function RH() {
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:"8px",paddingRight:"8px"}}>
           {tab==="employees"&&<Btn label="+ Nouvel employé" icon="add" variant="primary" sm onClick={()=>setShowAddEmp(true)}/>}
           {tab==="externals"&&<Btn label="+ Nouveau technicien" icon="add" variant="primary" sm onClick={()=>setShowAddExt(true)}/>}
-          {tab==="payroll"&&<Btn label="Générer la paie" icon="doc" variant="secondary" sm/>}
-          {tab==="ext_payments"&&<Btn label="Nouveau paiement" icon="add" variant="primary" sm/>}
+          {tab==="payroll"&&<Btn label="Générer bulletins" icon="doc" variant="primary" sm onClick={()=>{const m=new Date().getMonth()+1;const y=new Date().getFullYear();const pending=employees.filter(e=>!bulletins.find(b=>b.empId===e.id&&b.month===m&&b.year===y));if(pending.length===0){alert("Tous les bulletins du mois sont déjà générés.");}else{const newBulletins=pending.map((e,i)=>{const p=calcPaie(e.salary,0,0);return{id:"B"+(Date.now()+i),empId:e.id,month:m,year:y,base:e.salary,bonus:0,benefits:0,cnpsEmploye:p.cnpsEmploye,cnpsEmployeur:p.cnpsEmployeur,irpp:p.irpp,cac:p.cac,rav:p.rav,gross:p.brut,net:p.net,status:"en_attente",paidOn:null,payMethod:e.bank};});setBulletins(prev=>[...prev,...newBulletins]);onToast(pending.length+" bulletins générés avec calcul CNPS/IRPP","success");}}}/>}
+          {tab==="ext_payments"&&<Btn label="+ Nouveau paiement" icon="add" variant="primary" sm onClick={()=>onToast("Redirection vers Approvals — Demande de paiement","success")}/>}
         </div>
       </div>
 
