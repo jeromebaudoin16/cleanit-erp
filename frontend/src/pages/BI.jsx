@@ -182,27 +182,32 @@ const Counter = ({to,duration=1000,prefix="",suffix=""}) => {
   return <span>{prefix}{fmtM(v)}{suffix}</span>;
 };
 
-// KPI Card
+// KPI Card — Design professionnel
 const KpiCard = ({title,value,suffix="",prefix="",sub,color,bg,icon,trend,trendUp,delay=0,onClick}) => (
-  <Card onClick={onClick} style={{animationDelay:`${delay}s`,animation:"fadeUp .4s ease both"}}>
-    <div style={{padding:"18px 20px",borderLeft:`4px solid ${color}`}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-        <div style={{fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:".5px",lineHeight:1.4,maxWidth:"70%"}}>{title}</div>
-        <div style={{width:38,height:38,borderRadius:10,background:bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-          <Ico n={icon} s={18} c={color}/>
-        </div>
+  <div onClick={onClick}
+    style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"16px 18px",cursor:onClick?"pointer":"default",transition:"all .18s",animationDelay:`${delay}s`,animation:"fadeUp .4s ease both",position:"relative",overflow:"hidden"}}
+    onMouseEnter={e=>{if(onClick){e.currentTarget.style.boxShadow=C.shadow3;e.currentTarget.style.borderColor=color;}}}
+    onMouseLeave={e=>{e.currentTarget.style.boxShadow="none";e.currentTarget.style.borderColor=C.border;}}>
+    <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:color,borderRadius:"10px 10px 0 0"}}/>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+      <div style={{fontSize:11,fontWeight:600,color:C.text3,textTransform:"uppercase",letterSpacing:".6px",lineHeight:1.4,flex:1,paddingRight:8}}>{title}</div>
+      <div style={{width:34,height:34,borderRadius:8,background:bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+        <Ico n={icon} s={16} c={color}/>
       </div>
-      <div style={{fontSize:28,fontWeight:800,color:color,letterSpacing:"-1px",marginBottom:4,lineHeight:1}}>
-        {prefix}<Counter to={typeof value==="number"?value:0} duration={1200}/>{suffix}
-      </div>
-      <div style={{fontSize:11,color:C.text3,marginBottom:8}}>{sub}</div>
-      {trend&&(
-        <div style={{display:"flex",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:trendUp?C.green:C.red,padding:"3px 8px",borderRadius:20,background:trendUp?C.green_l:C.red_l,display:"inline-flex"}}>
-          <span>{trendUp?"↑":"↓"}</span>{trend}
-        </div>
-      )}
     </div>
-  </Card>
+    <div style={{fontSize:26,fontWeight:700,color:C.text,letterSpacing:"-0.5px",marginBottom:3,lineHeight:1}}>
+      {prefix}<Counter to={typeof value==="number"?value:0} duration={1200}/><span style={{fontSize:14,fontWeight:500,color:C.text3,marginLeft:2}}>{suffix}</span>
+    </div>
+    <div style={{fontSize:11,color:C.text3,marginBottom:trend?8:0}}>{sub}</div>
+    {trend&&(
+      <div style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,fontWeight:600,color:trendUp?C.green:C.red,padding:"2px 8px",borderRadius:6,background:trendUp?C.green_l:C.red_l}}>
+        <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          {trendUp?<path d="M18 15l-6-6-6 6"/>:<path d="M6 9l6 6 6-6"/>}
+        </svg>
+        {trend}
+      </div>
+    )}
+  </div>
 );
 
 // Progress bar
