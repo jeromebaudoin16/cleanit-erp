@@ -410,13 +410,22 @@ function DetailPage({ tech, onBack }) {
 
 
 // Charger les paiements Approvals pour un technicien depuis localStorage
+const APPROVALS_SEED=[
+  {id:'APV-001',title:'T46 — Installation 5G Phase 1',beneficiaryName:'Thomas Ngono',amount:18500000,status:'paid',type:'payment_request',site:'T46',project:'DWDM',bcPo:'416121376123-2',submittedAt:'2025-05-12T09:00:00',paidAt:'2025-05-15T14:00:00',paymentRef:'VIR-2025-042'},
+  {id:'APV-002',title:'T181 — IP Core Switch',beneficiaryName:'Thomas Ngono',amount:6200000,status:'approved',type:'payment_request',site:'T181',project:'IP CORE',bcPo:'416121016354-58',submittedAt:'2025-05-18T10:00:00'},
+  {id:'APV-003',title:'T265 — MW Link Installation',beneficiaryName:'Pierre Etoga',amount:8500000,status:'paid',type:'payment_request',site:'T265',project:'MPBN',bcPo:'4161HG3336731-43',submittedAt:'2025-05-10T09:00:00',paidAt:'2025-05-14T11:00:00',paymentRef:'VIR-2025-038'},
+  {id:'APV-004',title:'GRA-001 — Maintenance',beneficiaryName:'Samuel Djomo',amount:5500000,status:'pending',type:'payment_request',site:'GRA-001',project:'OSS',submittedAt:'2025-05-20T08:00:00'},
+  {id:'APV-005',title:'T265 — Extra travaux',beneficiaryName:'Thomas Ngono',amount:2000000,status:'rejected',type:'payment_request',site:'T265',project:'MPBN',submittedAt:'2025-05-16T14:00:00'},
+  {id:'APV-006',title:'T46 — Transport matériel',beneficiaryName:'Pierre Etoga',amount:1200000,status:'approved',type:'payment_request',site:'T46',project:'DWDM',submittedAt:'2025-05-19T10:00:00'},
+  {id:'APV-007',title:'T003 — Far North déplacement',beneficiaryName:'Samuel Djomo',amount:3200000,status:'paid',type:'payment_request',site:'T003',project:'OSS',submittedAt:'2025-05-05T09:00:00',paidAt:'2025-05-08T16:00:00',paymentRef:'VIR-2025-031'},
+];
 function loadApprovalsPaiements(techName) {
   try {
     const stored = localStorage.getItem('cleanit_approvals_cache');
-    if (!stored) return [];
-    const items = JSON.parse(stored);
-    return items.filter(i => i.type === 'payment_request' && i.beneficiaryName === techName);
-  } catch { return []; }
+    const items = stored ? JSON.parse(stored) : APPROVALS_SEED;
+    const merged = [...APPROVALS_SEED, ...(items.filter(i=>!APPROVALS_SEED.find(s=>s.id===i.id)))];
+    return merged.filter(i => i.type === 'payment_request' && i.beneficiaryName === techName);
+  } catch { return APPROVALS_SEED.filter(i=>i.beneficiaryName===techName); }
 }
 function calcFromApprovals(items) {
   const paid = items.filter(i => i.status === 'paid').reduce((s, i) => s + (i.amount || 0), 0);
