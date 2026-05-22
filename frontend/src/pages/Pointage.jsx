@@ -150,7 +150,7 @@ const KPI=({label,value,sub,color,icon})=>(
 const NAV_ITEMS=[
   {id:'',l:'Dashboard',icon:IC.dashboard,url:'/pointage'},
   {id:'map',l:'Carte Live',icon:IC.map,url:'/pointage/map'},
-  {id:'equipe',l:'Équipe',icon:IC.users,url:'/pointage/equipe'},
+  {id:'equipe',l:'Équipe',icon:IC.users,url:'/pointage/employes'},
   {id:'planning',l:'Missions',icon:IC.calendar,url:'/pointage/planning'},
   {id:'historique',l:'Historique',icon:IC.history,url:'/pointage/historique'},
   {id:'alertes',l:'Alertes',icon:IC.alert,url:'/pointage/alertes'},
@@ -579,7 +579,7 @@ export default function Pointage(){
       <div style={{flex:1,overflow:'auto'}}>
         {(()=>{
           const seg=loc.pathname.split('/')[2]||'';
-          if(seg==='equipe'||seg==='employes') return <Equipe/>;
+          if(seg==='equipe'||seg==='employes'||seg==='qrcodes') return <Equipe/>;
           if(seg==='planning') return <PlanningMissions/>;
           if(seg==='historique') return <Historique/>;
           if(seg==='alertes') return <Alertes/>;
