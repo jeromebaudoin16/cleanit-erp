@@ -105,7 +105,6 @@ const NAV_ICONS = [
   {id:"geofence", icon:"geofence", label:"Zones"},
   {id:"replay",   icon:"replay",   label:"Replay"},
   {id:"photos",   icon:"photos",   label:"Photos"},
-  {id:"collab",   icon:"collab",   label:"Collab"},
 ];
 
 // Calcul distance entre 2 points GPS (Haversine)
