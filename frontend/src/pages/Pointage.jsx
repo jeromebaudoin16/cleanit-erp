@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation, Routes, Route, Outlet } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../utils/api';
 
 // ═══════════════════════════════════════════════════════════
@@ -62,21 +62,21 @@ const ZONES={
 
 // Employés bureau (QR code check-in)
 const BUREAU=[
-  {id:'EI-001',nom:'Marie Kamga',poste:'Chef de Projet Senior',dept:'Operations',zone:'bureau_dla',qr:'QR-INT-MK-2024',avatar:'MK',email:'m.kamga@cleanit.cm',tel:'+237 677 001 001'},
-  {id:'EI-002',nom:'Jean Fouda',poste:'Project Manager',dept:'Operations',zone:'bureau_dla',qr:'QR-INT-JF-2024',avatar:'JF',email:'j.fouda@cleanit.cm',tel:'+237 677 002 002'},
-  {id:'EI-003',nom:'Alice Finance',poste:'Dir. Financière',dept:'Finance',zone:'bureau_dla',qr:'QR-INT-AF-2024',avatar:'AF',email:'a.finance@cleanit.cm',tel:'+237 677 003 003'},
-  {id:'EI-004',nom:'Bob Comptable',poste:'Chef Comptable',dept:'Finance',zone:'bureau_dla',qr:'QR-INT-BC-2024',avatar:'BC',email:'b.comptable@cleanit.cm',tel:'+237 677 004 004'},
-  {id:'EI-005',nom:'Aline Biya',poste:'Responsable RH',dept:'RH',zone:'bureau_dla',qr:'QR-INT-AB-2024',avatar:'AB',email:'a.biya@cleanit.cm',tel:'+237 677 006 006'},
-  {id:'EI-006',nom:'Jérôme Bell',poste:'Directeur Général',dept:'Direction',zone:'bureau_dla',qr:'QR-INT-JB-2024',avatar:'JB',email:'jerome@cleanit.cm',tel:'+237 677 000 001'},
+  {id:'EI-001',nom:'Marie Kamga',poste:'Chef de Projet Senior',dept:'Operations',zone:'bureau_dla',qr:'QR-INT-MK-2024',avatar:'MK',photo:'https://i.pravatar.cc/150?img=47',email:'m.kamga@cleanit.cm',tel:'+237 677 001 001'},
+  {id:'EI-002',nom:'Jean Fouda',poste:'Project Manager',dept:'Operations',zone:'bureau_dla',qr:'QR-INT-JF-2024',avatar:'JF',photo:'https://i.pravatar.cc/150?img=12',email:'j.fouda@cleanit.cm',tel:'+237 677 002 002'},
+  {id:'EI-003',nom:'Alice Finance',poste:'Dir. Financière',dept:'Finance',zone:'bureau_dla',qr:'QR-INT-AF-2024',avatar:'AF',photo:'https://i.pravatar.cc/150?img=9',email:'a.finance@cleanit.cm',tel:'+237 677 003 003'},
+  {id:'EI-004',nom:'Bob Comptable',poste:'Chef Comptable',dept:'Finance',zone:'bureau_dla',qr:'QR-INT-BC-2024',avatar:'BC',photo:'https://i.pravatar.cc/150?img=11',email:'b.comptable@cleanit.cm',tel:'+237 677 004 004'},
+  {id:'EI-005',nom:'Aline Biya',poste:'Responsable RH',dept:'RH',zone:'bureau_dla',qr:'QR-INT-AB-2024',avatar:'AB',photo:'https://i.pravatar.cc/150?img=5',email:'a.biya@cleanit.cm',tel:'+237 677 006 006'},
+  {id:'EI-006',nom:'Jérôme Bell',poste:'Directeur Général',dept:'Direction',zone:'bureau_dla',qr:'QR-INT-JB-2024',avatar:'JB',photo:'https://i.pravatar.cc/150?img=8',email:'jerome@cleanit.cm',tel:'+237 677 000 001'},
 ];
 
 // Techniciens terrain (GPS passif — PAS de QR code)
 const TERRAIN=[
-  {id:'EX-001',nom:'Thomas Ngono',poste:'Technicien Réseau',avatar:'TN',email:'t.ngono@cleanit.cm',tel:'+237 677 010 001',competences:['5G','4G LTE','Installation'],ip:'196.207.45.12',device:'Samsung Galaxy A54',lat:4.0648,lng:9.7298,batterie:87,signal:'4G'},
-  {id:'EX-002',nom:'Samuel Djomo',poste:'Technicien Réseau',avatar:'SD',email:'s.djomo@cleanit.cm',tel:'+237 677 010 002',competences:['Fibre','4G','Maintenance'],ip:'196.207.46.33',device:'Tecno Camon 19',lat:4.0402,lng:9.7098,batterie:62,signal:'4G'},
-  {id:'EX-003',nom:'Jean Mbarga',poste:'Technicien Senior',avatar:'JM',email:'j.mbarga@cleanit.cm',tel:'+237 677 010 003',competences:['5G','Survey RF'],ip:'154.68.45.78',device:'iPhone 13',lat:3.8798,lng:11.5098,batterie:94,signal:'5G'},
-  {id:'EX-004',nom:'Ali Moussa',poste:'Technicien HSE',avatar:'AM',email:'a.moussa@cleanit.cm',tel:'+237 677 010 004',competences:['HSE','Sécurité','Pylône'],ip:'154.68.46.22',device:'Samsung A35',lat:9.3650,lng:13.4200,batterie:23,signal:'3G'},
-  {id:'EX-005',nom:'Rémi Atangana',poste:'Technicien Fibre',avatar:'RA',email:'r.atangana@cleanit.cm',tel:'+237 677 010 005',competences:['Fibre Optique','Soudure'],ip:'196.207.48.91',device:'Itel P55',lat:4.0098,lng:9.1898,batterie:71,signal:'4G'},
+  {id:'EX-001',nom:'Thomas Ngono',poste:'Technicien Réseau',avatar:'TN',photo:'https://i.pravatar.cc/150?img=15',email:'t.ngono@cleanit.cm',tel:'+237 677 010 001',competences:['5G','4G LTE','Installation'],ip:'196.207.45.12',device:'Samsung Galaxy A54',lat:4.0648,lng:9.7298,batterie:87,signal:'4G'},
+  {id:'EX-002',nom:'Samuel Djomo',poste:'Technicien Réseau',avatar:'SD',photo:'https://i.pravatar.cc/150?img=22',email:'s.djomo@cleanit.cm',tel:'+237 677 010 002',competences:['Fibre','4G','Maintenance'],ip:'196.207.46.33',device:'Tecno Camon 19',lat:4.0402,lng:9.7098,batterie:62,signal:'4G'},
+  {id:'EX-003',nom:'Jean Mbarga',poste:'Technicien Senior',avatar:'JM',photo:'https://i.pravatar.cc/150?img=3',email:'j.mbarga@cleanit.cm',tel:'+237 677 010 003',competences:['5G','Survey RF'],ip:'154.68.45.78',device:'iPhone 13',lat:3.8798,lng:11.5098,batterie:94,signal:'5G'},
+  {id:'EX-004',nom:'Ali Moussa',poste:'Technicien HSE',avatar:'AM',photo:'https://i.pravatar.cc/150?img=33',email:'a.moussa@cleanit.cm',tel:'+237 677 010 004',competences:['HSE','Sécurité','Pylône'],ip:'154.68.46.22',device:'Samsung A35',lat:9.3650,lng:13.4200,batterie:23,signal:'3G'},
+  {id:'EX-005',nom:'Rémi Atangana',poste:'Technicien Fibre',avatar:'RA',photo:'https://i.pravatar.cc/150?img=7',email:'r.atangana@cleanit.cm',tel:'+237 677 010 005',competences:['Fibre Optique','Soudure'],ip:'196.207.48.91',device:'Itel P55',lat:4.0098,lng:9.1898,batterie:71,signal:'4G'},
 ];
 
 // Historique pointages
@@ -125,8 +125,10 @@ function statutTerrain(tech){
 }
 
 // Composants UI
-const Av=({initials,size=32,color=C.blue})=>(
-  <div style={{width:size,height:size,borderRadius:'50%',background:color+'18',display:'flex',alignItems:'center',justifyContent:'center',fontSize:size*.35,fontWeight:500,color,flexShrink:0}}>{initials}</div>
+const Av=({initials,size=32,color=C.blue,photo=null})=>(
+  photo
+    ?<img src={photo} alt={initials} style={{width:size,height:size,borderRadius:'50%',objectFit:'cover',flexShrink:0}} onError={e=>{e.target.style.display='none';}}/>
+    :<div style={{width:size,height:size,borderRadius:'50%',background:color+'18',display:'flex',alignItems:'center',justifyContent:'center',fontSize:size*.35,fontWeight:500,color,flexShrink:0}}>{initials}</div>
 );
 
 const Badge=({label,color,bg})=>(
@@ -559,6 +561,7 @@ function Rapports(){
 
 // ===== PAGE PRINCIPALE =====
 export default function Pointage(){
+  const loc=useLocation();
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100%',background:C.bg,fontFamily:'inherit'}}>
       <div style={{padding:'10px 20px',borderBottom:`1px solid ${C.border}`,background:C.white,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
@@ -574,15 +577,16 @@ export default function Pointage(){
       </div>
       <PointageNav/>
       <div style={{flex:1,overflow:'auto'}}>
-        <Routes>
-          <Route index element={<Dashboard/>}/>
-          <Route path="equipe" element={<Equipe/>}/>
-          <Route path="planning" element={<PlanningMissions/>}/>
-          <Route path="historique" element={<Historique/>}/>
-          <Route path="alertes" element={<Alertes/>}/>
-          <Route path="rapports" element={<Rapports/>}/>
-          <Route path="map" element={<div style={{padding:20,color:C.text3,fontSize:13}}>Carte Live GPS — intégrée dans le module Carte Digital Twin</div>}/>
-        </Routes>
+        {(()=>{
+          const seg=loc.pathname.split('/')[2]||'';
+          if(seg==='equipe'||seg==='employes') return <Equipe/>;
+          if(seg==='planning') return <PlanningMissions/>;
+          if(seg==='historique') return <Historique/>;
+          if(seg==='alertes') return <Alertes/>;
+          if(seg==='rapports') return <Rapports/>;
+          if(seg==='map') return <div style={{padding:20,color:C.text3,fontSize:13}}>Carte Live GPS — intégrée dans le module Carte Digital Twin</div>;
+          return <Dashboard/>;
+        })()}
       </div>
     </div>
   );
