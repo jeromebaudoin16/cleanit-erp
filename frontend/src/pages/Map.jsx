@@ -11,11 +11,11 @@ const PHOTOS = {
 };
 
 const SITES = [
-  {code:"DLA-001",name:"Site Akwa Douala",lat:4.0511,lng:9.7085,status:"en_cours",type:"5G NR",progression:65,client:"MTN Cameroun",projet:"PROJ-2024-001",budget:180,techId:"EE001"},
+  {code:"DLA-001",bcPo:"416121376123-2",bcDuid:"ON-OSN9800-DLA-001",name:"Site Akwa Douala",lat:4.0511,lng:9.7085,status:"en_cours",type:"5G NR",progression:65,client:"MTN Cameroun",projet:"PROJ-2024-001",budget:180,techId:"EE001"},
   {code:"DLA-003",name:"Site Bonabéri",lat:4.0667,lng:9.6500,status:"en_retard",type:"4G LTE",progression:30,client:"Orange Cameroun",projet:"PROJ-2024-002",budget:85,techId:null},
-  {code:"YDE-001",name:"Site Centre Yaoundé",lat:3.8480,lng:11.5021,status:"termine",type:"5G NR",progression:100,client:"MTN Cameroun",projet:"PROJ-2024-001",budget:95,techId:"EE002"},
+  {code:"YDE-001",bcPo:"416121016354-58",name:"Site Centre Yaoundé",lat:3.8480,lng:11.5021,status:"termine",type:"5G NR",progression:100,client:"MTN Cameroun",projet:"PROJ-2024-001",budget:95,techId:"EE002"},
   {code:"BFN-001",name:"Site Bafoussam",lat:5.4764,lng:10.4214,status:"planifie",type:"4G LTE",progression:0,client:"CAMTEL",projet:"PROJ-2024-006",budget:50,techId:null},
-  {code:"GAR-001",name:"Site Garoua",lat:9.3019,lng:13.3920,status:"en_cours",type:"3G UMTS",progression:55,client:"Nexttel",projet:"PROJ-2024-004",budget:45,techId:"EE004"},
+  {code:"GAR-001",bcPo:"4161HG3336731-43",name:"Site Garoua",lat:9.3019,lng:13.3920,status:"en_cours",type:"3G UMTS",progression:55,client:"Nexttel",projet:"PROJ-2024-004",budget:45,techId:"EE004"},
   {code:"KRI-001",name:"Site Kribi Port",lat:2.9395,lng:9.9087,status:"livre",type:"5G NR",progression:100,client:"MTN Cameroun",projet:"PROJ-2024-001",budget:0,techId:null},
   {code:"LIM-001",name:"Site Limbé",lat:4.0167,lng:9.2000,status:"en_cours",type:"4G LTE",progression:75,client:"Orange Cameroun",projet:"PROJ-2024-002",budget:40,techId:"EE003"},
   {code:"MAR-001",name:"Site Maroua",lat:10.5900,lng:14.3157,status:"planifie",type:"4G LTE",progression:0,client:"CAMTEL",projet:"PROJ-2024-006",budget:30,techId:null},
@@ -171,6 +171,72 @@ const getIARecommandations=(site, techs)=>{
     .slice(0,3);
 };
 
+
+// ===== JUMEAU NUMÉRIQUE ÉQUIPEMENTS =====
+const EquipmentTwin = ({site, iotData, onClose}) => {
+  const iot = iotData[site.code] || {};
+  const EQUIPS = {
+    '5G NR': [{name:'BBU 5900',type:'bbu',status:iot.alerte?'warning':'ok',detail:'Baie rack 2U — 6 ports RRU'},{name:'RRU 5900 Ant1',type:'rru',status:'ok',detail:'2600MHz — TDD 100MHz'},{name:'RRU 5900 Ant2',type:'rru',status:iot.alerte?'warning':'ok',detail:'3500MHz — TDD 100MHz'},{name:'Antenne AAU',type:'ant',status:'ok',detail:'64T64R — Azimut 180°'},{name:'Fibres optiques',type:'fiber',status:'ok',detail:'2x OM3 — 100m'}],
+    '4G LTE': [{name:'BBU 3910',type:'bbu',status:'ok',detail:'Baie rack 2U'},{name:'RRU 3959',type:'rru',status:'ok',detail:'1800MHz — FDD 20MHz'},{name:'Antenne 4T4R',type:'ant',status:'ok',detail:'Azimut 60°/180°/300°'}],
+    '3G UMTS': [{name:'NodeB',type:'bbu',status:iot.alerte?'critical':'ok',detail:'Rack 2U UMTS 2100'},{name:'RRU UMTS',type:'rru',status:iot.alerte?'warning':'ok',detail:'2100MHz WCDMA'},{name:'Antenne 2T2R',type:'ant',status:'ok',detail:'Azimut 120°/240°'}],
+  };
+  const equips = EQUIPS[site.type] || EQUIPS['4G LTE'];
+  const statusC = {ok:'#0F7B3C',warning:'#D97706',critical:'#A32D2D'};
+  const statusL = {ok:'Opérationnel',warning:'Attention',critical:'Critique'};
+  return(
+    <div style={{position:'fixed',inset:0,zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.7)'}}>
+      <div style={{background:'#0f172a',borderRadius:16,width:520,maxHeight:'80vh',overflow:'auto',border:'1px solid #1e293b',color:'#e2e8f0'}}>
+        <div style={{padding:'16px 20px',borderBottom:'1px solid #1e293b',display:'flex',justifyContent:'space-between',alignItems:'center',background:'linear-gradient(135deg,#185FA5,#0F7B3C)'}}>
+          <div>
+            <div style={{fontSize:15,fontWeight:700}}>Jumeau numérique — {site.code}</div>
+            <div style={{fontSize:11,opacity:.7}}>{site.name} · {site.type} · {site.client}</div>
+          </div>
+          <button onClick={onClose} style={{background:'none',border:'none',color:'#fff',fontSize:18,cursor:'pointer'}}>✕</button>
+        </div>
+        <div style={{padding:16}}>
+          {/* IoT capteurs */}
+          <div style={{background:'#1e293b',borderRadius:10,padding:12,marginBottom:12}}>
+            <div style={{fontSize:11,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:8}}>Capteurs IoT temps réel</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+              {[['Température',iot.temp+'°C',iot.temp>60?'critical':'ok'],['Humidité',iot.humidity+'%',iot.humidity>80?'warning':'ok'],['Vibration',iot.vibration||'—',iot.vibration==='élevée'?'warning':'ok'],['Tension',iot.tension+'V','ok']].map(([l,v,s])=>(
+                <div key={l} style={{background:'#0f172a',borderRadius:7,padding:'8px 10px',borderLeft:`2px solid ${statusC[s]}`}}>
+                  <div style={{fontSize:9,color:'#64748b',marginBottom:2}}>{l}</div>
+                  <div style={{fontSize:14,fontWeight:700,color:statusC[s]}}>{v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Équipements */}
+          <div style={{fontSize:11,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'.5px',marginBottom:8}}>Infrastructure équipements</div>
+          {equips.map((eq,i)=>(
+            <div key={i} style={{background:'#1e293b',borderRadius:8,padding:'10px 12px',marginBottom:6,display:'flex',alignItems:'center',gap:10}}>
+              <div style={{width:8,height:8,borderRadius:'50%',background:statusC[eq.status],flexShrink:0}}/>
+              <div style={{flex:1}}>
+                <div style={{fontSize:12,fontWeight:600}}>{eq.name}</div>
+                <div style={{fontSize:10,color:'#94a3b8'}}>{eq.detail}</div>
+              </div>
+              <span style={{fontSize:10,padding:'2px 7px',borderRadius:10,background:statusC[eq.status]+'20',color:statusC[eq.status],fontWeight:600}}>{statusL[eq.status]}</span>
+            </div>
+          ))}
+          {/* BC Info */}
+          {site.bcPo&&(
+            <div style={{background:'#1e293b',borderRadius:8,padding:'10px 12px',marginTop:6,borderLeft:'2px solid #D97706'}}>
+              <div style={{fontSize:10,color:'#94a3b8',marginBottom:3}}>Bon de Commande MTN</div>
+              <div style={{fontSize:11,fontFamily:'monospace',color:'#fbbf24'}}>PO: {site.bcPo}</div>
+              <div style={{fontSize:10,color:'#94a3b8',marginTop:2}}>Progression: {site.progression}% · Budget: {site.budget}M FCFA</div>
+            </div>
+          )}
+          {/* Prochaine maintenance */}
+          <div style={{background:'#1e293b',borderRadius:8,padding:'10px 12px',marginTop:6,borderLeft:`2px solid ${iot.alerte?'#A32D2D':'#185FA5'}`}}>
+            <div style={{fontSize:10,color:'#94a3b8',marginBottom:3}}>{iot.alerte?'⚠ Action requise':'Prochaine maintenance'}</div>
+            <div style={{fontSize:11,color:iot.alerte?'#fca5a5':'#93c5fd'}}>{iot.alerte?'Inspection immédiate — température ou vibration anormale':'Maintenance préventive planifiée dans 45 jours'}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function MapPage() {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -191,13 +257,41 @@ export default function MapPage() {
   const [loadingRoute, setLoadingRoute] = useState(false);
   const [filter, setFilter] = useState("tous");
   const [searchQ, setSearchQ] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarTab, setSidebarTab] = useState("sites");
   const [selected, setSelected] = useState(null);
   const [selectedTech, setSelectedTech] = useState(null);
   const [showDispatch, setShowDispatch] = useState(false);
   const [dispatchTech, setDispatchTech] = useState(null);
   const [dispatchSite, setDispatchSite] = useState(null);
+  // IA Prédictions pannes (Groq)
+  const [faultPredictions, setFaultPredictions] = useState([]);
+  const [loadingIA, setLoadingIA] = useState(false);
+  // Météo sites
+  const [weatherData, setWeatherData] = useState({});
+  const [loadingWeather, setLoadingWeather] = useState(false);
+  // Équipement digital twin
+  const [showEquipTwin, setShowEquipTwin] = useState(null);
+  // Couverture réseau simulation
+  const [coverageCircle, setCoverageCircle] = useState(null);
+  // Photos CleanCam sur carte
+  const [camPhotos] = useState([
+    {id:'cp1',siteCode:'DLA-001',techId:'EE001',techNom:'Thomas Ngono',lat:4.0520,lng:9.7090,photo:'https://i.pravatar.cc/150?img=15',caption:'BBU 5900 installé — câblage RRU terminé',ts:Date.now()-3600000},
+    {id:'cp2',siteCode:'YDE-001',techId:'EE002',techNom:'Jean Mbarga',lat:3.8490,lng:11.5030,photo:'https://i.pravatar.cc/150?img=17',caption:'Antenne 5G NR positionnée — azimut 180°',ts:Date.now()-7200000},
+    {id:'cp3',siteCode:'GAR-001',techId:'EE004',techNom:'Ali Moussa',lat:9.3025,lng:13.3925,photo:'https://i.pravatar.cc/150?img=3',caption:'Inspection pylône 45m — harnais conforme HSE',ts:Date.now()-14400000},
+  ]);
+  // IoT capteurs simulés
+  const [iotData] = useState({
+    'DLA-001':{temp:42,humidity:68,vibration:'normale',tension:220,alerte:false},
+    'YDE-001':{temp:38,humidity:55,vibration:'normale',tension:220,alerte:false},
+    'GAR-001':{temp:61,humidity:32,vibration:'élevée',tension:218,alerte:true},
+    'LIM-001':{temp:45,humidity:78,vibration:'normale',tension:219,alerte:false},
+    'DLA-003':{temp:40,humidity:65,vibration:'normale',tension:221,alerte:false},
+  });
+  // Timeline slider
+  const [timelineHour, setTimelineHour] = useState(14);
+  const [timelineActive, setTimelineActive] = useState(false);
+
 
   // Nouvelles features
   const [geofences, setGeofences] = useState(GEOFENCES_INIT);
@@ -232,6 +326,115 @@ export default function MapPage() {
   const measureModeRef = useRef(false);
 
   // ===== GPS LIVE =====
+
+  // ===== IA DISPATCH via Groq/ChaCha =====
+  const chachaDispatch = async (site, availableTechs) => {
+    setLoadingIA(true);
+    try {
+      const prompt = `Tu es le système de dispatch IA de CleanIT Cameroun.
+Mission: Site ${site.code} - ${site.name} - Type: ${site.type} - Statut: ${site.status}
+Client: ${site.client} - Budget: ${site.budget}M FCFA
+
+Techniciens disponibles:
+${availableTechs.map(t => `- ${t.nom} (${t.matricule}): ${t.specialite}, batterie ${t.battery}%, signal ${t.signal}/5, ${t.taches} tâches en cours`).join('\n')}
+
+Analyse et recommande le meilleur technicien pour cette mission. Considère:
+1. Adéquation compétences/type de mission
+2. Disponibilité et charge actuelle  
+3. Performance batterie et signal
+4. Historique missions similaires
+
+Réponds UNIQUEMENT en JSON valide:
+{"techId":"EE00X","score":85,"raison":"Explication courte","risques":"Risques potentiels","conseils":"Conseils terrain","ranking":[{"techId":"EE00X","score":85,"justification":"..."}]}`;
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 800,
+          messages: [{role:'user', content: prompt}]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text || '{}';
+      const clean = text.replace(/```json|```/g,'').trim();
+      const result = JSON.parse(clean);
+      setFaultPredictions(prev => [...prev, {type:'dispatch', site: site.code, ...result, ts: Date.now()}]);
+      return result;
+    } catch(e) {
+      console.error('ChaCha dispatch error:', e);
+      return null;
+    } finally {
+      setLoadingIA(false);
+    }
+  };
+
+  // ===== PRÉDICTION PANNES via Groq =====
+  const predictFaults = async () => {
+    setLoadingIA(true);
+    try {
+      const sitesData = SITES.map(s => ({
+        code: s.code,
+        name: s.name,
+        type: s.type,
+        status: s.status,
+        progression: s.progression,
+        iot: iotData[s.code] || {}
+      }));
+
+      const prompt = `Tu es un expert en maintenance réseau télécom pour CleanIT Cameroun.
+Analyse ces sites et prédit les risques de panne dans les 72 prochaines heures:
+
+${JSON.stringify(sitesData, null, 2)}
+
+Pour chaque site à risque, donne une prédiction. Réponds en JSON:
+{"predictions":[{"siteCode":"DLA-001","risque":"élevé","probabilite":75,"cause":"Température capteur 42°C proche seuil","action":"Inspection refroidissement sous 24h"}]}`;
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{role:'user', content: prompt}]
+        })
+      });
+      const data = await res.json();
+      const text = data.content?.[0]?.text || '{"predictions":[]}';
+      const clean = text.replace(/```json|```/g,'').trim();
+      const {predictions} = JSON.parse(clean);
+      setFaultPredictions(predictions || []);
+    } catch(e) { console.error('Fault prediction error:', e); }
+    finally { setLoadingIA(false); }
+  };
+
+  // ===== MÉTÉO open-meteo.com =====
+  const fetchWeather = async () => {
+    setLoadingWeather(true);
+    try {
+      const results = {};
+      for(const site of SITES.slice(0,4)) { // 4 premiers sites pour limiter les appels
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${site.lat}&longitude=${site.lng}&current=temperature_2m,precipitation,wind_speed_10m,weathercode&timezone=Africa/Douala`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const cur = data.current;
+        results[site.code] = {
+          temp: Math.round(cur?.temperature_2m || 28),
+          pluie: (cur?.precipitation || 0) > 0,
+          vent: Math.round(cur?.wind_speed_10m || 15),
+          code: cur?.weathercode || 0,
+          danger: (cur?.precipitation > 5) || (cur?.wind_speed_10m > 40)
+        };
+      }
+      setWeatherData(results);
+    } catch(e) { console.error('Weather error:', e); }
+    finally { setLoadingWeather(false); }
+  };
+
+  // Charger météo au démarrage
+  useEffect(() => { fetchWeather(); }, []);
+
   useEffect(()=>{
     if(!liveMode) return;
     const interval=setInterval(()=>{
@@ -833,6 +1036,27 @@ export default function MapPage() {
               {sidebarTab==="sites"&&(
                 <>
                   <div style={{padding:"6px 10px",borderBottom:"1px solid #f1f3f4",display:"flex",gap:4,flexWrap:"wrap"}}>
+              {/* Météo overlay */}
+              {Object.keys(weatherData).length>0&&(
+                <div style={{marginBottom:8,padding:"8px 10px",background:"#E6F1FB",borderRadius:8,border:"1px solid #B5D4F4"}}>
+                  <div style={{fontSize:10,fontWeight:700,color:"#0C447C",marginBottom:5,textTransform:"uppercase",letterSpacing:".5px"}}>Météo sites en temps réel</div>
+                  {Object.entries(weatherData).map(([code,w])=>(
+                    <div key={code} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",borderBottom:"1px solid rgba(0,0,0,0.05)"}}>
+                      <span style={{fontSize:11,fontWeight:600,color:"#1B3A52"}}>{code}</span>
+                      <div style={{display:"flex",gap:8,alignItems:"center",fontSize:10}}>
+                        <span style={{color:"#D97706"}}>{w.temp}°C</span>
+                        <span style={{color:"#6B7280"}}>{w.vent}km/h</span>
+                        {w.pluie&&<span style={{color:"#185FA5",fontWeight:700}}>Pluie</span>}
+                        {w.danger&&<span style={{color:"#A32D2D",fontWeight:700,background:"#FCEBEB",padding:"1px 5px",borderRadius:8}}>⚠ Danger</span>}
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={fetchWeather} style={{marginTop:5,fontSize:10,padding:"3px 8px",borderRadius:5,border:"1px solid #B5D4F4",background:"none",color:"#185FA5",cursor:"pointer",fontFamily:"inherit"}}>
+                    {loadingWeather?"Chargement...":"Actualiser météo"}
+                  </button>
+                </div>
+              )}
+
                     {[{v:"tous",l:"Tous"},...Object.entries(STATUS_SITES).map(([k,v])=>({v:k,l:v.label,c:v.color}))].map(f=>(
                       <button key={f.v} onClick={()=>setFilter(f.v)}
                         style={{padding:"2px 8px",borderRadius:12,border:`1px solid ${filter===f.v?(f.c||"#1a73e8"):"#e8eaed"}`,background:filter===f.v?`${f.c||"#1a73e8"}12`:"white",color:filter===f.v?(f.c||"#1a73e8"):"#5f6368",fontSize:9,cursor:"pointer",fontWeight:filter===f.v?700:400}}>
@@ -964,6 +1188,22 @@ export default function MapPage() {
               {/* ===== ALERTES ===== */}
               {sidebarTab==="alertes"&&(
                 <div>
+              {/* Bouton prédiction pannes IA */}
+              <div style={{margin:"0 0 12px 0",padding:"10px 12px",background:"linear-gradient(135deg,#185FA5,#6D28D9)",borderRadius:9}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#fff",marginBottom:6}}>Prédiction pannes — ChaCha IA</div>
+                <button onClick={predictFaults} disabled={loadingIA}
+                  style={{width:"100%",padding:"8px",borderRadius:7,border:"none",background:"rgba(255,255,255,0.15)",color:"#fff",fontSize:12,fontWeight:600,cursor:loadingIA?"not-allowed":"pointer",fontFamily:"inherit"}}>
+                  {loadingIA?"Analyse en cours...":"Analyser les risques (72h)"}
+                </button>
+                {faultPredictions.length>0&&faultPredictions.filter(p=>p.siteCode).map(p=>(
+                  <div key={p.siteCode} style={{marginTop:6,padding:"7px 9px",background:"rgba(0,0,0,0.3)",borderRadius:6}}>
+                    <div style={{fontSize:11,fontWeight:700,color:p.probabilite>60?"#fca5a5":"#fde68a"}}>{p.siteCode} — {p.probabilite}% risque</div>
+                    <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",marginTop:2}}>{p.cause}</div>
+                    <div style={{fontSize:10,color:"#86efac",marginTop:1}}>Action: {p.action}</div>
+                  </div>
+                ))}
+              </div>
+
                   {/* Alertes proximité */}
                   {proximityAlerts.length>0&&(
                     <div style={{padding:"8px 12px",background:"#e6f4ea",borderBottom:"1px solid #ceead6"}}>
@@ -1139,6 +1379,20 @@ export default function MapPage() {
               {/* ===== REPLAY ===== */}
               {sidebarTab==="replay"&&(
                 <div style={{padding:"12px"}}>
+                {/* Timeline slider amélioré */}
+                <div style={{padding:"8px 12px",background:"#E6F1FB",borderRadius:8,marginBottom:10,border:"1px solid #B5D4F4"}}>
+                  <div style={{fontSize:10,fontWeight:700,color:"#0C447C",marginBottom:6}}>Timeline — {timelineHour}h00</div>
+                  <input type="range" min="6" max="20" value={timelineHour} onChange={e=>setTimelineHour(Number(e.target.value))}
+                    style={{width:"100%",accentColor:"#185FA5"}}/>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"#6B7280",marginTop:2}}>
+                    <span>06h</span><span>10h</span><span>14h</span><span>18h</span><span>20h</span>
+                  </div>
+                  <button onClick={()=>setTimelineActive(p=>!p)}
+                    style={{marginTop:6,width:"100%",padding:"7px",borderRadius:6,border:"none",background:timelineActive?"#A32D2D":"#185FA5",color:"#fff",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                    {timelineActive?"Arrêter l'animation":"Lancer l'animation"}
+                  </button>
+                </div>
+
                   {!replayTech?(
                     <div>
                       <div style={{fontSize:11,color:"#5f6368",marginBottom:10}}>Rejouer le trajet d\'un technicien sur toute sa journée.</div>
@@ -1559,6 +1813,9 @@ export default function MapPage() {
           </div>
         </div>
       )}
+
+      {/* JUMEAU NUMÉRIQUE ÉQUIPEMENT */}
+      {showEquipTwin&&<EquipmentTwin site={showEquipTwin} iotData={iotData} onClose={()=>setShowEquipTwin(null)}/>}
 
       <style>{`
         @keyframes spin{to{transform:rotate(360deg)}}
