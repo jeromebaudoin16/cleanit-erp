@@ -213,8 +213,9 @@ const Av = ({user,size=32,showStatus=false}) => {
   const u = typeof user==='string' ? getUser(user) : user;
   return(
     <div style={{position:'relative',display:'inline-flex',flexShrink:0}}>
-      <div style={{width:size,height:size,borderRadius:size*.3,background:u?.couleur||P.gray,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:800,fontSize:size*.34,letterSpacing:-.5,userSelect:'none'}}>
-        {u?.avatar||'?'}
+      <div style={{width:size,height:size,borderRadius:size*.3,background:u?.couleur||P.gray,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:800,fontSize:size*.34,letterSpacing:-.5,userSelect:'none',overflow:'hidden'}}>
+        {u?.photo?<img src={u.photo} style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.target.style.display='none';}} alt=""/>:null}
+        {!u?.photo&&(u?.avatar||'?')}
       </div>
       {showStatus&&u?.status&&(
         <div style={{position:'absolute',bottom:-1,right:-1,width:size*.32,height:size*.32,borderRadius:'50%',background:statusDot(u.status),border:'2px solid #fff'}}/>
@@ -636,8 +637,8 @@ const SectionReunions = ({navigate}) => {
 
   return(
     <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',background:P.contentBg}}>
-      <div style={{padding:'14px 20px',background:P.white,borderBottom:`1px solid ${P.border}`,display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
-        <div style={{fontSize:16,fontWeight:800,color:P.text}}>Réunions & Vidéoconférence</div>
+      <div style={{padding:'14px 20px',background:SECTION_THEME.reunions.grad,borderBottom:'none',display:'flex',justifyContent:'space-between',alignItems:'center',flexShrink:0}}>
+        <div style={{fontSize:16,fontWeight:800,color:'#fff'}}>Réunions & Vidéoconférence</div>
         <div style={{display:'flex',gap:10}}>
           <button onClick={()=>setInMeeting({titre:'Réunion instantanée',room:'instant-'+Date.now(),participants:['u1']})}
             style={{display:'flex',alignItems:'center',gap:6,padding:'8px 16px',borderRadius:9,border:'none',background:P.green,color:'#fff',fontWeight:700,fontSize:13,cursor:'pointer'}}>
