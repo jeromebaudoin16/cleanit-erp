@@ -742,13 +742,14 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    // Affichage immédiat avec données disponibles
     Promise.all([getDashboard(), getInvoices(), getBills(), getJobs(), getCustomers()])
       .then(([dash, inv, bill, job, cust]) => {
-        setDashData(dash);
-        setInvoices(inv || []);
-        setBills(bill || []);
-        setJobs(job || []);
-        setCustomers(cust || []);
+        if(dash) setDashData(dash);
+        if(inv?.length) setInvoices(inv);
+        if(bill?.length) setBills(bill);
+        if(job?.length) setJobs(job);
+        if(cust?.length) setCustomers(cust);
       })
       .catch(() => {});
   }, []);
