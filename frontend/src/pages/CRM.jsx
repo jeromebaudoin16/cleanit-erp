@@ -203,7 +203,7 @@ const DEALS_SEED = [
   {id:"D003",name:"Fibre Optique CAMTEL Phase 2",companyId:"CO005",company:"CAMTEL",contactId:"CT001",contact:"Jean-Paul Biya",amount:220000000,stage:"qualifie",prob:45,closeDate:"2024-08-31",owner:"Marie Kamga",created:"2024-02-15",desc:"Déploiement fibre optique nationale phase 2",tags:["Fibre","National"],activities:1},
   {id:"D004",name:"Maintenance Préventive Client",companyId:"CO003",company:"Client OEM",contactId:"CT005",contact:"Wang Lei",amount:45000000,stage:"negociation",prob:85,closeDate:"2024-04-30",owner:"Pierre Etoga",created:"2024-01-20",desc:"Contrat maintenance préventive 50 sites BTS",tags:["Maintenance"],activities:4},
   {id:"D005",name:"Audit Réseau Nexttel",companyId:"CO004",company:"Nexttel Cameroun",contactId:"CT006",contact:"Amina Diallo",amount:25000000,stage:"prospect",prob:30,closeDate:"2024-07-31",owner:"Jean Fouda",created:"2024-03-01",desc:"Audit complet infrastructure réseau existante",tags:["Audit"],activities:1},
-  {id:"D006",name:"5G Small Cells MTN Douala",companyId:"CO001",company:"MTN Cameroun",contactId:"CT001",contact:"Jean-Paul Biya",amount:95000000,stage:"gagne",prob:100,closeDate:"2024-02-28",owner:"Pierre Etoga",created:"2023-12-01",desc:"Installation small cells 5G centre-ville Douala",tags:["5G","Gagné"],activities:5},
+  {id:"D006",name:"5G Small Cells MTN Douala",bcPo:"416121376123-2",bcNote:"Lié BC MTN DWDM",companyId:"CO001",company:"MTN Cameroun",contactId:"CT001",contact:"Jean-Paul Biya",amount:95000000,stage:"gagne",prob:100,closeDate:"2024-02-28",owner:"Pierre Etoga",created:"2023-12-01",desc:"Installation small cells 5G centre-ville Douala",tags:["5G","Gagné"],activities:5},
   {id:"D007",name:"Réseau VSAT Orange Régions",companyId:"CO002",company:"Orange Cameroun",contactId:"CT003",contact:"Paul Ndongo",amount:38000000,stage:"perdu",prob:0,closeDate:"2024-01-31",owner:"Jean Fouda",created:"2023-11-15",desc:"Déploiement VSAT zones rurales",tags:["VSAT"],activities:2},
 ];
 
@@ -1191,14 +1191,163 @@ const FicheCompany = ({company,deals,contacts,onClose}) => {
 };
 
 // ===== MAIN CRM =====
+
+// ===== SCORING & FORECAST =====
+const scoreContact = (contact, deals) => {
+  let score = 0;
+  const daysSince = contact.lastContact ? Math.floor((Date.now()-new Date(contact.lastContact))/(86400000)) : 999;
+  const contactDeals = deals.filter(d=>d.contactId===contact.id||d.contact===contact.name);
+  if(daysSince<=7) score+=30; else if(daysSince<=30) score+=15; else if(daysSince<=60) score+=5;
+  score += Math.min(contactDeals.length*15, 30);
+  const totalVal = contactDeals.reduce((s,d)=>s+(d.amount||0),0);
+  if(totalVal>=100000000) score+=30; else if(totalVal>=50000000) score+=20; else if(totalVal>0) score+=10;
+  if(contact.lead==="chaud") score+=20; else if(contact.lead==="tiede") score+=10;
+  return Math.min(score, 100);
+};
+
+const getForecast = (deals) => {
+  const months = ["Jan","Fév","Mar","Avr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
+  return months.map((m,i) => {
+    const monthDeals = deals.filter(d=>{
+      const cd = new Date(d.closeDate||"2024-12-31");
+      return cd.getMonth()===i && !["perdu"].includes(d.stage);
+    });
+    const weighted = monthDeals.reduce((s,d)=>s+(d.amount||0)*(d.prob||50)/100, 0);
+    const best = monthDeals.filter(d=>d.stage==="gagne").reduce((s,d)=>s+(d.amount||0),0);
+    return {mois:m, pondéré:Math.round(weighted), gagné:best, nb:monthDeals.length};
+  });
+};
+
+const getRelances = (contacts) => {
+  return contacts.filter(c=>{
+    const days = c.lastContact ? Math.floor((Date.now()-new Date(c.lastContact))/(86400000)) : 999;
+    return days > 30 && c.status==="actif";
+  }).map(c=>({
+    ...c,
+    joursDepuis: Math.floor((Date.now()-new Date(c.lastContact||Date.now()))/(86400000))
+  })).sort((a,b)=>b.joursDepuis-a.joursDepuis);
+};
+
 const NAV = [
   {id:"dashboard",l:"Accueil",i:"home"},
   {id:"contacts",l:"Contacts",i:"contacts"},
   {id:"companies",l:"Entreprises",i:"companies"},
   {id:"deals",l:"Deals",i:"deals"},
+  {id:"forecast",l:"Prévisions",i:"chart"},
   {id:"tasks",l:"Tâches",i:"tasks"},
 ];
-const PAGE_TITLES = {dashboard:"Tableau de bord",contacts:"Contacts",companies:"Entreprises",deals:"Deals",tasks:"Tâches & Activités"};
+const PAGE_TITLES = {dashboard:"Tableau de bord",contacts:"Contacts",companies:"Entreprises",deals:"Deals",forecast:"Prévisions & IA",tasks:"Tâches & Activités"};
+
+
+// ===== VUE PRÉVISIONS =====
+const VueForecast = ({deals, contacts, companies}) => {
+  const forecast = getForecast(deals);
+  const relances = getRelances(contacts);
+  const pipeline = deals.filter(d=>!["gagne","perdu"].includes(d.stage));
+  const totalPipeline = pipeline.reduce((s,d)=>s+(d.amount||0),0);
+  const totalPondere = pipeline.reduce((s,d)=>s+(d.amount||0)*(d.prob||50)/100,0);
+  const fmtM = n => n>=1000000?`${(n/1000000).toFixed(1)}M FCFA`:`${new Intl.NumberFormat("fr-FR").format(n)} FCFA`;
+  const STAGE_C = {prospect:"#94a3b8",qualifie:"#3b82f6",proposition:"#8b5cf6",negociation:"#f59e0b",gagne:"#22c55e",perdu:"#ef4444"};
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:16,padding:"0 4px"}}>
+      {/* KPIs forecast */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12}}>
+        {[
+          ["Pipeline total",fmtM(totalPipeline),"#FF7A59"],
+          ["CA pondéré",fmtM(totalPondere),"#00BFA5"],
+          ["Deals actifs",pipeline.length+" deals","#5C6BC0"],
+          ["À relancer",relances.length+" contacts","#F4511E"],
+        ].map(([l,v,c_])=>(
+          <div key={l} style={{background:"#fff",border:"1px solid #F0F2F5",borderRadius:10,padding:"14px 16px",borderTop:`3px solid ${c_}`}}>
+            <div style={{fontSize:11,color:"#8C8C8C",marginBottom:6,textTransform:"uppercase",letterSpacing:".5px"}}>{l}</div>
+            <div style={{fontSize:18,fontWeight:700,color:c_}}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Forecast graphique */}
+      <div style={{background:"#fff",border:"1px solid #F0F2F5",borderRadius:10,padding:16}}>
+        <div style={{fontSize:14,fontWeight:700,marginBottom:14,color:"#2D3E50"}}>Prévisions CA — 2024</div>
+        <div style={{display:"flex",gap:4,alignItems:"flex-end",height:140,paddingBottom:24,position:"relative"}}>
+          {forecast.map((m,i)=>{
+            const max=Math.max(...forecast.map(x=>x.pondéré),1);
+            const h=Math.round((m.pondéré/max)*110);
+            const hg=Math.round((m.gagné/max)*110);
+            return (
+              <div key={m.mois} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                <div style={{width:"100%",display:"flex",flexDirection:"column",justifyContent:"flex-end",height:120,gap:1}}>
+                  <div style={{width:"100%",height:h,background:"#FF7A5930",borderRadius:"3px 3px 0 0",position:"relative"}}>
+                    {hg>0&&<div style={{position:"absolute",bottom:0,left:0,right:0,height:hg,background:"#00BFA5",borderRadius:"3px 3px 0 0"}}/>}
+                  </div>
+                </div>
+                <div style={{fontSize:9,color:"#8C8C8C",whiteSpace:"nowrap"}}>{m.mois}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{display:"flex",gap:16,fontSize:11,color:"#8C8C8C"}}>
+          <div style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:10,height:10,borderRadius:2,background:"#00BFA5"}}/> CA gagné</div>
+          <div style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:10,height:10,borderRadius:2,background:"#FF7A5930"}}/> Forecast pondéré</div>
+        </div>
+      </div>
+
+      {/* Scoring contacts */}
+      <div style={{background:"#fff",border:"1px solid #F0F2F5",borderRadius:10,overflow:"hidden"}}>
+        <div style={{padding:"12px 16px",borderBottom:"1px solid #F0F2F5",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:14,fontWeight:700,color:"#2D3E50"}}>Scoring contacts</div>
+          <div style={{fontSize:11,color:"#8C8C8C"}}>Score basé sur activité + valeur deals</div>
+        </div>
+        {contacts.map(ct=>{
+          const score = scoreContact(ct, deals);
+          const days = ct.lastContact ? Math.floor((Date.now()-new Date(ct.lastContact))/(86400000)) : 999;
+          const sc = score>=70?"#22c55e":score>=40?"#f59e0b":"#ef4444";
+          return (
+            <div key={ct.id} style={{padding:"10px 16px",borderBottom:"1px solid #F0F2F5",display:"flex",alignItems:"center",gap:12}}>
+              <div style={{width:36,height:36,borderRadius:"50%",background:"#FF7A5920",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"#FF7A59",flexShrink:0}}>
+                {ct.name.split(" ").map(w=>w[0]).join("").slice(0,2)}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ct.name}</div>
+                <div style={{fontSize:11,color:"#8C8C8C"}}>{ct.company} · Dernier contact: {days>365?"jamais":days+"j"}</div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontSize:16,fontWeight:700,color:sc}}>{score}</div>
+                <div style={{fontSize:9,color:sc,fontWeight:600}}>{score>=70?"CHAUD":score>=40?"TIÈDE":"FROID"}</div>
+              </div>
+              <div style={{width:60,height:6,borderRadius:3,background:"#F0F2F5",flexShrink:0}}>
+                <div style={{height:"100%",width:`${score}%`,borderRadius:3,background:sc,transition:"width .3s"}}/>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Relances urgentes */}
+      {relances.length>0&&(
+        <div style={{background:"#fff",border:"1px solid #FECACA",borderRadius:10,overflow:"hidden"}}>
+          <div style={{padding:"12px 16px",borderBottom:"1px solid #F0F2F5",background:"#FEF2F2"}}>
+            <div style={{fontSize:14,fontWeight:700,color:"#DC2626"}}>⚠ Relances urgentes — {relances.length} contact{relances.length>1?"s":""} en attente</div>
+          </div>
+          {relances.map(ct=>(
+            <div key={ct.id} style={{padding:"10px 16px",borderBottom:"1px solid #F0F2F5",display:"flex",alignItems:"center",gap:12}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:500}}>{ct.name}</div>
+                <div style={{fontSize:11,color:"#8C8C8C"}}>{ct.company} · {ct.title}</div>
+              </div>
+              <div style={{fontSize:12,fontWeight:600,color:"#DC2626",padding:"3px 9px",borderRadius:20,background:"#FEE2E2"}}>
+                {ct.joursDepuis}j sans contact
+              </div>
+              <button style={{fontSize:11,padding:"5px 12px",borderRadius:6,border:"none",background:"#FF7A59",color:"#fff",cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>
+                Relancer
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function CRM() {
   const [tab,setTab] = useState("dashboard");
@@ -1220,7 +1369,7 @@ export default function CRM() {
       <div className="crm-topbar">
         <div className="crm-logo">
           <div className="crm-logo-icon"><svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div>
-          <span className="crm-logo-text">Clean<em>IT</em></span>
+          <img src="/logo.png" alt="CleanIT" style={{height:22,objectFit:"contain",marginLeft:4}} onError={e=>{e.target.style.display="none";}}/>
         </div>
         {NAV.map(item=>(
           <button key={item.id} onClick={()=>setTab(item.id)} className={`crm-nav-btn${tab===item.id?" active":""}`}>
@@ -1260,6 +1409,7 @@ export default function CRM() {
         {tab==="contacts"&&<VueContacts contacts={contacts} deals={deals} onSelect={setSelContact}/>}
         {tab==="companies"&&<VueCompanies companies={companies} deals={deals} onSelect={setSelCompany}/>}
         {tab==="deals"&&<VueDeals deals={deals} setDeals={setDeals} companies={companies} onSelect={setSelDeal}/>}
+        {tab==="forecast"&&<VueForecast deals={deals} contacts={contacts} companies={companies}/>}
         {tab==="tasks"&&<VueTasks tasks={tasks} setTasks={setTasks}/>}
       </div>
 
