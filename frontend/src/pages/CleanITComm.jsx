@@ -7,9 +7,17 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 // ═══════════════════════════════════════════════════════════════════
 
 // ── Palette ────────────────────────────────────────────────────────
+const SECTION_THEME = {
+  chat:     {primary:'#185FA5',light:'#E6F1FB',grad:'linear-gradient(135deg,#185FA5 0%,#2563eb 100%)'},
+  reunions: {primary:'#6D28D9',light:'#EDE9FE',grad:'linear-gradient(135deg,#6D28D9 0%,#8b5cf6 100%)'},
+  email:    {primary:'#0D9488',light:'#CCFBF1',grad:'linear-gradient(135deg,#0D9488 0%,#14b8a6 100%)'},
+  drive:    {primary:'#D97706',light:'#FEF3C7',grad:'linear-gradient(135deg,#B45309 0%,#f59e0b 100%)'},
+  contacts: {primary:'#0F7B3C',light:'#D1FAE5',grad:'linear-gradient(135deg,#0F7B3C 0%,#22c55e 100%)'},
+};
+
 const P = {
   // Sidebar icons
-  sidebarBg:  '#1a1a2e',
+  sidebarBg:  '#0f172a',
   sidebarAct: '#16213e',
   iconDef:    '#6b7280',
   iconAct:    '#2563eb',
@@ -85,16 +93,16 @@ const Icon = ({name, size=20, color='currentColor', active=false}) => {
 };
 
 // ── Données ─────────────────────────────────────────────────────────
-const ME = {id:'u1',nom:'Marie Kamga',avatar:'MK',couleur:'#2563eb',poste:'Chef de Projet'};
+const ME = {id:'u1',nom:'Marie Kamga',avatar:'MK',couleur:'#2563eb',poste:'Chef de Projet',photo:'https://i.pravatar.cc/150?img=47'};
 
 const CONTACTS = [
-  {id:'u2',nom:'Jean Fouda',    poste:'Project Manager',  dept:'Operations',avatar:'JF',couleur:'#8b5cf6',status:'online' },
-  {id:'u3',nom:'Alice Finance', poste:'Dir. Financière',  dept:'Finance',   avatar:'AF',couleur:'#ec4899',status:'busy'   },
-  {id:'u4',nom:'Bob Comptable', poste:'Chef Comptable',   dept:'Finance',   avatar:'BC',couleur:'#0891b2',status:'offline'},
-  {id:'u5',nom:'Pierre Etoga', poste:'Ingénieur Réseau', dept:'Technique', avatar:'PE',couleur:'#d97706',status:'online' },
-  {id:'u6',nom:'Aline Biya',   poste:'Responsable RH',   dept:'RH',        avatar:'AB',couleur:'#dc2626',status:'online' },
-  {id:'u7',nom:'David Mballa', poste:'Analyste BI',       dept:'Finance',   avatar:'DM',couleur:'#059669',status:'away'  },
-  {id:'u8',nom:'Thomas Ngono', poste:'Technicien',        dept:'Terrain',   avatar:'TN',couleur:'#ea580c',status:'online' },
+  {id:'u2',nom:'Jean Fouda',    poste:'Project Manager',  dept:'Operations',avatar:'JF',couleur:'#8b5cf6',status:'online', photo:'https://i.pravatar.cc/150?img=12'},
+  {id:'u3',nom:'Alice Finance', poste:'Dir. Financière',  dept:'Finance',   avatar:'AF',couleur:'#ec4899',status:'busy',   photo:'https://i.pravatar.cc/150?img=9'},
+  {id:'u4',nom:'Bob Comptable', poste:'Chef Comptable',   dept:'Finance',   avatar:'BC',couleur:'#0891b2',status:'offline',photo:'https://i.pravatar.cc/150?img=11'},
+  {id:'u5',nom:'Pierre Etoga', poste:'Ingénieur Réseau', dept:'Technique', avatar:'PE',couleur:'#d97706',status:'online', photo:'https://i.pravatar.cc/150?img=15'},
+  {id:'u6',nom:'Aline Biya',   poste:'Responsable RH',   dept:'RH',        avatar:'AB',couleur:'#dc2626',status:'online', photo:'https://i.pravatar.cc/150?img=5'},
+  {id:'u7',nom:'David Mballa', poste:'Analyste BI',       dept:'Finance',   avatar:'DM',couleur:'#059669',status:'away',   photo:'https://i.pravatar.cc/150?img=22'},
+  {id:'u8',nom:'Thomas Ngono', poste:'Technicien',        dept:'Terrain',   avatar:'TN',couleur:'#ea580c',status:'online', photo:'https://i.pravatar.cc/150?img=33'},
 ];
 
 const CHANNELS = [
@@ -103,7 +111,16 @@ const CHANNELS = [
   {id:'ch3',nom:'finance',         type:'private',unread:1, lastMsg:'Alice: Facture payée partiellement', lastTs:Date.now()-1800000, pinned:false},
   {id:'ch4',nom:'chefs-projet',    type:'private',unread:0, lastMsg:'Jean: Rapport prêt', lastTs:Date.now()-7200000, pinned:false},
   {id:'ch5',nom:'alertes-terrain', type:'system', unread:5, lastMsg:'⚠ Ali Moussa hors zone GAR-001', lastTs:Date.now()-600000,  pinned:true },
-  {id:'ch6',nom:'annonces',        type:'system', unread:1, lastMsg:'📢 Nouvelle politique HSE', lastTs:Date.now()-86400000, pinned:false},
+  {id:'ch6',nom:'annonces',        type:'system', unread:1, lastMsg:'[ANNONCE] Nouvelle politique HSE', lastTs:Date.now()-86400000, pinned:false},
+];
+
+
+const CROSS_NOTIFS = [
+  {id:'n1',module:'Approvals',color:'#0F7B3C',msg:'Paiement APV-002 approuvé — Thomas Ngono 6.2M FCFA',ts:Date.now()-1800000,read:false},
+  {id:'n2',module:'Pointage', color:'#D97706',msg:'Ali Moussa hors zone GAR-001 depuis 2h',ts:Date.now()-3600000,read:false},
+  {id:'n3',module:'Finance',  color:'#185FA5',msg:'Virement VIR-2025-042 effectué — 18.5M FCFA',ts:Date.now()-7200000,read:true},
+  {id:'n4',module:'Planning', color:'#6D28D9',msg:'Mission T181 planifiée — Thomas Ngono 19 mai 08h',ts:Date.now()-14400000,read:true},
+  {id:'n5',module:'CRM',      color:'#D97706',msg:'Deal MTN Small Cells marqué Gagné — 95M FCFA',ts:Date.now()-86400000,read:true},
 ];
 
 const NOW = Date.now();
@@ -112,16 +129,16 @@ const MSGS = {
     {id:'m1',uid:'u2',text:'Bonjour équipe ! Réunion de suivi DLA-001 à 10h ce matin.',ts:NOW-7200000,files:[]},
     {id:'m2',uid:'u5',text:'Les équipements 5G sont arrivés sur site. On commence l\'installation ce matin.',ts:NOW-7100000,files:[]},
     {id:'m3',uid:'u1',text:'Parfait Pierre. N\'oubliez pas le rapport photo pour le client Huawei.',ts:NOW-7000000,files:[]},
-    {id:'m4',uid:'u8',text:'Selfie de présence envoyé via CleanITCam ✓',ts:NOW-3600000,files:[]},
+    {id:'m4',uid:'u8',text:'Selfie de présence envoyé via CleanITCam — vérifiée',ts:NOW-3600000,files:[]},
     {id:'m5',uid:'u3',text:'La facture INV-2024-003 a été partiellement payée. Solde restant : 22.4M FCFA.',ts:NOW-1800000,files:[{name:'INV-2024-003.pdf',size:'890 KB',type:'pdf'}]},
     {id:'m6',uid:'u1',text:'Merci Alice. Je relance le client aujourd\'hui.',ts:NOW-900000,files:[]},
   ],
   ch5:[
-    {id:'a1',uid:'system',text:'⚠️ Ali Moussa est hors zone sur GAR-001 — Distance: 650m du périmètre autorisé',ts:NOW-7200000,type:'alert',alertType:'danger',files:[]},
-    {id:'a2',uid:'system',text:'🔋 Batterie critique (23%) — Ali Moussa · Site Garoua',ts:NOW-3600000,type:'alert',alertType:'warning',files:[]},
+    {id:'a1',uid:'system',text:'[ALERTE] Ali Moussa est hors zone sur GAR-001 — Distance: 650m du périmètre autorisé',ts:NOW-7200000,type:'alert',alertType:'danger',files:[]},
+    {id:'a2',uid:'system',text:'[BATTERIE] Batterie critique (23%) — Ali Moussa · Site Garoua',ts:NOW-3600000,type:'alert',alertType:'warning',files:[]},
     {id:'a3',uid:'u1',text:'Ali contacté par téléphone. Il retourne dans la zone.',ts:NOW-3000000,files:[]},
-    {id:'a4',uid:'system',text:'✅ Ali Moussa est revenu dans la zone autorisée',ts:NOW-2400000,type:'alert',alertType:'success',files:[]},
-    {id:'a5',uid:'system',text:'⚠️ Thomas Ngono — Sortie momentanée DLA-001 · 45m hors périmètre',ts:NOW-600000,type:'alert',alertType:'warning',files:[]},
+    {id:'a4',uid:'system',text:'[RÉSOLU] Ali Moussa est revenu dans la zone autorisée',ts:NOW-2400000,type:'alert',alertType:'success',files:[]},
+    {id:'a5',uid:'system',text:'[ALERTE] Thomas Ngono — Sortie momentanée DLA-001 · 45m hors périmètre',ts:NOW-600000,type:'alert',alertType:'warning',files:[]},
   ],
   ch2:[
     {id:'t1',uid:'u8',text:'Arrivé sur site DLA-001. Équipe de 3 présente, météo favorable.',ts:NOW-18000000,files:[]},
@@ -903,7 +920,7 @@ const SectionDrive = () => {
       <div style={{width:220,background:P.listBg,borderRight:`1px solid ${P.listBorder}`,padding:'12px 8px',display:'flex',flexDirection:'column',gap:2,flexShrink:0}}>
         <input ref={fileRef} type="file" style={{display:'none'}} onChange={upload}/>
         <button onClick={()=>fileRef.current?.click()}
-          style={{width:'100%',padding:'10px',borderRadius:9,border:'none',background:P.blue,color:'#fff',fontWeight:700,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginBottom:10}}>
+          style={{width:'100%',padding:'10px',borderRadius:9,border:'none',background:SECTION_THEME.drive.primary,color:'#fff',fontWeight:700,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginBottom:10}}>
           <Icon name="plus" size={16} color="#fff"/> Déposer un fichier
         </button>
         {[{id:null,l:'Tous les fichiers',icon:'drive'},{id:'Projets',l:'Projets',icon:'file'},{id:'Finance',l:'Finance',icon:'list'},{id:'RH',l:'RH',icon:'contacts'},{id:'Technique',l:'Technique',icon:'settings'},{id:'HSE',l:'HSE',icon:'info'}].map(f=>{
