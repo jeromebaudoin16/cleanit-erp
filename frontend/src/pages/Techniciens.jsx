@@ -193,6 +193,11 @@ function DetailPage({ tech, onBack }) {
 
   const tp = (tech.sites||[]).reduce((s,x)=>s+x.p,0);
   const td = (tech.sites||[]).reduce((s,x)=>s+x.d,0);
+  const approvalsPay = React.useMemo(()=>loadApprovalsPaiements(tech.name),[tech.name]);
+  const aPaid = approvalsPay.filter(i=>i.status==='paid').reduce((s,i)=>s+(i.amount||0),0);
+  const aPending = approvalsPay.filter(i=>['pending','approved'].includes(i.status)).reduce((s,i)=>s+(i.amount||0),0);
+  const totalPercu = tp + aPaid;
+  const totalDu = td + aPending;
 
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
@@ -334,12 +339,7 @@ function DetailPage({ tech, onBack }) {
           </div>
         )}
 
-        {tab==='sites' && (()=>{
-          const approvalsPay = loadApprovalsPaiements(tech.name);
-          const {paid: aPaid, pending: aPending} = calcFromApprovals(approvalsPay);
-          const totalPercu = tp + aPaid;
-          const totalDu = td + aPending;
-          return (
+        {tab==='sites' && (
           <>
           <div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,padding:'14px 20px',borderBottom:`1px solid ${C.border2}`,background:C.white}}>
@@ -401,8 +401,7 @@ function DetailPage({ tech, onBack }) {
             </div>
           )}
           </>
-          );
-        })()}
+        )}
       </div>
     </div>
   );
@@ -426,11 +425,6 @@ function loadApprovalsPaiements(techName) {
     const merged = [...APPROVALS_SEED, ...(items.filter(i=>!APPROVALS_SEED.find(s=>s.id===i.id)))];
     return merged.filter(i => i.type === 'payment_request' && i.beneficiaryName === techName);
   } catch { return APPROVALS_SEED.filter(i=>i.beneficiaryName===techName); }
-}
-function calcFromApprovals(items) {
-  const paid = items.filter(i => i.status === 'paid').reduce((s, i) => s + (i.amount || 0), 0);
-  const pending = items.filter(i => ['pending','approved'].includes(i.status)).reduce((s, i) => s + (i.amount || 0), 0);
-  return { paid, pending };
 }
 
 export default function Techniciens() {
