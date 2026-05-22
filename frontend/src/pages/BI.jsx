@@ -221,6 +221,52 @@ const Badge = ({label,color,bg}) => (
 );
 
 // Section tab
+
+// ===== CHARGEMENT DONNÉES RÉELLES =====
+const loadRealData = () => {
+  const result = {
+    approvals: [], users: [], technicians: [], bcSites: [],
+    hasRealData: false
+  };
+  try {
+    const ap = localStorage.getItem('cleanit_approvals_cache');
+    if(ap) { result.approvals = JSON.parse(ap); result.hasRealData = true; }
+    const bc = localStorage.getItem('cleanit_bc_sites');
+    if(bc) { result.bcSites = JSON.parse(bc); }
+  } catch(e) {}
+  return result;
+};
+
+// Calcul KPIs depuis données réelles
+const calcKPIsFromReal = (approvals, users, techs) => {
+  const payments = approvals.filter(a => a.type === 'payment_request');
+  const totalPaid = payments.filter(a => a.status === 'paid')
+    .reduce((s,a) => s + (a.amount||0), 0) / 1000000;
+  const totalPending = payments.filter(a => ['pending','approved'].includes(a.status))
+    .reduce((s,a) => s + (a.amount||0), 0) / 1000000;
+  const nbTechs = techs.length || 5;
+  const nbUsers = users.length || 6;
+  const masseSalariale = users.reduce((s,u) => s + (u.salary||400000), 0) / 1000000;
+  return { totalPaid, totalPending, nbTechs, nbUsers, masseSalariale };
+};
+
+// ===== ALERTES KPI =====
+const checkAlerts = (kpis, approvals) => {
+  const alerts = [];
+  if(kpis.totalPending > 15) alerts.push({
+    id:'a1', level:'warning', title:'Paiements en attente élevés',
+    msg:`${kpis.totalPending.toFixed(1)}M FCFA de paiements approuvés non versés`,
+    action:'Voir Finance → Audit paiements', module:'finance'
+  });
+  const hors_zone = approvals.filter(a => a.type === 'payment_request' && a.status === 'rejected').length;
+  if(hors_zone > 0) alerts.push({
+    id:'a2', level:'info', title:`${hors_zone} demande(s) rejetée(s)`,
+    msg:'Des demandes de paiement ont été refusées ce mois',
+    action:'Voir Approvals', module:'finance'
+  });
+  return alerts;
+};
+
 const SectionTabs = ({tabs,active,onChange}) => (
   <div style={{display:"flex",gap:4,background:C.bg2,borderRadius:8,padding:3}}>
     {tabs.map(t=>(
@@ -233,6 +279,22 @@ const SectionTabs = ({tabs,active,onChange}) => (
 
 // ===== MODULE FINANCIER =====
 const ModuleFinancier = () => {
+  const [realApprovals, setRealApprovals] = useState([]);
+  useEffect(()=>{
+    try{
+      const s = localStorage.getItem('cleanit_approvals_cache');
+      if(s) setRealApprovals(JSON.parse(s).filter(a=>a.type==='payment_request'));
+    }catch{}
+  },[]);
+  const totalPayé = realApprovals.filter(a=>a.status==='paid').reduce((s,a)=>s+(a.amount||0),0)/1000000;
+  const totalEn = realApprovals.filter(a=>['pending','approved'].includes(a.status)).reduce((s,a)=>s+(a.amount||0),0)/1000000;
+  const parBenef = realApprovals.reduce((acc,a)=>{
+    const n=a.beneficiaryName||'Inconnu';
+    if(!acc[n]) acc[n]={name:n,paid:0,pending:0};
+    if(a.status==='paid') acc[n].paid+=(a.amount||0)/1000000;
+    else acc[n].pending+=(a.amount||0)/1000000;
+    return acc;
+  },{});
   const totalCA = 683; // M FCFA
   const marge = 46;
   const charges = 78;
@@ -359,6 +421,42 @@ const ModuleFinancier = () => {
 };
 
 // ===== MODULE COMMERCIAL =====
+
+// Composant paiements réels injecté dans ModuleFinancier via le render
+const PaiementsReels = ({approvals}) => {
+  const byPerson = approvals.reduce((acc,a)=>{
+    const n=a.beneficiaryName||'Inconnu';
+    if(!acc[n])acc[n]={name:n,paid:0,pending:0,count:0};
+    if(a.status==='paid')acc[n].paid+=(a.amount||0)/1000000;
+    else if(['pending','approved'].includes(a.status))acc[n].pending+=(a.amount||0)/1000000;
+    acc[n].count++;
+    return acc;
+  },{});
+  const rows = Object.values(byPerson).sort((a,b)=>(b.paid+b.pending)-(a.paid+a.pending));
+  if(!rows.length) return null;
+  return (
+    <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden",marginTop:16}}>
+      <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border2}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{fontSize:14,fontWeight:700,color:C.text}}>Paiements par collaborateur — données réelles</div>
+        <div style={{fontSize:11,padding:"2px 8px",borderRadius:20,background:C.green_l,color:C.green,fontWeight:600}}>Live</div>
+      </div>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr style={{background:C.bg}}>
+          {["Bénéficiaire","Payé","En attente","Nb demandes"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 14px",fontSize:10,fontWeight:600,color:C.text3,textTransform:"uppercase",letterSpacing:".4px",borderBottom:`1px solid ${C.border}`}}>{h}</th>)}
+        </tr></thead>
+        <tbody>{rows.map((r,i)=>(
+          <tr key={i} onMouseEnter={e=>e.currentTarget.style.background=C.bg} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+            <td style={{padding:"10px 14px",fontSize:13,fontWeight:500,borderBottom:`1px solid ${C.border2}`}}>{r.name}</td>
+            <td style={{padding:"10px 14px",fontSize:13,fontWeight:600,color:C.green,borderBottom:`1px solid ${C.border2}`}}>{r.paid.toFixed(1)}M</td>
+            <td style={{padding:"10px 14px",fontSize:13,fontWeight:600,color:C.orange,borderBottom:`1px solid ${C.border2}`}}>{r.pending.toFixed(1)}M</td>
+            <td style={{padding:"10px 14px",fontSize:12,color:C.text3,borderBottom:`1px solid ${C.border2}`}}>{r.count}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
+  );
+};
+
 const ModuleCommercial = () => (
   <div style={{animation:"fadeUp .35s ease both"}}>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
@@ -806,6 +904,82 @@ const TABS = [
 // ===== EXPORT PRINCIPAL =====
 export default function BI() {
   const [tab,setTab] = useState("global");
+  const [periode,setPeriode] = useState("mois");
+  const [realData,setRealData] = useState({approvals:[],users:[],technicians:[],bcSites:[],hasRealData:false});
+  const [kpis,setKpis] = useState({totalPaid:33.2,totalPending:7.7,nbTechs:5,nbUsers:6,masseSalariale:34.2});
+  const [alerts,setAlerts] = useState([]);
+  const [showAlerts,setShowAlerts] = useState(false);
+  const [chachaInsight,setChachaInsight] = useState('');
+  const [loadingAI,setLoadingAI] = useState(false);
+
+  useEffect(() => {
+    const rd = loadRealData();
+    setRealData(rd);
+    if(rd.hasRealData) {
+      const k = calcKPIsFromReal(rd.approvals, rd.users, rd.technicians);
+      setKpis(k);
+      setAlerts(checkAlerts(k, rd.approvals));
+    }
+    // Charger users depuis API
+    fetch('/api/users').then(r=>r.json()).then(d=>{
+      if(Array.isArray(d)&&d.length>0) {
+        setRealData(p=>({...p,users:d}));
+        const k = calcKPIsFromReal(realData.approvals, d, realData.technicians);
+        setKpis(k);
+      }
+    }).catch(()=>{});
+  }, []);
+
+  const getChachaInsight = async () => {
+    setLoadingAI(true);
+    try {
+      const ctx = {
+        totalPaid: kpis.totalPaid,
+        totalPending: kpis.totalPending,
+        nbTechs: kpis.nbTechs,
+        nbUsers: kpis.nbUsers,
+        approvals: realData.approvals.length,
+        caTotal: 683,
+        pipeline: 555,
+      };
+      const res = await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:400,
+          messages:[{role:'user',content:`Tu es l'IA analytique de CleanIT Cameroun, entreprise de sous-traitance télécom.
+
+Données actuelles:
+- CA total: ${ctx.caTotal}M FCFA (objectif 900M)
+- Pipeline commercial: ${ctx.pipeline}M FCFA
+- Paiements effectués: ${ctx.totalPaid.toFixed(1)}M FCFA
+- Paiements en attente: ${ctx.totalPending.toFixed(1)}M FCFA
+- Équipe: ${ctx.nbUsers} employés + ${ctx.nbTechs} techniciens terrain
+- Demandes Approvals traitées: ${ctx.approvals}
+
+Donne 3 insights business concrets et actionnables en 4 lignes max. Sois direct, chiffré, orienté action. Réponse en français.`}]
+        })
+      });
+      const data = await res.json();
+      setChachaInsight(data.content?.[0]?.text || 'Analyse non disponible');
+    } catch(e) {
+      setChachaInsight('Connexion IA temporairement indisponible. Réessayez dans quelques instants.');
+    }
+    setLoadingAI(false);
+  };
+
+  const exportPDF = () => {
+    const content = `RAPPORT BI — CLEANIT CAMEROUN\n${new Date().toLocaleDateString('fr-FR')}\n\n` +
+      `CA Total: 683M FCFA\nPipeline: 555M FCFA\nMasse salariale: ${kpis.masseSalariale.toFixed(1)}M FCFA\n` +
+      `Paiements effectués: ${kpis.totalPaid.toFixed(1)}M FCFA\nEn attente: ${kpis.totalPending.toFixed(1)}M FCFA\n` +
+      `Équipe: ${kpis.nbUsers} employés + ${kpis.nbTechs} techniciens`;
+    const blob = new Blob([content],{type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url;
+    a.download=`Rapport_BI_CleanIT_${new Date().toLocaleDateString('fr-FR').replace(/\//g,'-')}.txt`;
+    a.click();
+  };
   const [period,setPeriod] = useState("3m");
   const activeTab = TABS.find(t=>t.id===tab);
 
