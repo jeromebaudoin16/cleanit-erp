@@ -30,6 +30,7 @@ const NAV = [
   ]},
   { section:'INTELLIGENCE', color:'#a78bfa', items:[
     { path:'/bi', label:'Business Intelligence', icon:'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
+    { path:'/mobile', label:'Application Mobile', icon:'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z' },
     { path:'/map', label:'Carte Digital Twin', icon:'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7' },
 
   ]},
