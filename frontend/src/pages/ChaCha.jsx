@@ -181,7 +181,7 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
         method: 'POST',
         headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${GROQ_KEY}`},
         body: JSON.stringify({
-          model: 'llama3-groq-70b-8192-tool-use-preview',
+          model: 'llama-3.3-70b-versatile',
           messages: [{role:'system', content:SYSTEM}, ...history],
           tools: CHACHA_TOOLS,
           tool_choice: 'auto',
@@ -251,7 +251,7 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
           method: 'POST',
           headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${GROQ_KEY}`},
           body: JSON.stringify({
-            model: 'llama3-groq-70b-8192-tool-use-preview',
+            model: 'llama-3.3-70b-versatile',
             messages: [{role:'system', content:SYSTEM}, ...history, assistantMsg, ...toolResults],
             max_tokens: 600,
             temperature: 0.3
