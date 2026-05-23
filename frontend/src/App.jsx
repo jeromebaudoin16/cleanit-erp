@@ -1,6 +1,19 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 
+// Redirection automatique vers /mobile sur smartphone
+function MobileRedirect() {
+  useEffect(() => {
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    const isOnMobile = window.location.pathname.startsWith('/mobile');
+    const isOnLogin = window.location.pathname === '/login';
+    if(isMobile && !isOnMobile && !isOnLogin) {
+      window.location.href = '/mobile';
+    }
+  }, []);
+  return null;
+}
+
 // ===== APPLIQUER LES PRÉFÉRENCES D'APPARENCE AU DÉMARRAGE =====
 function ApparenceProvider({children}){
   useEffect(()=>{
@@ -152,6 +165,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
       <ChaCha/>
+      <MobileRedirect/>
     </BrowserRouter>
     </ApparenceProvider>
   );
