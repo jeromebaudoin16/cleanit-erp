@@ -94,15 +94,28 @@ export default function ChaCha() {
   const speak = useCallback((text)=>{
     if(!synthRef.current||!text) return;
     synthRef.current.cancel();
-    const clean=text.replace(/#{1,3}\s?/g,'').replace(/\*\*/g,'').replace(/\*/g,'').replace(/`[^`]+`/g,'').replace(/##[^#]+##/g,'').substring(0,500);
-    const u=new SpeechSynthesisUtterance(clean);
-    u.lang='fr-FR'; u.rate=1.05; u.pitch=1.1; u.volume=1;
-    const voices=synthRef.current.getVoices();
-    const fr=voices.find(v=>v.lang.startsWith('fr-'))||voices.find(v=>v.lang.startsWith('fr'));
-    if(fr) u.voice=fr;
-    u.onstart=()=>setSpeaking(true);
-    u.onend=u.onerror=()=>setSpeaking(false);
-    synthRef.current.speak(u);
+    const clean=text.replace(/#{1,3}\s?/g,'').replace(/\*\*/g,'').replace(/\*/g,'')
+      .replace(/`[^`]+`/g,'').replace(/##[^#]+##/g,'')
+      .replace(/Erreur:.*/g,'').substring(0,400);
+    if(!clean.trim()) return;
+    const trySpeak=()=>{
+      const u=new SpeechSynthesisUtterance(clean);
+      u.lang='fr-FR'; u.rate=0.95; u.pitch=1.0; u.volume=1;
+      const voices=synthRef.current.getVoices();
+      // Priorité: voix française féminine native
+      const fr = voices.find(v=>v.lang==='fr-FR'&&v.name.includes('Female'))
+        || voices.find(v=>v.lang==='fr-FR')
+        || voices.find(v=>v.lang.startsWith('fr'))
+        || voices.find(v=>v.default);
+      if(fr){ u.voice=fr; }
+      u.onstart=()=>setSpeaking(true);
+      u.onend=()=>setSpeaking(false);
+      u.onerror=(e)=>{ setSpeaking(false); console.warn('Speech error:',e.error); };
+      synthRef.current.speak(u);
+    };
+    // Attendre que les voix soient chargées
+    if(synthRef.current.getVoices().length>0){ trySpeak(); }
+    else{ synthRef.current.onvoiceschanged=()=>{ trySpeak(); synthRef.current.onvoiceschanged=null; }; }
   },[]);
 
   // Actions
