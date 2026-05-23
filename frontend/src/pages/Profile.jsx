@@ -183,13 +183,18 @@ function TabProfil({user,setUser}){
       <Card title="Informations personnelles" sub="Visibles par toute l'équipe CleanIT"
         onSave={saveProfile} saving={saving1} alert={alert1} setAlert={setAlert1}>
         <div style={{display:'flex',alignItems:'center',gap:16,padding:'16px 0 12px',borderBottom:`1px solid ${C.border2}`,marginBottom:4}}>
-          <div style={{width:64,height:64,borderRadius:'50%',background:C.blue_l,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,fontWeight:700,color:C.blue_d,flexShrink:0}}>
-            {form.firstName?.[0]}{form.lastName?.[0]}
+          <div style={{width:64,height:64,borderRadius:'50%',background:C.blue_l,display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,fontWeight:700,color:C.blue_d,flexShrink:0,overflow:'hidden'}}>
+            {user?.photoUrl?<img src={user.photoUrl} style={{width:'100%',height:'100%',objectFit:'cover'}} alt="Photo profil"/>:<>{form.firstName?.[0]}{form.lastName?.[0]}</>}
           </div>
           <div>
             <div style={{fontSize:15,fontWeight:600,color:C.text,marginBottom:2}}>{form.firstName} {form.lastName}</div>
             <div style={{fontSize:12,color:C.text3,marginBottom:6}}>{ROLES[user?.role]||user?.role}</div>
-            <button style={{fontSize:12,padding:'5px 12px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text3}}>Changer la photo</button>
+            <div style={{display:'flex',gap:6,alignItems:'center'}}>
+            <input type="file" id="photo-upload" accept="image/*" style={{display:'none'}}
+              onChange={e=>{const file=e.target.files[0];if(file){const reader=new FileReader();reader.onload=r=>{const photoUrl=r.target.result;try{const u=JSON.parse(localStorage.getItem('cleanit_user')||'{}');localStorage.setItem('cleanit_user',JSON.stringify({...u,photoUrl}));setUser({...user,photoUrl});}catch{}setAlert1({type:'success',msg:'Photo mise à jour'});};reader.readAsDataURL(file);}}}/>
+            <button onClick={()=>document.getElementById('photo-upload').click()} style={{fontSize:12,padding:'5px 12px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text3}}>Changer la photo</button>
+            {user?.photoUrl&&<button onClick={()=>{try{const u=JSON.parse(localStorage.getItem('cleanit_user')||'{}');delete u.photoUrl;localStorage.setItem('cleanit_user',JSON.stringify(u));setUser({...user,photoUrl:null});}catch{}}} style={{fontSize:11,padding:'3px 8px',borderRadius:5,border:`1px solid ${C.red}`,background:C.red_l,color:C.red,cursor:'pointer',fontFamily:'inherit'}}>Supprimer</button>}
+          </div>
           </div>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:4}}>
@@ -529,11 +534,41 @@ function TabUtilisateurs({currentUser}){
 }
 
 function TabSecurite({user}){
-  const [twofa,setTwofa]=useState(false);
+  const [twofa,setTwofa]=useState(localStorage.getItem('cleanit_2fa')==='1');
   const [saved,setSaved]=useState(false);
+  const [pwd,setPwd]=useState({current:'',nouveau:'',confirm:''});
+  const [pwdAlert,setPwdAlert]=useState(null);
+  const [savingPwd,setSavingPwd]=useState(false);
+
+  const savePwd=async()=>{
+    if(!pwd.current){setPwdAlert({type:'error',msg:'Mot de passe actuel requis'});return;}
+    if(pwd.nouveau!==pwd.confirm){setPwdAlert({type:'error',msg:'Les nouveaux mots de passe ne correspondent pas'});return;}
+    if(pwd.nouveau.length<8){setPwdAlert({type:'error',msg:'Minimum 8 caractères requis'});return;}
+    setSavingPwd(true);
+    try{
+      await api.put(`/users/${user?.id}`,{password:pwd.nouveau,currentPassword:pwd.current});
+      setPwdAlert({type:'success',msg:'Mot de passe modifié avec succès'});
+      setPwd({current:'',nouveau:'',confirm:''});
+    }catch{
+      setPwdAlert({type:'error',msg:'Mot de passe actuel incorrect ou erreur serveur'});
+    }
+    setSavingPwd(false);
+  };
+
+  const lbl={fontSize:11,color:C.text3,marginBottom:4,display:'block',fontWeight:500};
 
   return (
     <>
+      <Card title="Changer le mot de passe" sub="Minimum 8 caractères"
+        onSave={savePwd} saving={savingPwd} alert={pwdAlert} setAlert={setPwdAlert}>
+        <div style={{display:'flex',flexDirection:'column',gap:10,marginTop:4}}>
+          <div><label style={lbl}>Mot de passe actuel</label><Inp value={pwd.current} onChange={v=>setPwd({...pwd,current:v})} type="password" placeholder="Votre mot de passe actuel"/></div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div><label style={lbl}>Nouveau mot de passe</label><Inp value={pwd.nouveau} onChange={v=>setPwd({...pwd,nouveau:v})} type="password" placeholder="Minimum 8 caractères"/></div>
+            <div><label style={lbl}>Confirmer le nouveau</label><Inp value={pwd.confirm} onChange={v=>setPwd({...pwd,confirm:v})} type="password" placeholder="Répéter le mot de passe"/></div>
+          </div>
+        </div>
+      </Card>
       <Card title="Authentification à deux facteurs"
         alert={saved?{type:'success',msg:'Paramètres de sécurité sauvegardés'}:null}
         setAlert={()=>setSaved(false)}>
@@ -566,10 +601,19 @@ function TabApparence(){
   const [saved,setSaved]=useState(false);
   const COULEURS=[{id:'blue',c:'#185FA5'},{id:'green',c:'#3B6D11'},{id:'purple',c:'#403294'},{id:'red',c:'#A32D2D'},{id:'orange',c:'#854F0B'}];
 
+  const applyTheme=(theme,couleur)=>{
+    const root=document.documentElement;
+    if(theme==='dark'){root.style.setProperty('--bg-color','#1a1a2e');root.style.setProperty('--text-color','#e2e8f0');document.body.style.background='#1a1a2e';}
+    else{root.style.setProperty('--bg-color','#F9FAFB');root.style.setProperty('--text-color','#111827');document.body.style.background='';}
+    const COLS={'blue':'#185FA5','green':'#3B6D11','purple':'#403294','red':'#A32D2D','orange':'#854F0B'};
+    if(COLS[couleur]) root.style.setProperty('--primary-color',COLS[couleur]);
+  };
   const save=()=>{
     localStorage.setItem('cleanit_apparence',JSON.stringify(p));
+    applyTheme(p.theme,p.couleur);
     setSaved(true);setTimeout(()=>setSaved(false),2000);
   };
+  useEffect(()=>{ applyTheme(p.theme,p.couleur); },[]);
 
   return (
     <Card title="Préférences d'affichage"
@@ -595,11 +639,14 @@ function TabApparence(){
           ))}
         </div>
       </Row>
-      <Row label="Langue de l'interface">
-        <Sel value={p.lang} onChange={v=>setP({...p,lang:v})} style={{width:160}}>
-          <option value="fr">Français</option>
-          <option value="en">English</option>
-        </Sel>
+      <Row label="Langue de l'interface" sub="Redémarrage requis pour application complète">
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <Sel value={p.lang} onChange={v=>{setP({...p,lang:v});localStorage.setItem('cleanit_lang',v);}} style={{width:160}}>
+            <option value="fr">Français</option>
+            <option value="en">English</option>
+          </Sel>
+          {p.lang!==localStorage.getItem('cleanit_lang')&&<span style={{fontSize:10,color:C.orange,fontWeight:600}}>Recharger la page</span>}
+        </div>
       </Row>
       <Row label="Densité d'affichage">
         <Sel value={p.density} onChange={v=>setP({...p,density:v})} style={{width:160}}>
@@ -649,7 +696,13 @@ function TabIntegrations(){
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <span style={{fontSize:11,padding:'3px 9px',borderRadius:20,background:bg,color:c,fontWeight:600}}>{label}</span>
               {ig.status==='non configuré'&&(
-                <button style={{fontSize:11,padding:'4px 10px',borderRadius:5,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text3}}>Configurer</button>
+                <button onClick={()=>{
+                  if(ig.id==='sendgrid'){const k=prompt('Clé API SendGrid (sg.XXXXXXXX):');if(k&&k.startsWith('sg.')){localStorage.setItem('cleanit_sendgrid_key',k);alert('SendGrid configuré !');}}
+                  else if(ig.id==='googlecal'){const id=prompt('Client ID Google Calendar:');if(id){localStorage.setItem('cleanit_gcal_id',id);alert('Google Calendar configuré !');}};
+                  else if(ig.id==='whatsapp'){const tok=prompt('Token WhatsApp Business API:');if(tok){localStorage.setItem('cleanit_wa_token',tok);alert('WhatsApp configuré !');}}
+                  else alert('Configuration disponible dans les prochaines mises à jour.');
+                }}
+                  style={{fontSize:11,padding:'4px 10px',borderRadius:5,border:`1px solid ${C.blue}`,background:C.blue_l,cursor:'pointer',fontFamily:'inherit',color:C.blue,fontWeight:500}}>Configurer</button>
               )}
             </div>
           </div>
@@ -661,7 +714,10 @@ function TabIntegrations(){
 
 export default function Profile(){
   const [section,setSection]=useState('profil');
-  const [user,setUser]=useState(null);
+  const [user,setUser]=useState(()=>{
+    try{const u=localStorage.getItem('cleanit_user');if(u){const p=JSON.parse(u);return {id:p.id||p.userId||1,firstName:p.firstName||p.name?.split(' ')[0]||'Utilisateur',lastName:p.lastName||p.name?.split(' ')[1]||'',email:p.email||'',phone:p.phone||'',role:p.role||'ADMIN',region:p.region||'Douala',photoUrl:p.photoUrl||null};}}catch{}
+    return {id:1,firstName:'Jérôme',lastName:'Bell',email:'jerome@cleanit.cm',phone:'+237 677 000 001',role:'ADMIN',region:'Douala'};
+  });
   const [loading,setLoading]=useState(true);
 
   useEffect(()=>{
