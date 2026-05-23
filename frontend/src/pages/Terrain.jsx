@@ -117,7 +117,7 @@ function TabDashboard({missions,ordres,currentUser}){
 }
 
 // ===== RÔLES D'ÉQUIPE =====
-const ROLES = ["Chef d'équipe","Technicien principal","Technicien","Sécurité HSE","Support logistique"];
+const ROLES = ["Chef d\'équipe","Technicien principal","Technicien","Sécurité HSE","Support logistique"];
 
 // ===== CARTE MEMBRE D'ÉQUIPE =====
 function MembreCard({membre, index, onRemplace, onChangeRole, onRetirer, availableTechs}){
@@ -176,7 +176,7 @@ function TeamBuilder({ord, techs, onValider, onClose}){
     const chef = chefsOptions[0]||avail[0];
     const autres = avail.filter(t=>t.id!==chef?.id).slice(0,2);
     const proposition = [
-      chef&&{tech:chef, role:"Chef d'équipe", scoreIA:92, raisonIA:`${chef.note}/5 — ${chef.missions} missions — Expert ${chef.role}`},
+      chef&&{tech:chef, role:"Chef d\'équipe", scoreIA:92, raisonIA:`${chef.note}/5 — ${chef.missions} missions — Expert ${chef.role}`},
       ...autres.map((t,i)=>({tech:t, role:i===0?"Technicien principal":"Technicien", scoreIA:Math.round(70+Math.random()*20), raisonIA:`${t.role} — ${t.missions} missions`}))
     ].filter(Boolean);
     setEquipe(proposition);
@@ -207,7 +207,7 @@ function TeamBuilder({ord, techs, onValider, onClose}){
 
         {/* Tabs mode */}
         <div style={{display:'flex',borderBottom:`1px solid ${C.border}`,background:C.bg}}>
-          {[['chacha','ChaCha IA propose'],['edit','Modifier l'équipe'],['manuel','Créer manuellement']].map(([id,l])=>(
+          {[["chacha","ChaCha IA propose"],["edit","Modifier l'équipe"],["manuel","Créer manuellement"]].map(([id,l])=>(
             <button key={id} onClick={()=>setMode(id)}
               style={{padding:'10px 16px',border:'none',background:mode===id?C.white:'transparent',borderBottom:mode===id?`2px solid ${C.blue}`:'2px solid transparent',fontSize:12,fontWeight:mode===id?700:400,color:mode===id?C.blue:C.text3,cursor:'pointer',fontFamily:'inherit'}}>
               {l}
