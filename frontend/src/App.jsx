@@ -100,6 +100,7 @@ export default function App() {
           <Route path="mobile/camera" element={<MobileApp />} />
           <Route path="mobile/planning" element={<MobileApp />} />
           <Route path="mobile/profil" element={<MobileApp />} />
+          <Route path="mobile/install" element={<MobileApp />} />
           <Route path="pointage" element={<Pointage />} />
           <Route path="pointage/map" element={<Pointage />} />
           <Route path="pointage/employes" element={<Pointage />} />

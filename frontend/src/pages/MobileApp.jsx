@@ -275,6 +275,259 @@ const Toast = ({msg, type='success', visible}) => (
   </div>
 );
 
+
+// ============================================================
+// VAPID PUBLIC KEY
+// ============================================================
+const VAPID_PUBLIC = 'Eqw0e2aPKT9ifQIXBlYfgAzuiAS6oE7r9Kx6Mzjboe7NNGrKPfEZ61h3oM_WVW85JiEus89opr1RHsDpJp2cznQ';
+
+// ============================================================
+// QR SCANNER — jsQR
+// ============================================================
+const QRScanner = ({onScan, onClose}) => {
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const [stream, setStream] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [error, setError] = useState('');
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    startScan();
+    return () => { stopScan(); };
+  }, []);
+
+  const startScan = async() => {
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: 1280, height: 720 }
+      });
+      setStream(s);
+      if(videoRef.current) {
+        videoRef.current.srcObject = s;
+        videoRef.current.onloadedmetadata = () => {
+          setScanning(true);
+          scanFrame();
+        };
+      }
+    } catch(e) {
+      setError('Caméra non accessible. Vérifiez les permissions.');
+    }
+  };
+
+  const stopScan = () => {
+    if(rafRef.current) cancelAnimationFrame(rafRef.current);
+    stream?.getTracks().forEach(t => t.stop());
+  };
+
+  const scanFrame = () => {
+    if(!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if(video.readyState !== video.HAVE_ENOUGH_DATA) {
+      rafRef.current = requestAnimationFrame(scanFrame);
+      return;
+    }
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    import('jsqr').then(({default: jsQR}) => {
+      const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'dontInvert'
+      });
+      if(code) {
+        stopScan();
+        onScan(code.data);
+      } else {
+        rafRef.current = requestAnimationFrame(scanFrame);
+      }
+    });
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'#000',zIndex:9999,display:'flex',flexDirection:'column'}}>
+      <div style={{padding:'16px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span style={{color:'#fff',fontSize:14,fontWeight:700}}>Scanner QR Code</span>
+        <button onClick={()=>{stopScan();onClose();}}
+          style={{background:'rgba(255,255,255,.15)',border:'none',color:'#fff',
+            borderRadius:8,padding:'6px 12px',cursor:'pointer',fontSize:13}}>
+          Fermer
+        </button>
+      </div>
+      <div style={{flex:1,position:'relative',overflow:'hidden'}}>
+        <video ref={videoRef} autoPlay playsInline muted
+          style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+        <canvas ref={canvasRef} style={{display:'none'}}/>
+        {/* Viewfinder overlay */}
+        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <div style={{width:220,height:220,position:'relative'}}>
+            {[{top:0,left:0},{top:0,right:0},{bottom:0,left:0},{bottom:0,right:0}].map((pos,i)=>(
+              <div key={i} style={{position:'absolute',width:28,height:28,...pos,
+                borderTop:i<2?'3px solid #3b82f6':'none',
+                borderBottom:i>=2?'3px solid #3b82f6':'none',
+                borderLeft:i%2===0?'3px solid #3b82f6':'none',
+                borderRight:i%2===1?'3px solid #3b82f6':'none'}}/>
+            ))}
+            {scanning&&<div style={{position:'absolute',top:'50%',left:0,right:0,height:2,
+              background:'rgba(59,130,246,.7)',animation:'scan-line 2s ease-in-out infinite'}}/>}
+          </div>
+        </div>
+        {error&&<div style={{position:'absolute',bottom:20,left:20,right:20,
+          background:'rgba(239,68,68,.9)',color:'#fff',padding:'10px',borderRadius:8,
+          fontSize:12,textAlign:'center'}}>{error}</div>}
+      </div>
+      {showScanner&&<QRScanner onScan={handleScan} onClose={()=>setShowScanner(false)}/>}
+      <style>{`@keyframes scan-line{0%,100%{top:10%}50%{top:90%}}`}</style>
+    </div>
+  );
+};
+
+// ============================================================
+// PUSH NOTIFICATIONS HOOK
+// ============================================================
+const usePushNotifications = (user) => {
+  const [permission, setPermission] = useState(Notification.permission);
+  const [subscribed, setSubscribed] = useState(false);
+
+  const requestPermission = async() => {
+    if(!('Notification' in window)) return false;
+    const result = await Notification.requestPermission();
+    setPermission(result);
+    if(result === 'granted') {
+      await subscribePush();
+      return true;
+    }
+    return false;
+  };
+
+  const subscribePush = async() => {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const existing = await reg.pushManager.getSubscription();
+      if(existing) { setSubscribed(true); return; }
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: VAPID_PUBLIC
+      });
+      // Sauvegarder la souscription localement
+      const subs = JSON.parse(localStorage.getItem('cleanit_push_subs') || '[]');
+      subs.push({ userId: user?.id, subscription: sub.toJSON(), ts: Date.now() });
+      localStorage.setItem('cleanit_push_subs', JSON.stringify(subs));
+      setSubscribed(true);
+    } catch(e) { console.warn('Push subscription error:', e); }
+  };
+
+  const sendTestNotif = () => {
+    if(permission === 'granted') {
+      new Notification('CleanIT ERP', {
+        body: `Bonjour ${user?.nom || ''} — Notifications actives ✓`,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+      });
+    }
+  };
+
+  return { permission, subscribed, requestPermission, sendTestNotif };
+};
+
+// ============================================================
+// PAGE INSTALLATION GUIDÉE
+// ============================================================
+const PageInstall = () => {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isAndroid = /Android/.test(navigator.userAgent);
+  const isInstalled = window.matchMedia('(display-mode: standalone)').matches;
+  const installUrl = window.location.origin + '/mobile';
+  const qrData = installUrl;
+
+  return (
+    <div style={{minHeight:'100vh',background:'var(--m-bg)',fontFamily:"'Segoe UI',system-ui,sans-serif",
+      maxWidth:430,margin:'0 auto',padding:'24px 20px 40px',overflowY:'auto'}}>
+      <div style={{textAlign:'center',marginBottom:28}}>
+        <img src="/logo.png" alt="CleanIT" style={{height:40,marginBottom:12}}
+          onError={e=>e.target.style.display='none'}/>
+        <div style={{fontSize:22,fontWeight:800,color:'var(--m-text)'}}>CleanIT ERP Mobile</div>
+        <div style={{fontSize:12,color:'var(--m-text2)',marginTop:4}}>
+          {isInstalled ? '✅ Application installée' : 'Installez l'application sur votre téléphone'}
+        </div>
+      </div>
+
+      {/* QR Code pour partager */}
+      <div style={{background:'var(--m-card)',borderRadius:16,padding:'20px',marginBottom:16,
+        border:'1px solid var(--m-border)',textAlign:'center'}}>
+        <div style={{fontSize:12,fontWeight:700,color:'var(--m-text2)',marginBottom:12,textTransform:'uppercase',letterSpacing:'.5px'}}>
+          Partager le lien d'installation
+        </div>
+        <div style={{display:'inline-block',padding:12,background:'#fff',borderRadius:12}}>
+          <QRCode value={qrData} size={150}/>
+        </div>
+        <div style={{fontSize:11,color:'var(--m-text3)',marginTop:8}}>Scannez avec l'appareil photo</div>
+        <div style={{marginTop:8,padding:'8px 12px',background:'var(--m-card2)',borderRadius:8,
+          fontSize:11,fontFamily:'monospace',color:'var(--m-blue)',wordBreak:'break-all'}}>
+          {installUrl}
+        </div>
+        <button onClick={()=>{navigator.clipboard?.writeText(installUrl).then(()=>alert('Lien copié !'));}}
+          style={{marginTop:10,padding:'8px 16px',borderRadius:8,border:'1px solid var(--m-blue)',
+            background:'var(--m-blue)22',color:'var(--m-blue)',fontSize:12,fontWeight:600,
+            cursor:'pointer',fontFamily:'inherit'}}>
+          Copier le lien
+        </button>
+      </div>
+
+      {/* Instructions Android */}
+      <div style={{background:'var(--m-card)',borderRadius:16,padding:'16px',marginBottom:12,
+        border:'1px solid var(--m-border)'}}>
+        <div style={{fontSize:13,fontWeight:700,color:'var(--m-text)',marginBottom:12,display:'flex',alignItems:'center',gap:6}}>
+          <span style={{fontSize:18}}>🤖</span> Android (Chrome)
+        </div>
+        {['Ouvrez Chrome et allez sur le lien ci-dessus',
+          'Attendez quelques secondes',
+          'Chrome affiche "Ajouter à l'écran d'accueil"',
+          'Tapez "Installer" → l'icône CleanIT apparaît',
+          'Ouvrez l'app depuis votre écran d'accueil'].map((step,i)=>(
+          <div key={i} style={{display:'flex',gap:10,marginBottom:8}}>
+            <div style={{width:22,height:22,borderRadius:'50%',background:'var(--m-blue)',
+              color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',
+              fontSize:11,fontWeight:700,flexShrink:0}}>{i+1}</div>
+            <div style={{fontSize:12,color:'var(--m-text2)',paddingTop:3}}>{step}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Instructions iOS */}
+      <div style={{background:'var(--m-card)',borderRadius:16,padding:'16px',marginBottom:12,
+        border:'1px solid var(--m-border)'}}>
+        <div style={{fontSize:13,fontWeight:700,color:'var(--m-text)',marginBottom:12,display:'flex',alignItems:'center',gap:6}}>
+          <span style={{fontSize:18}}>🍎</span> iPhone / iPad (Safari)
+        </div>
+        {['Ouvrez Safari et allez sur le lien',
+          'Tapez l'icône Partager (carré avec flèche vers le haut)',
+          'Faites défiler et tapez "Sur l'écran d'accueil"',
+          'Tapez "Ajouter" en haut à droite',
+          'L'icône CleanIT apparaît sur votre écran d'accueil'].map((step,i)=>(
+          <div key={i} style={{display:'flex',gap:10,marginBottom:8}}>
+            <div style={{width:22,height:22,borderRadius:'50%',background:'#6b7280',
+              color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',
+              fontSize:11,fontWeight:700,flexShrink:0}}>{i+1}</div>
+            <div style={{fontSize:12,color:'var(--m-text2)',paddingTop:3}}>{step}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* WhatsApp share */}
+      <button onClick={()=>window.open(`https://wa.me/?text=${encodeURIComponent('Installez l'app CleanIT ERP: ' + installUrl)}`,'_blank')}
+        style={{width:'100%',padding:'14px',borderRadius:14,border:'none',
+          background:'#25D366',color:'#fff',fontSize:14,fontWeight:700,
+          cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',
+          justifyContent:'center',gap:8}}>
+        Partager via WhatsApp
+      </button>
+    </div>
+  );
+};
+
 // ============================================================
 // LOGIN SCREEN
 // ============================================================
@@ -447,7 +700,7 @@ const PageLogin = ({onLogin}) => {
 // ============================================================
 // HOME BUREAU
 // ============================================================
-const PageHomeBureau = ({user, now}) => {
+const PageHomeBureau = ({user, now, onScanClick}) => {
   const hour = now.getHours();
   const greeting = hour<12 ? t('good_morning') : hour<18 ? t('good_afternoon') : t('good_evening');
   const planning = PLANNING_SEED[user.id] || [];
@@ -475,6 +728,12 @@ const PageHomeBureau = ({user, now}) => {
           <QRCode value={`CLEANIT:${user.id}:${user.nom}`} size={160}/>
         </div>
         <div style={{fontSize:11,color:'var(--m-text2)',marginTop:10}}>{t('qr_instruction')}</div>
+        <button onClick={onScanClick}
+          style={{marginTop:10,padding:'8px 18px',borderRadius:8,border:'none',
+            background:'var(--m-blue)',color:'#fff',fontSize:12,fontWeight:600,
+            cursor:'pointer',fontFamily:'inherit'}}>
+          Scanner un QR code
+        </button>
         <div style={{marginTop:8,fontSize:12,fontWeight:700,color:'var(--m-blue)',letterSpacing:2}}>{user.id}</div>
       </div>
 
@@ -862,7 +1121,7 @@ const PageCamera = ({user, gps}) => {
 // ============================================================
 // PROFIL
 // ============================================================
-const PageProfil = ({user, onLogout}) => {
+const PageProfil = ({user, onLogout, push}) => {
   const [lang, setLang] = useState(getLang());
   const [theme, setTheme] = useState(getTheme());
 
@@ -903,7 +1162,19 @@ const PageProfil = ({user, onLogout}) => {
             ))}
           </div>
         )},
-        {label:t('theme'), content:(
+        {label:'Notifications push', content:(
+        <button onClick={async()=>{
+          if(push?.permission==='granted'){push?.sendTestNotif();}
+          else{const ok=await push?.requestPermission();if(!ok)alert('Activez les notifications dans les réglages du navigateur');}
+        }}
+          style={{padding:'6px 12px',borderRadius:8,border:'1px solid var(--m-border)',
+            background:push?.subscribed?'var(--m-green)22':'transparent',
+            color:push?.subscribed?'var(--m-green)':'var(--m-text2)',
+            fontSize:12,cursor:'pointer',fontFamily:'inherit',fontWeight:600}}>
+          {push?.subscribed?'Activées ✓':'Activer'}
+        </button>
+    )},
+    {label:t('theme'), content:(
           <div style={{display:'flex',border:'1px solid var(--m-border)',borderRadius:8,overflow:'hidden'}}>
             {[['dark',t('theme_dark')],['light',t('theme_light')]].map(([th,label])=>(
               <button key={th} onClick={()=>handleTheme(th)}
@@ -1057,10 +1328,25 @@ export default function MobileApp() {
   const activePage = parts[1]||'home';
   const common = {user, gps, navigate, now};
 
+  const [showScanner, setShowScanner] = useState(false);
+  const [scanResult, setScanResult] = useState('');
+  const push = usePushNotifications(user);
+
+  const handleScan = (data) => {
+    setShowScanner(false);
+    setScanResult(data);
+    // Si c'est un pointage CleanIT
+    if(data.startsWith('CLEANIT:')) {
+      const [,id,nom] = data.split(':');
+      alert(`Pointage enregistré\n${nom} (${id})\n${new Date().toLocaleTimeString('fr-FR')}`);
+    }
+  };
+
   const getPage = () => {
+    if(loc.includes('/install'))  return <PageInstall/>;
     if(loc.includes('/camera'))   return <PageCamera {...common}/>;
-    if(loc.includes('/profil'))   return <PageProfil {...common} onLogout={handleLogout}/>;
-    if(user.role==='bureau')      return <PageHomeBureau {...common}/>;
+    if(loc.includes('/profil'))   return <PageProfil {...common} onLogout={handleLogout} push={push}/>;
+    if(user.role==='bureau')      return <PageHomeBureau {...common} onScanClick={()=>setShowScanner(true)}/>;
     return <PageHomeTerrain {...common}/>;
   };
 
