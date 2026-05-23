@@ -116,62 +116,299 @@ function TabDashboard({missions,ordres,currentUser}){
   );
 }
 
-function TabOrdres({ordres,techs,onDispatch}){
-  const [selected,setSelected]=useState({});
-  const [dispatched,setDispatched]=useState([]);
+// ===== RÔLES D'ÉQUIPE =====
+const ROLES = ['Chef d'équipe','Technicien principal','Technicien','Sécurité HSE','Support logistique'];
+
+// ===== CARTE MEMBRE D'ÉQUIPE =====
+function MembreCard({membre, index, onRemplace, onChangeRole, onRetirer, availableTechs}){
+  const [showSwap, setShowSwap] = React.useState(false);
+  const t = membre.tech;
+  return (
+    <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:9,padding:'10px 12px',position:'relative'}}>
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+        <Avatar photo={t.photo} name={t.name} size={32}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:12,fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.name}</div>
+          <div style={{fontSize:10,color:C.text3}}>{t.role}</div>
+        </div>
+        <button onClick={()=>onRetirer(index)} style={{width:20,height:20,borderRadius:'50%',border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontSize:12,color:C.text3,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>✕</button>
+      </div>
+      <select value={membre.role} onChange={e=>onChangeRole(index,e.target.value)}
+        style={{width:'100%',padding:'4px 6px',borderRadius:6,border:`1px solid ${C.border}`,fontSize:11,fontFamily:'inherit',marginBottom:6,background:C.bg}}>
+        {ROLES.map(r=><option key={r}>{r}</option>)}
+      </select>
+      <button onClick={()=>setShowSwap(!showSwap)}
+        style={{fontSize:10,padding:'3px 8px',borderRadius:5,border:`1px solid ${C.blue}`,background:C.blue_l,color:C.blue_d,cursor:'pointer',fontFamily:'inherit',width:'100%'}}>
+        {showSwap?'Annuler':'Remplacer'}
+      </button>
+      {showSwap&&(
+        <div style={{position:'absolute',top:'100%',left:0,right:0,background:C.white,border:`1px solid ${C.border}`,borderRadius:8,zIndex:100,boxShadow:'0 4px 12px rgba(0,0,0,.12)',maxHeight:180,overflowY:'auto'}}>
+          {availableTechs.filter(tech=>tech.id!==t.id).map(tech=>(
+            <div key={tech.id} onClick={()=>{onRemplace(index,tech);setShowSwap(false);}}
+              style={{padding:'8px 10px',cursor:'pointer',display:'flex',alignItems:'center',gap:8,borderBottom:`1px solid ${C.border2}`}}
+              onMouseEnter={e=>e.currentTarget.style.background=C.bg}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              <Avatar photo={tech.photo} name={tech.name} size={24}/>
+              <div>
+                <div style={{fontSize:11,fontWeight:500}}>{tech.name}</div>
+                <div style={{fontSize:10,color:C.text3}}>{tech.role} · {tech.statut}</div>
+              </div>
+              <span style={{marginLeft:'auto',fontSize:10,padding:'1px 6px',borderRadius:10,background:tech.statut==='Disponible'?C.green_l:C.orange_l,color:tech.statut==='Disponible'?C.green:C.orange,fontWeight:600}}>{tech.statut}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===== BUILDER D'ÉQUIPE =====
+function TeamBuilder({ord, techs, onValider, onClose}){
+  const [mode, setMode] = React.useState('chacha'); // 'chacha' | 'edit' | 'manuel'
+  const [equipe, setEquipe] = React.useState([]);
+  const [notesPM, setNotesPM] = React.useState('');
+  const [loadingAI, setLoadingAI] = React.useState(false);
+
+  // Générer proposition ChaCha au montage
+  React.useEffect(()=>{
+    const avail = techs.filter(t=>t.statut==='Disponible');
+    const chefsOptions = avail.filter(t=>t.note>=4.5||t.missions>40);
+    const chef = chefsOptions[0]||avail[0];
+    const autres = avail.filter(t=>t.id!==chef?.id).slice(0,2);
+    const proposition = [
+      chef&&{tech:chef, role:"Chef d'équipe", scoreIA:92, raisonIA:`${chef.note}/5 — ${chef.missions} missions — Expert ${chef.role}`},
+      ...autres.map((t,i)=>({tech:t, role:i===0?"Technicien principal":"Technicien", scoreIA:Math.round(70+Math.random()*20), raisonIA:`${t.role} — ${t.missions} missions`}))
+    ].filter(Boolean);
+    setEquipe(proposition);
+  },[techs]);
+
+  const ajouterTech = (tech) => {
+    if(equipe.find(m=>m.tech.id===tech.id)) return;
+    setEquipe([...equipe,{tech, role:'Technicien', scoreIA:null, raisonIA:'Ajout manuel PM'}]);
+  };
+
+  const retirerMembre = (idx) => setEquipe(equipe.filter((_,i)=>i!==idx));
+  const remplacerMembre = (idx, newTech) => setEquipe(equipe.map((m,i)=>i===idx?{...m,tech:newTech}:m));
+  const changerRole = (idx, role) => setEquipe(equipe.map((m,i)=>i===idx?{...m,role}:m));
+
+  const disponibles = techs.filter(t=>t.statut==='Disponible'&&!equipe.find(m=>m.tech.id===t.id));
 
   return (
-    <div style={{padding:'14px 20px',background:C.bg}}>
-      <div style={{fontSize:11,color:C.text3,marginBottom:12,padding:'8px 12px',background:C.white,border:`1px solid ${C.border}`,borderRadius:6,display:'flex',alignItems:'center',gap:6}}>
-        ℹ️ Missions issues de CleanITBooks — filtrées pour votre compte chef de projet
-      </div>
-      {ordres.filter(o=>!dispatched.includes(o.id)).map(ord=>{
-        const recos = techs.map(t=>scoreIA(t,ord)).filter(Boolean).sort((a,b)=>b.score-a.score).slice(0,3);
-        const sel = selected[ord.id];
-        return (
-          <div key={ord.id} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,marginBottom:12,overflow:'hidden'}}>
-            <div style={{padding:'12px 16px',borderBottom:`1px solid ${C.border2}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-              <div>
-                <div style={{fontSize:13,fontWeight:700,marginBottom:2}}>{ord.site} — {ord.type} · {ord.client}</div>
-                <div style={{fontSize:11,color:C.text3}}>JOB CleanITBooks · Deadline {ord.deadline}</div>
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:999,display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <div style={{background:C.white,borderRadius:14,width:640,maxHeight:'90vh',overflow:'auto',boxShadow:'0 20px 40px rgba(0,0,0,.2)'}}>
+        {/* Header */}
+        <div style={{padding:'14px 18px',borderBottom:`1px solid ${C.border}`,display:'flex',justifyContent:'space-between',alignItems:'center',background:'linear-gradient(135deg,#185FA5,#403294)'}}>
+          <div>
+            <div style={{fontSize:14,fontWeight:700,color:'#fff'}}>{ord.site} — {ord.type}</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,.7)'}}>Deadline: {ord.deadline} · {ord.client}</div>
+          </div>
+          <button onClick={onClose} style={{background:'none',border:'none',color:'#fff',fontSize:20,cursor:'pointer'}}>✕</button>
+        </div>
+
+        {/* Tabs mode */}
+        <div style={{display:'flex',borderBottom:`1px solid ${C.border}`,background:C.bg}}>
+          {[['chacha','ChaCha IA propose'],['edit','Modifier l'équipe'],['manuel','Créer manuellement']].map(([id,l])=>(
+            <button key={id} onClick={()=>setMode(id)}
+              style={{padding:'10px 16px',border:'none',background:mode===id?C.white:'transparent',borderBottom:mode===id?`2px solid ${C.blue}`:'2px solid transparent',fontSize:12,fontWeight:mode===id?700:400,color:mode===id?C.blue:C.text3,cursor:'pointer',fontFamily:'inherit'}}>
+              {l}
+            </button>
+          ))}
+        </div>
+
+        <div style={{padding:'16px 18px'}}>
+
+          {/* MODE CHACHA */}
+          {mode==='chacha'&&(
+            <div>
+              <div style={{padding:'10px 12px',background:C.purple_l,borderRadius:8,marginBottom:14,border:`1px solid #D4C5F9`}}>
+                <div style={{fontSize:12,fontWeight:700,color:C.purple,marginBottom:4}}>ChaCha IA — Équipe recommandée</div>
+                <div style={{fontSize:11,color:C.text3}}>Basé sur les compétences, disponibilité, distance et historique missions</div>
               </div>
-              <span style={{fontSize:11,padding:'3px 10px',borderRadius:20,background:ord.urgence?C.red_l:C.orange_l,color:ord.urgence?C.red:C.orange,fontWeight:700}}>{ord.urgence?'Urgent':'À dispatcher'}</span>
-            </div>
-            <div style={{padding:'12px 16px',background:C.purple_l,borderBottom:`1px solid #D4C5F9`}}>
-              <div style={{fontSize:11,fontWeight:700,color:C.purple,marginBottom:8,display:'flex',alignItems:'center',gap:5}}>🧠 ChaCha IA — Propositions d'équipe</div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
-                {recos.map((rec,i)=>(
-                  <div key={rec.tech.id} onClick={()=>setSelected({...selected,[ord.id]:rec.tech.id})}
-                    style={{background:sel===rec.tech.id?'#E6F1FB':'#fff',border:`1px solid ${sel===rec.tech.id?C.blue:'#D4C5F9'}`,borderRadius:8,padding:'10px',cursor:'pointer',transition:'all .15s'}}>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
-                      <span style={{fontSize:11,fontWeight:500}}>Équipe {String.fromCharCode(65+i)}</span>
-                      <span style={{fontSize:14,fontWeight:700,color:rec.score>80?C.green:rec.score>60?C.orange:C.red}}>{rec.score}</span>
+              <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:14}}>
+                {equipe.map((m,i)=>(
+                  <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:C.bg,borderRadius:8,border:`1px solid ${C.border}`}}>
+                    <Avatar photo={m.tech.photo} name={m.tech.name} size={36}/>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:13,fontWeight:600}}>{m.tech.name}</div>
+                      <div style={{fontSize:11,color:C.text3}}>{m.tech.role} · {m.role}</div>
+                      {m.raisonIA&&<div style={{fontSize:10,color:C.purple,marginTop:2,fontStyle:'italic'}}>{m.raisonIA}</div>}
                     </div>
-                    <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
-                      <Avatar photo={rec.tech.photo} name={rec.tech.name} size={22}/>
-                      <span style={{fontSize:11}}>{rec.tech.name.split(' ')[0]}</span>
-                      <span style={{fontSize:10,color:rec.dist<5?C.green:C.orange}}>{rec.dist}km</span>
-                    </div>
-                    <div style={{fontSize:10,color:C.text3,fontStyle:'italic',lineHeight:1.3}}>{rec.raison.slice(0,70)}...</div>
+                    {m.scoreIA&&<div style={{textAlign:'center',flexShrink:0}}>
+                      <div style={{fontSize:18,fontWeight:700,color:m.scoreIA>80?C.green:m.scoreIA>60?C.orange:C.red}}>{m.scoreIA}</div>
+                      <div style={{fontSize:9,color:C.text3}}>Score IA</div>
+                    </div>}
                   </div>
                 ))}
               </div>
+              <div style={{display:'flex',gap:8}}>
+                <button onClick={()=>setMode('edit')}
+                  style={{flex:1,padding:'9px',borderRadius:7,border:`1px solid ${C.blue}`,background:C.blue_l,color:C.blue,cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600}}>
+                  Modifier cette équipe
+                </button>
+                <button onClick={()=>{onValider(ord,equipe,notesPM);}}
+                  style={{flex:2,padding:'9px',borderRadius:7,border:'none',background:C.blue,color:'#fff',cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:700}}>
+                  Accepter et notifier l'équipe
+                </button>
+              </div>
             </div>
-            <div style={{padding:'10px 16px',display:'flex',gap:8,alignItems:'center'}}>
-              <button onClick={()=>{if(sel){setDispatched([...dispatched,ord.id]);alert(`Équipe notifiée pour ${ord.site} !`);onDispatch(ord,TECHS_SEED.find(t=>t.id===sel));setSelected({...selected,[ord.id]:null});}} }
-                disabled={!sel}
-                style={{fontSize:12,padding:'6px 16px',borderRadius:6,border:'none',background:sel?C.blue:'#D1D5DB',color:sel?'#fff':'#9CA3AF',cursor:sel?'pointer':'not-allowed',fontFamily:'inherit',fontWeight:600}}>
-                Valider et notifier l'équipe
+          )}
+
+          {/* MODE EDIT */}
+          {mode==='edit'&&(
+            <div>
+              <div style={{fontSize:12,color:C.text3,marginBottom:12}}>Modifiez librement l'équipe proposée par ChaCha. Cliquez "Remplacer" sur un membre pour le changer.</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}}>
+                {equipe.map((m,i)=>(
+                  <MembreCard key={i} membre={m} index={i}
+                    onRemplace={remplacerMembre} onChangeRole={changerRole} onRetirer={retirerMembre}
+                    availableTechs={techs}/>
+                ))}
+                {/* Bouton ajouter */}
+                <div style={{border:`2px dashed ${C.border}`,borderRadius:9,padding:'10px',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',minHeight:80}}
+                  onClick={()=>setMode('add')}>
+                  <div style={{textAlign:'center'}}>
+                    <div style={{fontSize:20,color:C.text3,marginBottom:4}}>+</div>
+                    <div style={{fontSize:11,color:C.text3}}>Ajouter un technicien</div>
+                  </div>
+                </div>
+              </div>
+              {/* Disponibles à ajouter */}
+              {disponibles.length>0&&(
+                <div style={{marginBottom:12}}>
+                  <div style={{fontSize:11,fontWeight:600,color:C.text3,marginBottom:6,textTransform:'uppercase',letterSpacing:'.5px'}}>Techniciens disponibles</div>
+                  <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                    {disponibles.map(t=>(
+                      <button key={t.id} onClick={()=>ajouterTech(t)}
+                        style={{fontSize:11,padding:'4px 10px',borderRadius:6,border:`1px solid ${C.green}`,background:C.green_l,color:C.green,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',gap:5}}>
+                        <Avatar photo={t.photo} name={t.name} size={16}/>
+                        + {t.name.split(' ')[0]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <textarea value={notesPM} onChange={e=>setNotesPM(e.target.value)} placeholder="Notes pour l'équipe (instructions spécifiques, EPI requis, contact client...)"
+                style={{width:'100%',padding:'8px 10px',borderRadius:7,border:`1px solid ${C.border}`,fontSize:12,fontFamily:'inherit',resize:'vertical',minHeight:60,boxSizing:'border-box',marginBottom:10}}/>
+              <button onClick={()=>onValider(ord,equipe,notesPM)} disabled={equipe.length===0}
+                style={{width:'100%',padding:'10px',borderRadius:7,border:'none',background:equipe.length>0?C.blue:'#D1D5DB',color:equipe.length>0?'#fff':'#9CA3AF',cursor:equipe.length>0?'pointer':'not-allowed',fontFamily:'inherit',fontSize:13,fontWeight:700}}>
+                Valider l'équipe ({equipe.length} membre{equipe.length>1?'s':''}) et notifier
               </button>
-              <button onClick={()=>alert('Mission reportée — notification envoyée au PM')} style={{fontSize:12,padding:'6px 14px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>Reporter</button>
-              <button onClick={()=>setSelected({...selected,[ord.id]:'manual'})}
-                style={{fontSize:11,padding:'5px 12px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',marginLeft:'auto',color:C.text3}}>
-                Choisir manuellement
+            </div>
+          )}
+
+          {/* MODE MANUEL */}
+          {mode==='manuel'&&(
+            <div>
+              <div style={{fontSize:12,color:C.text3,marginBottom:12}}>Composez votre équipe librement depuis la liste des techniciens.</div>
+              {equipe.length>0&&(
+                <div style={{marginBottom:12,padding:'10px 12px',background:C.blue_l,borderRadius:8,border:`1px solid #B5D4F4`}}>
+                  <div style={{fontSize:11,fontWeight:700,color:C.blue_d,marginBottom:6}}>Équipe en cours de composition ({equipe.length} membre{equipe.length>1?'s':''})</div>
+                  <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                    {equipe.map((m,i)=>(
+                      <div key={i} style={{display:'flex',alignItems:'center',gap:5,padding:'4px 8px',background:C.white,borderRadius:6,border:`1px solid ${C.border}`}}>
+                        <Avatar photo={m.tech.photo} name={m.tech.name} size={20}/>
+                        <span style={{fontSize:11,fontWeight:500}}>{m.tech.name.split(' ')[0]}</span>
+                        <select value={m.role} onChange={e=>changerRole(i,e.target.value)} style={{fontSize:10,border:`1px solid ${C.border}`,borderRadius:4,padding:'1px 3px',fontFamily:'inherit'}}>
+                          {ROLES.map(r=><option key={r}>{r}</option>)}
+                        </select>
+                        <button onClick={()=>retirerMembre(i)} style={{background:'none',border:'none',cursor:'pointer',fontSize:12,color:C.text3}}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:12}}>
+                {techs.map(t=>{
+                  const deja = equipe.find(m=>m.tech.id===t.id);
+                  return (
+                    <div key={t.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:deja?C.green_l:C.white,border:`1px solid ${deja?C.green:C.border}`,borderRadius:8}}>
+                      <Avatar photo={t.photo} name={t.name} size={34}/>
+                      <div style={{flex:1}}>
+                        <div style={{fontSize:13,fontWeight:600}}>{t.name}</div>
+                        <div style={{fontSize:11,color:C.text3}}>{t.role} · {t.statut} · {t.region}</div>
+                        <div style={{display:'flex',gap:4,marginTop:3,flexWrap:'wrap'}}>
+                          {t.certs.map(cert=><span key={cert} style={{fontSize:9,padding:'1px 5px',borderRadius:4,background:C.blue_l,color:C.blue_d}}>{cert}</span>)}
+                        </div>
+                      </div>
+                      <div style={{textAlign:'center',flexShrink:0}}>
+                        <div style={{fontSize:13,fontWeight:700,color:t.note>=4.8?C.green:C.orange}}>{t.note}/5</div>
+                        <div style={{fontSize:10,color:C.text3}}>{t.missions} missions</div>
+                      </div>
+                      {deja
+                        ?<button onClick={()=>retirerMembre(equipe.findIndex(m=>m.tech.id===t.id))}
+                            style={{fontSize:11,padding:'5px 10px',borderRadius:6,border:`1px solid ${C.green}`,background:C.green,color:'#fff',cursor:'pointer',fontFamily:'inherit'}}>
+                            Retirer
+                          </button>
+                        :<button onClick={()=>ajouterTech(t)} disabled={t.statut==='En mission'}
+                            style={{fontSize:11,padding:'5px 10px',borderRadius:6,border:`1px solid ${t.statut==='En mission'?C.border:C.blue}`,background:t.statut==='En mission'?'transparent':C.blue,color:t.statut==='En mission'?C.text3:'#fff',cursor:t.statut==='En mission'?'not-allowed':'pointer',fontFamily:'inherit'}}>
+                            {t.statut==='En mission'?'Occupé':'+ Ajouter'}
+                          </button>
+                      }
+                    </div>
+                  );
+                })}
+              </div>
+              <textarea value={notesPM} onChange={e=>setNotesPM(e.target.value)} placeholder="Instructions pour l'équipe..."
+                style={{width:'100%',padding:'8px 10px',borderRadius:7,border:`1px solid ${C.border}`,fontSize:12,fontFamily:'inherit',resize:'vertical',minHeight:50,boxSizing:'border-box',marginBottom:10}}/>
+              <button onClick={()=>onValider(ord,equipe,notesPM)} disabled={equipe.length===0}
+                style={{width:'100%',padding:'10px',borderRadius:7,border:'none',background:equipe.length>0?C.blue:'#D1D5DB',color:equipe.length>0?'#fff':'#9CA3AF',cursor:equipe.length>0?'pointer':'not-allowed',fontFamily:'inherit',fontSize:13,fontWeight:700}}>
+                Valider l'équipe ({equipe.length} membre{equipe.length>1?'s':''}) et notifier
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TabOrdres({ordres,techs,onDispatch}){
+  const [dispatched,setDispatched]=useState([]);
+  const [showBuilder,setShowBuilder]=useState(null);
+
+  const handleValider=(ord,equipe,notes)=>{
+    setDispatched([...dispatched,ord.id]);
+    setShowBuilder(null);
+    const noms=equipe.map(m=>m.tech.name.split(' ')[0]).join(', ');
+    alert(`Équipe validée pour ${ord.site} !\n\nMembres: ${noms}\n${notes?'Notes PM: '+notes:''}\n\nNotification envoyée via CleanIT Comm`);
+    onDispatch(ord,equipe[0]?.tech);
+  };
+
+  return (
+    <div style={{padding:'14px 20px',background:C.bg}}>
+      {showBuilder&&<TeamBuilder ord={showBuilder} techs={techs} onValider={handleValider} onClose={()=>setShowBuilder(null)}/>}
+      <div style={{fontSize:11,color:C.text3,marginBottom:12,padding:'8px 12px',background:C.white,border:`1px solid ${C.border}`,borderRadius:6}}>
+        Missions issues de CleanITBooks — filtrées pour votre compte chef de projet
+      </div>
+      {ordres.filter(o=>!dispatched.includes(o.id)).map(ord=>(
+        <div key={ord.id} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,marginBottom:12,overflow:'hidden'}}>
+          <div style={{padding:'12px 16px',borderBottom:`1px solid ${C.border2}`,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,marginBottom:2}}>{ord.site} — {ord.type} · {ord.client}</div>
+              <div style={{fontSize:11,color:C.text3}}>JOB CleanITBooks · Deadline {ord.deadline}</div>
+            </div>
+            <span style={{fontSize:11,padding:'3px 10px',borderRadius:20,background:ord.urgence?C.red_l:C.orange_l,color:ord.urgence?C.red:C.orange,fontWeight:700}}>{ord.urgence?'Urgent':'À dispatcher'}</span>
+          </div>
+          <div style={{padding:'12px 16px',display:'flex',gap:8,alignItems:'center'}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:11,color:C.text3,marginBottom:4}}>Aucune équipe assignée — En attente de dispatch PM</div>
+              <div style={{display:'flex',gap:4}}>
+                <span style={{fontSize:10,padding:'2px 7px',borderRadius:10,background:C.purple_l,color:C.purple,fontWeight:600}}>ChaCha IA disponible</span>
+                <span style={{fontSize:10,padding:'2px 7px',borderRadius:10,background:C.blue_l,color:C.blue,fontWeight:600}}>Composition manuelle possible</span>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:6,flexShrink:0}}>
+              <button onClick={()=>alert('Mission reportée')} style={{fontSize:11,padding:'6px 12px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text3}}>
+                Reporter
+              </button>
+              <button onClick={()=>setShowBuilder(ord)}
+                style={{fontSize:12,padding:'7px 16px',borderRadius:6,border:'none',background:'linear-gradient(135deg,#185FA5,#403294)',color:'#fff',cursor:'pointer',fontFamily:'inherit',fontWeight:600,display:'flex',alignItems:'center',gap:5}}>
+                Composer l'équipe →
               </button>
             </div>
           </div>
-        );
-      })}
+        </div>
+      ))}
       {ordres.filter(o=>!dispatched.includes(o.id)).length===0&&(
         <div style={{textAlign:'center',padding:'40px 20px',color:C.text3,fontSize:13,fontStyle:'italic'}}>Aucun ordre de mission en attente</div>
       )}
