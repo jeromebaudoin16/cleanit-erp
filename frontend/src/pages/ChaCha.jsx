@@ -55,6 +55,7 @@ export default function ChaCha() {
   const [loading,  setLoading]  = useState(false);
   const [listening,setListening]= useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(false);
   const [wakeOn,   setWakeOn]   = useState(false);
 
   const endRef    = useRef(null);
@@ -92,7 +93,7 @@ export default function ChaCha() {
 
   // Voix
   const speak = useCallback((text)=>{
-    if(!synthRef.current||!text) return;
+    if(!synthRef.current||!text||!voiceOn) return;
     synthRef.current.cancel();
     const clean=text.replace(/#{1,3}\s?/g,'').replace(/\*\*/g,'').replace(/\*/g,'')
       .replace(/`[^`]+`/g,'').replace(/##[^#]+##/g,'')
@@ -371,6 +372,7 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
               </div>
             </div>
             <div style={{display:'flex',gap:4}}>
+              <button onClick={()=>setVoiceOn(p=>!p)} title={voiceOn?'Désactiver la voix':'Activer la voix'} style={{width:30,height:30,borderRadius:9,background:voiceOn?'rgba(139,92,246,.3)':'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.08)',color:voiceOn?'#a78bfa':'rgba(255,255,255,.3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700}}>{voiceOn?'VON':'VOFF'}</button>
               <button onClick={()=>synthRef.current?.cancel()} title="Couper le son"
                 style={{width:30,height:30,borderRadius:9,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.08)',color:'rgba(255,255,255,.5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12}}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
