@@ -270,7 +270,8 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
         speak(clean);
       }
     } catch(e){
-      const err={role:'assistant',content:`Je ne peux pas me connecter en ce moment. Vérifiez votre connexion internet.`,ts:Date.now()};
+      console.error('ChaCha error:', e, 'KEY:', GROQ_KEY?.slice(0,10));
+      const err={role:'assistant',content:`Erreur: ${e.message||e} — Clé: ${GROQ_KEY?'OK ('+GROQ_KEY.slice(0,8)+'...)':'MANQUANTE'}`,ts:Date.now()};
       setMsgs(p=>[...p,err]);
     }
     setLoading(false);
