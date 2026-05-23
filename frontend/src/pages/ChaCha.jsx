@@ -176,22 +176,99 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
       const history=msgs.slice(-12).map(m=>({role:m.role,content:m.content}));
       history.push({role:'user',content:msg});
 
-      const res=await fetch(GROQ_API,{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':`Bearer ${GROQ_KEY}`},
-        body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'system',content:SYSTEM},...history],max_tokens:600,temperature:0.7}),
+      // ===== GROQ TOOL USE =====
+      const res = await fetch(GROQ_API, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${GROQ_KEY}`},
+        body: JSON.stringify({
+          model: 'llama3-groq-70b-8192-tool-use-preview',
+          messages: [{role:'system', content:SYSTEM}, ...history],
+          tools: CHACHA_TOOLS,
+          tool_choice: 'auto',
+          max_tokens: 800,
+          temperature: 0.3
+        })
       });
 
       if(!res.ok) throw new Error(`${res.status}`);
-      const data=await res.json();
-      const raw=data.choices[0]?.message?.content||'';
+      const data = await res.json();
+      const choice = data.choices[0];
+      const assistantMsg = choice.message;
 
-      await doActions(raw);
-      const clean=raw.replace(/##[^#]+##/g,'').replace(/\s+\n/g,'\n').trim();
+      // Gérer les tool calls
+      if(choice.finish_reason === 'tool_calls' && assistantMsg.tool_calls) {
+        const toolResults = [];
+        for(const tc of assistantMsg.tool_calls) {
+          const args = JSON.parse(tc.function.arguments || '{}');
+          let result = '';
 
-      const aMsg={role:'assistant',content:clean,ts:Date.now()};
-      setMsgs(p=>[...p,aMsg]);
-      speak(clean);
+          switch(tc.function.name) {
+            case 'naviguer_module':
+              setTimeout(() => navigate(args.url), 300);
+              result = `Navigation vers ${args.url} effectuée`;
+              break;
+            case 'lire_donnees_systeme':
+              result = lireSysteme(args.module);
+              break;
+            case 'creer_approbation': {
+              const newApproval = {
+                id: 'APV-' + Date.now(),
+                title: args.titre,
+                type: args.type || 'payment_request',
+                amount: args.montant || 0,
+                beneficiaryName: args.beneficiaire || '',
+                site: args.site || '',
+                justification: args.justification || '',
+                status: 'pending',
+                submittedAt: new Date().toISOString(),
+                submittedBy: 'ChaCha IA'
+              };
+              try {
+                const existing = JSON.parse(localStorage.getItem('cleanit_approvals_cache') || '[]');
+                localStorage.setItem('cleanit_approvals_cache', JSON.stringify([...existing, newApproval]));
+                result = JSON.stringify({succes: true, id: newApproval.id, message: 'Demande créée avec succès'});
+              } catch(e) { result = JSON.stringify({succes: false, erreur: e.message}); }
+              break;
+            }
+            case 'chercher_technicien':
+              result = lireSysteme('techniciens');
+              break;
+            case 'generer_rapport':
+              await doActions(`##EXCEL:${args.type}## ##WORD:${args.type}##`);
+              result = `Rapport ${args.type} généré`;
+              break;
+            case 'afficher_alerte':
+              result = `Alerte affichée: ${args.message}`;
+              break;
+            default:
+              result = 'Action exécutée';
+          }
+          toolResults.push({role: 'tool', tool_call_id: tc.id, content: result});
+        }
+
+        // 2ème appel Groq avec les résultats des outils
+        const res2 = await fetch(GROQ_API, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${GROQ_KEY}`},
+          body: JSON.stringify({
+            model: 'llama3-groq-70b-8192-tool-use-preview',
+            messages: [{role:'system', content:SYSTEM}, ...history, assistantMsg, ...toolResults],
+            max_tokens: 600,
+            temperature: 0.3
+          })
+        });
+        const data2 = await res2.json();
+        const finalText = data2.choices[0]?.message?.content || 'Action effectuée.';
+        setMsgs(p=>[...p, {role:'assistant', content:finalText, ts:Date.now()}]);
+        speak(finalText);
+      } else {
+        // Réponse texte directe
+        const raw = assistantMsg.content || '';
+        await doActions(raw);
+        const clean = raw.replace(/##[^#]+##/g,'').trim();
+        setMsgs(p=>[...p, {role:'assistant', content:clean, ts:Date.now()}]);
+        speak(clean);
+      }
     } catch(e){
       const err={role:'assistant',content:`Je ne peux pas me connecter en ce moment. Vérifiez votre connexion internet.`,ts:Date.now()};
       setMsgs(p=>[...p,err]);
