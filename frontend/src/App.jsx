@@ -95,13 +95,7 @@ export default function App() {
           <Route path="cleanitcomm" element={<CleanITComm />} />
           <Route path="cleanitcomm/:section" element={<CleanITComm />} />
           <Route path="cleanitcomm/:section/:id" element={<CleanITComm />} />
-          <Route path="mobile" element={<MobileApp />} />
-          <Route path="mobile/pointage" element={<MobileApp />} />
-          <Route path="mobile/camera" element={<MobileApp />} />
-          <Route path="mobile/planning" element={<MobileApp />} />
-          <Route path="mobile/profil" element={<MobileApp />} />
-          <Route path="mobile/install" element={<MobileApp />} />
-          <Route path="pointage" element={<Pointage />} />
+                    <Route path="pointage" element={<Pointage />} />
           <Route path="pointage/map" element={<Pointage />} />
           <Route path="pointage/employes" element={<Pointage />} />
           <Route path="pointage/employes/:empId" element={<Pointage />} />
