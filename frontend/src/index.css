@@ -46,3 +46,103 @@ input,select,textarea{font-family:inherit}
 [data-density="compact"]     { --density-pad: 8px;  font-size: 12px; }
 [data-density="normal"]      { --density-pad: 14px; font-size: 14px; }
 [data-density="comfortable"] { --density-pad: 20px; font-size: 15px; }
+
+/* ===== DARK MODE AGRESSIF — CleanIT ===== */
+[data-theme="dark"] body,
+[data-theme="dark"] #root {
+  background: #0f172a !important;
+  color: #e2e8f0 !important;
+}
+
+/* Cards et panels */
+[data-theme="dark"] div[style*="background:#FFFFFF"],
+[data-theme="dark"] div[style*="background: #FFFFFF"],
+[data-theme="dark"] div[style*="background:white"],
+[data-theme="dark"] div[style*="background: white"],
+[data-theme="dark"] div[style*='background:"white"'],
+[data-theme="dark"] div[style*="background:#F9FAFB"],
+[data-theme="dark"] div[style*="background:#F8FAFC"],
+[data-theme="dark"] div[style*="background:#f9fafb"],
+[data-theme="dark"] div[style*="background:rgb(255,255,255)"] {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+/* Textes */
+[data-theme="dark"] div[style*="color:#111827"],
+[data-theme="dark"] div[style*="color:#0F172A"],
+[data-theme="dark"] span[style*="color:#111827"],
+[data-theme="dark"] p[style*="color:#111827"] {
+  color: #e2e8f0 !important;
+}
+[data-theme="dark"] div[style*="color:#6B7280"],
+[data-theme="dark"] div[style*="color:#374151"],
+[data-theme="dark"] span[style*="color:#6B7280"] {
+  color: #94a3b8 !important;
+}
+
+/* Bordures */
+[data-theme="dark"] div[style*="border:1px solid #E5E7EB"],
+[data-theme="dark"] div[style*="border: 1px solid #E5E7EB"],
+[data-theme="dark"] div[style*="borderColor:#E5E7EB"] {
+  border-color: #334155 !important;
+}
+
+/* Inputs */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-color: #334155 !important;
+}
+
+/* Sidebar Layout */
+[data-theme="dark"] nav,
+[data-theme="dark"] aside {
+  background: #020617 !important;
+}
+
+/* Backgrounds gris clair */
+[data-theme="dark"] div[style*="background:#F3F4F6"],
+[data-theme="dark"] div[style*="background:#F1F5F9"],
+[data-theme="dark"] div[style*="background:#f3f4f6"],
+[data-theme="dark"] div[style*="background:#EFF6FF"] {
+  background: #0f172a !important;
+}
+
+/* Tables */
+[data-theme="dark"] table {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+[data-theme="dark"] th {
+  background: #0f172a !important;
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] td {
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+[data-theme="dark"] tr:hover td {
+  background: #334155 !important;
+}
+
+/* Modales et overlays */
+[data-theme="dark"] .rh-panel,
+[data-theme="dark"] .crm-modal,
+[data-theme="dark"] .crm-drawer {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+/* ===== COULEURS PRIMAIRES via CSS ===== */
+[data-color="green"] a, [data-color="green"] button[style*="#185FA5"] { color: #0F7B3C !important; }
+[data-color="purple"] a, [data-color="purple"] button[style*="#185FA5"] { color: #403294 !important; }
+
+/* ===== DENSITÉ ===== */
+[data-density="compact"] { font-size: 12px !important; }
+[data-density="compact"] div[style*="padding:14px"],
+[data-density="compact"] div[style*="padding: 14px"] { padding: 8px !important; }
+[data-density="comfortable"] { font-size: 15px !important; }
+[data-density="comfortable"] div[style*="padding:14px"] { padding: 20px !important; }
