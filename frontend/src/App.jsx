@@ -49,6 +49,7 @@ import AI from './pages/AI';
 import Profile from './pages/Profile';
 import Evidence from './pages/Evidence';
 import Map from './pages/Map';
+import ChaCha from './pages/ChaCha';
 import Terrain from './pages/Terrain';
 import CleanITBooks from './pages/CleanITBooks';
 
