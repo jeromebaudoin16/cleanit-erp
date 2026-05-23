@@ -37,7 +37,6 @@ import RH from './pages/RH';
 import Pointage from './pages/Pointage';
 import MobileApp from './pages/MobileApp';
 import CleanITComm from './pages/CleanITComm';
-import ChaCha from './pages/ChaCha';
 import Approvals from './pages/Approvals';
 import CRM from './pages/CRM';
 import Analytics from './pages/Analytics';
