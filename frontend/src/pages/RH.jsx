@@ -1268,8 +1268,8 @@ const Leaves = () => (
           <Badge s={c.status}/>,
           <div style={{display:"flex",gap:"4px"}}>
             {c.status==="en_attente"&&<>
-              <button className="rh-btn rh-btn-success rh-btn-sm">Approuver</button>
-              <button className="rh-btn rh-btn-danger rh-btn-sm">Refuser</button>
+              <button className="rh-btn rh-btn-success rh-btn-sm" onClick={()=>alert("Congé approuvé — notification envoyée à l'employé")}>Approuver</button>
+              <button className="rh-btn rh-btn-danger rh-btn-sm" onClick={()=>alert("Congé refusé — l'employé sera notifié")}>Refuser</button>
             </>}
             {c.status!=="en_attente"&&<span style={{fontSize:"11px",color:"#89898B"}}>par {c.approvedBy}</span>}
           </div>

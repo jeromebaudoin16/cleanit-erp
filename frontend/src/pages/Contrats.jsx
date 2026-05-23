@@ -21,7 +21,7 @@ export default function Contrats() {
     <div style={{padding:24,background:'#f5f7fa',minHeight:'100%'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20,flexWrap:'wrap',gap:12}}>
         <div><h1 style={{fontSize:22,fontWeight:800,color:'#1e293b',margin:0}}>Contrats SLA</h1><p style={{color:'#64748b',fontSize:13,margin:'4px 0 0'}}>Gestion des accords de niveau de service · {contrats.length} contrats</p></div>
-        <button style={{padding:'9px 18px',borderRadius:8,border:'none',background:'#16a34a',color:'white',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ Nouveau Contrat</button>
+        <button onClick={()=>alert('Nouveau contrat SLA — formulaire en cours de développement. Utilisez Approvals pour les demandes urgentes.')} style={{padding:'9px 18px',borderRadius:8,border:'none',background:'#16a34a',color:'white',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ Nouveau Contrat</button>
       </div>
 
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:12,marginBottom:20}}>

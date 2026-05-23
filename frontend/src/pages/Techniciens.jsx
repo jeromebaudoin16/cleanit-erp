@@ -23,7 +23,7 @@ const CS = {
   expire_soon: [C.orange_l,C.orange, 'Expire bientôt'],
 };
 
-const DI = { pdf:'📄', xlsx:'📊', zip:'🗜️', doc:'📝' };
+const DI = { pdf:'PDF', xlsx:'XLS', zip:'ZIP', doc:'DOC' };
 const fN = n => new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
 
 const SEED = [
@@ -212,8 +212,8 @@ function DetailPage({ tech, onBack }) {
             </div>
             <div style={{fontSize:13,color:C.text3,marginBottom:10}}>{tech.role} · {tech.region}</div>
             <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-              <button style={{fontSize:12,padding:'6px 16px',borderRadius:20,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text2,fontWeight:500}}>📞 Appeler</button>
-              <button style={{fontSize:12,padding:'6px 16px',borderRadius:20,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text2,fontWeight:500}}>💬 WhatsApp</button>
+              <button onClick={()=>window.open('tel:'+tech.tel.replace(/\s/g,''))} style={{fontSize:12,padding:'6px 16px',borderRadius:20,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text2,fontWeight:500}}>Appeler</button>
+              <button onClick={()=>window.open('https://wa.me/237'+tech.tel.replace(/[^0-9]/g,'').slice(-9))} style={{fontSize:12,padding:'6px 16px',borderRadius:20,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.green,fontWeight:500,borderColor:C.green}}>WhatsApp</button>
               <button onClick={()=>setShowLoc(!showLoc)} style={{fontSize:12,padding:'6px 16px',borderRadius:20,border:`1px solid ${C.blue}`,background:C.blue_l,color:C.blue_d,cursor:'pointer',fontFamily:'inherit',fontWeight:600}}>📍 Localiser</button>
             </div>
           </div>
@@ -253,7 +253,7 @@ function DetailPage({ tech, onBack }) {
                         <div key={j} style={{aspectRatio:'1',background:C.border2,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18}}>📸</div>
                       ))}
                     </div>
-                    <div style={{fontSize:11,color:C.text3}}>📍 {f.li}</div>
+                    <div style={{fontSize:11,color:C.text3}}>{f.li}</div>
                     <div style={{fontSize:11,color:C.text3,marginTop:2}}>🕐 {f.dt}</div>
                   </>
                 )}
@@ -275,8 +275,8 @@ function DetailPage({ tech, onBack }) {
                       <span style={{fontSize:13,fontWeight:700}}>{tech.name}</span>
                       <span style={{fontSize:11,color:C.text3}}>a pointé sur site</span>
                     </div>
-                    <div style={{fontSize:13,color:C.text}}>📍 {f.tx}</div>
-                    <div style={{fontSize:11,color:C.text3,marginTop:2}}>🗺️ {f.li}</div>
+                    <div style={{fontSize:13,color:C.text}}>{f.tx}</div>
+                    <div style={{fontSize:11,color:C.text3,marginTop:2}}>{f.li}</div>
                     <div style={{fontSize:11,color:C.text3,marginTop:2}}>🕐 {f.dt}</div>
                   </>
                 )}
@@ -288,7 +288,7 @@ function DetailPage({ tech, onBack }) {
                     </div>
                     <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:3}}>{f.tx}</div>
                     <div style={{fontSize:12,color:C.text3}}>{f.det}</div>
-                    <div style={{fontSize:11,color:C.text3,marginTop:3}}>📅 {f.dt}</div>
+                    <div style={{fontSize:11,color:C.text3,marginTop:3}}>{f.dt}</div>
                   </>
                 )}
               </div>
@@ -466,7 +466,7 @@ export default function Techniciens() {
 
       {expiredCerts.length > 0 && (
         <div style={{ padding:'10px 24px', background:C.red_l, borderBottom:`1px solid #FCA5A5`, display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
-          <span style={{ fontSize:14 }}>⚠️</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <span style={{ fontSize:12, color:C.red }}>
             {expiredCerts.map((e, i) => (
               <span key={i}>{i > 0 && ' · '}<strong>{e.tech}</strong> — {e.cert} ({e.soon ? 'expire bientôt' : 'EXPIRÉE'} {e.expire})</span>
@@ -494,7 +494,7 @@ export default function Techniciens() {
                   </div>
                   <div style={{ fontSize:13, fontWeight:700, color:C.text, marginBottom:3, display:'flex', alignItems:'center', justifyContent:'center', gap:5 }}>
                     {t.name}
-                    {hasExpired && <span style={{ fontSize:13 }}>⚠️</span>}
+                    {hasExpired && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>}
                   </div>
                   <div style={{ fontSize:11, color:C.text3, marginBottom:8 }}>{t.role}</div>
                   <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:ss.bg, color:ss.c, fontWeight:700 }}>{t.statut}</span>

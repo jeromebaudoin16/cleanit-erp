@@ -201,7 +201,7 @@ const getUser = id => CONTACTS.find(u=>u.id===id)||ME;
 const statusDot = s => s==='online'?P.green:s==='busy'?P.red:s==='away'?P.yellow:P.gray;
 
 const FILE_ICON = type => ({
-  pdf:'📄',excel:'📊',word:'📝',zip:'📦',img:'🖼️',video:'🎬',file:'📁'
+  pdf:'PDF',excel:'XLS',word:'DOC',zip:'ZIP',img:'IMG',video:'VID',file:'FILE'
 })[type]||'📁';
 
 const FILE_COLOR = type => ({

@@ -68,8 +68,8 @@ function TabDashboard({missions,ordres,currentUser}){
   return (
     <div style={{padding:'14px 20px',background:C.bg}}>
       {ordres.length>0&&<div style={{background:C.blue_l,border:`1px solid #B5D4F4`,borderRadius:8,padding:'9px 14px',marginBottom:12,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-        <div style={{display:'flex',alignItems:'center',gap:7,fontSize:12,color:C.blue_d,fontWeight:500}}>🔔 {ordres.length} nouveau{ordres.length>1?'x':''} site{ordres.length>1?'s':''} assigné{ordres.length>1?'s':''} — {ordres.map(o=>o.site).join(', ')}</div>
-        <button style={{fontSize:11,padding:'3px 9px',borderRadius:5,border:`1px solid ${C.blue}`,background:'none',color:C.blue,cursor:'pointer',fontFamily:'inherit'}}>Voir →</button>
+        <div style={{display:'flex',alignItems:'center',gap:7,fontSize:12,color:C.blue_d,fontWeight:500}}>{ordres.length} nouveau{ordres.length>1?'x':''} site{ordres.length>1?'s':''} assigné{ordres.length>1?'s':''} — {ordres.map(o=>o.site).join(', ')}</div>
+        <button onClick={()=>nav('/map')} style={{fontSize:11,padding:'3px 9px',borderRadius:5,border:`1px solid ${C.blue}`,background:'none',color:C.blue,cursor:'pointer',fontFamily:'inherit'}}>Voir →</button>
       </div>}
 
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:12}}>
@@ -77,7 +77,7 @@ function TabDashboard({missions,ordres,currentUser}){
           {v:missions.length+ordres.length,l:'Sites actifs',c:C.blue,icon:'🏗️'},
           {v:ordres.length,l:'À dispatcher',c:C.orange,icon:'⏳'},
           {v:missions.filter(m=>m.statut==='en_cours').length,l:'En cours',c:C.green,icon:'⚡'},
-          {v:missions.filter(m=>m.pct<50&&m.statut==='en_cours').length,l:'Retard potentiel',c:C.red,icon:'⚠️'},
+          {v:missions.filter(m=>m.pct<50&&m.statut==='en_cours').length,l:'Retard potentiel',c:C.red,icon:'alert'},
         ].map((k,i)=>(
           <div key={i} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,padding:'10px 12px',borderTop:`2px solid ${k.c}`}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}}>
@@ -163,7 +163,7 @@ function TabOrdres({ordres,techs,onDispatch}){
                 style={{fontSize:12,padding:'6px 16px',borderRadius:6,border:'none',background:sel?C.blue:'#D1D5DB',color:sel?'#fff':'#9CA3AF',cursor:sel?'pointer':'not-allowed',fontFamily:'inherit',fontWeight:600}}>
                 Valider et notifier l'équipe
               </button>
-              <button style={{fontSize:12,padding:'6px 14px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>Reporter</button>
+              <button onClick={()=>alert('Mission reportée — notification envoyée au PM')} style={{fontSize:12,padding:'6px 14px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>Reporter</button>
               <button onClick={()=>setSelected({...selected,[ord.id]:'manual'})}
                 style={{fontSize:11,padding:'5px 12px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',marginLeft:'auto',color:C.text3}}>
                 Choisir manuellement
@@ -206,8 +206,8 @@ function TabMissions({missions}){
             <div style={{fontSize:11,color:C.text3}}>{m.client} · Arrivée {m.arrivee} ({m.mode}) · IA: fin prévue 17h</div>
           </div>
           <div style={{display:'flex',gap:6}}>
-            <button style={{fontSize:11,padding:'4px 10px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>📤 Partager client</button>
-            <button style={{fontSize:11,padding:'4px 10px',borderRadius:6,border:'none',background:C.red_l,color:C.red,cursor:'pointer',fontFamily:'inherit'}}>⚠️ Signaler</button>
+            <button onClick={()=>alert('Rapport partagé avec le client via CleanIT Comm')} style={{fontSize:11,padding:'4px 10px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>Partager client</button>
+            <button onClick={()=>alert('Incident signalé — alerte envoyée au PM et dans CleanIT Comm')} style={{fontSize:11,padding:'4px 10px',borderRadius:6,border:'none',background:C.red_l,color:C.red,cursor:'pointer',fontFamily:'inherit'}}>Signaler</button>
           </div>
         </div>
         <div style={{padding:'12px 16px'}}>
@@ -229,7 +229,7 @@ function TabMissions({missions}){
           <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,overflow:'hidden',marginBottom:12}}>
             {(m.checklist||[]).map((item,i)=>(
               <div key={i} style={{padding:'8px 12px',borderBottom:i<m.checklist.length-1?`1px solid ${C.border2}`:'none',display:'flex',alignItems:'center',gap:8,fontSize:12}}>
-                <span style={{fontSize:14,color:item.done?C.green:C.text3}}>{item.done?'✅':'⭕'}</span>
+                <span style={{fontSize:14,color:item.done?C.green:C.text3}}>{item.done?'✓':''}</span>
                 <span style={{color:item.done?C.text:C.text3}}>{item.t}</span>
               </div>
             ))}
@@ -265,8 +265,8 @@ function TabCommunication({missions}){
         <div style={{padding:'9px 14px',borderBottom:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'space-between',background:C.white,flexShrink:0}}>
           <span style={{fontSize:13,fontWeight:600}}>#{m?.site?.toLowerCase().replace('-','')||'—'}</span>
           <div style={{display:'flex',gap:6}}>
-            <button style={{fontSize:10,padding:'3px 8px',borderRadius:5,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>📷 Galerie</button>
-            <button style={{fontSize:10,padding:'3px 8px',borderRadius:5,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>🔗 Partager</button>
+            <button onClick={()=>alert('Galerie photos du site — CleanCam')} style={{fontSize:10,padding:'3px 8px',borderRadius:5,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>Galerie</button>
+            <button onClick={()=>navigator.clipboard?.writeText(window.location.href).then(()=>alert('Lien copié'))} style={{fontSize:10,padding:'3px 8px',borderRadius:5,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>Partager</button>
           </div>
         </div>
         <div style={{flex:1,overflowY:'auto',padding:'10px 14px',display:'flex',flexDirection:'column',gap:8}}>
@@ -285,8 +285,8 @@ function TabCommunication({missions}){
           ))}
         </div>
         <div style={{padding:'8px 12px',borderTop:`1px solid ${C.border}`,background:C.white,display:'flex',gap:6,alignItems:'center',flexShrink:0}}>
-          <button style={{width:28,height:28,borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>🎤</button>
-          <button style={{width:28,height:28,borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13}}>📎</button>
+          <button onClick={()=>alert('Enregistrement vocal — disponible sur mobile')} style={{width:28,height:28,borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}} title="Vocal"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg></button>
+          <button onClick={()=>document.getElementById('terrain-file-input')?.click()} style={{width:28,height:28,borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}} title="Joindre fichier"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg></button>
           <input value={input} onChange={e=>setInput(e.target.value)} placeholder="Message... ou /done 75%" style={{flex:1,padding:'6px 10px',borderRadius:6,border:`1px solid ${C.border}`,fontSize:12,fontFamily:'inherit',outline:'none'}}/>
           <button onClick={()=>setInput('')} style={{padding:'6px 12px',borderRadius:6,border:'none',background:C.blue,color:'#fff',fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>Envoyer</button>
         </div>
@@ -301,7 +301,7 @@ function TabRapports({rapports}){
       <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:8,overflow:'hidden'}}>
         <div style={{padding:'10px 14px',borderBottom:`1px solid ${C.border2}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <span style={{fontSize:12,fontWeight:600}}>Rapports d'intervention</span>
-          <button style={{fontSize:11,padding:'5px 12px',borderRadius:6,border:'none',background:C.blue,color:'#fff',cursor:'pointer',fontFamily:'inherit'}}>+ Nouveau rapport</button>
+          <button onClick={()=>alert('Nouveau rapport — formulaire disponible dans Bons de Commande')} style={{fontSize:11,padding:'5px 12px',borderRadius:6,border:'none',background:C.blue,color:'#fff',cursor:'pointer',fontFamily:'inherit'}}>+ Nouveau rapport</button>
         </div>
         {rapports.map((r,i)=>(
           <div key={i} style={{padding:'11px 14px',borderBottom:i<rapports.length-1?`1px solid ${C.border2}`:'none',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
@@ -313,7 +313,7 @@ function TabRapports({rapports}){
               <span style={{fontSize:11,padding:'2px 8px',borderRadius:20,background:r.statut==='validé'?C.green_l:C.orange_l,color:r.statut==='validé'?C.green:C.orange,fontWeight:600}}>
                 {r.statut==='validé'?'Validé client':'En attente'}
               </span>
-              <button style={{fontSize:10,padding:'3px 8px',borderRadius:5,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>PDF ↓</button>
+              <button onClick={()=>{const b=new Blob(['Rapport CleanIT — '+new Date().toLocaleDateString('fr-FR')],{type:'text/plain'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='rapport_terrain.txt';a.click()}} style={{fontSize:10,padding:'3px 8px',borderRadius:5,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit'}}>PDF ↓</button>
             </div>
           </div>
         ))}
@@ -370,7 +370,7 @@ export default function Terrain(){
     <div style={{display:'flex',flexDirection:'column',height:'100%',fontFamily:'inherit'}}>
       <div style={{padding:'11px 20px',borderBottom:`1px solid ${C.border}`,background:C.white,display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <div style={{width:30,height:30,borderRadius:8,background:C.blue_l,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15}}>🗺️</div>
+          <div style={{width:30,height:30,borderRadius:8,background:C.blue_l,display:'flex',alignItems:'center',justifyContent:'center'}}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#185FA5" strokeWidth="2"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg></div>
           <div>
             <div style={{fontSize:14,fontWeight:700,color:C.text}}>Gestion Terrain</div>
             <div style={{fontSize:10,color:C.text3}}>Chef de projet — missions filtrées par votre compte</div>

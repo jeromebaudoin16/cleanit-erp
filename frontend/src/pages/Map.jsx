@@ -1119,7 +1119,7 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
                         <div style={{fontSize:9,color:"#5f6368"}}>{tech.specialite}</div>
                         <div style={{marginTop:3,display:"flex",gap:4,flexWrap:"wrap"}}>
                           <span style={{fontSize:8,fontWeight:600,padding:"1px 6px",borderRadius:8,background:st.bg,color:st.color}}>{st.label}</span>
-                          <span style={{fontSize:8,color:tech.battery>50?"#0f9d58":tech.battery>20?"#f29900":"#ea4335",fontWeight:600}}>🔋{tech.battery}%</span>
+                          <span style={{fontSize:8,color:tech.battery>50?"#0f9d58":tech.battery>20?"#f29900":"#ea4335",fontWeight:600}}>{tech.battery}%</span>
                           <span style={{fontSize:8,color:"#5f6368"}}>📶{tech.signal}/5</span>
                         </div>
                       </div>
