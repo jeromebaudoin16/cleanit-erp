@@ -37,6 +37,16 @@ const saveHistory = (msgs) => {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs.slice(-50))); } catch {}
 };
 
+
+// ===== CHACHA TOOLS =====
+const CHACHA_TOOLS = [
+  {type:"function",function:{name:"naviguer_module",description:"Naviguer vers un module CleanIT ERP",parameters:{type:"object",properties:{url:{type:"string",description:"URL: /dashboard /approvals /finance /rh /crm /terrain /map /bi /cleanitcomm /pointage /planning /techniciens /purchase-orders /cleanitbooks"}},required:["url"]}}},
+  {type:"function",function:{name:"lire_donnees_systeme",description:"Lire les données réelles du système",parameters:{type:"object",properties:{module:{type:"string",enum:["approvals","finances","techniciens","bc_sites"]}},required:["module"]}}},
+  {type:"function",function:{name:"creer_approbation",description:"Créer une demande dans Approvals",parameters:{type:"object",properties:{titre:{type:"string"},montant:{type:"number"},beneficiaire:{type:"string"},site:{type:"string"},type:{type:"string",enum:["payment_request","leave_request","purchase_request"]}},required:["titre"]}}},
+  {type:"function",function:{name:"chercher_technicien",description:"Trouver un technicien disponible",parameters:{type:"object",properties:{competence:{type:"string"},region:{type:"string"}}}}},
+  {type:"function",function:{name:"generer_rapport",description:"Générer Excel ou Word",parameters:{type:"object",properties:{type:{type:"string",enum:["factures","paie","jobs","contrat","rapport"]}},required:["type"]}}},
+];
+
 export default function ChaCha() {
   const navigate   = useNavigate();
   const [open,     setOpen]     = useState(false);
