@@ -286,7 +286,6 @@ export default function Layout() {
         {/* PAGE */}
         <div style={{flex:1, overflow:'auto'}}>
           <Outlet />
-      <ChaCha/>
         </div>
       </div>
 
