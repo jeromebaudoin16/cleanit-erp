@@ -133,7 +133,7 @@ export default function Layout() {
               {section.items.map(item => {
                 const active = loc.pathname === item.path;
                 return (
-                  <button key={item.path} onClick={() => nav(item.path)} title={!hovered ? item.label : ''}
+                  <button key={item.path} onClick={() => item.path==='/mobile' ? window.open('/mobile','_blank') : nav(item.path)} title={!hovered ? item.label : ''}
                     style={{
                       width:'100%', padding: hovered ? '9px 16px' : '10px 0',
                       border:'none', background: active ? `${section.color}20` : 'transparent',
