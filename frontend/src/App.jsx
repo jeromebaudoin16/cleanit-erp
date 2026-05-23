@@ -65,7 +65,7 @@ export default function App() {
           <Route path="approvals"       element={<Approvals />} />
           <Route path="approvals/:id"    element={<Approvals />} />
           <Route path="approvals/new"   element={<Approvals />} />
-          <Route path="bons-commande" element={<BonsCommande />} />
+          <Route path="bons-commande" element={<Navigate to="/purchase-orders" replace />} />
           <Route path="finance"         element={<Finance />} />
           <Route path="projets" element={<Projets />} />
           <Route path="chacha" element={<ChaCha />} />
