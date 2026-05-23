@@ -121,7 +121,7 @@ const ROLES = ["Chef d\'équipe","Technicien principal","Technicien","Sécurité
 
 // ===== CARTE MEMBRE D'ÉQUIPE =====
 function MembreCard({membre, index, onRemplace, onChangeRole, onRetirer, availableTechs}){
-  const [showSwap, setShowSwap] = React.useState(false);
+  const [showSwap, setShowSwap] = useState(false);
   const t = membre.tech;
   return (
     <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:9,padding:'10px 12px',position:'relative'}}>
@@ -164,13 +164,13 @@ function MembreCard({membre, index, onRemplace, onChangeRole, onRetirer, availab
 
 // ===== BUILDER D'ÉQUIPE =====
 function TeamBuilder({ord, techs, onValider, onClose}){
-  const [mode, setMode] = React.useState('chacha'); // 'chacha' | 'edit' | 'manuel'
-  const [equipe, setEquipe] = React.useState([]);
-  const [notesPM, setNotesPM] = React.useState('');
-  const [loadingAI, setLoadingAI] = React.useState(false);
+  const [mode, setMode] = useState('chacha'); // 'chacha' | 'edit' | 'manuel'
+  const [equipe, setEquipe] = useState([]);
+  const [notesPM, setNotesPM] = useState('');
+  const [loadingAI, setLoadingAI] = useState(false);
 
   // Générer proposition ChaCha au montage
-  React.useEffect(()=>{
+  useEffect(()=>{
     const avail = techs.filter(t=>t.statut==='Disponible');
     const chefsOptions = avail.filter(t=>t.note>=4.5||t.missions>40);
     const chef = chefsOptions[0]||avail[0];
