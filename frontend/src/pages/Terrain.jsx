@@ -117,7 +117,7 @@ function TabDashboard({missions,ordres,currentUser}){
 }
 
 // ===== RÔLES D'ÉQUIPE =====
-const ROLES = ['Chef d'équipe','Technicien principal','Technicien','Sécurité HSE','Support logistique'];
+const ROLES = ["Chef d'équipe","Technicien principal","Technicien","Sécurité HSE","Support logistique"];
 
 // ===== CARTE MEMBRE D'ÉQUIPE =====
 function MembreCard({membre, index, onRemplace, onChangeRole, onRetirer, availableTechs}){
