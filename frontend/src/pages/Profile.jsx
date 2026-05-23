@@ -610,7 +610,12 @@ function TabApparence(){
   };
   const save=()=>{
     localStorage.setItem('cleanit_apparence',JSON.stringify(p));
-    applyTheme(p.theme,p.couleur);
+    // Appliquer immédiatement via data-attributes
+    const root=document.documentElement;
+    root.setAttribute('data-theme',p.theme==='dark'?'dark':'light');
+    if(p.couleur&&p.couleur!=='blue') root.setAttribute('data-color',p.couleur);
+    else root.removeAttribute('data-color');
+    root.setAttribute('data-density',p.density||'normal');
     setSaved(true);setTimeout(()=>setSaved(false),2000);
   };
   useEffect(()=>{ applyTheme(p.theme,p.couleur); },[]);

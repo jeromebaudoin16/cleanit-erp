@@ -1,4 +1,26 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+
+// ===== APPLIQUER LES PRÉFÉRENCES D'APPARENCE AU DÉMARRAGE =====
+function ApparenceProvider({children}){
+  useEffect(()=>{
+    try{
+      const prefs = JSON.parse(localStorage.getItem('cleanit_apparence')||'{}');
+      const root = document.documentElement;
+      // Thème
+      root.setAttribute('data-theme', prefs.theme==='dark'?'dark':'light');
+      // Couleur
+      if(prefs.couleur&&prefs.couleur!=='blue') root.setAttribute('data-color', prefs.couleur);
+      else root.removeAttribute('data-color');
+      // Densité
+      root.setAttribute('data-density', prefs.density||'normal');
+      // Langue
+      const lang = localStorage.getItem('cleanit_lang')||prefs.lang||'fr';
+      document.documentElement.setAttribute('lang', lang);
+    }catch(e){}
+  },[]);
+  return children;
+}
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -46,6 +68,7 @@ const Soon = ({ title, color='#4f8ef7' }) => (
 
 export default function App() {
   return (
+    <ApparenceProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -134,5 +157,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
+    </ApparenceProvider>
   );
 }

@@ -11,3 +11,38 @@ input,select,textarea{font-family:inherit}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 .spin{animation:spin 1s linear infinite}
 .fade{animation:fadeIn .3s ease}
+
+/* ===== CLEANIT THEME SYSTEM ===== */
+:root {
+  --primary: #185FA5;
+  --primary-l: #E6F1FB;
+  --bg-app: #F9FAFB;
+  --bg-card: #FFFFFF;
+  --text-main: #111827;
+  --text-sub: #6B7280;
+  --border: #E5E7EB;
+  --sidebar-bg: #1e293b;
+  --density-pad: 14px;
+}
+
+/* DARK MODE */
+[data-theme="dark"] {
+  --bg-app: #0f172a;
+  --bg-card: #1e293b;
+  --text-main: #e2e8f0;
+  --text-sub: #94a3b8;
+  --border: #334155;
+}
+[data-theme="dark"] body { background: #0f172a !important; color: #e2e8f0 !important; }
+[data-theme="dark"] .rh-app { background: #0f172a !important; }
+
+/* COULEURS PRIMAIRES */
+[data-color="green"]  { --primary: #0F7B3C; --primary-l: #E8F5EE; }
+[data-color="purple"] { --primary: #403294; --primary-l: #F3EEF9; }
+[data-color="red"]    { --primary: #A32D2D; --primary-l: #FCEBEB; }
+[data-color="orange"] { --primary: #854F0B; --primary-l: #FAEEDA; }
+
+/* DENSITÉS */
+[data-density="compact"]     { --density-pad: 8px;  font-size: 12px; }
+[data-density="normal"]      { --density-pad: 14px; font-size: 14px; }
+[data-density="comfortable"] { --density-pad: 20px; font-size: 15px; }
