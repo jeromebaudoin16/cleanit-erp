@@ -659,6 +659,21 @@ function TabApparence(){
   );
 }
 
+
+function BtnConfigurer({igId}){
+  const configure=()=>{
+    const configs={
+      sendgrid:()=>{const k=window.prompt('Clé API SendGrid:');if(k)localStorage.setItem('cleanit_sendgrid_key',k);},
+      googlecal:()=>{const id=window.prompt('Client ID Google Calendar:');if(id)localStorage.setItem('cleanit_gcal_id',id);},
+      whatsapp:()=>{const t=window.prompt('Token WhatsApp Business API:');if(t)localStorage.setItem('cleanit_wa_token',t);},
+    };
+    const fn=configs[igId];
+    if(fn){fn();window.location.reload();}
+    else window.alert('Configuration disponible prochainement.');
+  };
+  return <button onClick={configure} style={{fontSize:11,padding:'4px 10px',borderRadius:5,border:'1px solid #185FA5',background:'#E6F1FB',cursor:'pointer',fontFamily:'inherit',color:'#185FA5',fontWeight:500}}>Configurer</button>;
+}
+
 function TabIntegrations(){
   const integrations=[
     {id:'groq',name:'Groq API — Llama 3',desc:'Moteur IA de ChaCha — connecté et actif',status:'connecté',icon:ICONS.check},
@@ -696,13 +711,7 @@ function TabIntegrations(){
             <div style={{display:'flex',alignItems:'center',gap:8}}>
               <span style={{fontSize:11,padding:'3px 9px',borderRadius:20,background:bg,color:c,fontWeight:600}}>{label}</span>
               {ig.status==='non configuré'&&(
-                <button onClick={()=>{
-                  if(ig.id==='sendgrid'){const k=prompt('Clé API SendGrid (sg.XXXXXXXX):');if(k&&k.startsWith('sg.')){localStorage.setItem('cleanit_sendgrid_key',k);alert('SendGrid configuré !');}}
-                  else if(ig.id==='googlecal'){const id=prompt('Client ID Google Calendar:');if(id){localStorage.setItem('cleanit_gcal_id',id);alert('Google Calendar configuré !');}};
-                  else if(ig.id==='whatsapp'){const tok=prompt('Token WhatsApp Business API:');if(tok){localStorage.setItem('cleanit_wa_token',tok);alert('WhatsApp configuré !');}}
-                  else alert('Configuration disponible dans les prochaines mises à jour.');
-                }}
-                  style={{fontSize:11,padding:'4px 10px',borderRadius:5,border:`1px solid ${C.blue}`,background:C.blue_l,cursor:'pointer',fontFamily:'inherit',color:C.blue,fontWeight:500}}>Configurer</button>
+<BtnConfigurer igId={ig.id}/>
               )}
             </div>
           </div>
