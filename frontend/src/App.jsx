@@ -163,6 +163,12 @@ export default function App() {
           <Route path="provisioning"    element={<Soon title="Provisioning Réseau" color="#4f8ef7" />} />
         </Route>
         <Route path="/mobile" element={<MobileApp />} />
+        <Route path="/mobile/equipes" element={<MobileApp />} />
+        <Route path="/mobile/dispatch" element={<MobileApp />} />
+        <Route path="/mobile/approvals" element={<MobileApp />} />
+        <Route path="/mobile/analytics" element={<MobileApp />} />
+        <Route path="/mobile/mission" element={<MobileApp />} />
+        <Route path="/mobile/pointer" element={<MobileApp />} />
         <Route path="/mobile/pointage" element={<MobileApp />} />
         <Route path="/mobile/camera" element={<MobileApp />} />
         <Route path="/mobile/planning" element={<MobileApp />} />

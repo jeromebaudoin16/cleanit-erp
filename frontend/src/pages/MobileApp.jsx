@@ -367,10 +367,19 @@ const ScreenLogin = ({onLogin}) => {
   const [err,setErr] = useState('');
 
   const handleLogin = () => {
-    const demo = USERS.find(u=>u.id==='EX-001');
-    if(demo) onLogin(demo);
-    else setErr('Identifiants incorrects');
+    // Demo: chercher par email ou prendre admin par defaut
+    const found = USERS.find(u=>
+      email.toLowerCase().includes(u.av.toLowerCase()) ||
+      email.toLowerCase().includes(u.name.split(' ')[0].toLowerCase())
+    );
+    if(found) onLogin(found);
+    else {
+      // Montrer selection de profil
+      setStep('select');
+    }
   };
+
+  const [step, setStep] = useState('login');
 
   return (
     <div style={{minHeight:'100vh',background:C.bg,fontFamily:FONT,
@@ -1773,7 +1782,13 @@ const ScreenProfil = ({user,onLogout}) => {
   const missions = MISSIONS.filter(m=>m.techId===user.id);
 
   const saveLang = (l) => { setLang(l);localStorage.setItem('cit_lang',l); };
-  const saveTheme = (th) => { setTheme(th);localStorage.setItem('cit_theme',th); };
+  const saveTheme = (th) => {
+    setTheme(th);
+    localStorage.setItem('cit_theme',th);
+    document.documentElement.style.setProperty('--mob-bg', th==='dark'?'#0F172A':'#FFFFFF');
+    document.body.style.background = th==='dark'?'#0F172A':'#FFFFFF';
+    document.body.style.color = th==='dark'?'#F1F5F9':'#262626';
+  };
 
   return (
     <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
@@ -1924,7 +1939,14 @@ const ScreenProfil = ({user,onLogout}) => {
           )}
         </div>
 
-        <div style={{background:C.bg2,borderRadius:12,padding:'12px 14px',
+        <div onClick={()=>{
+          if(window.deferredPrompt){
+            window.deferredPrompt.prompt();
+            window.deferredPrompt.userChoice.then(()=>{window.deferredPrompt=null;});
+          } else {
+            toast('Ouvrez ce lien dans Chrome sur Android pour installer');
+          }
+        }} style={{background:C.bg2,borderRadius:12,padding:'12px 14px',
           marginBottom:12,border:'0.5px solid '+C.border,cursor:'pointer',
           display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
