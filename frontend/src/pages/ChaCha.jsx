@@ -333,6 +333,23 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
   const isMobilePage = window.location.pathname.startsWith('/mobile');
   if(isMobilePage) return null;
 
+  const [panelPos, setPanelPos] = useState(()=>{
+    try{const p=JSON.parse(localStorage.getItem('chacha_panel_pos'));return p||{right:24,bottom:88};}catch{return {right:24,bottom:88};}
+  });
+  const panelDragging = useRef(false);
+  const panelDragOffset = useRef({x:0,y:0});
+  const onPanelMouseDown = (e) => {
+    if(e.target.tagName==='BUTTON'||e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT') return;
+    panelDragging.current = true;
+    panelDragOffset.current = {x:e.clientX, y:e.clientY};
+    e.preventDefault();
+  };
+  const onPanelTouchStart = (e) => {
+    if(e.target.tagName==='BUTTON'||e.target.tagName==='TEXTAREA') return;
+    panelDragging.current = true;
+    panelDragOffset.current = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+  };
+
   const [pos, setPos] = useState(()=>{
     try{const p=JSON.parse(localStorage.getItem('chacha_pos'));return p||{right:24,bottom:24};}catch{return {right:24,bottom:24};}
   });
@@ -362,9 +379,25 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
         return np;
       });
     };
-    const onMM = (e) => move(e.clientX, e.clientY);
-    const onTM = (e) => move(e.touches[0].clientX, e.touches[0].clientY);
-    const stop = () => { dragging.current = false; };
+    const movePanel = (cx,cy) => {
+      if(!panelDragging.current) return;
+      const dx = cx - panelDragOffset.current.x;
+      const dy = cy - panelDragOffset.current.y;
+      panelDragOffset.current = {x:cx, y:cy};
+      setPanelPos(p => {
+        const nr = Math.max(8, Math.min(window.innerWidth-380, (p.right||24) - dx));
+        const nb = Math.max(8, Math.min(window.innerHeight-580, (p.bottom||88) - dy));
+        const np = {right:nr, bottom:nb};
+        localStorage.setItem('chacha_panel_pos', JSON.stringify(np));
+        return np;
+      });
+    };
+    const onMM = (e) => { move(e.clientX, e.clientY); movePanel(e.clientX, e.clientY); };
+    const onTM = (e) => {
+      move(e.touches[0].clientX, e.touches[0].clientY);
+      movePanel(e.touches[0].clientX, e.touches[0].clientY);
+    };
+    const stop = () => { dragging.current = false; panelDragging.current = false; };
     window.addEventListener('mousemove', onMM);
     window.addEventListener('mouseup', stop);
     window.addEventListener('touchmove', onTM, {passive:true});
@@ -400,7 +433,7 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
 
       {/* Panel chat */}
       {open&&(
-        <div style={{position:'fixed',bottom:88,right:24,width:360,height:560,zIndex:10000,display:'flex',flexDirection:'column',borderRadius:20,overflow:'hidden',boxShadow:'0 32px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06)',animation:'chacha-appear .25s ease',background:'#0d0f17'}}>
+        <div onMouseDown={onPanelMouseDown} onTouchStart={onPanelTouchStart} style={{position:'fixed',bottom:panelPos.bottom,right:panelPos.right,width:360,height:560,zIndex:10000,cursor:'default',display:'flex',flexDirection:'column',borderRadius:20,overflow:'hidden',boxShadow:'0 32px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06)',animation:'chacha-appear .25s ease',background:'#0d0f17'}}>
 
           {/* Header */}
           <div style={{padding:'14px 16px',background:'linear-gradient(135deg,#13111e,#1a1535)',display:'flex',alignItems:'center',gap:10,flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
