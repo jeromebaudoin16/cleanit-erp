@@ -162,6 +162,12 @@ export default function App() {
           <Route path="messaging"       element={<Soon title="Messagerie Interne" color="#7c3aed" />} />
           <Route path="provisioning"    element={<Soon title="Provisioning Réseau" color="#4f8ef7" />} />
         </Route>
+        <Route path="/mobile" element={<MobileApp />} />
+        <Route path="/mobile/pointage" element={<MobileApp />} />
+        <Route path="/mobile/camera" element={<MobileApp />} />
+        <Route path="/mobile/planning" element={<MobileApp />} />
+        <Route path="/mobile/profil" element={<MobileApp />} />
+        <Route path="/mobile/install" element={<MobileApp />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
       <ChaCha/>
