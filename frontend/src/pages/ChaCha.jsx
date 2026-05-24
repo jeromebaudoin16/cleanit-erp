@@ -329,6 +329,10 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
       .replace(/\n/g,'<br/>');
   };
 
+  // Cacher ChaCha sur mobile app
+  const isMobilePage = window.location.pathname.startsWith('/mobile');
+  if(isMobilePage) return null;
+
   return(
     <>
       <style>{`
