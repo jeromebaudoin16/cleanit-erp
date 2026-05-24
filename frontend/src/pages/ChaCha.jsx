@@ -333,6 +333,50 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
   const isMobilePage = window.location.pathname.startsWith('/mobile');
   if(isMobilePage) return null;
 
+  const [pos, setPos] = useState(()=>{
+    try{const p=JSON.parse(localStorage.getItem('chacha_pos'));return p||{right:24,bottom:24};}catch{return {right:24,bottom:24};}
+  });
+  const dragging = useRef(false);
+  const dragOffset = useRef({x:0,y:0});
+
+  const onMouseDown = (e) => {
+    dragging.current = true;
+    dragOffset.current = {x: e.clientX, y: e.clientY};
+    e.preventDefault();
+  };
+  const onTouchStart = (e) => {
+    dragging.current = true;
+    dragOffset.current = {x: e.touches[0].clientX, y: e.touches[0].clientY};
+  };
+  useEffect(()=>{
+    const move = (cx,cy) => {
+      if(!dragging.current) return;
+      const dx = cx - dragOffset.current.x;
+      const dy = cy - dragOffset.current.y;
+      dragOffset.current = {x:cx, y:cy};
+      setPos(p => {
+        const nr = Math.max(8, Math.min(window.innerWidth-60, (p.right||24) - dx));
+        const nb = Math.max(8, Math.min(window.innerHeight-60, (p.bottom||24) - dy));
+        const np = {right:nr, bottom:nb};
+        localStorage.setItem('chacha_pos', JSON.stringify(np));
+        return np;
+      });
+    };
+    const onMM = (e) => move(e.clientX, e.clientY);
+    const onTM = (e) => move(e.touches[0].clientX, e.touches[0].clientY);
+    const stop = () => { dragging.current = false; };
+    window.addEventListener('mousemove', onMM);
+    window.addEventListener('mouseup', stop);
+    window.addEventListener('touchmove', onTM, {passive:true});
+    window.addEventListener('touchend', stop);
+    return()=>{
+      window.removeEventListener('mousemove', onMM);
+      window.removeEventListener('mouseup', stop);
+      window.removeEventListener('touchmove', onTM);
+      window.removeEventListener('touchend', stop);
+    };
+  },[]);
+
   return(
     <>
       <style>{`
@@ -484,7 +528,7 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
 
       {/* Bouton flottant */}
       <button onClick={()=>setOpen(p=>!p)}
-        style={{position:'fixed',bottom:24,right:24,zIndex:10000,width:52,height:52,borderRadius:16,background:open?'rgba(255,255,255,.1)':'linear-gradient(135deg,#7c3aed,#4f46e5)',border:open?'1px solid rgba(255,255,255,.15)':'none',color:'white',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:open?'none':'0 8px 28px rgba(124,58,237,.5)',transition:'all .2s',animation:!open&&msgs.length===0?'chacha-bounce 3s ease 2s 3':'none',backdropFilter:open?'blur(10px)':'none'}}>
+        onMouseDown={onMouseDown} onTouchStart={onTouchStart} style={{position:'fixed',bottom:pos.bottom,right:pos.right,zIndex:10000,cursor:'grab',width:52,height:52,borderRadius:16,background:open?'rgba(255,255,255,.1)':'linear-gradient(135deg,#7c3aed,#4f46e5)',border:open?'1px solid rgba(255,255,255,.15)':'none',color:'white',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:open?'none':'0 8px 28px rgba(124,58,237,.5)',transition:'all .2s',animation:!open&&msgs.length===0?'chacha-bounce 3s ease 2s 3':'none',backdropFilter:open?'blur(10px)':'none'}}>
         {open?(
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         ):(
