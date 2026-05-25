@@ -686,49 +686,90 @@ const ScreenFil = ({user,navigate}) => {
 };
 
 // ─── SCREEN: CAMERA ───────────────────────────────────────────
-const ScreenCamera = ({user,gps,now}) => {
+const ScreenCamera = ({user, gps, now}) => {
   const vRef = useRef(null);
   const cRef = useRef(null);
-  const [stream,setStream] = useState(null);
-  const [active,setActive] = useState(false);
-  const [photos,setPhotos] = useState([]);
-  const [last,setLast] = useState(null);
-  const [flash,setFlash] = useState(false);
-  const {toast,toastMsg,toastShow} = useToast();
-  const n = now||new Date();
+  const streamRef = useRef(null);
+  const [active, setActive] = useState(false);
+  const [photos, setPhotos] = useState([]);
+  const [last, setLast] = useState(null);
+  const [flash, setFlash] = useState(false);
+  const {toast, toastMsg, toastShow} = useToast();
+  const n = now || new Date();
+
+  const stopCam = () => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    if(vRef.current) vRef.current.srcObject = null;
+    setActive(false);
+  };
 
   const startCam = async () => {
     try {
-      const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
-      if(vRef.current) vRef.current.srcObject=s;
-      setStream(s);setActive(true);
+      const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+      const constraints = isMobile
+        ? {video:{facingMode:'environment'}, audio:false}
+        : {video:{width:{ideal:1280},height:{ideal:720}}, audio:false};
+
+      const s = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = s;
+
+      if(vRef.current) {
+        vRef.current.srcObject = s;
+        vRef.current.muted = true;
+        vRef.current.volume = 0;
+        vRef.current.onloadedmetadata = () => {
+          vRef.current?.play().catch(e => console.warn(e));
+          setActive(true);
+        };
+        // Fallback si onloadedmetadata ne se declenche pas
+        setTimeout(() => {
+          if(!active && vRef.current?.readyState >= 1) {
+            vRef.current.play().catch(()=>{});
+            setActive(true);
+          }
+        }, 1500);
+      }
     } catch(e) {
-      toast('Camera: autorisez l acces dans votre navigateur');
-      setActive(false);
+      if(e.name==='NotAllowedError') toast('Autorisez la camera dans le navigateur');
+      else if(e.name==='NotFoundError') toast('Aucune camera detectee');
+      else toast('Erreur: '+e.name);
     }
   };
-  const stopCam = () => { stream?.getTracks().forEach(t=>t.stop());setStream(null);setActive(false); };
+
   const shoot = () => {
-    if(!vRef.current||!cRef.current) return;
-    const v=vRef.current,c=cRef.current;
-    c.width=v.videoWidth;c.height=v.videoHeight;
-    const ctx=c.getContext('2d');ctx.drawImage(v,0,0);
-    ctx.fillStyle='rgba(0,0,0,.72)';
-    ctx.fillRect(0,c.height-64,c.width,64);
-    ctx.fillStyle='#fff';ctx.font='bold 15px system-ui';
-    ctx.fillText('CleanIT — '+user.name,12,c.height-42);
-    ctx.font='12px system-ui';
-    const mission = MISSIONS.find(m=>m.techId===user.id);
-    const siteStr = mission ? mission.site+' · '+mission.client : '';
-    const gpsStr = gps ? ' · '+gps.lat.toFixed(4)+','+gps.lng.toFixed(4) : '';
-    ctx.fillText(n.toLocaleDateString('fr-FR')+' '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+gpsStr,12,c.height-22);
-    if(siteStr) { ctx.fillStyle='#E86C6C';ctx.fillText(siteStr,12,c.height-62); }
-    const url=c.toDataURL('image/jpeg',.92);
-    setPhotos(p=>[{id:Date.now(),url},...p]);setLast(url);
-    setFlash(true);setTimeout(()=>setFlash(false),150);
-    toast(t('take_photo')+' ✓');
+    const v = vRef.current;
+    const canvas = cRef.current;
+    if(!v || !canvas) return;
+    canvas.width = v.videoWidth || 640;
+    canvas.height = v.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+    const barH = 60;
+    ctx.fillStyle = 'rgba(0,0,0,.75)';
+    ctx.fillRect(0, canvas.height-barH, canvas.width, barH);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px system-ui';
+    const mission = MISSIONS.find(m => m.techId === user.id);
+    ctx.fillText('CleanIT — '+user.name+(mission?' — '+mission.site:''), 10, canvas.height-barH+20);
+    ctx.font = '11px system-ui';
+    const d = n.toLocaleDateString('fr-FR')+' '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    const g = gps?' · '+gps.lat.toFixed(4)+','+gps.lng.toFixed(4):'';
+    ctx.fillText(d+g, 10, canvas.height-barH+38);
+    ctx.fillStyle = '#E86C6C';
+    ctx.font = 'bold 10px system-ui';
+    ctx.fillText('///mangue.soleil.pylone', 10, canvas.height-barH+54);
+    const url = canvas.toDataURL('image/jpeg', 0.9);
+    setPhotos(p => [{id:Date.now(),url}, ...p]);
+    setLast(url);
+    setFlash(true);
+    setTimeout(() => setFlash(false), 150);
+    toast('Photo enregistree');
   };
-  useEffect(()=>()=>stopCam(),[]);
+
+  useEffect(() => () => stopCam(), []);
+
+  const C2 = getC();
 
   return (
     <div style={{flex:1,display:'flex',flexDirection:'column',background:'#000',position:'relative'}}>
@@ -736,32 +777,28 @@ const ScreenCamera = ({user,gps,now}) => {
       <canvas ref={cRef} style={{display:'none'}}/>
       {flash && <div style={{position:'absolute',inset:0,background:'#fff',zIndex:50,opacity:.7,pointerEvents:'none'}}/>}
 
-      {/* Viewfinder */}
-      <div style={{flex:1,position:'relative',overflow:'hidden',background:'#0a0a0a'}}>
-        {active ? (
-          <video ref={vRef} autoPlay playsInline
-  onLoadedMetadata={(e)=>{
-    e.target.muted = true;
-    e.target.volume = 0;
-    e.target.play().catch(()=>{});
-  }}
-  onCanPlay={(e)=>{ e.target.play().catch(()=>{}); }}
-  style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-        ) : (
+      <div style={{flex:1,position:'relative',overflow:'hidden',background:'#0a0a0a',minHeight:300}}>
+        <video ref={vRef} autoPlay playsInline
+          style={{width:'100%',height:'100%',objectFit:'cover',
+            display:active?'block':'none'}}/>
+
+        {!active && (
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',
             justifyContent:'center',height:'100%',gap:10}}>
             {last
               ? <img src={last} style={{maxWidth:'100%',maxHeight:'65vh',objectFit:'contain',borderRadius:6}}/>
-              : <div style={{textAlign:'center',color:'rgba(255,255,255,.25)'}}>
+              : <div style={{textAlign:'center',color:'rgba(255,255,255,.3)'}}>
                   <div style={{fontSize:48,marginBottom:8}}>📷</div>
-                  <div style={{fontSize:12}}>{t('start_cam')}</div>
+                  <div style={{fontSize:12,color:'rgba(255,255,255,.5)'}}>Appuyez pour demarrer</div>
                 </div>
             }
           </div>
         )}
+
         {active && (
           <>
-            <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',opacity:.15,pointerEvents:'none'}} viewBox="0 0 3 4">
+            <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',opacity:.2,pointerEvents:'none'}}
+              viewBox="0 0 3 4">
               <line x1="1" y1="0" x2="1" y2="4" stroke="white" strokeWidth=".04"/>
               <line x1="2" y1="0" x2="2" y2="4" stroke="white" strokeWidth=".04"/>
               <line x1="0" y1="1.33" x2="3" y2="1.33" stroke="white" strokeWidth=".04"/>
@@ -769,8 +806,10 @@ const ScreenCamera = ({user,gps,now}) => {
             </svg>
             <div style={{position:'absolute',top:10,left:10,background:'rgba(0,0,0,.5)',
               padding:'3px 8px',borderRadius:10,display:'flex',alignItems:'center',gap:4}}>
-              <div style={{width:6,height:6,borderRadius:'50%',background:C.success}}/>
-              <span style={{fontSize:8,color:'white'}}>GPS {gps?Math.round(gps.accuracy)+'m':'...'}</span>
+              <div style={{width:6,height:6,borderRadius:'50%',background:'#22C55E'}}/>
+              <span style={{fontSize:8,color:'white',fontWeight:500}}>
+                GPS {gps ? Math.round(gps.accuracy)+'m' : '...'}
+              </span>
             </div>
             <div style={{position:'absolute',bottom:0,left:0,right:0,
               background:'linear-gradient(transparent,rgba(0,0,0,.8))',padding:'10px 12px 6px'}}>
@@ -779,83 +818,64 @@ const ScreenCamera = ({user,gps,now}) => {
                 {n.toLocaleDateString('fr-FR')} {n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
                 {gps ? ' · '+gps.lat.toFixed(5)+', '+gps.lng.toFixed(5) : ''}
               </div>
-              <div style={{fontSize:8,color:C.pink,marginTop:1}}>///mangue.soleil.pylone</div>
+              <div style={{fontSize:8,color:'#E86C6C',marginTop:1}}>///mangue.soleil.pylone</div>
             </div>
           </>
         )}
       </div>
 
-      {/* Mode buttons */}
-      <div style={{background:'#111',padding:'8px 12px',display:'flex',justifyContent:'center',gap:6}}>
+      <div style={{background:'#111',padding:'6px 12px',display:'flex',justifyContent:'center',gap:6}}>
         {['Grille','Before/After','Scan serie'].map((m,i)=>(
           <button key={i} style={{background:'rgba(255,255,255,.1)',border:'none',
             borderRadius:8,padding:'4px 10px',color:'white',fontSize:9,
-            cursor:'pointer',fontFamily:FONT}}>
-            {m}
-          </button>
+            cursor:'pointer',fontFamily:FONT}}>{m}</button>
         ))}
       </div>
 
-      {/* Controls */}
       <div style={{background:'#0a0a0a',padding:'14px 20px 24px',
         display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-        <div style={{width:48,height:48}}>
+        <div style={{width:52,height:52}}>
           {photos[0] && <img src={photos[0].url}
-            style={{width:48,height:48,borderRadius:8,objectFit:'cover',
+            style={{width:52,height:52,borderRadius:8,objectFit:'cover',
               border:'2px solid rgba(255,255,255,.2)'}}/>}
         </div>
+
         {active ? (
           <button onClick={shoot}
-            style={{width:68,height:68,borderRadius:'50%',border:'4px solid white',
+            style={{width:70,height:70,borderRadius:'50%',border:'4px solid white',
               background:'transparent',cursor:'pointer',
               display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <div style={{width:54,height:54,borderRadius:'50%',background:'white'}}/>
+            <div style={{width:56,height:56,borderRadius:'50%',background:'white'}}/>
           </button>
         ) : (
           <button onClick={startCam}
-            style={{width:68,height:68,borderRadius:'50%',border:'none',
-              background:C.primary,cursor:'pointer',fontSize:28}}>
+            style={{width:70,height:70,borderRadius:'50%',border:'none',
+              background:'#0066CC',cursor:'pointer',fontSize:28,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
             📷
           </button>
         )}
-        <div style={{width:48,display:'flex',flexDirection:'column',gap:8}}>
+
+        <div style={{width:52,display:'flex',flexDirection:'column',gap:8,alignItems:'center'}}>
           {active ? (
             <button onClick={stopCam}
-              style={{padding:8,borderRadius:8,border:'1px solid #333',
+              style={{width:42,height:42,borderRadius:10,border:'1px solid #333',
                 background:'#1a1a1a',cursor:'pointer',display:'flex',
                 alignItems:'center',justifyContent:'center'}}>
-              <div style={{width:14,height:14,background:C.danger,borderRadius:2}}/>
+              <div style={{width:14,height:14,background:'#ef4444',borderRadius:2}}/>
             </button>
-          ) : photos.length>0 ? (
-            <button onClick={()=>toast('Photo envoyee ✓')}
-              style={{padding:'6px 8px',borderRadius:8,border:'none',
-                background:C.primary,cursor:'pointer',color:'white',
+          ) : photos.length > 0 ? (
+            <button onClick={()=>toast('Photo envoyee au projet')}
+              style={{padding:'8px 10px',borderRadius:8,border:'none',
+                background:'#0066CC',cursor:'pointer',color:'white',
                 fontSize:10,fontWeight:600,fontFamily:FONT}}>
-              {t('send')}
+              Envoyer
             </button>
           ) : null}
         </div>
       </div>
 
-      {/* Send to options */}
-      {!active && (
-        <div style={{background:'#0a0a0a',padding:'0 14px 10px',textAlign:'center'}}>
-          <div style={{fontSize:9,color:'rgba(255,255,255,.4)',marginBottom:6}}>{t('send_to')}</div>
-          <div style={{display:'flex',gap:6,justifyContent:'center'}}>
-            {['Fil','Projet','Message'].map(dest=>(
-              <button key={dest} onClick={()=>toast(dest+' ✓')}
-                style={{background:'rgba(255,255,255,.1)',border:'none',
-                  borderRadius:20,padding:'5px 12px',color:'white',
-                  fontSize:9,cursor:'pointer',fontFamily:FONT}}>
-                {dest}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Film strip */}
-      {photos.length>0 && !active && (
+      {!active && photos.length > 0 && (
         <div style={{background:'#0a0a0a',padding:'0 12px 12px',
           display:'flex',gap:5,overflowX:'auto'}}>
           {photos.map(p=>(
@@ -863,6 +883,20 @@ const ScreenCamera = ({user,gps,now}) => {
               style={{width:52,height:52,borderRadius:6,objectFit:'cover',
                 flexShrink:0,border:'1.5px solid #333'}}/>
           ))}
+        </div>
+      )}
+
+      {!active && (
+        <div style={{background:'#0a0a0a',padding:'0 14px 10px',textAlign:'center'}}>
+          <div style={{fontSize:9,color:'rgba(255,255,255,.4)',marginBottom:6}}>Envoyer vers</div>
+          <div style={{display:'flex',gap:6,justifyContent:'center'}}>
+            {['Fil','Projet','Message'].map(dest=>(
+              <button key={dest} onClick={()=>toast(dest+' - bientot disponible')}
+                style={{background:'rgba(255,255,255,.1)',border:'none',
+                  borderRadius:20,padding:'5px 12px',color:'white',
+                  fontSize:9,cursor:'pointer',fontFamily:FONT}}>{dest}</button>
+            ))}
+          </div>
         </div>
       )}
     </div>
