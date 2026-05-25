@@ -21,6 +21,15 @@ let C = getC();
 
 const FONT = "system-ui,-apple-system,sans-serif";
 
+const getW3W = async (lat, lng) => {
+  try {
+    const key = import.meta.env.VITE_W3W_KEY || 'KBXRJ1U9';
+    const res = await fetch('https://api.what3words.com/v3/convert-to-3wa?coordinates='+lat+','+lng+'&language=fr&key='+key);
+    const data = await res.json();
+    return data.words || null;
+  } catch { return null; }
+};
+
 // ─── TRANSLATIONS ─────────────────────────────────────────────
 const TR = {
   fr: {
@@ -875,8 +884,15 @@ const ScreenCamera = ({user, gps, now}) => {
   const [photos, setPhotos] = useState([]);
   const [last, setLast] = useState(null);
   const [flash, setFlash] = useState(false);
+  const [w3wAddress, setW3wAddress] = useState(null);
   const {toast, toastMsg, toastShow} = useToast();
   const n = now || new Date();
+
+  useEffect(() => {
+    if(gps && !w3wAddress) {
+      getW3W(gps.lat, gps.lng).then(w => { if(w) setW3wAddress(w); });
+    }
+  }, [gps]);
 
   const stopCam = () => {
     streamRef.current?.getTracks().forEach(t => t.stop());
@@ -939,7 +955,7 @@ const ScreenCamera = ({user, gps, now}) => {
     ctx.fillText(d+g, 10, canvas.height-barH+38);
     ctx.fillStyle = '#E86C6C';
     ctx.font = 'bold 10px system-ui';
-    ctx.fillText('///mangue.soleil.pylone', 10, canvas.height-barH+54);
+    ctx.fillText('///'+(w3wAddress||'localisation.site.cleanit'), 10, canvas.height-barH+54);
     const url = canvas.toDataURL('image/jpeg', 0.9);
     const photoId = Date.now();
     setPhotos(p => [{id:photoId, url}, ...p]);
@@ -1005,7 +1021,7 @@ const ScreenCamera = ({user, gps, now}) => {
                 {n.toLocaleDateString('fr-FR')} {n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
                 {gps ? ' · '+gps.lat.toFixed(5)+', '+gps.lng.toFixed(5) : ''}
               </div>
-              <div style={{fontSize:8,color:'#E86C6C',marginTop:1}}>///mangue.soleil.pylone</div>
+              <div style={{fontSize:8,color:'#E86C6C',marginTop:1}}>///{w3wAddress||'GPS en cours...'}</div>
             </div>
           </>
         )}
@@ -1094,7 +1110,7 @@ const ScreenCamera = ({user, gps, now}) => {
                     gpsLat:gps ? gps.lat.toFixed(5)+'° N' : null,
                     gpsLng:gps ? gps.lng.toFixed(5)+'° E' : null,
                     gpsAcc:gps?.accuracy||null,
-                    what3words:'mangue.soleil.pylone',
+                    what3words:w3wAddress||'localisation.site.cleanit',
                     reactions:{like:0,fire:0,clap:0},
                     comments:0,
                     type:'photo',
