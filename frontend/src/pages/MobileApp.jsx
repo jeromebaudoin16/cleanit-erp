@@ -1952,7 +1952,15 @@ const ScreenDispatch = () => {
 // ─── SCREEN: APPROVALS ────────────────────────────────────────
 const ScreenApprovals = ({user}) => {
   const [tab,setTab] = useState('pending');
-  const [items,setItems] = useState(APPROVALS);
+  // Filtrer selon le role
+  const getVisibleItems = () => {
+    if(user.role==='dg') return APPROVALS.filter(a=>a.n1done&&a.n2done); // DG voit N1+N2 valides
+    if(user.role==='rh') return APPROVALS.filter(a=>a.type==='conge'&&!a.n1done); // RH voit conges N1
+    if(user.role==='admin') return APPROVALS; // Admin voit tout
+    if(user.role==='pm'||user.role==='bureau') return APPROVALS.filter(a=>a.n1done&&!a.n2done); // N2
+    return APPROVALS.filter(a=>a.userId===user.id); // Autres voient les leurs
+  };
+  const [items,setItems] = useState(getVisibleItems());
   const {toast,toastMsg,toastShow} = useToast();
 
   const typeColors = {conge:'#F5F7FA',frais:C.primaryL,materiel:'#F5F7FA',paiement:'#FFF8E6'};
