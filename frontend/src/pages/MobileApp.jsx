@@ -695,9 +695,10 @@ const ScreenFil = ({user,navigate}) => {
 
           {/* Post body */}
           {post.type==='photo' && (
-            <div style={{background:'#1E293B',height:220,
-              display:'flex',alignItems:'center',justifyContent:'center',
-              position:'relative',overflow:'hidden'}}>
+            <div onClick={()=>setViewPhoto(post)}
+              style={{background:'#1E293B',height:220,
+                display:'flex',alignItems:'center',justifyContent:'center',
+                position:'relative',overflow:'hidden',cursor:'pointer'}}>
               {post.photoUrl ? (
                 <img src={post.photoUrl}
                   style={{width:'100%',height:'100%',objectFit:'cover'}}/>
@@ -1018,7 +1019,7 @@ const ScreenCamera = ({user, gps, now}) => {
                   const newPost = {id:Date.now(),userId:user.id,userName:user.name.toLowerCase().replace(' ','_'),
                     site:MISSIONS.find(m=>m.techId===user.id)?.site||'',
                     siteName:MISSIONS.find(m=>m.techId===user.id)?.siteName||'',
-                    text:'Photo prise sur site',time:'A l instant',
+                    text:'Photo prise sur site',time:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
                     reactions:{like:0,fire:0,clap:0},comments:0,type:'photo',photoUrl:last};
                   FEED_POSTS.unshift(newPost);
                   saveFeedPosts(); // async - sauvegarde en arriere-plan
