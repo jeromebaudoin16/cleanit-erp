@@ -2,26 +2,22 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 // ─── DESIGN SYSTEM ───────────────────────────────────────────
-const C = {
-  primary: '#0066CC',
-  primaryL: '#E6F1FB',
-  pink: '#E86C6C',
-  pinkL: '#FFF0F0',
-  gray: '#888888',
-  success: '#22C55E',
-  successL: '#EAF3DE',
-  warning: '#F59E0B',
-  warningL: '#FFFBEB',
-  danger: '#DC2626',
-  dangerL: '#FCEBEB',
-  border: '#EFEFEF',
-  bg: '#FFFFFF',
-  bg2: '#F5F7FA',
-  text: '#262626',
-  text2: '#475569',
-  text3: '#8E8E8E',
-  text4: '#CBD5E1',
+const THEMES = {
+  light: {
+    primary:'#0066CC',primaryL:'#E6F1FB',pink:'#E86C6C',pinkL:'#FFF0F0',
+    gray:'#888888',success:'#22C55E',successL:'#EAF3DE',warning:'#F59E0B',
+    warningL:'#FFFBEB',danger:'#DC2626',dangerL:'#FCEBEB',border:'#EFEFEF',
+    bg:'#FFFFFF',bg2:'#F5F7FA',text:'#262626',text2:'#475569',text3:'#8E8E8E',text4:'#CBD5E1',
+  },
+  dark: {
+    primary:'#3B82F6',primaryL:'#1E3A5F',pink:'#E86C6C',pinkL:'#2D1515',
+    gray:'#94A3B8',success:'#22C55E',successL:'#14532D',warning:'#F59E0B',
+    warningL:'#451A03',danger:'#EF4444',dangerL:'#450A0A',border:'#334155',
+    bg:'#0F172A',bg2:'#1E293B',text:'#F1F5F9',text2:'#94A3B8',text3:'#64748B',text4:'#475569',
+  }
 };
+const getC = () => THEMES[localStorage.getItem('cit_theme')||'light'];
+let C = getC();
 
 const FONT = "system-ui,-apple-system,sans-serif";
 
@@ -359,36 +355,17 @@ const Header = ({title,right,showLogo}) => (
 
 // ─── SCREEN: LOGIN ────────────────────────────────────────────
 const ScreenLogin = ({onLogin}) => {
-  const [email,setEmail] = useState('');
-  const [pwd,setPwd] = useState('');
-  const [showPwd,setShowPwd] = useState(false);
-  const [creating,setCreating] = useState(false);
-  const [name,setName] = useState('');
-  const [err,setErr] = useState('');
+  const [sel, setSel] = useState(null);
 
-  const handleLogin = () => {
-    // Demo: chercher par email ou prendre admin par defaut
-    const found = USERS.find(u=>
-      email.toLowerCase().includes(u.av.toLowerCase()) ||
-      email.toLowerCase().includes(u.name.split(' ')[0].toLowerCase())
-    );
-    if(found) onLogin(found);
-    else {
-      // Montrer selection de profil
-      setStep('select');
-    }
-  };
-
-  const [step, setStep] = useState('login');
-
-  return (
-    <div style={{minHeight:'100vh',background:C.bg,fontFamily:FONT,
+  if(!sel) return (
+    <div style={{minHeight:'100vh',background:'#FFFFFF',fontFamily:'system-ui,sans-serif',
       maxWidth:430,margin:'0 auto',display:'flex',flexDirection:'column'}}>
-      <div style={{padding:'40px 24px 24px',textAlign:'center'}}>
-        <div style={{width:72,height:72,background:C.bg,borderRadius:18,
-          margin:'0 auto 16px',display:'flex',alignItems:'center',justifyContent:'center',
-          border:'0.5px solid '+C.border,boxShadow:'0 2px 12px rgba(0,0,0,.07)'}}>
-          <svg width="46" height="42" viewBox="0 0 122 111" fill="none">
+      <div style={{padding:'32px 20px 12px',textAlign:'center'}}>
+        <div style={{width:68,height:68,background:'#fff',borderRadius:18,
+          margin:'0 auto 14px',display:'flex',alignItems:'center',
+          justifyContent:'center',border:'0.5px solid #EFEFEF',
+          boxShadow:'0 2px 12px rgba(0,0,0,.07)'}}>
+          <svg width="44" height="40" viewBox="0 0 122 111" fill="none">
             <circle cx="61" cy="55" r="38" stroke="#888" strokeWidth="8" fill="none"/>
             <circle cx="61" cy="17" r="12" fill="#E86C6C"/>
             <circle cx="61" cy="93" r="12" fill="#E86C6C"/>
@@ -396,93 +373,82 @@ const ScreenLogin = ({onLogin}) => {
             <circle cx="99" cy="55" r="12" fill="#E86C6C"/>
           </svg>
         </div>
-        <div style={{fontSize:24,fontWeight:700,letterSpacing:-.5,marginBottom:4}}>
-          <span style={{color:C.gray}}>Clean</span>
-          <span style={{color:C.pink}}>IT</span>
-          <span style={{color:C.text,fontWeight:400,fontSize:18}}> ERP</span>
+        <div style={{fontSize:22,fontWeight:700,marginBottom:3}}>
+          <span style={{color:'#888'}}>Clean</span>
+          <span style={{color:'#E86C6C'}}>IT</span>
+          <span style={{color:'#262626',fontWeight:400,fontSize:16}}> ERP</span>
         </div>
-        <div style={{fontSize:12,color:C.text3,letterSpacing:.5,textTransform:'uppercase'}}>
-          {creating ? t('create_account') : t('login')}
+        <div style={{fontSize:11,color:'#8E8E8E',textTransform:'uppercase',letterSpacing:.8}}>
+          Choisissez votre profil
         </div>
       </div>
+      <div style={{flex:1,overflowY:'auto',padding:'8px 16px 24px'}}>
+        {[['Bureau et Management',USERS.filter(u=>u.role!=='terrain')],
+          ['Equipe Terrain',USERS.filter(u=>u.role==='terrain')]].map(([label,users])=>(
+          <div key={label}>
+            <div style={{fontSize:10,fontWeight:700,color:'#8E8E8E',
+              textTransform:'uppercase',letterSpacing:.6,margin:'12px 0 6px'}}>{label}</div>
+            {users.map(u=>(
+              <button key={u.id} onClick={()=>{setSel(u);}}
+                style={{width:'100%',display:'flex',alignItems:'center',
+                  gap:12,padding:'12px 14px',background:'#fff',
+                  border:'0.5px solid #EFEFEF',borderRadius:12,
+                  marginBottom:7,cursor:'pointer',fontFamily:'inherit',textAlign:'left'}}>
+                <div style={{width:44,height:44,borderRadius:11,
+                  background:u.color+'22',border:'1.5px solid '+u.color,
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  fontSize:14,fontWeight:700,color:u.color,flexShrink:0}}>
+                  {u.av}
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:600,color:'#262626'}}>{u.name}</div>
+                  <div style={{fontSize:11,color:'#8E8E8E',marginTop:2}}>{u.post} · {u.region}</div>
+                </div>
+                <span style={{color:'#CBD5E1',fontSize:18}}>›</span>
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
-      <div style={{padding:'0 24px 32px',flex:1}}>
-        {creating && (
-          <div style={{marginBottom:12}}>
-            <div style={{fontSize:11,fontWeight:600,color:C.text2,marginBottom:5}}>Nom complet</div>
-            <input value={name} onChange={e=>setName(e.target.value)}
-              placeholder="Jean Dupont"
-              style={{width:'100%',padding:'11px 13px',border:'0.5px solid '+C.border,
-                borderRadius:10,fontSize:13,fontFamily:FONT,background:C.bg2,
-                color:C.text,outline:'none',boxSizing:'border-box'}}/>
-          </div>
-        )}
-        <div style={{marginBottom:12}}>
-          <div style={{fontSize:11,fontWeight:600,color:C.text2,marginBottom:5}}>{t('email')}</div>
-          <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
-            placeholder="jean@cleanit.cm"
-            style={{width:'100%',padding:'11px 13px',border:'0.5px solid '+C.border,
-              borderRadius:10,fontSize:13,fontFamily:FONT,background:C.bg2,
-              color:C.text,outline:'none',boxSizing:'border-box'}}/>
-        </div>
-        <div style={{marginBottom:6}}>
-          <div style={{fontSize:11,fontWeight:600,color:C.text2,marginBottom:5}}>{t('password')}</div>
-          <div style={{position:'relative'}}>
-            <input type={showPwd?'text':'password'} value={pwd} onChange={e=>setPwd(e.target.value)}
-              placeholder="••••••••"
-              style={{width:'100%',padding:'11px 40px 11px 13px',border:'0.5px solid '+C.border,
-                borderRadius:10,fontSize:13,fontFamily:FONT,background:C.bg2,
-                color:C.text,outline:'none',boxSizing:'border-box'}}/>
-            <button onClick={()=>setShowPwd(!showPwd)}
-              style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',
-                background:'none',border:'none',cursor:'pointer',color:C.text3,fontSize:18}}>
-              {showPwd?'🙈':'👁'}
-            </button>
-          </div>
-        </div>
-        {!creating && (
-          <div style={{textAlign:'right',marginBottom:16}}>
-            <span style={{fontSize:11,color:C.primary,cursor:'pointer'}}>{t('forgot')}</span>
-          </div>
-        )}
-        {err && <div style={{fontSize:12,color:C.danger,marginBottom:12,textAlign:'center'}}>{err}</div>}
-        <button onClick={handleLogin}
-          style={{width:'100%',padding:13,border:'none',background:C.primary,
-            color:'#fff',borderRadius:10,fontSize:14,fontWeight:600,
-            cursor:'pointer',fontFamily:FONT,marginBottom:12}}>
-          {creating ? 'Creer mon compte' : t('connect')}
-        </button>
-        {!creating && (
-          <>
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-              <div style={{flex:1,height:.5,background:C.border}}/>
-              <span style={{fontSize:11,color:C.text3}}>ou</span>
-              <div style={{flex:1,height:.5,background:C.border}}/>
-            </div>
-            <button style={{width:'100%',padding:11,border:'0.5px solid '+C.border,
-              background:C.bg,color:C.text,borderRadius:10,fontSize:13,fontWeight:500,
-              cursor:'pointer',fontFamily:FONT,display:'flex',alignItems:'center',
-              justifyContent:'center',gap:8,marginBottom:20}}>
-              <svg width="16" height="16" viewBox="0 0 24 24">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-              </svg>
-              {t('google')}
-            </button>
-          </>
-        )}
-        <div style={{textAlign:'center'}}>
-          <span style={{fontSize:12,color:C.text3}}>
-            {creating ? 'Deja un compte ? ' : t('no_account')+' '}
-          </span>
-          <span onClick={()=>{setCreating(!creating);setErr('');}}
-            style={{fontSize:12,color:C.primary,fontWeight:600,cursor:'pointer'}}>
-            {creating ? t('login') : t('create_account')}
-          </span>
-        </div>
+  return (
+    <div style={{minHeight:'100vh',background:'#fff',fontFamily:'system-ui,sans-serif',
+      maxWidth:430,margin:'0 auto',display:'flex',flexDirection:'column',
+      padding:'40px 24px'}}>
+      <button onClick={()=>setSel(null)}
+        style={{background:'none',border:'none',cursor:'pointer',color:'#475569',
+          fontSize:13,fontFamily:'inherit',marginBottom:20,
+          display:'flex',alignItems:'center',gap:4,padding:0}}>
+        ← Retour
+      </button>
+      <div style={{textAlign:'center',marginBottom:24}}>
+        <div style={{width:60,height:60,borderRadius:15,margin:'0 auto 10px',
+          background:sel.color+'22',border:'1.5px solid '+sel.color,
+          display:'flex',alignItems:'center',justifyContent:'center',
+          fontSize:20,fontWeight:700,color:sel.color}}>{sel.av}</div>
+        <div style={{fontSize:17,fontWeight:700,color:'#262626'}}>{sel.name}</div>
+        <div style={{fontSize:12,color:'#8E8E8E',marginTop:3}}>{sel.post}</div>
       </div>
+      <button onClick={()=>onLogin(sel)}
+        style={{width:'100%',padding:14,border:'none',background:'#0066CC',
+          color:'white',borderRadius:12,fontSize:15,fontWeight:700,
+          cursor:'pointer',fontFamily:'inherit',marginBottom:12}}>
+        Se connecter
+      </button>
+      <button style={{width:'100%',padding:11,border:'0.5px solid #EFEFEF',
+        background:'#fff',color:'#262626',borderRadius:12,fontSize:13,
+        fontWeight:500,cursor:'pointer',fontFamily:'inherit',
+        display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+        <svg width="16" height="16" viewBox="0 0 24 24">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Continuer avec Google (bientot)
+      </button>
     </div>
   );
 };
@@ -503,7 +469,7 @@ const ScreenFil = ({user,navigate}) => {
     <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
       <Header showLogo right={
         <div style={{display:'flex',gap:14,alignItems:'center'}}>
-          <span style={{fontSize:20,cursor:'pointer'}}>🔍</span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={getC().text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <span style={{fontSize:20,cursor:'pointer',position:'relative'}}>
             🔔
             <div style={{position:'absolute',top:-2,right:-2,width:8,height:8,
@@ -697,10 +663,10 @@ const ScreenFil = ({user,navigate}) => {
                     </div>
                   )}
                 </div>
-                <span style={{fontSize:20,cursor:'pointer'}}>💬</span>
-                <span style={{fontSize:20,cursor:'pointer'}}>➤</span>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={getC().text} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={getC().text} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </div>
-              <span style={{fontSize:20,cursor:'pointer'}}>🔖</span>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={getC().text} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
             </div>
             {post.comments>0 && (
               <div style={{fontSize:10,color:C.text3,marginTop:4}}>
@@ -735,7 +701,10 @@ const ScreenCamera = ({user,gps,now}) => {
       const s = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
       if(vRef.current) vRef.current.srcObject=s;
       setStream(s);setActive(true);
-    } catch { toast('Camera non accessible'); }
+    } catch(e) {
+      toast('Camera: autorisez l acces dans votre navigateur');
+      setActive(false);
+    }
   };
   const stopCam = () => { stream?.getTracks().forEach(t=>t.stop());setStream(null);setActive(false); };
   const shoot = () => {
@@ -903,7 +872,7 @@ const ScreenMessages = () => {
     <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
       <Header title={t('messages')} right={
         <div style={{display:'flex',gap:14}}>
-          <span style={{fontSize:20,cursor:'pointer'}}>🔍</span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={getC().text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <span style={{fontSize:20,cursor:'pointer'}}>✏️</span>
         </div>
       }/>
@@ -1332,7 +1301,7 @@ const ScreenEquipes = () => {
     <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
       <Header title={t('equipes')} right={
         <div style={{display:'flex',gap:12}}>
-          <span style={{fontSize:20,cursor:'pointer'}}>🔍</span>
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={getC().text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <span style={{fontSize:20,cursor:'pointer'}}>⚙️</span>
         </div>
       }/>
