@@ -153,7 +153,12 @@ const MISSIONS = [
    team:['EX-003'],reports:[]},
 ];
 
-const FEED_POSTS = [
+const loadFeedPosts = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem('cit_feed_posts')||'null');
+    if(saved && saved.length > 0) return saved;
+  } catch {}
+  return [
   {id:1,userId:'EX-001',userName:'thomas_ngono',site:'DLA-001',siteName:'MTN Bassa',
    text:'Cablage RRU secteur Nord termine. Passage secteur Sud demain matin.',
    time:'12 min',reactions:{like:5,fire:2,clap:3},comments:3,type:'photo'},
@@ -167,6 +172,15 @@ const FEED_POSTS = [
    text:'Installation BBU 5900 complete. Tests finaux demain matin 8h.',
    time:'2h',reactions:{like:4,fire:3,clap:2},comments:1,type:'photo'},
 ];
+};
+let FEED_POSTS = loadFeedPosts();
+const saveFeedPosts = () => {
+  try {
+    // Sauvegarder sans les photoUrl trop lourdes (>50KB)
+    const toSave = FEED_POSTS.map(p => ({...p, photoUrl: p.photoUrl && p.photoUrl.length < 50000 ? p.photoUrl : undefined}));
+    localStorage.setItem('cit_feed_posts', JSON.stringify(toSave.slice(0,20)));
+  } catch(e) { console.warn('Feed save error:', e); }
+};
 
 const CONVOS = [
   {id:1,type:'project',code:'DLA-001',client:'MTN Bassa',color:'#E6F1FB',textColor:'#0C447C',
@@ -235,58 +249,72 @@ const useToast = () => {
 };
 
 // ─── NAVIGATION CONFIG ────────────────────────────────────────
+// SVG Icons pour la navigation
+const NAV_ICONS = {
+  fil: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>,
+  camera: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>,
+  mission: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 000 4h6a2 2 0 000-4M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>,
+  messages: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
+  pointer: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>,
+  equipes: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
+  approvals: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>,
+  dispatch: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+  analytics: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+  profil: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+};
+
 const TABS = {
   terrain: [
-    {id:'fil',icon:'🏠',url:'/mobile'},
-    {id:'camera',icon:'📷',url:'/mobile/camera'},
-    {id:'mission',icon:'📋',url:'/mobile/mission'},
-    {id:'messages',icon:'💬',url:'/mobile/messages'},
-    {id:'profil',icon:'👤',url:'/mobile/profil'},
+    {id:'fil',url:'/mobile'},
+    {id:'camera',url:'/mobile/camera'},
+    {id:'mission',url:'/mobile/mission'},
+    {id:'messages',url:'/mobile/messages'},
+    {id:'profil',url:'/mobile/profil'},
   ],
   bureau: [
-    {id:'fil',icon:'🏠',url:'/mobile'},
-    {id:'camera',icon:'📷',url:'/mobile/camera'},
-    {id:'messages',icon:'💬',url:'/mobile/messages'},
-    {id:'pointer',icon:'📲',url:'/mobile/pointer'},
-    {id:'equipes',icon:'👥',url:'/mobile/equipes'},
-    {id:'approvals',icon:'✅',url:'/mobile/approvals'},
-    {id:'dispatch',icon:'📡',url:'/mobile/dispatch'},
-    {id:'profil',icon:'👤',url:'/mobile/profil'},
+    {id:'fil',url:'/mobile'},
+    {id:'camera',url:'/mobile/camera'},
+    {id:'messages',url:'/mobile/messages'},
+    {id:'pointer',url:'/mobile/pointer'},
+    {id:'equipes',url:'/mobile/equipes'},
+    {id:'approvals',url:'/mobile/approvals'},
+    {id:'dispatch',url:'/mobile/dispatch'},
+    {id:'profil',url:'/mobile/profil'},
   ],
   pm: [
-    {id:'fil',icon:'🏠',url:'/mobile'},
-    {id:'camera',icon:'📷',url:'/mobile/camera'},
-    {id:'messages',icon:'💬',url:'/mobile/messages'},
-    {id:'pointer',icon:'📲',url:'/mobile/pointer'},
-    {id:'equipes',icon:'👥',url:'/mobile/equipes'},
-    {id:'approvals',icon:'✅',url:'/mobile/approvals'},
-    {id:'dispatch',icon:'📡',url:'/mobile/dispatch'},
-    {id:'profil',icon:'👤',url:'/mobile/profil'},
+    {id:'fil',url:'/mobile'},
+    {id:'camera',url:'/mobile/camera'},
+    {id:'messages',url:'/mobile/messages'},
+    {id:'pointer',url:'/mobile/pointer'},
+    {id:'equipes',url:'/mobile/equipes'},
+    {id:'approvals',url:'/mobile/approvals'},
+    {id:'dispatch',url:'/mobile/dispatch'},
+    {id:'profil',url:'/mobile/profil'},
   ],
   rh: [
-    {id:'fil',icon:'🏠',url:'/mobile'},
-    {id:'messages',icon:'💬',url:'/mobile/messages'},
-    {id:'pointer',icon:'📲',url:'/mobile/pointer'},
-    {id:'approvals',icon:'✅',url:'/mobile/approvals'},
-    {id:'profil',icon:'👤',url:'/mobile/profil'},
+    {id:'fil',url:'/mobile'},
+    {id:'messages',url:'/mobile/messages'},
+    {id:'pointer',url:'/mobile/pointer'},
+    {id:'approvals',url:'/mobile/approvals'},
+    {id:'profil',url:'/mobile/profil'},
   ],
   dg: [
-    {id:'fil',icon:'🏠',url:'/mobile'},
-    {id:'messages',icon:'💬',url:'/mobile/messages'},
-    {id:'approvals',icon:'✅',url:'/mobile/approvals'},
-    {id:'analytics',icon:'📊',url:'/mobile/analytics'},
-    {id:'equipes',icon:'👥',url:'/mobile/equipes'},
-    {id:'profil',icon:'👤',url:'/mobile/profil'},
+    {id:'fil',url:'/mobile'},
+    {id:'messages',url:'/mobile/messages'},
+    {id:'approvals',url:'/mobile/approvals'},
+    {id:'analytics',url:'/mobile/analytics'},
+    {id:'equipes',url:'/mobile/equipes'},
+    {id:'profil',url:'/mobile/profil'},
   ],
   admin: [
-    {id:'fil',icon:'🏠',url:'/mobile'},
-    {id:'messages',icon:'💬',url:'/mobile/messages'},
-    {id:'pointer',icon:'📲',url:'/mobile/pointer'},
-    {id:'equipes',icon:'👥',url:'/mobile/equipes'},
-    {id:'approvals',icon:'✅',url:'/mobile/approvals'},
-    {id:'dispatch',icon:'📡',url:'/mobile/dispatch'},
-    {id:'analytics',icon:'📊',url:'/mobile/analytics'},
-    {id:'profil',icon:'👤',url:'/mobile/profil'},
+    {id:'fil',url:'/mobile'},
+    {id:'messages',url:'/mobile/messages'},
+    {id:'pointer',url:'/mobile/pointer'},
+    {id:'equipes',url:'/mobile/equipes'},
+    {id:'approvals',url:'/mobile/approvals'},
+    {id:'dispatch',url:'/mobile/dispatch'},
+    {id:'analytics',url:'/mobile/analytics'},
+    {id:'profil',url:'/mobile/profil'},
   ],
 };
 
@@ -317,8 +345,12 @@ const BottomNav = ({user,navigate,active}) => {
             {isActive&&<div style={{position:'absolute',top:0,left:'50%',
               transform:'translateX(-50%)',width:28,height:2.5,
               borderRadius:'0 0 3px 3px',background:getC().primary}}/>}
-            <span style={{fontSize:18,filter:isActive?'none':'grayscale(1)',
-              opacity:isActive?1:.5}}>{tab.icon}</span>
+            <span style={{
+              color:isActive?getC().primary:getC().text3,
+              opacity:isActive?1:.45,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              {NAV_ICONS[tab.id]}
+            </span>
             <span style={{fontSize:9,fontWeight:isActive?700:400,
               color:isActive?getC().primary:getC().text3}}>{LABEL[tab.id]||tab.id}</span>
           </button>
@@ -912,7 +944,8 @@ const ScreenCamera = ({user, gps, now}) => {
                     text:'Photo prise sur site',time:'A l instant',
                     reactions:{like:0,fire:0,clap:0},comments:0,type:'photo',photoUrl:last};
                   FEED_POSTS.unshift(newPost);
-                  toast('Photo publiee dans le Fil');
+                  saveFeedPosts();
+                  toast('Photo publiee dans le Fil — allez sur Fil pour voir');
                 } else toast('Prenez une photo d abord');
               }},
               {label:'Projet', action:()=>{ toast('Envoye au projet'); }},
