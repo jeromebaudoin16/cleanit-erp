@@ -586,18 +586,25 @@ const ScreenFil = ({user,navigate}) => {
 
           {/* Post body */}
           {post.type==='photo' && (
-            <div style={{background:'#1E293B',height:170,
+            <div style={{background:'#1E293B',height:220,
               display:'flex',alignItems:'center',justifyContent:'center',
-              position:'relative'}}>
-              <div style={{textAlign:'center',color:'rgba(255,255,255,.3)'}}>
-                <div style={{fontSize:32,marginBottom:4}}>📷</div>
-                <div style={{fontSize:10}}>Photo CleanCam</div>
-              </div>
-              <div style={{position:'absolute',bottom:8,right:10,
-                background:'rgba(0,0,0,.5)',padding:'2px 7px',
-                borderRadius:10,fontSize:8,color:'white'}}>
-                📍 {post.site}
-              </div>
+              position:'relative',overflow:'hidden'}}>
+              {post.photoUrl ? (
+                <img src={post.photoUrl}
+                  style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+              ) : (
+                <div style={{textAlign:'center',color:'rgba(255,255,255,.3)'}}>
+                  <div style={{fontSize:32,marginBottom:4}}>📷</div>
+                  <div style={{fontSize:10}}>Photo CleanCam</div>
+                </div>
+              )}
+              {post.site && (
+                <div style={{position:'absolute',bottom:8,right:10,
+                  background:'rgba(0,0,0,.6)',padding:'2px 7px',
+                  borderRadius:10,fontSize:8,color:'white'}}>
+                  📍 {post.site}
+                </div>
+              )}
             </div>
           )}
           {post.type==='alert' && (
