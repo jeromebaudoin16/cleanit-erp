@@ -299,27 +299,28 @@ const LABEL = {
 // ─── BOTTOM NAV ───────────────────────────────────────────────
 const BottomNav = ({user,navigate,active}) => {
   const tabs = TABS[user.role] || TABS.bureau;
-  const maxVisible = 5;
-  const visible = tabs.slice(0,maxVisible);
 
   return (
     <div style={{position:'fixed',bottom:0,left:0,right:0,maxWidth:430,margin:'0 auto',
-      background:C.bg,borderTop:'1px solid '+C.border,
-      display:'flex',zIndex:100,paddingBottom:'env(safe-area-inset-bottom,0px)'}}>
-      {visible.map(tab => {
+      background:getC().bg,borderTop:'1px solid '+getC().border,
+      display:'flex',overflowX:'auto',zIndex:100,
+      paddingBottom:'env(safe-area-inset-bottom,0px)',
+      scrollbarWidth:'none',msOverflowStyle:'none'}}>
+      {tabs.map(tab => {
         const isActive = active===tab.id || (active===''&&tab.id==='fil');
         return (
           <button key={tab.id} onClick={()=>navigate(tab.url)}
-            style={{flex:1,padding:'8px 2px 7px',border:'none',background:'transparent',
-              display:'flex',flexDirection:'column',alignItems:'center',gap:2,
-              cursor:'pointer',position:'relative',fontFamily:FONT}}>
+            style={{minWidth:58,padding:'8px 4px 7px',border:'none',
+              background:'transparent',display:'flex',flexDirection:'column',
+              alignItems:'center',gap:2,cursor:'pointer',position:'relative',
+              fontFamily:FONT,flexShrink:0}}>
             {isActive&&<div style={{position:'absolute',top:0,left:'50%',
               transform:'translateX(-50%)',width:28,height:2.5,
-              borderRadius:'0 0 3px 3px',background:C.primary}}/>}
+              borderRadius:'0 0 3px 3px',background:getC().primary}}/>}
             <span style={{fontSize:18,filter:isActive?'none':'grayscale(1)',
               opacity:isActive?1:.5}}>{tab.icon}</span>
             <span style={{fontSize:9,fontWeight:isActive?700:400,
-              color:isActive?C.primary:C.text3}}>{LABEL[tab.id]||tab.id}</span>
+              color:isActive?getC().primary:getC().text3}}>{LABEL[tab.id]||tab.id}</span>
           </button>
         );
       })}
