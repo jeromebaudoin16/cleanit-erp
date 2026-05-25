@@ -174,11 +174,31 @@ const loadFeedPosts = () => {
 ];
 };
 let FEED_POSTS = loadFeedPosts();
-const saveFeedPosts = () => {
+const compressPhoto = (dataUrl, maxWidth=400, quality=0.5) => {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ratio = Math.min(maxWidth/img.width, maxWidth/img.height, 1);
+      canvas.width = img.width * ratio;
+      canvas.height = img.height * ratio;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = dataUrl;
+  });
+};
+
+const saveFeedPosts = async () => {
   try {
-    // Sauvegarder sans les photoUrl trop lourdes (>50KB)
-    const toSave = FEED_POSTS.map(p => ({...p, photoUrl: p.photoUrl && p.photoUrl.length < 50000 ? p.photoUrl : undefined}));
-    localStorage.setItem('cit_feed_posts', JSON.stringify(toSave.slice(0,20)));
+    const toSave = await Promise.all(FEED_POSTS.slice(0,15).map(async p => {
+      if(p.photoUrl && p.photoUrl.startsWith('data:')) {
+        const compressed = await compressPhoto(p.photoUrl, 400, 0.4);
+        return {...p, photoUrl: compressed};
+      }
+      return p;
+    }));
+    localStorage.setItem('cit_feed_posts', JSON.stringify(toSave));
   } catch(e) { console.warn('Feed save error:', e); }
 };
 
@@ -944,8 +964,8 @@ const ScreenCamera = ({user, gps, now}) => {
                     text:'Photo prise sur site',time:'A l instant',
                     reactions:{like:0,fire:0,clap:0},comments:0,type:'photo',photoUrl:last};
                   FEED_POSTS.unshift(newPost);
-                  saveFeedPosts();
-                  toast('Photo publiee dans le Fil — allez sur Fil pour voir');
+                  saveFeedPosts(); // async - sauvegarde en arriere-plan
+                  toast('Photo publiee dans le Fil');
                 } else toast('Prenez une photo d abord');
               }},
               {label:'Projet', action:()=>{ toast('Envoye au projet'); }},
