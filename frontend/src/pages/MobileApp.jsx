@@ -864,48 +864,141 @@ const ScreenCamera = ({user,gps,now}) => {
 
 // ─── SCREEN: MESSAGES ─────────────────────────────────────────
 const ScreenMessages = () => {
-  const sections = [
-    {label:'Projets en cours',items:CONVOS.filter(c=>c.type==='project')},
-    {label:'Clients WhatsApp',items:CONVOS.filter(c=>c.type==='whatsapp')},
-    {label:'Messages directs',items:CONVOS.filter(c=>c.type==='dm')},
-  ];
+  const [openConv, setOpenConv] = useState(null);
+  const [msg, setMsg] = useState('');
+  const [chatMsgs, setChatMsgs] = useState([
+    {id:1,from:'other',text:'Bonjour, ou en est la mission ?',time:'09:10'},
+    {id:2,from:'me',text:'On a termine le cablage secteur Nord.',time:'09:12'},
+    {id:3,from:'other',text:'Parfait, le secteur Sud pour quand ?',time:'09:15'},
+  ]);
+
+  const C2 = getC();
+
+  if(openConv) return (
+    <div style={{flex:1,display:'flex',flexDirection:'column',background:C2.bg,paddingBottom:0}}>
+      <div style={{background:C2.bg,borderBottom:'1px solid '+C2.border,
+        padding:'10px 14px',display:'flex',alignItems:'center',gap:10}}>
+        <button onClick={()=>setOpenConv(null)}
+          style={{background:'none',border:'none',cursor:'pointer',
+            color:C2.primary,fontSize:22,padding:0,fontFamily:FONT}}>←</button>
+        <div style={{width:36,height:36,
+          borderRadius:openConv.type==='project'?10:'50%',
+          background:(openConv.color||C2.primary)+'22',
+          border:'1.5px solid '+(openConv.color||C2.primary),
+          display:'flex',alignItems:'center',justifyContent:'center',
+          fontSize:12,fontWeight:700,
+          color:openConv.textColor||openConv.color||C2.primary}}>
+          {openConv.av||openConv.code?.split('-')[0]||'?'}
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:14,fontWeight:700,color:C2.text}}>
+            {openConv.type==='project'
+              ? openConv.code+' · '+openConv.client
+              : openConv.name||openConv.from}
+          </div>
+          {openConv.type==='whatsapp'&&(
+            <div style={{fontSize:10,color:'#25D366',fontWeight:600}}>via WhatsApp</div>
+          )}
+        </div>
+        <span style={{fontSize:20,cursor:'pointer'}}>📞</span>
+      </div>
+
+      <div style={{flex:1,overflowY:'auto',padding:'12px 14px',
+        display:'flex',flexDirection:'column',gap:8,paddingBottom:80}}>
+        {chatMsgs.map(m=>(
+          <div key={m.id} style={{display:'flex',
+            justifyContent:m.from==='me'?'flex-end':'flex-start'}}>
+            <div style={{maxWidth:'75%',padding:'9px 12px',
+              borderRadius:m.from==='me'?'16px 16px 4px 16px':'16px 16px 16px 4px',
+              background:m.from==='me'?C2.primary:C2.bg2,
+              color:m.from==='me'?'#fff':C2.text}}>
+              <div style={{fontSize:13,lineHeight:1.4}}>{m.text}</div>
+              <div style={{fontSize:9,marginTop:4,textAlign:'right',
+                color:m.from==='me'?'rgba(255,255,255,.7)':C2.text3}}>
+                {m.time}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{position:'fixed',bottom:0,left:0,right:0,maxWidth:430,margin:'0 auto',
+        padding:'10px 14px',background:C2.bg,borderTop:'1px solid '+C2.border,
+        display:'flex',gap:8,zIndex:50}}>
+        <input value={msg} onChange={e=>setMsg(e.target.value)}
+          placeholder="Ecrivez un message..."
+          onKeyDown={e=>{if(e.key==='Enter'&&msg.trim()){
+            setChatMsgs(p=>[...p,{id:Date.now(),from:'me',text:msg,
+              time:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}]);
+            setMsg('');
+          }}}
+          style={{flex:1,padding:'10px 14px',border:'0.5px solid '+C2.border,
+            borderRadius:24,fontSize:13,fontFamily:FONT,
+            background:C2.bg2,color:C2.text,outline:'none'}}/>
+        <button onClick={()=>{
+          if(!msg.trim()) return;
+          setChatMsgs(p=>[...p,{id:Date.now(),from:'me',text:msg,
+            time:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}]);
+          setMsg('');
+        }} style={{width:42,height:42,borderRadius:21,background:C2.primary,
+          border:'none',cursor:'pointer',display:'flex',alignItems:'center',
+          justifyContent:'center',flexShrink:0}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+
+  const C2b = getC();
   return (
-    <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
-      <Header title={t('messages')} right={
+    <div style={{flex:1,overflowY:'auto',background:C2b.bg,paddingBottom:80}}>
+      <Header title="Messages" right={
         <div style={{display:'flex',gap:14}}>
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={getC().text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <span style={{fontSize:20,cursor:'pointer'}}>✏️</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke={C2b.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            style={{cursor:'pointer'}}>
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
         </div>
       }/>
-      {sections.map(sec=>(
+      {[
+        {label:'Projets en cours',items:CONVOS.filter(cv=>cv.type==='project')},
+        {label:'Clients WhatsApp',items:CONVOS.filter(cv=>cv.type==='whatsapp')},
+        {label:'Messages directs',items:CONVOS.filter(cv=>cv.type==='dm')},
+      ].map(sec=>(
         <div key={sec.label}>
-          <div style={{padding:'8px 14px 4px',background:C.bg2,
-            borderBottom:'0.5px solid '+C.border}}>
-            <span style={{fontSize:10,fontWeight:700,color:C.text3,
-              textTransform:'uppercase',letterSpacing:.5}}>
-              {sec.label}
-            </span>
+          <div style={{padding:'8px 14px 4px',background:C2b.bg2,
+            borderBottom:'0.5px solid '+C2b.border}}>
+            <span style={{fontSize:10,fontWeight:700,color:C2b.text3,
+              textTransform:'uppercase',letterSpacing:.5}}>{sec.label}</span>
           </div>
-          {sec.items.map((conv,i)=>(
-            <div key={conv.id} style={{display:'flex',alignItems:'center',gap:10,
-              padding:'12px 14px',borderBottom:'0.5px solid '+C.border,cursor:'pointer'}}>
+          {sec.items.map(conv=>(
+            <div key={conv.id} onClick={()=>setOpenConv(conv)}
+              style={{display:'flex',alignItems:'center',gap:10,
+                padding:'12px 14px',borderBottom:'0.5px solid '+C2b.border,
+                cursor:'pointer',background:C2b.bg}}>
               <div style={{position:'relative',flexShrink:0}}>
                 {conv.type==='project' ? (
                   <div style={{width:44,height:44,borderRadius:10,
-                    background:conv.color,border:'1px solid '+C.border,
+                    background:conv.color,border:'1px solid '+C2b.border,
                     display:'flex',alignItems:'center',justifyContent:'center',
                     fontSize:11,fontWeight:700,color:conv.textColor}}>
                     {conv.code.split('-')[0]}
                   </div>
                 ) : (
                   <div style={{width:44,height:44,borderRadius:'50%',
-                    background:conv.color+'22',border:'1.5px solid '+conv.color,
+                    background:(conv.color||C2b.primary)+'22',
+                    border:'1.5px solid '+(conv.color||C2b.primary),
                     display:'flex',alignItems:'center',justifyContent:'center',
-                    fontSize:12,fontWeight:700,color:conv.color}}>
-                    {conv.av||conv.name.slice(0,2)}
+                    fontSize:12,fontWeight:700,color:conv.color||C2b.primary}}>
+                    {conv.av||conv.name?.slice(0,2)}
                   </div>
                 )}
-                {conv.type==='whatsapp' && (
+                {conv.type==='whatsapp'&&(
                   <div style={{position:'absolute',bottom:-1,right:-1,
                     width:14,height:14,background:'#25D366',borderRadius:'50%',
                     border:'2px solid white',display:'flex',alignItems:'center',
@@ -916,22 +1009,18 @@ const ScreenMessages = () => {
               </div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}>
-                  <span style={{fontSize:13,fontWeight:conv.unread?700:500,
-                    color:C.text}}>
+                  <span style={{fontSize:13,fontWeight:conv.unread?700:500,color:C2b.text}}>
                     {conv.type==='project'?conv.code+' · '+conv.client:conv.name}
                   </span>
-                  <span style={{fontSize:10,color:C.text3}}>{conv.time}</span>
+                  <span style={{fontSize:10,color:C2b.text3}}>{conv.time}</span>
                 </div>
-                <div style={{fontSize:11,color:C.text3,overflow:'hidden',
-                  textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                  {conv.last}
-                </div>
+                <div style={{fontSize:11,color:C2b.text3,overflow:'hidden',
+                  textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{conv.last}</div>
               </div>
-              {conv.unread>0 && (
+              {conv.unread>0&&(
                 <div style={{width:20,height:20,borderRadius:10,
-                  background:C.pink,color:'white',fontSize:10,fontWeight:700,
-                  display:'flex',alignItems:'center',justifyContent:'center',
-                  flexShrink:0}}>
+                  background:C2b.pink||'#E86C6C',color:'white',fontSize:10,fontWeight:700,
+                  display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                   {conv.unread}
                 </div>
               )}
