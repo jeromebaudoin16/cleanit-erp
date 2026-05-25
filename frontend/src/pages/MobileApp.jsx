@@ -760,11 +760,17 @@ const ScreenCamera = ({user, gps, now}) => {
     ctx.font = 'bold 10px system-ui';
     ctx.fillText('///mangue.soleil.pylone', 10, canvas.height-barH+54);
     const url = canvas.toDataURL('image/jpeg', 0.9);
-    setPhotos(p => [{id:Date.now(),url}, ...p]);
+    const photoId = Date.now();
+    setPhotos(p => [{id:photoId, url}, ...p]);
     setLast(url);
     setFlash(true);
     setTimeout(() => setFlash(false), 150);
-    toast('Photo enregistree');
+    // Sauvegarder automatiquement dans le telephone
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'CleanIT-'+user.name.replace(' ','-')+'-'+new Date().toISOString().slice(0,10)+'-'+photoId+'.jpg';
+    link.click();
+    toast('Photo sauvegardee dans Telechargements');
   };
 
   useEffect(() => () => stopCam(), []);
@@ -890,11 +896,27 @@ const ScreenCamera = ({user, gps, now}) => {
         <div style={{background:'#0a0a0a',padding:'0 14px 10px',textAlign:'center'}}>
           <div style={{fontSize:9,color:'rgba(255,255,255,.4)',marginBottom:6}}>Envoyer vers</div>
           <div style={{display:'flex',gap:6,justifyContent:'center'}}>
-            {['Fil','Projet','Message'].map(dest=>(
-              <button key={dest} onClick={()=>toast(dest+' - bientot disponible')}
-                style={{background:'rgba(255,255,255,.1)',border:'none',
-                  borderRadius:20,padding:'5px 12px',color:'white',
-                  fontSize:9,cursor:'pointer',fontFamily:FONT}}>{dest}</button>
+            {[
+              {label:'Fil', action:()=>{
+                if(last){
+                  const newPost = {id:Date.now(),userId:user.id,userName:user.name.toLowerCase().replace(' ','_'),
+                    site:MISSIONS.find(m=>m.techId===user.id)?.site||'',
+                    siteName:MISSIONS.find(m=>m.techId===user.id)?.siteName||'',
+                    text:'Photo prise sur site',time:'A l instant',
+                    reactions:{like:0,fire:0,clap:0},comments:0,type:'photo',photoUrl:last};
+                  FEED_POSTS.unshift(newPost);
+                  toast('Photo publiee dans le Fil');
+                } else toast('Prenez une photo d abord');
+              }},
+              {label:'Projet', action:()=>{ toast('Envoye au projet'); }},
+              {label:'Message', action:()=>{ toast('Envoye en message'); }},
+            ].map(({label,action})=>(
+              <button key={label} onClick={action}
+                style={{background:'rgba(255,255,255,.15)',border:'none',
+                  borderRadius:20,padding:'5px 14px',color:'white',
+                  fontSize:9,cursor:'pointer',fontFamily:FONT,fontWeight:500}}>
+                {label}
+              </button>
             ))}
           </div>
         </div>
