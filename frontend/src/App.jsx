@@ -169,6 +169,7 @@ export default function App() {
         <Route path="/mobile/analytics" element={<MobileApp />} />
         <Route path="/mobile/mission" element={<MobileApp />} />
         <Route path="/mobile/pointer" element={<MobileApp />} />
+        <Route path="/mobile/messages" element={<MobileApp />} />
         <Route path="/mobile/pointage" element={<MobileApp />} />
         <Route path="/mobile/camera" element={<MobileApp />} />
         <Route path="/mobile/planning" element={<MobileApp />} />
