@@ -517,54 +517,119 @@ const ScreenFil = ({user,navigate}) => {
   if(viewPhoto) return (
     <div style={{position:'fixed',inset:0,background:'#000',zIndex:9999,
       display:'flex',flexDirection:'column'}}>
-      <div style={{padding:'16px 16px 8px',display:'flex',
-        justifyContent:'space-between',alignItems:'center'}}>
+
+      {/* Header */}
+      <div style={{padding:'12px 16px',display:'flex',
+        justifyContent:'space-between',alignItems:'center',
+        background:'rgba(0,0,0,.7)'}}>
         <button onClick={()=>setViewPhoto(null)}
           style={{background:'rgba(255,255,255,.15)',border:'none',
-            borderRadius:8,padding:'6px 14px',color:'white',
-            cursor:'pointer',fontFamily:FONT,fontSize:13}}>
+            borderRadius:8,padding:'7px 14px',color:'white',
+            cursor:'pointer',fontFamily:FONT,fontSize:13,fontWeight:500}}>
           ← Retour
         </button>
-        <a href={viewPhoto.photoUrl||'#'} download={'CleanIT-photo.jpg'}
-          style={{background:'rgba(255,255,255,.15)',border:'none',
-            borderRadius:8,padding:'6px 14px',color:'white',
-            cursor:'pointer',fontFamily:FONT,fontSize:13,textDecoration:'none'}}>
-          ⬇ Sauvegarder
-        </a>
+        <div style={{fontSize:12,color:'rgba(255,255,255,.7)',textAlign:'center'}}>
+          <div style={{fontWeight:600,color:'white'}}>{viewPhoto.userName||viewPhoto.name}</div>
+          <div style={{fontSize:10}}>{viewPhoto.time}</div>
+        </div>
+        {viewPhoto.photoUrl ? (
+          <a href={viewPhoto.photoUrl} download={'CleanIT-'+Date.now()+'.jpg'}
+            style={{background:'#0066CC',border:'none',borderRadius:8,
+              padding:'7px 14px',color:'white',cursor:'pointer',
+              fontFamily:FONT,fontSize:12,fontWeight:600,textDecoration:'none'}}>
+            ⬇ Enreg.
+          </a>
+        ) : <div style={{width:70}}/>}
       </div>
+
+      {/* Photo */}
       <div style={{flex:1,display:'flex',alignItems:'center',
-        justifyContent:'center',overflow:'hidden'}}>
+        justifyContent:'center',overflow:'hidden',position:'relative'}}>
         {viewPhoto.photoUrl ? (
           <img src={viewPhoto.photoUrl}
             style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>
         ) : (
-          <div style={{textAlign:'center',color:'rgba(255,255,255,.4)'}}>
-            <div style={{fontSize:48,marginBottom:10}}>📷</div>
-            <div style={{fontSize:13}}>Photo CleanCam</div>
-            <div style={{fontSize:11,marginTop:6,color:'rgba(255,255,255,.3)'}}>
-              Photo disponible uniquement apres publication depuis CleanCam
+          <div style={{textAlign:'center',color:'rgba(255,255,255,.35)',padding:24}}>
+            <div style={{fontSize:56,marginBottom:12}}>📷</div>
+            <div style={{fontSize:14,marginBottom:6}}>Photo CleanCam</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,.25)',lineHeight:1.5}}>
+              Prenez une photo depuis CleanCam{'
+'}et publiez-la sur le Fil
             </div>
           </div>
         )}
       </div>
-      <div style={{padding:'12px 16px',background:'rgba(0,0,0,.8)'}}>
-        <div style={{fontSize:12,fontWeight:600,color:'white',marginBottom:4}}>
-          {viewPhoto.userName}
-        </div>
+
+      {/* GPS Info Panel - LA PARTIE IMPORTANTE */}
+      <div style={{background:'#0F172A',padding:'14px 16px',
+        borderTop:'2px solid #E86C6C'}}>
+
+        {/* Site */}
         {viewPhoto.site && (
-          <div style={{fontSize:11,color:'rgba(255,255,255,.7)',
-            display:'flex',alignItems:'center',gap:4,marginBottom:4}}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-              stroke="white" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            {viewPhoto.site} · {viewPhoto.siteName}
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+            <div style={{width:28,height:28,borderRadius:6,background:'#1E293B',
+              display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="#0066CC" strokeWidth="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,color:'white'}}>{viewPhoto.site}</div>
+              <div style={{fontSize:10,color:'#64748B'}}>{viewPhoto.siteName}</div>
+            </div>
           </div>
         )}
-        <div style={{fontSize:11,color:'#E86C6C'}}>
-          ///mangue.soleil.pylone
+
+        {/* Coordonnees GPS - BIEN VISIBLE */}
+        <div style={{background:'#1E293B',borderRadius:10,padding:'10px 14px',
+          marginBottom:10,border:'1px solid #334155'}}>
+          <div style={{fontSize:10,fontWeight:700,color:'#94A3B8',
+            textTransform:'uppercase',letterSpacing:.8,marginBottom:6}}>
+            Coordonnees GPS
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            <div>
+              <div style={{fontSize:10,color:'#64748B',marginBottom:2}}>Latitude</div>
+              <div style={{fontSize:16,fontWeight:700,color:'#22C55E',
+                fontFamily:'monospace'}}>
+                {viewPhoto.gpsLat || '4.0511° N'}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:'#64748B',marginBottom:2}}>Longitude</div>
+              <div style={{fontSize:16,fontWeight:700,color:'#22C55E',
+                fontFamily:'monospace'}}>
+                {viewPhoto.gpsLng || '9.7085° E'}
+              </div>
+            </div>
+          </div>
+          {viewPhoto.gpsAcc && (
+            <div style={{fontSize:10,color:'#64748B',marginTop:6}}>
+              Precision: ±{Math.round(viewPhoto.gpsAcc)}m
+            </div>
+          )}
         </div>
-        <div style={{fontSize:10,color:'rgba(255,255,255,.5)',marginTop:4}}>
-          {viewPhoto.time}
+
+        {/* What3Words */}
+        <div style={{display:'flex',alignItems:'center',gap:8,
+          background:'#E86C6C22',borderRadius:8,padding:'8px 12px',
+          border:'1px solid #E86C6C44'}}>
+          <div style={{fontSize:16,color:'#E86C6C',fontWeight:900,flexShrink:0}}>///</div>
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:'#E86C6C'}}>
+              {viewPhoto.what3words || 'mangue.soleil.pylone'}
+            </div>
+            <div style={{fontSize:9,color:'rgba(232,108,108,.6)'}}>What3Words · precision 3m</div>
+          </div>
         </div>
+
+        {/* Date et heure */}
+        <div style={{marginTop:8,fontSize:10,color:'#475569',textAlign:'center'}}>
+          {viewPhoto.date || new Date().toLocaleDateString('fr-FR')} · {viewPhoto.time}
+        </div>
+
       </div>
     </div>
   );
@@ -1016,11 +1081,26 @@ const ScreenCamera = ({user, gps, now}) => {
             {[
               {label:'Fil', action:()=>{
                 if(last){
-                  const newPost = {id:Date.now(),userId:user.id,userName:user.name.toLowerCase().replace(' ','_'),
-                    site:MISSIONS.find(m=>m.techId===user.id)?.site||'',
-                    siteName:MISSIONS.find(m=>m.techId===user.id)?.siteName||'',
-                    text:'Photo prise sur site',time:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
-                    reactions:{like:0,fire:0,clap:0},comments:0,type:'photo',photoUrl:last};
+                  const mission = MISSIONS.find(m=>m.techId===user.id);
+                  const newPost = {
+                    id:Date.now(),
+                    userId:user.id,
+                    userName:user.name.toLowerCase().replace(' ','_'),
+                    name:user.name,
+                    site:mission?.site||'',
+                    siteName:mission?.siteName||'',
+                    text:'Photo prise sur site — '+( mission?.site||'CleanIT'),
+                    time:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+                    date:new Date().toLocaleDateString('fr-FR'),
+                    gpsLat:gps ? gps.lat.toFixed(5)+'° N' : null,
+                    gpsLng:gps ? gps.lng.toFixed(5)+'° E' : null,
+                    gpsAcc:gps?.accuracy||null,
+                    what3words:'mangue.soleil.pylone',
+                    reactions:{like:0,fire:0,clap:0},
+                    comments:0,
+                    type:'photo',
+                    photoUrl:last
+                  };
                   FEED_POSTS.unshift(newPost);
                   saveFeedPosts(); // async - sauvegarde en arriere-plan
                   toast('Photo publiee dans le Fil');
@@ -1563,54 +1643,119 @@ const ScreenEquipes = () => {
   if(viewPhoto) return (
     <div style={{position:'fixed',inset:0,background:'#000',zIndex:9999,
       display:'flex',flexDirection:'column'}}>
-      <div style={{padding:'16px 16px 8px',display:'flex',
-        justifyContent:'space-between',alignItems:'center'}}>
+
+      {/* Header */}
+      <div style={{padding:'12px 16px',display:'flex',
+        justifyContent:'space-between',alignItems:'center',
+        background:'rgba(0,0,0,.7)'}}>
         <button onClick={()=>setViewPhoto(null)}
           style={{background:'rgba(255,255,255,.15)',border:'none',
-            borderRadius:8,padding:'6px 14px',color:'white',
-            cursor:'pointer',fontFamily:FONT,fontSize:13}}>
+            borderRadius:8,padding:'7px 14px',color:'white',
+            cursor:'pointer',fontFamily:FONT,fontSize:13,fontWeight:500}}>
           ← Retour
         </button>
-        <a href={viewPhoto.photoUrl||'#'} download={'CleanIT-photo.jpg'}
-          style={{background:'rgba(255,255,255,.15)',border:'none',
-            borderRadius:8,padding:'6px 14px',color:'white',
-            cursor:'pointer',fontFamily:FONT,fontSize:13,textDecoration:'none'}}>
-          ⬇ Sauvegarder
-        </a>
+        <div style={{fontSize:12,color:'rgba(255,255,255,.7)',textAlign:'center'}}>
+          <div style={{fontWeight:600,color:'white'}}>{viewPhoto.userName||viewPhoto.name}</div>
+          <div style={{fontSize:10}}>{viewPhoto.time}</div>
+        </div>
+        {viewPhoto.photoUrl ? (
+          <a href={viewPhoto.photoUrl} download={'CleanIT-'+Date.now()+'.jpg'}
+            style={{background:'#0066CC',border:'none',borderRadius:8,
+              padding:'7px 14px',color:'white',cursor:'pointer',
+              fontFamily:FONT,fontSize:12,fontWeight:600,textDecoration:'none'}}>
+            ⬇ Enreg.
+          </a>
+        ) : <div style={{width:70}}/>}
       </div>
+
+      {/* Photo */}
       <div style={{flex:1,display:'flex',alignItems:'center',
-        justifyContent:'center',overflow:'hidden'}}>
+        justifyContent:'center',overflow:'hidden',position:'relative'}}>
         {viewPhoto.photoUrl ? (
           <img src={viewPhoto.photoUrl}
             style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>
         ) : (
-          <div style={{textAlign:'center',color:'rgba(255,255,255,.4)'}}>
-            <div style={{fontSize:48,marginBottom:10}}>📷</div>
-            <div style={{fontSize:13}}>Photo CleanCam</div>
-            <div style={{fontSize:11,marginTop:6,color:'rgba(255,255,255,.3)'}}>
-              Photo disponible uniquement apres publication depuis CleanCam
+          <div style={{textAlign:'center',color:'rgba(255,255,255,.35)',padding:24}}>
+            <div style={{fontSize:56,marginBottom:12}}>📷</div>
+            <div style={{fontSize:14,marginBottom:6}}>Photo CleanCam</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,.25)',lineHeight:1.5}}>
+              Prenez une photo depuis CleanCam{'
+'}et publiez-la sur le Fil
             </div>
           </div>
         )}
       </div>
-      <div style={{padding:'12px 16px',background:'rgba(0,0,0,.8)'}}>
-        <div style={{fontSize:12,fontWeight:600,color:'white',marginBottom:4}}>
-          {viewPhoto.userName}
-        </div>
+
+      {/* GPS Info Panel - LA PARTIE IMPORTANTE */}
+      <div style={{background:'#0F172A',padding:'14px 16px',
+        borderTop:'2px solid #E86C6C'}}>
+
+        {/* Site */}
         {viewPhoto.site && (
-          <div style={{fontSize:11,color:'rgba(255,255,255,.7)',
-            display:'flex',alignItems:'center',gap:4,marginBottom:4}}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-              stroke="white" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            {viewPhoto.site} · {viewPhoto.siteName}
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+            <div style={{width:28,height:28,borderRadius:6,background:'#1E293B',
+              display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="#0066CC" strokeWidth="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,color:'white'}}>{viewPhoto.site}</div>
+              <div style={{fontSize:10,color:'#64748B'}}>{viewPhoto.siteName}</div>
+            </div>
           </div>
         )}
-        <div style={{fontSize:11,color:'#E86C6C'}}>
-          ///mangue.soleil.pylone
+
+        {/* Coordonnees GPS - BIEN VISIBLE */}
+        <div style={{background:'#1E293B',borderRadius:10,padding:'10px 14px',
+          marginBottom:10,border:'1px solid #334155'}}>
+          <div style={{fontSize:10,fontWeight:700,color:'#94A3B8',
+            textTransform:'uppercase',letterSpacing:.8,marginBottom:6}}>
+            Coordonnees GPS
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            <div>
+              <div style={{fontSize:10,color:'#64748B',marginBottom:2}}>Latitude</div>
+              <div style={{fontSize:16,fontWeight:700,color:'#22C55E',
+                fontFamily:'monospace'}}>
+                {viewPhoto.gpsLat || '4.0511° N'}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:'#64748B',marginBottom:2}}>Longitude</div>
+              <div style={{fontSize:16,fontWeight:700,color:'#22C55E',
+                fontFamily:'monospace'}}>
+                {viewPhoto.gpsLng || '9.7085° E'}
+              </div>
+            </div>
+          </div>
+          {viewPhoto.gpsAcc && (
+            <div style={{fontSize:10,color:'#64748B',marginTop:6}}>
+              Precision: ±{Math.round(viewPhoto.gpsAcc)}m
+            </div>
+          )}
         </div>
-        <div style={{fontSize:10,color:'rgba(255,255,255,.5)',marginTop:4}}>
-          {viewPhoto.time}
+
+        {/* What3Words */}
+        <div style={{display:'flex',alignItems:'center',gap:8,
+          background:'#E86C6C22',borderRadius:8,padding:'8px 12px',
+          border:'1px solid #E86C6C44'}}>
+          <div style={{fontSize:16,color:'#E86C6C',fontWeight:900,flexShrink:0}}>///</div>
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:'#E86C6C'}}>
+              {viewPhoto.what3words || 'mangue.soleil.pylone'}
+            </div>
+            <div style={{fontSize:9,color:'rgba(232,108,108,.6)'}}>What3Words · precision 3m</div>
+          </div>
         </div>
+
+        {/* Date et heure */}
+        <div style={{marginTop:8,fontSize:10,color:'#475569',textAlign:'center'}}>
+          {viewPhoto.date || new Date().toLocaleDateString('fr-FR')} · {viewPhoto.time}
+        </div>
+
       </div>
     </div>
   );
