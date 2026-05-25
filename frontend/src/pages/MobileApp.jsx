@@ -510,7 +510,54 @@ const ScreenLogin = ({onLogin}) => {
 const ScreenFil = ({user,navigate}) => {
   const [openEmoji,setOpenEmoji] = useState(null);
   const [reactions,setReactions] = useState({});
+  const [viewPhoto,setViewPhoto] = useState(null); // photo en plein ecran
   const terrainUsers = USERS.filter(u=>u.role==='terrain');
+
+  // Photo viewer plein ecran
+  if(viewPhoto) return (
+    <div style={{position:'fixed',inset:0,background:'#000',zIndex:9999,
+      display:'flex',flexDirection:'column'}}>
+      <div style={{padding:'16px 16px 8px',display:'flex',
+        justifyContent:'space-between',alignItems:'center'}}>
+        <button onClick={()=>setViewPhoto(null)}
+          style={{background:'rgba(255,255,255,.15)',border:'none',
+            borderRadius:8,padding:'6px 14px',color:'white',
+            cursor:'pointer',fontFamily:FONT,fontSize:13}}>
+          ← Retour
+        </button>
+        <a href={viewPhoto.url} download={'CleanIT-photo.jpg'}
+          style={{background:'rgba(255,255,255,.15)',border:'none',
+            borderRadius:8,padding:'6px 14px',color:'white',
+            cursor:'pointer',fontFamily:FONT,fontSize:13,textDecoration:'none'}}>
+          ⬇ Sauvegarder
+        </a>
+      </div>
+      <div style={{flex:1,display:'flex',alignItems:'center',
+        justifyContent:'center',overflow:'hidden'}}>
+        <img src={viewPhoto.url}
+          style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>
+      </div>
+      <div style={{padding:'12px 16px',background:'rgba(0,0,0,.8)'}}>
+        <div style={{fontSize:12,fontWeight:600,color:'white',marginBottom:4}}>
+          {viewPhoto.userName}
+        </div>
+        {viewPhoto.site && (
+          <div style={{fontSize:11,color:'rgba(255,255,255,.7)',
+            display:'flex',alignItems:'center',gap:4,marginBottom:4}}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke="white" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            {viewPhoto.site} · {viewPhoto.siteName}
+          </div>
+        )}
+        <div style={{fontSize:11,color:'#E86C6C'}}>
+          ///mangue.soleil.pylone
+        </div>
+        <div style={{fontSize:10,color:'rgba(255,255,255,.5)',marginTop:4}}>
+          {viewPhoto.time}
+        </div>
+      </div>
+    </div>
+  );
   const EMOJIS = ['👍','🔥','👏','😮','😂','🙏'];
 
   const addReaction = (postId,emoji) => {
@@ -1500,6 +1547,52 @@ const ScreenMission = ({user,gps,navigate}) => {
 const ScreenEquipes = () => {
   const [tab,setTab] = useState('all');
   const terrainUsers = USERS.filter(u=>u.role==='terrain');
+
+  // Photo viewer plein ecran
+  if(viewPhoto) return (
+    <div style={{position:'fixed',inset:0,background:'#000',zIndex:9999,
+      display:'flex',flexDirection:'column'}}>
+      <div style={{padding:'16px 16px 8px',display:'flex',
+        justifyContent:'space-between',alignItems:'center'}}>
+        <button onClick={()=>setViewPhoto(null)}
+          style={{background:'rgba(255,255,255,.15)',border:'none',
+            borderRadius:8,padding:'6px 14px',color:'white',
+            cursor:'pointer',fontFamily:FONT,fontSize:13}}>
+          ← Retour
+        </button>
+        <a href={viewPhoto.url} download={'CleanIT-photo.jpg'}
+          style={{background:'rgba(255,255,255,.15)',border:'none',
+            borderRadius:8,padding:'6px 14px',color:'white',
+            cursor:'pointer',fontFamily:FONT,fontSize:13,textDecoration:'none'}}>
+          ⬇ Sauvegarder
+        </a>
+      </div>
+      <div style={{flex:1,display:'flex',alignItems:'center',
+        justifyContent:'center',overflow:'hidden'}}>
+        <img src={viewPhoto.url}
+          style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>
+      </div>
+      <div style={{padding:'12px 16px',background:'rgba(0,0,0,.8)'}}>
+        <div style={{fontSize:12,fontWeight:600,color:'white',marginBottom:4}}>
+          {viewPhoto.userName}
+        </div>
+        {viewPhoto.site && (
+          <div style={{fontSize:11,color:'rgba(255,255,255,.7)',
+            display:'flex',alignItems:'center',gap:4,marginBottom:4}}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke="white" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            {viewPhoto.site} · {viewPhoto.siteName}
+          </div>
+        )}
+        <div style={{fontSize:11,color:'#E86C6C'}}>
+          ///mangue.soleil.pylone
+        </div>
+        <div style={{fontSize:10,color:'rgba(255,255,255,.5)',marginTop:4}}>
+          {viewPhoto.time}
+        </div>
+      </div>
+    </div>
+  );
   const bureauUsers = USERS.filter(u=>!['terrain'].includes(u.role));
   const display = tab==='terrain'?terrainUsers:tab==='bureau'?bureauUsers:USERS.filter(u=>u.role!=='admin');
 
