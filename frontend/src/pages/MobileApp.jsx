@@ -739,10 +739,14 @@ const ScreenCamera = ({user,gps,now}) => {
       {/* Viewfinder */}
       <div style={{flex:1,position:'relative',overflow:'hidden',background:'#0a0a0a'}}>
         {active ? (
-          <video ref={vRef} autoPlay playsInline muted
-  onLoadedMetadata={()=>{ vRef.current?.play().catch(()=>{}); }}
-  onCanPlay={()=>{ vRef.current?.play().catch(()=>{}); }}
-  style={{width:'100%',height:'100%',objectFit:'cover',background:'#000'}}/>
+          <video ref={vRef} autoPlay playsInline
+  onLoadedMetadata={(e)=>{
+    e.target.muted = true;
+    e.target.volume = 0;
+    e.target.play().catch(()=>{});
+  }}
+  onCanPlay={(e)=>{ e.target.play().catch(()=>{}); }}
+  style={{width:'100%',height:'100%',objectFit:'cover'}}/>
         ) : (
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',
             justifyContent:'center',height:'100%',gap:10}}>
