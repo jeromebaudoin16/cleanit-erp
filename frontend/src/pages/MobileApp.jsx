@@ -553,8 +553,7 @@ const ScreenFil = ({user,navigate}) => {
             <div style={{fontSize:56,marginBottom:12}}>📷</div>
             <div style={{fontSize:14,marginBottom:6}}>Photo CleanCam</div>
             <div style={{fontSize:11,color:'rgba(255,255,255,.25)',lineHeight:1.5}}>
-              Prenez une photo depuis CleanCam{'
-'}et publiez-la sur le Fil
+              Prenez une photo depuis CleanCam et publiez-la sur le Fil
             </div>
           </div>
         )}
@@ -1679,8 +1678,7 @@ const ScreenEquipes = () => {
             <div style={{fontSize:56,marginBottom:12}}>📷</div>
             <div style={{fontSize:14,marginBottom:6}}>Photo CleanCam</div>
             <div style={{fontSize:11,color:'rgba(255,255,255,.25)',lineHeight:1.5}}>
-              Prenez une photo depuis CleanCam{'
-'}et publiez-la sur le Fil
+              Prenez une photo depuis CleanCam et publiez-la sur le Fil
             </div>
           </div>
         )}
