@@ -525,7 +525,7 @@ const ScreenFil = ({user,navigate}) => {
             cursor:'pointer',fontFamily:FONT,fontSize:13}}>
           ← Retour
         </button>
-        <a href={viewPhoto.url} download={'CleanIT-photo.jpg'}
+        <a href={viewPhoto.photoUrl||'#'} download={'CleanIT-photo.jpg'}
           style={{background:'rgba(255,255,255,.15)',border:'none',
             borderRadius:8,padding:'6px 14px',color:'white',
             cursor:'pointer',fontFamily:FONT,fontSize:13,textDecoration:'none'}}>
@@ -534,8 +534,18 @@ const ScreenFil = ({user,navigate}) => {
       </div>
       <div style={{flex:1,display:'flex',alignItems:'center',
         justifyContent:'center',overflow:'hidden'}}>
-        <img src={viewPhoto.url}
-          style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>
+        {viewPhoto.photoUrl ? (
+          <img src={viewPhoto.photoUrl}
+            style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>
+        ) : (
+          <div style={{textAlign:'center',color:'rgba(255,255,255,.4)'}}>
+            <div style={{fontSize:48,marginBottom:10}}>📷</div>
+            <div style={{fontSize:13}}>Photo CleanCam</div>
+            <div style={{fontSize:11,marginTop:6,color:'rgba(255,255,255,.3)'}}>
+              Photo disponible uniquement apres publication depuis CleanCam
+            </div>
+          </div>
+        )}
       </div>
       <div style={{padding:'12px 16px',background:'rgba(0,0,0,.8)'}}>
         <div style={{fontSize:12,fontWeight:600,color:'white',marginBottom:4}}>
@@ -1560,7 +1570,7 @@ const ScreenEquipes = () => {
             cursor:'pointer',fontFamily:FONT,fontSize:13}}>
           ← Retour
         </button>
-        <a href={viewPhoto.url} download={'CleanIT-photo.jpg'}
+        <a href={viewPhoto.photoUrl||'#'} download={'CleanIT-photo.jpg'}
           style={{background:'rgba(255,255,255,.15)',border:'none',
             borderRadius:8,padding:'6px 14px',color:'white',
             cursor:'pointer',fontFamily:FONT,fontSize:13,textDecoration:'none'}}>
@@ -1569,8 +1579,18 @@ const ScreenEquipes = () => {
       </div>
       <div style={{flex:1,display:'flex',alignItems:'center',
         justifyContent:'center',overflow:'hidden'}}>
-        <img src={viewPhoto.url}
-          style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>
+        {viewPhoto.photoUrl ? (
+          <img src={viewPhoto.photoUrl}
+            style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>
+        ) : (
+          <div style={{textAlign:'center',color:'rgba(255,255,255,.4)'}}>
+            <div style={{fontSize:48,marginBottom:10}}>📷</div>
+            <div style={{fontSize:13}}>Photo CleanCam</div>
+            <div style={{fontSize:11,marginTop:6,color:'rgba(255,255,255,.3)'}}>
+              Photo disponible uniquement apres publication depuis CleanCam
+            </div>
+          </div>
+        )}
       </div>
       <div style={{padding:'12px 16px',background:'rgba(0,0,0,.8)'}}>
         <div style={{fontSize:12,fontWeight:600,color:'white',marginBottom:4}}>
