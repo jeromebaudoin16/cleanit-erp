@@ -654,7 +654,7 @@ const ScreenFil = ({user,navigate}) => {
         <div style={{display:'flex',gap:14,alignItems:'center'}}>
 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={getC().text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <span style={{fontSize:20,cursor:'pointer',position:'relative'}}>
-            🔔
+            <svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#262626' strokeWidth='1.75' strokeLinecap='round' strokeLinejoin='round'><path d='M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9'/><path d='M13.73 21a2 2 0 01-3.46 0'/></svg>
             <div style={{position:'absolute',top:-2,right:-2,width:8,height:8,
               background:C.pink,borderRadius:'50%',border:'1.5px solid white'}}/>
           </span>
@@ -1650,7 +1650,7 @@ const ScreenMission = ({user,gps,navigate}) => {
 };
 
 // ─── SCREEN: EQUIPES ──────────────────────────────────────────
-const ScreenEquipes = () => {
+const ScreenEquipes = ({user}) => {
   const [tab,setTab] = useState('all');
   const terrainUsers = USERS.filter(u=>u.role==='terrain');
 
@@ -2312,7 +2312,7 @@ const ScreenProfil = ({user,onLogout}) => {
             padding:'12px 14px',borderBottom:'0.5px solid '+C.border}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <div style={{width:32,height:32,borderRadius:8,background:C.primaryL,
-                display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>🌐</div>
+                display:'flex',alignItems:'center',justifyContent:'center',}}><svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#0066CC' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><circle cx='12' cy='12' r='10'/><line x1='2' y1='12' x2='22' y2='12'/><path d='M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z'/></svg></div>
               <span style={{fontSize:13,color:C.text}}>{t('language')}</span>
             </div>
             <div style={{display:'flex',border:'0.5px solid '+C.border,
@@ -2332,7 +2332,7 @@ const ScreenProfil = ({user,onLogout}) => {
             padding:'12px 14px',borderBottom:'0.5px solid '+C.border}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <div style={{width:32,height:32,borderRadius:8,background:C.bg2,
-                display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>🌙</div>
+                display:'flex',alignItems:'center',justifyContent:'center',}}><svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#475569' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><path d='M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z'/></svg></div>
               <span style={{fontSize:13,color:C.text}}>{t('theme')}</span>
             </div>
             <div style={{display:'flex',border:'0.5px solid '+C.border,
@@ -2352,7 +2352,7 @@ const ScreenProfil = ({user,onLogout}) => {
             padding:'12px 14px'}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <div style={{width:32,height:32,borderRadius:8,background:C.successL,
-                display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>🔔</div>
+                display:'flex',alignItems:'center',justifyContent:'center',}}><svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#22C55E' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><path d='M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9'/><path d='M13.73 21a2 2 0 01-3.46 0'/></svg></div>
               <span style={{fontSize:13,color:C.text}}>{t('notifications')}</span>
             </div>
             <div onClick={()=>setNotifs(!notifs)}
@@ -2376,7 +2376,7 @@ const ScreenProfil = ({user,onLogout}) => {
             padding:'12px 14px',borderBottom:'0.5px solid '+C.border,cursor:'pointer'}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <div style={{width:32,height:32,borderRadius:8,background:C.warningL,
-                display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>🔒</div>
+                display:'flex',alignItems:'center',justifyContent:'center',}}><svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#F59E0B' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><rect x='3' y='11' width='18' height='11' rx='2'/><path d='M7 11V7a5 5 0 0110 0v4'/></svg></div>
               <span style={{fontSize:13,color:C.text}}>{t('change_password')}</span>
             </div>
             <span style={{color:C.text4}}>›</span>
@@ -2386,7 +2386,7 @@ const ScreenProfil = ({user,onLogout}) => {
               padding:'12px 14px',cursor:'pointer'}}>
               <div style={{display:'flex',alignItems:'center',gap:10}}>
                 <div style={{width:32,height:32,borderRadius:8,background:C.bg2,
-                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>🏆</div>
+                  display:'flex',alignItems:'center',justifyContent:'center',}}><svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#0066CC' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><circle cx='12' cy='8' r='6'/><path d='M15.477 12.89L17 22l-5-3-5 3 1.523-9.11'/></svg></div>
                 <div>
                   <div style={{fontSize:13,color:C.text,marginBottom:4}}>
                     {t('certifications')}
@@ -2488,7 +2488,7 @@ export default function MobileApp() {
     if(loc.includes('/messages')) return <ScreenMessages/>;
     if(loc.includes('/pointer'))  return <ScreenPointer {...common}/>;
     if(loc.includes('/mission'))  return <ScreenMission {...common}/>;
-    if(loc.includes('/equipes'))  return <ScreenEquipes/>;
+    if(loc.includes('/equipes'))  return <ScreenEquipes user={user}/>;
     if(loc.includes('/dispatch')) return <ScreenDispatch/>;
     if(loc.includes('/approvals'))return <ScreenApprovals user={user}/>;
     if(loc.includes('/analytics'))return <ScreenAnalytics/>;
