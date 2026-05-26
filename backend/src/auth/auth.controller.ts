@@ -12,6 +12,10 @@ export class AuthController {
   login(@Body() body: { email: string; password: string }) {
     return this.svc.login(body.email, body.password);
   }
+  @Post('register')
+  register(@Body() body: { email: string; password: string; firstName: string; lastName: string; role?: string }) {
+    return this.svc.register(body);
+  }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
