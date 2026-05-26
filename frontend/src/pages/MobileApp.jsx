@@ -2466,6 +2466,8 @@ export default function MobileApp() {
   const login = (u) => {setUser(u);localStorage.setItem('cit_mobile_user',JSON.stringify(u));};
   const logout = () => {setUser(null);localStorage.removeItem('cit_mobile_user');};
 
+  const [prevPage, setPrevPage] = useState('');
+
   if(!user) return <ScreenLogin onLogin={login}/>;
 
   const parts = loc.split('/').filter(Boolean);
@@ -2485,7 +2487,6 @@ export default function MobileApp() {
     return <ScreenFil {...common}/>;
   };
 
-  const [prevPage, setPrevPage] = useState('');
   useEffect(()=>{ setPrevPage(activePage); }, [activePage]);
   const isCamera = loc.includes('/camera');
 
