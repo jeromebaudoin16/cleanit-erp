@@ -717,69 +717,61 @@ const ScreenLogin = ({onLogin}) => {
 const ScreenFil = ({user,navigate}) => {
   const [openEmoji,setOpenEmoji] = useState(null);
   const [reactions,setReactions] = useState({});
-  const [viewPhoto,setViewPhoto] = useState(null); // photo en plein ecran
+  const [viewPhoto,setViewPhoto] = useState(null);
+  const [refreshing,setRefreshing] = useState(false);
+  const [pullY,setPullY] = useState(0);
+  const touchStartY = useRef(0);
+  const C2 = getC();
+  const EMOJIS = ['👍','🔥','👏','😮','😂','🙏'];
+
+  const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
+  const handleTouchMove = (e) => {
+    if(e.currentTarget.scrollTop > 0) return;
+    const delta = e.touches[0].clientY - touchStartY.current;
+    if(delta > 0) setPullY(Math.min(delta*0.4,60));
+  };
+  const handleTouchEnd = async () => {
+    if(pullY > 40){
+      setRefreshing(true);
+      await new Promise(r=>setTimeout(r,1200));
+      setRefreshing(false);
+    }
+    setPullY(0);
+  };
+
   const terrainUsers = USERS.filter(u=>u.role==='terrain');
 
-  // Photo viewer plein ecran
   if(viewPhoto) return (
-    <div style={{position:'fixed',inset:0,background:'#000',zIndex:9999,
-      display:'flex',flexDirection:'column'}}>
-
-      {/* Header */}
-      <div style={{padding:'12px 16px',display:'flex',
-        justifyContent:'space-between',alignItems:'center',
-        background:'rgba(0,0,0,.7)'}}>
+    <div style={{position:'fixed',inset:0,background:'#000',zIndex:9999,display:'flex',flexDirection:'column'}}>
+      <div style={{background:'rgba(0,0,0,.7)',padding:'12px 16px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <button onClick={()=>setViewPhoto(null)}
-          style={{background:'rgba(255,255,255,.15)',border:'none',
-            borderRadius:8,padding:'7px 14px',color:'white',
-            cursor:'pointer',fontFamily:FONT,fontSize:13,fontWeight:500}}>
+          style={{background:'rgba(255,255,255,.15)',border:'none',borderRadius:8,
+            padding:'7px 14px',color:'white',cursor:'pointer',fontFamily:FONT,fontSize:13}}>
           ← Retour
         </button>
         <div style={{fontSize:12,color:'rgba(255,255,255,.7)',textAlign:'center'}}>
           <div style={{fontWeight:600,color:'white'}}>{viewPhoto.userName||viewPhoto.name}</div>
           <div style={{fontSize:10}}>{viewPhoto.time}</div>
         </div>
-        {viewPhoto.photoUrl ? (
-          <a href={viewPhoto.photoUrl} download={'CleanIT-'+Date.now()+'.jpg'}
-            style={{background:'#0066CC',border:'none',borderRadius:8,
-              padding:'7px 14px',color:'white',cursor:'pointer',
-              fontFamily:FONT,fontSize:12,fontWeight:600,textDecoration:'none'}}>
-            ⬇ Enreg.
-          </a>
-        ) : <div style={{width:70}}/>}
+        {viewPhoto.photoUrl
+          ? <a href={viewPhoto.photoUrl} download={'CleanIT-'+Date.now()+'.jpg'}
+              style={{background:'#0066CC',borderRadius:8,padding:'7px 14px',color:'white',
+                fontSize:12,fontWeight:600,textDecoration:'none'}}>⬇ Enreg.</a>
+          : <div style={{width:70}}/>}
       </div>
-
-      {/* Photo */}
-      <div style={{flex:1,display:'flex',alignItems:'center',
-        justifyContent:'center',overflow:'hidden',position:'relative'}}>
-        {viewPhoto.photoUrl ? (
-          <img src={viewPhoto.photoUrl}
-            style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>
-        ) : (
-          <div style={{textAlign:'center',color:'rgba(255,255,255,.35)',padding:24}}>
-            <div style={{fontSize:56,marginBottom:12}}>📷</div>
-            <div style={{fontSize:14,marginBottom:6}}>Photo CleanCam</div>
-            <div style={{fontSize:11,color:'rgba(255,255,255,.25)',lineHeight:1.5}}>
-              Prenez une photo depuis CleanCam et publiez-la sur le Fil
-            </div>
-          </div>
-        )}
+      <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+        {viewPhoto.photoUrl
+          ? <img src={viewPhoto.photoUrl} style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>
+          : <div style={{textAlign:'center',color:'rgba(255,255,255,.3)'}}>
+              <div style={{fontSize:48,marginBottom:8}}>📷</div>
+              <div style={{fontSize:13}}>Photo CleanCam</div>
+            </div>}
       </div>
-
-      {/* GPS Info Panel - LA PARTIE IMPORTANTE */}
-      <div style={{background:'#0F172A',padding:'14px 16px',
-        borderTop:'2px solid #E86C6C'}}>
-
-        {/* Site */}
+      <div style={{background:'#0F172A',padding:'14px 16px',borderTop:'2px solid #E86C6C'}}>
         {viewPhoto.site && (
           <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
-            <div style={{width:28,height:28,borderRadius:6,background:'#1E293B',
-              display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="#0066CC" strokeWidth="2">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
-                <circle cx="12" cy="10" r="3"/>
-              </svg>
+            <div style={{width:28,height:28,borderRadius:6,background:'#1E293B',display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0066CC" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
             </div>
             <div>
               <div style={{fontSize:13,fontWeight:700,color:'white'}}>{viewPhoto.site}</div>
@@ -787,334 +779,238 @@ const ScreenFil = ({user,navigate}) => {
             </div>
           </div>
         )}
-
-        {/* Coordonnees GPS - BIEN VISIBLE */}
-        <div style={{background:'#1E293B',borderRadius:10,padding:'10px 14px',
-          marginBottom:10,border:'1px solid #334155'}}>
-          <div style={{fontSize:10,fontWeight:700,color:'#94A3B8',
-            textTransform:'uppercase',letterSpacing:.8,marginBottom:6}}>
-            Coordonnees GPS
-          </div>
+        <div style={{background:'#1E293B',borderRadius:10,padding:'10px 14px',marginBottom:10}}>
+          <div style={{fontSize:10,fontWeight:700,color:'#94A3B8',textTransform:'uppercase',letterSpacing:.8,marginBottom:6}}>Coordonnees GPS</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
             <div>
               <div style={{fontSize:10,color:'#64748B',marginBottom:2}}>Latitude</div>
-              <div style={{fontSize:16,fontWeight:700,color:'#22C55E',
-                fontFamily:'monospace'}}>
-                {viewPhoto.gpsLat || '4.0511° N'}
-              </div>
+              <div style={{fontSize:16,fontWeight:700,color:'#22C55E',fontFamily:'monospace'}}>{viewPhoto.gpsLat||'N/A'}</div>
             </div>
             <div>
               <div style={{fontSize:10,color:'#64748B',marginBottom:2}}>Longitude</div>
-              <div style={{fontSize:16,fontWeight:700,color:'#22C55E',
-                fontFamily:'monospace'}}>
-                {viewPhoto.gpsLng || '9.7085° E'}
-              </div>
+              <div style={{fontSize:16,fontWeight:700,color:'#22C55E',fontFamily:'monospace'}}>{viewPhoto.gpsLng||'N/A'}</div>
             </div>
           </div>
-          {viewPhoto.gpsAcc && (
-            <div style={{fontSize:10,color:'#64748B',marginTop:6}}>
-              Precision: ±{Math.round(viewPhoto.gpsAcc)}m
-            </div>
-          )}
         </div>
-
-        {/* What3Words */}
-        <div style={{display:'flex',alignItems:'center',gap:8,
-          background:'#E86C6C22',borderRadius:8,padding:'8px 12px',
-          border:'1px solid #E86C6C44'}}>
-          <div style={{fontSize:16,color:'#E86C6C',fontWeight:900,flexShrink:0}}>///</div>
-          <div>
-            <div style={{fontSize:12,fontWeight:700,color:'#E86C6C'}}>
-              {viewPhoto.what3words || 'mangue.soleil.pylone'}
-            </div>
-            <div style={{fontSize:9,color:'rgba(232,108,108,.6)'}}>What3Words · precision 3m</div>
-          </div>
+        <div style={{display:'flex',alignItems:'center',gap:8,background:'rgba(232,108,108,.1)',borderRadius:8,padding:'8px 12px',border:'1px solid rgba(232,108,108,.3)'}}>
+          <span style={{fontSize:16,color:'#E86C6C',fontWeight:900}}>///</span>
+          <a href={'https://what3words.com/'+(viewPhoto.what3words||'')} target='_blank' rel='noopener noreferrer'
+            style={{fontSize:12,fontWeight:700,color:'#E86C6C',textDecoration:'none'}}>
+            {viewPhoto.what3words||'localisation.site.cleanit'} ↗
+          </a>
         </div>
-
-        {/* Date et heure */}
-        <div style={{marginTop:8,fontSize:10,color:'#475569',textAlign:'center'}}>
-          {viewPhoto.date || new Date().toLocaleDateString('fr-FR')} · {viewPhoto.time}
-        </div>
-
+        <div style={{marginTop:8,fontSize:10,color:'#475569',textAlign:'center'}}>{viewPhoto.date||''} · {viewPhoto.time}</div>
       </div>
     </div>
   );
-  const EMOJIS = ['👍','🔥','👏','😮','😂','🙏'];
 
-  const addReaction = (postId,emoji) => {
-    setReactions(r=>({...r,[postId]:emoji}));
-    setOpenEmoji(null);
-  };
+  return (
+    <div style={{flex:1,overflowY:'auto',background:C2.bg,paddingBottom:80}}
+      onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
 
-    const [refreshing, setRefreshing] = useState(false);
-    const [pullY, setPullY] = useState(0);
-    const touchStartY = useRef(0);
-
-    const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
-    const handleTouchMove = (e) => {
-      const el = e.currentTarget;
-      if(el.scrollTop > 0) return;
-      const delta = e.touches[0].clientY - touchStartY.current;
-      if(delta > 0) setPullY(Math.min(delta * 0.4, 60));
-    };
-    const handleTouchEnd = async () => {
-      if(pullY > 40) {
-        setRefreshing(true);
-        await new Promise(r=>setTimeout(r,1200));
-        setRefreshing(false);
-        toast('Fil mis a jour', 'success');
-      }
-      setPullY(0);
-    };
-
-    return (
-    <div style={{flex:1,overflowY:'auto',background:getC().bg,paddingBottom:80}}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}>
-
-      {/* Pull to refresh indicator */}
+      {/* Pull to refresh */}
       <div style={{height:pullY,display:'flex',alignItems:'center',justifyContent:'center',
-        overflow:'hidden',transition:pullY===0?'height .3s':undefined,
-        background:getC().bg}}>
-        {pullY > 10 && (
-          <div style={{display:'flex',alignItems:'center',gap:6,color:getC().primary}}>
-            {refreshing ? (
-              <div style={{width:16,height:16,border:'2px solid '+getC().primary,
-                borderTopColor:'transparent',borderRadius:'50%',
-                animation:'spin 0.8s linear infinite'}}/>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2"
-                style={{transform:`rotate(${pullY*3}deg)`}}>
-                <polyline points="23 4 23 10 17 10"/>
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-              </svg>
-            )}
-            <span style={{fontSize:11,fontWeight:500}}>
-              {refreshing?'Actualisation...':pullY>40?'Relacher':'Tirer pour actualiser'}
-            </span>
+        overflow:'hidden',transition:pullY===0?'height .3s':undefined}}>
+        {pullY>10 && (
+          <div style={{display:'flex',alignItems:'center',gap:6,color:C2.primary,fontSize:11}}>
+            {refreshing
+              ? <div style={{width:14,height:14,border:'2px solid '+C2.primary,borderTopColor:'transparent',
+                  borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
+              : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                  style={{transform:`rotate(${pullY*3}deg)`}}>
+                  <polyline points="23 4 23 10 17 10"/>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>}
+            {refreshing?'Actualisation...':pullY>40?'Relacher...':'Tirer pour actualiser'}
           </div>
         )}
       </div>
-      <Header showLogo right={
-        <div style={{display:'flex',gap:14,alignItems:'center'}}>
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={getC().text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <span style={{fontSize:20,cursor:'pointer',position:'relative'}}>
-            <svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='#262626' strokeWidth='1.75' strokeLinecap='round' strokeLinejoin='round'><path d='M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9'/><path d='M13.73 21a2 2 0 01-3.46 0'/></svg>
-            <div style={{position:'absolute',top:-2,right:-2,width:8,height:8,
-              background:C.pink,borderRadius:'50%',border:'1.5px solid white'}}/>
+
+      {/* Header */}
+      <div style={{background:C2.bg,borderBottom:'1px solid '+C2.border,padding:'0 14px',height:52,
+        display:'flex',alignItems:'center',gap:10,position:'sticky',top:0,zIndex:10}}>
+        <div style={{display:'flex',alignItems:'center',gap:6,flex:1}}>
+          <svg width="22" height="20" viewBox="0 0 122 111" fill="none">
+            <circle cx="61" cy="55" r="38" stroke="#888" strokeWidth="8" fill="none"/>
+            <circle cx="61" cy="17" r="9" fill="#E86C6C"/>
+            <circle cx="61" cy="93" r="9" fill="#E86C6C"/>
+            <circle cx="23" cy="55" r="9" fill="#E86C6C"/>
+            <circle cx="99" cy="55" r="9" fill="#E86C6C"/>
+          </svg>
+          <span style={{fontSize:16,fontWeight:700,letterSpacing:-.3,fontFamily:FONT}}>
+            <span style={{color:C2.gray}}>Clean</span><span style={{color:C2.pink}}>IT</span>
           </span>
         </div>
-      }/>
+        <div style={{display:'flex',gap:14,alignItems:'center'}}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C2.text}
+            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}>
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <div style={{position:'relative',cursor:'pointer'}}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C2.text}
+              strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 01-3.46 0"/>
+            </svg>
+            <div style={{position:'absolute',top:-3,right:-3,width:8,height:8,
+              background:C2.pink,borderRadius:'50%',border:'1.5px solid white'}}/>
+          </div>
+        </div>
+      </div>
 
       {/* Stories */}
-      <div style={{padding:'10px 14px 6px',borderBottom:'1px solid '+C.border}}>
-        <div style={{fontSize:10,fontWeight:600,color:C.text3,
-          textTransform:'uppercase',letterSpacing:.5,marginBottom:8}}>
-          {t('sites_actifs')}
+      <div style={{padding:'10px 14px 6px',borderBottom:'1px solid '+C2.border}}>
+        <div style={{fontSize:10,fontWeight:600,color:C2.text3,textTransform:'uppercase',letterSpacing:.5,marginBottom:8}}>
+          Sites actifs
         </div>
         <div style={{display:'flex',gap:12,overflowX:'auto',paddingBottom:2}}>
-          {terrainUsers.map(u => {
+          {terrainUsers.map(u=>{
             const m = MISSIONS.find(ms=>ms.techId===u.id);
             return (
-              <div key={u.id} style={{display:'flex',flexDirection:'column',
-                alignItems:'center',gap:3,flexShrink:0}}>
+              <div key={u.id} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,flexShrink:0}}>
                 <div style={{width:52,height:52,borderRadius:'50%',padding:2,
-                  background:`linear-gradient(135deg,${C.gray},${C.pink})`}}>
-                  <div style={{width:'100%',height:'100%',borderRadius:'50%',
-                    background:C.bg,padding:2}}>
-                    <div style={{width:'100%',height:'100%',borderRadius:'50%',
-                      background:u.color+'22',display:'flex',alignItems:'center',
-                      justifyContent:'center',fontSize:13,fontWeight:700,color:u.color}}>
-                      {u.av}
-                    </div>
+                  background:`linear-gradient(135deg,${C2.gray},${C2.pink})`}}>
+                  <div style={{width:'100%',height:'100%',borderRadius:'50%',background:C2.bg,padding:2}}>
+                    <div style={{width:'100%',height:'100%',borderRadius:'50%',background:u.color+'22',
+                      display:'flex',alignItems:'center',justifyContent:'center',
+                      fontSize:13,fontWeight:700,color:u.color}}>{u.av}</div>
                   </div>
                 </div>
-                <span style={{fontSize:9,color:C.text,maxWidth:52,
-                  overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',
-                  textAlign:'center'}}>
-                  {m ? m.site : u.av}
-                </span>
+                <span style={{fontSize:9,color:C2.text,maxWidth:52,overflow:'hidden',
+                  textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m?m.site:u.av}</span>
               </div>
             );
           })}
-          <div style={{display:'flex',flexDirection:'column',
-            alignItems:'center',gap:3,flexShrink:0}}>
-            <div style={{width:52,height:52,borderRadius:'50%',
-              border:'1.5px dashed '+C.border,display:'flex',
-              alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
-              <span style={{fontSize:22,color:C.text4}}>＋</span>
-            </div>
-            <span style={{fontSize:9,color:C.text3}}>{t('publish')}</span>
-          </div>
         </div>
       </div>
 
       {/* Feed */}
-      {FEED_POSTS.map(post => (
-        <div key={post.id} style={{borderBottom:'1px solid '+C.border}}>
-          {/* Post header */}
-          <div style={{padding:'8px 12px',display:'flex',
-            alignItems:'center',justifyContent:'space-between'}}>
+      {FEED_POSTS.map(post=>(
+        <div key={post.id} style={{borderBottom:'1px solid '+C2.border}}>
+          <div style={{padding:'8px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
-              {post.userId==='chacha' ? (
-                <div style={{width:30,height:30,borderRadius:'50%',
-                  background:C.primaryL,border:'1.5px solid '+C.primary,
-                  display:'flex',alignItems:'center',justifyContent:'center',
-                  fontSize:10,fontWeight:700,color:C.primary}}>CC</div>
-              ) : post.userId==='company' ? (
-                <div style={{width:30,height:30,borderRadius:8,
-                  background:C.bg2,border:'1px solid '+C.border,
-                  display:'flex',alignItems:'center',justifyContent:'center'}}>
-                  <svg width="16" height="15" viewBox="0 0 122 111" fill="none">
-                    <circle cx="61" cy="55" r="28" stroke="#888" strokeWidth="7" fill="none"/>
-                    <circle cx="61" cy="27" r="8" fill="#E86C6C"/>
-                    <circle cx="61" cy="83" r="8" fill="#E86C6C"/>
-                    <circle cx="33" cy="55" r="8" fill="#E86C6C"/>
-                    <circle cx="89" cy="55" r="8" fill="#E86C6C"/>
-                  </svg>
-                </div>
-              ) : (
-                <div style={{width:30,height:30,borderRadius:'50%',padding:1.5,
-                  background:`linear-gradient(135deg,${C.gray},${C.pink})`}}>
-                  <div style={{width:'100%',height:'100%',borderRadius:'50%',
-                    background:C.bg,padding:1.5}}>
-                    <div style={{width:'100%',height:'100%',borderRadius:'50%',
-                      background:C.primaryL,display:'flex',alignItems:'center',
-                      justifyContent:'center',fontSize:10,fontWeight:700,color:C.primary}}>
-                      {post.userId.slice(-3,-1).toUpperCase()}
-                    </div>
+              {post.userId==='chacha'
+                ? <div style={{width:30,height:30,borderRadius:'50%',background:C2.primaryL,border:'1.5px solid '+C2.primary,
+                    display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:C2.primary}}>CC</div>
+                : post.userId==='company'
+                ? <div style={{width:30,height:30,borderRadius:8,background:C2.bg2,border:'1px solid '+C2.border,
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>
+                    <svg width="16" height="15" viewBox="0 0 122 111" fill="none">
+                      <circle cx="61" cy="55" r="28" stroke="#888" strokeWidth="7" fill="none"/>
+                      <circle cx="61" cy="27" r="8" fill="#E86C6C"/>
+                      <circle cx="61" cy="83" r="8" fill="#E86C6C"/>
+                      <circle cx="33" cy="55" r="8" fill="#E86C6C"/>
+                      <circle cx="89" cy="55" r="8" fill="#E86C6C"/>
+                    </svg>
                   </div>
-                </div>
-              )}
+                : <div style={{width:30,height:30,borderRadius:'50%',padding:1.5,
+                    background:`linear-gradient(135deg,${C2.gray},${C2.pink})`}}>
+                    <div style={{width:'100%',height:'100%',borderRadius:'50%',background:C2.bg,padding:1.5}}>
+                      <div style={{width:'100%',height:'100%',borderRadius:'50%',background:C2.primaryL,
+                        display:'flex',alignItems:'center',justifyContent:'center',
+                        fontSize:10,fontWeight:700,color:C2.primary}}>
+                        {(post.userName||'').slice(-3,-1).toUpperCase()||'CL'}
+                      </div>
+                    </div>
+                  </div>}
               <div>
-                <div style={{fontSize:12,fontWeight:700,
-                  color:post.userId==='chacha'?C.primary:C.text}}>
+                <div style={{fontSize:12,fontWeight:700,color:post.userId==='chacha'?C2.primary:C2.text}}>
                   {post.userName}
                 </div>
-                {post.site && (
-                  <div style={{fontSize:9,color:C.text3,
-                    display:'flex',alignItems:'center',gap:2}}>
-                    📍 {post.site} · {post.siteName} · {post.time}
-                  </div>
-                )}
-                {!post.site && (
-                  <div style={{fontSize:9,color:C.text3}}>{post.time}</div>
-                )}
+                {post.site
+                  ? <div style={{fontSize:9,color:C2.text3}}>📍 {post.site} · {post.siteName} · {post.time}</div>
+                  : <div style={{fontSize:9,color:C2.text3}}>{post.time}</div>}
               </div>
             </div>
-            {post.userId==='chacha' && (
-              <div style={{background:C.primaryL,padding:'2px 8px',
-                borderRadius:10,fontSize:9,color:C.primary,fontWeight:600}}>IA</div>
-            )}
-            {post.userId!=='chacha' && (
-              <span style={{fontSize:18,cursor:'pointer',color:C.text3}}>⋯</span>
-            )}
+            {post.userId==='chacha'
+              ? <div style={{background:C2.primaryL,padding:'2px 8px',borderRadius:10,fontSize:9,color:C2.primary,fontWeight:600}}>IA</div>
+              : <span style={{fontSize:18,cursor:'pointer',color:C2.text3}}>⋯</span>}
           </div>
 
-          {/* Post body */}
           {post.type==='photo' && (
             <div onClick={()=>setViewPhoto(post)}
-              style={{background:'#1E293B',height:220,
-                display:'flex',alignItems:'center',justifyContent:'center',
-                position:'relative',overflow:'hidden',cursor:'pointer'}}>
-              {post.photoUrl ? (
-                <img src={post.photoUrl}
-                  style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-              ) : (
-                <div style={{textAlign:'center',color:'rgba(255,255,255,.3)'}}>
-                  <div style={{fontSize:32,marginBottom:4}}>📷</div>
-                  <div style={{fontSize:10}}>Photo CleanCam</div>
-                </div>
-              )}
+              style={{background:'#1E293B',height:220,display:'flex',alignItems:'center',
+                justifyContent:'center',position:'relative',overflow:'hidden',cursor:'pointer'}}>
+              {post.photoUrl
+                ? <img src={post.photoUrl} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                : <div style={{textAlign:'center',color:'rgba(255,255,255,.3)'}}>
+                    <div style={{fontSize:32,marginBottom:4}}>📷</div>
+                    <div style={{fontSize:10}}>Photo CleanCam</div>
+                  </div>}
               {post.site && (
-                <div style={{position:'absolute',bottom:8,right:10,
-                  background:'rgba(0,0,0,.6)',padding:'2px 7px',
-                  borderRadius:10,fontSize:8,color:'white'}}>
-                  📍 {post.site}
-                </div>
+                <div style={{position:'absolute',bottom:8,right:10,background:'rgba(0,0,0,.6)',
+                  padding:'2px 7px',borderRadius:10,fontSize:8,color:'white'}}>📍 {post.site}</div>
               )}
             </div>
           )}
           {post.type==='alert' && (
-            <div style={{margin:'0 12px',background:C.warningL,
-              borderRadius:8,padding:'10px 12px',borderLeft:'3px solid '+C.warning}}>
-              <div style={{fontSize:11,fontWeight:700,color:'#92400E',
-                marginBottom:3,display:'flex',alignItems:'center',gap:4}}>
-                🌧 {post.title}
-              </div>
+            <div style={{margin:'0 12px',background:C2.warningL,borderRadius:8,
+              padding:'10px 12px',borderLeft:'3px solid '+C2.warning}}>
+              <div style={{fontSize:11,fontWeight:700,color:'#92400E',marginBottom:3}}>🌧 {post.title}</div>
               <div style={{fontSize:11,color:'#78350F',lineHeight:1.5}}>{post.text}</div>
             </div>
           )}
 
-          {/* Caption */}
           <div style={{padding:'8px 12px'}}>
             {post.type!=='alert' && (
-              <div style={{fontSize:11,color:C.text,lineHeight:1.4,marginBottom:6}}>
-                <span style={{fontWeight:700}}>{post.userName}</span>
-                {' '}{post.text}
+              <div style={{fontSize:11,color:C2.text,lineHeight:1.4,marginBottom:6}}>
+                <span style={{fontWeight:700}}>{post.userName}</span> {post.text}
               </div>
             )}
-
-            {/* Reactions summary */}
             {post.reactions && (
               <div style={{display:'flex',alignItems:'center',gap:4,marginBottom:6}}>
-                <span style={{fontSize:12}}>
-                  {reactions[post.id]||''}
-                  {post.reactions.fire>0?'🔥':''}
-                  {post.reactions.clap>0?'👏':''}
-                </span>
-                <span style={{fontSize:11,fontWeight:600,color:C.text}}>
-                  {(post.reactions.like||0)+(post.reactions.fire||0)+(post.reactions.clap||0)+
-                   (reactions[post.id]?1:0)} reactions
+                <span style={{fontSize:12}}>{reactions[post.id]||''}{post.reactions.fire>0?'🔥':''}{post.reactions.clap>0?'👏':''}</span>
+                <span style={{fontSize:11,fontWeight:600,color:C2.text}}>
+                  {(post.reactions.like||0)+(post.reactions.fire||0)+(post.reactions.clap||0)+(reactions[post.id]?1:0)} reactions
                 </span>
               </div>
             )}
-
-            {/* Actions */}
-            <div style={{display:'flex',justifyContent:'space-between',
-              alignItems:'center',paddingTop:6,borderTop:'1px solid '+C.border,
-              position:'relative'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+              paddingTop:6,borderTop:'1px solid '+C2.border,position:'relative'}}>
               <div style={{display:'flex',gap:14,alignItems:'center'}}>
-                {/* Emoji button */}
                 <div style={{position:'relative'}}>
                   <button onClick={()=>setOpenEmoji(openEmoji===post.id?null:post.id)}
-                    style={{background:'none',border:'none',cursor:'pointer',
-                      fontSize:20,padding:0,lineHeight:1}}>
-                    {reactions[post.id]||'😊'}
+                    style={{background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:1,
+                      display:'flex',alignItems:'center'}}>
+                    {reactions[post.id]
+                      ? <span style={{fontSize:20}}>{reactions[post.id]}</span>
+                      : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C2.text}
+                          strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"/>
+                          <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
+                          <line x1="9" y1="9" x2="9.01" y2="9"/>
+                          <line x1="15" y1="9" x2="15.01" y2="9"/>
+                        </svg>}
                   </button>
                   {openEmoji===post.id && (
-                    <div style={{position:'absolute',bottom:32,left:-4,
-                      background:C.bg,border:'0.5px solid '+C.border,
-                      borderRadius:20,padding:'6px 8px',display:'flex',
-                      gap:6,alignItems:'center',
-                      boxShadow:'0 4px 16px rgba(0,0,0,.15)',
-                      zIndex:10,whiteSpace:'nowrap'}}>
+                    <div style={{position:'absolute',bottom:32,left:-4,background:C2.bg,
+                      border:'0.5px solid '+C2.border,borderRadius:20,padding:'6px 8px',
+                      display:'flex',gap:6,boxShadow:'0 4px 16px rgba(0,0,0,.15)',zIndex:10}}>
                       {EMOJIS.map(e=>(
-                        <button key={e} onClick={()=>addReaction(post.id,e)}
-                          style={{background:'none',border:'none',cursor:'pointer',
-                            fontSize:20,padding:2}}>
+                        <button key={e} onClick={()=>{setReactions(r=>({...r,[post.id]:e}));setOpenEmoji(null);}}
+                          style={{background:'none',border:'none',cursor:'pointer',fontSize:20,padding:2}}>
                           {e}
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={getC().text} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={getC().text} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C2.text}
+                  strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}>
+                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                </svg>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C2.text}
+                  strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}>
+                  <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
               </div>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={getC().text} strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C2.text}
+                strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}>
+                <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
+              </svg>
             </div>
-            {post.comments>0 && (
-              <div style={{fontSize:10,color:C.text3,marginTop:4}}>
-                Voir les {post.comments} commentaires
-              </div>
-            )}
-            <div style={{fontSize:9,color:C.text4,marginTop:2,
-              textTransform:'uppercase',letterSpacing:.3}}>
-              {post.time}
-            </div>
+            {post.comments>0 && <div style={{fontSize:10,color:C2.text3,marginTop:4}}>Voir les {post.comments} commentaires</div>}
+            <div style={{fontSize:9,color:C2.text4,marginTop:2,textTransform:'uppercase',letterSpacing:.3}}>{post.time}</div>
           </div>
         </div>
       ))}
@@ -1122,7 +1018,6 @@ const ScreenFil = ({user,navigate}) => {
   );
 };
 
-// ─── SCREEN: CAMERA ───────────────────────────────────────────
 const ScreenCamera = ({user, gps, now}) => {
   const vRef = useRef(null);
   const cRef = useRef(null);
