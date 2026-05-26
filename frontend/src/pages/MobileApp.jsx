@@ -262,13 +262,14 @@ const ProgressBar = ({val,color,height=5}) => (
   </div>
 );
 
-const Toast = ({msg,show,type='info'}) => {
-  const bg = type==='success'?'#16A34A':type==='error'?'#DC2626':type==='warning'?'#D97706':'#1E293B';
-  const icon = type==='success'?'✓':type==='error'?'✕':type==='warning'?'⚠':'ℹ';
+const Toast = ({msg,show,type}) => {
+  const tp = type||'info';
+  const bg = tp==='success'?'#16A34A':tp==='error'?'#DC2626':tp==='warning'?'#D97706':'#1E293B';
+  const icon = tp==='success'?'✓':tp==='error'?'✕':tp==='warning'?'⚠':'ℹ';
   return (
     <div style={{position:'fixed',top:16,left:'50%',zIndex:9999,pointerEvents:'none',
-      transform:`translateX(-50%) translateY(${show?0:-80}px)`,
-      transition:'transform .3s cubic-bezier(.34,1.56,.64,1)',
+      transform:'translateX(-50%) translateY('+(show?'0':'-80px')+')',
+      transition:'transform .3s ease',
       background:bg,color:'#fff',padding:'10px 18px',borderRadius:24,
       fontSize:13,fontWeight:600,boxShadow:'0 8px 24px rgba(0,0,0,.25)',
       whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:8}}>
@@ -975,7 +976,7 @@ const ScreenCamera = ({user, gps, now}) => {
   const [last, setLast] = useState(null);
   const [flash, setFlash] = useState(false);
   const [w3wAddress, setW3wAddress] = useState(null);
-  const {toast, toastMsg, toastShow} = useToast();
+  const {toast, toastMsg, toastShow,toastType} = useToast();
   const n = now || new Date();
 
   useEffect(() => {
@@ -1401,7 +1402,7 @@ const ScreenMessages = () => {
 // ─── SCREEN: POINTER ──────────────────────────────────────────
 const ScreenPointer = ({user,gps}) => {
   const [tab,setTab] = useState('scan');
-  const {toast,toastMsg,toastShow} = useToast();
+  const {toast,toastMsg,toastShow,toastType} = useToast();
 
   return (
     <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
@@ -1560,7 +1561,7 @@ const ScreenMission = ({user,gps,navigate}) => {
   const [arrived,setArrived] = useState(false);
   const [showReport,setShowReport] = useState(false);
   const [report,setReport] = useState({done:'',issues:''});
-  const {toast,toastMsg,toastShow} = useToast();
+  const {toast,toastMsg,toastShow,toastType} = useToast();
   const statusColors = {in_progress:C.primary,pending:C.warning,done:C.success};
 
   return (
@@ -1835,7 +1836,7 @@ const ScreenEquipes = ({user}) => {
 // ─── SCREEN: DISPATCH ─────────────────────────────────────────
 const ScreenDispatch = () => {
   const [tab,setTab] = useState('active');
-  const {toast,toastMsg,toastShow} = useToast();
+  const {toast,toastMsg,toastShow,toastType} = useToast();
   const statusColors = {in_progress:C.primary,pending:C.warning,done:C.success};
   const statusLabels = {in_progress:'En cours',pending:'En attente',done:'Termine'};
 
@@ -1969,7 +1970,7 @@ const ScreenApprovals = ({user}) => {
     return APPROVALS.filter(a=>a.userId===user.id); // Autres voient les leurs
   };
   const [items,setItems] = useState(getVisibleItems());
-  const {toast,toastMsg,toastShow} = useToast();
+  const {toast,toastMsg,toastShow,toastType} = useToast();
 
   const typeColors = {conge:'#F5F7FA',frais:C.primaryL,materiel:'#F5F7FA',paiement:'#FFF8E6'};
   const typeTextColors = {conge:C.text2,frais:C.primary,materiel:C.text2,paiement:C.warning};
@@ -2232,7 +2233,7 @@ const ScreenProfil = ({user,onLogout}) => {
   const [lang,setLang] = useState(getLang());
   const [theme,setTheme] = useState(getTheme());
   const [notifs,setNotifs] = useState(true);
-  const {toast,toastMsg,toastShow} = useToast();
+  const {toast,toastMsg,toastShow,toastType} = useToast();
   const userObj = USERS.find(u=>u.id===user.id)||user;
   const missions = MISSIONS.filter(m=>m.techId===user.id);
 
