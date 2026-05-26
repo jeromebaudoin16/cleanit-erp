@@ -1,5 +1,5 @@
 // API Service - connexion au backend CleanIT
-const API_URL = import.meta.env.VITE_API_URL || 'https://cleanit-erp-backend.onrender.com/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://cleanit-erp.onrender.com';
 
 const getToken = () => localStorage.getItem('cit_token');
 

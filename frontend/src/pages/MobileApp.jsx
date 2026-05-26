@@ -262,20 +262,31 @@ const ProgressBar = ({val,color,height=5}) => (
   </div>
 );
 
-const Toast = ({msg,show}) => (
-  <div style={{position:'fixed',top:16,left:'50%',zIndex:9999,pointerEvents:'none',
-    transform:`translateX(-50%) translateY(${show?0:-60}px)`,transition:'transform .25s',
-    background:'#1E293B',color:'#fff',padding:'10px 20px',borderRadius:10,
-    fontSize:13,fontWeight:500,boxShadow:'0 4px 16px rgba(0,0,0,.3)',whiteSpace:'nowrap'}}>
-    {msg}
-  </div>
-);
+const Toast = ({msg,show,type='info'}) => {
+  const bg = type==='success'?'#16A34A':type==='error'?'#DC2626':type==='warning'?'#D97706':'#1E293B';
+  const icon = type==='success'?'✓':type==='error'?'✕':type==='warning'?'⚠':'ℹ';
+  return (
+    <div style={{position:'fixed',top:16,left:'50%',zIndex:9999,pointerEvents:'none',
+      transform:`translateX(-50%) translateY(${show?0:-80}px)`,
+      transition:'transform .3s cubic-bezier(.34,1.56,.64,1)',
+      background:bg,color:'#fff',padding:'10px 18px',borderRadius:24,
+      fontSize:13,fontWeight:600,boxShadow:'0 8px 24px rgba(0,0,0,.25)',
+      whiteSpace:'nowrap',display:'flex',alignItems:'center',gap:8}}>
+      <span style={{fontSize:14}}>{icon}</span>
+      {msg}
+    </div>
+  );
+};
 
 const useToast = () => {
   const [msg,setMsg] = useState('');
   const [show,setShow] = useState(false);
-  const toast = (m) => { setMsg(m);setShow(true);setTimeout(()=>setShow(false),2200); };
-  return {toast,toastMsg:msg,toastShow:show};
+  const [type,setType] = useState('info');
+  const toast = (m, tp='info') => {
+    setMsg(m);setType(tp);setShow(true);
+    setTimeout(()=>setShow(false),2500);
+  };
+  return {toast,toastMsg:msg,toastShow:show,toastType:type};
 };
 
 // ─── NAVIGATION CONFIG ────────────────────────────────────────
@@ -480,7 +491,36 @@ const ScreenLogin = ({onLogin}) => {
   const [loginErr, setLoginErr] = useState('');
   const [email, setEmail] = useState('');
   const [pwd, setPwd] = useState('');
-  const [mode, setMode] = useState('demo'); // 'demo' ou 'real'
+  const [showPwd, setShowPwd] = useState(false);
+  const [mode, setMode] = useState('demo');
+  const [subMode, setSubMode] = useState('login');
+  const [regData, setRegData] = useState({firstName:'',lastName:'',role:'terrain'});
+
+  const handleRegister = async () => {
+    if(!regData.firstName||!regData.lastName||!email||!pwd){
+      setLoginErr('Tous les champs sont obligatoires'); return;
+    }
+    if(pwd.length < 8){ setLoginErr('Mot de passe trop court'); return; }
+    setLoading(true); setLoginErr('');
+    try {
+      const res = await AuthAPI.register({...regData, email, password:pwd});
+      localStorage.setItem('cit_token', res.token);
+      const u = {
+        id: res.user.id,
+        name: regData.firstName+' '+regData.lastName,
+        role: regData.role,
+        post: regData.role,
+        av: regData.firstName[0]+regData.lastName[0],
+        color: '#0066CC',
+        region: 'CleanIT',
+        email,
+        isActive: false,
+      };
+      onLogin(u);
+    } catch(e) {
+      setLoginErr(e.message||'Erreur creation compte');
+    } finally { setLoading(false); }
+  };
 
   const handleRealLogin = async () => {
     if(!email||!pwd) { setLoginErr('Remplissez email et mot de passe'); return; }
@@ -559,29 +599,101 @@ const ScreenLogin = ({onLogin}) => {
         </>
       ) : (
         <div>
-          <div style={{marginBottom:12}}>
-            <div style={{fontSize:11,fontWeight:600,color:'#475569',marginBottom:5}}>Email</div>
+          {/* Tabs Login / Register */}
+          <div style={{display:'flex',background:'#F5F7FA',borderRadius:10,
+            padding:3,gap:2,marginBottom:14}}>
+            {[['login','Connexion'],['register','Creer un compte']].map(([m,l])=>(
+              <button key={m} onClick={()=>setSubMode(m)}
+                style={{flex:1,padding:'6px 4px',border:'none',cursor:'pointer',
+                  fontFamily:'inherit',fontSize:11,fontWeight:subMode===m?700:500,
+                  borderRadius:8,background:subMode===m?'white':'transparent',
+                  color:subMode===m?'#0066CC':'#8E8E8E',
+                  boxShadow:subMode===m?'0 1px 3px rgba(0,0,0,.1)':'none'}}>
+                {l}
+              </button>
+            ))}
+          </div>
+
+          {subMode==='register' && (
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+              <div>
+                <div style={{fontSize:10,fontWeight:600,color:'#475569',marginBottom:4}}>Prenom *</div>
+                <input value={regData.firstName} onChange={e=>setRegData(r=>({...r,firstName:e.target.value}))}
+                  placeholder="Jean"
+                  style={{width:'100%',padding:'10px 12px',border:'0.5px solid #EFEFEF',
+                    borderRadius:10,fontSize:12,fontFamily:'inherit',background:'#F5F7FA',
+                    color:'#262626',outline:'none',boxSizing:'border-box'}}/>
+              </div>
+              <div>
+                <div style={{fontSize:10,fontWeight:600,color:'#475569',marginBottom:4}}>Nom *</div>
+                <input value={regData.lastName} onChange={e=>setRegData(r=>({...r,lastName:e.target.value}))}
+                  placeholder="Dupont"
+                  style={{width:'100%',padding:'10px 12px',border:'0.5px solid #EFEFEF',
+                    borderRadius:10,fontSize:12,fontFamily:'inherit',background:'#F5F7FA',
+                    color:'#262626',outline:'none',boxSizing:'border-box'}}/>
+              </div>
+            </div>
+          )}
+          <div style={{marginBottom:10}}>
+            <div style={{fontSize:11,fontWeight:600,color:'#475569',marginBottom:4}}>Email *</div>
             <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
               placeholder="votre@email.cm"
               style={{width:'100%',padding:'11px 13px',border:'0.5px solid #EFEFEF',
                 borderRadius:10,fontSize:13,fontFamily:'inherit',background:'#F5F7FA',
                 color:'#262626',outline:'none',boxSizing:'border-box'}}/>
           </div>
-          <div style={{marginBottom:16}}>
-            <div style={{fontSize:11,fontWeight:600,color:'#475569',marginBottom:5}}>Mot de passe</div>
-            <input type="password" value={pwd} onChange={e=>setPwd(e.target.value)}
-              placeholder="••••••••"
-              onKeyDown={e=>e.key==='Enter'&&handleRealLogin()}
-              style={{width:'100%',padding:'11px 13px',border:'0.5px solid #EFEFEF',
-                borderRadius:10,fontSize:13,fontFamily:'inherit',background:'#F5F7FA',
-                color:'#262626',outline:'none',boxSizing:'border-box'}}/>
+          <div style={{marginBottom:subMode==='register'?10:14}}>
+            <div style={{fontSize:11,fontWeight:600,color:'#475569',marginBottom:4}}>Mot de passe *</div>
+            <div style={{position:'relative'}}>
+              <input type={showPwd?'text':'password'} value={pwd}
+                onChange={e=>setPwd(e.target.value)}
+                placeholder="Min. 8 caracteres"
+                onKeyDown={e=>e.key==='Enter'&&(subMode==='login'?handleRealLogin():handleRegister())}
+                style={{width:'100%',padding:'11px 40px 11px 13px',border:'0.5px solid #EFEFEF',
+                  borderRadius:10,fontSize:13,fontFamily:'inherit',background:'#F5F7FA',
+                  color:'#262626',outline:'none',boxSizing:'border-box'}}/>
+              <button onClick={()=>setShowPwd(!showPwd)}
+                style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',
+                  background:'none',border:'none',cursor:'pointer',color:'#8E8E8E',fontSize:16}}>
+                {showPwd?'🙈':'👁'}
+              </button>
+            </div>
+            {pwd.length>0 && pwd.length<8 && (
+              <div style={{fontSize:10,color:'#DC2626',marginTop:4}}>
+                Minimum 8 caracteres requis
+              </div>
+            )}
           </div>
-          {loginErr && <div style={{fontSize:12,color:'#DC2626',marginBottom:10,textAlign:'center'}}>{loginErr}</div>}
-          <button onClick={handleRealLogin} disabled={loading}
-            style={{width:'100%',padding:13,border:'none',background:loading?'#94A3B8':'#0066CC',
+          {subMode==='register' && (
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,fontWeight:600,color:'#475569',marginBottom:4}}>Role</div>
+              <select value={regData.role} onChange={e=>setRegData(r=>({...r,role:e.target.value}))}
+                style={{width:'100%',padding:'10px 13px',border:'0.5px solid #EFEFEF',
+                  borderRadius:10,fontSize:13,fontFamily:'inherit',background:'#F5F7FA',
+                  color:'#262626',outline:'none',boxSizing:'border-box'}}>
+                <option value="terrain">Technicien Terrain</option>
+                <option value="bureau">Agent Bureau</option>
+                <option value="pm">Chef de Projet</option>
+              </select>
+              <div style={{fontSize:10,color:'#8E8E8E',marginTop:4}}>
+                En attente de validation par l admin
+              </div>
+            </div>
+          )}
+          {loginErr && (
+            <div style={{fontSize:12,color:'#DC2626',marginBottom:10,
+              textAlign:'center',background:'#FEF2F2',borderRadius:8,padding:'8px 12px'}}>
+              {loginErr}
+            </div>
+          )}
+          <button onClick={subMode==='login'?handleRealLogin:handleRegister}
+            disabled={loading||(pwd.length>0&&pwd.length<8)}
+            style={{width:'100%',padding:13,border:'none',
+              background:loading?'#94A3B8':pwd.length>0&&pwd.length<8?'#CBD5E1':'#0066CC',
               color:'white',borderRadius:12,fontSize:14,fontWeight:700,
-              cursor:loading?'not-allowed':'pointer',fontFamily:'inherit',marginBottom:12}}>
-            {loading?'Connexion...':'Se connecter'}
+              cursor:loading||pwd.length<8&&pwd.length>0?'not-allowed':'pointer',
+              fontFamily:'inherit',marginBottom:12}}>
+            {loading?(subMode==='login'?'Connexion...':'Creation...'):(subMode==='login'?'Se connecter':'Creer mon compte')}
           </button>
           <button style={{width:'100%',padding:11,border:'0.5px solid #EFEFEF',
             background:'white',color:'#262626',borderRadius:12,fontSize:13,
@@ -734,8 +846,57 @@ const ScreenFil = ({user,navigate}) => {
     setOpenEmoji(null);
   };
 
-  return (
-    <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
+    const [refreshing, setRefreshing] = useState(false);
+    const [pullY, setPullY] = useState(0);
+    const touchStartY = useRef(0);
+
+    const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
+    const handleTouchMove = (e) => {
+      const el = e.currentTarget;
+      if(el.scrollTop > 0) return;
+      const delta = e.touches[0].clientY - touchStartY.current;
+      if(delta > 0) setPullY(Math.min(delta * 0.4, 60));
+    };
+    const handleTouchEnd = async () => {
+      if(pullY > 40) {
+        setRefreshing(true);
+        await new Promise(r=>setTimeout(r,1200));
+        setRefreshing(false);
+        toast('Fil mis a jour', 'success');
+      }
+      setPullY(0);
+    };
+
+    return (
+    <div style={{flex:1,overflowY:'auto',background:getC().bg,paddingBottom:80}}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}>
+
+      {/* Pull to refresh indicator */}
+      <div style={{height:pullY,display:'flex',alignItems:'center',justifyContent:'center',
+        overflow:'hidden',transition:pullY===0?'height .3s':undefined,
+        background:getC().bg}}>
+        {pullY > 10 && (
+          <div style={{display:'flex',alignItems:'center',gap:6,color:getC().primary}}>
+            {refreshing ? (
+              <div style={{width:16,height:16,border:'2px solid '+getC().primary,
+                borderTopColor:'transparent',borderRadius:'50%',
+                animation:'spin 0.8s linear infinite'}}/>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2"
+                style={{transform:`rotate(${pullY*3}deg)`}}>
+                <polyline points="23 4 23 10 17 10"/>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+              </svg>
+            )}
+            <span style={{fontSize:11,fontWeight:500}}>
+              {refreshing?'Actualisation...':pullY>40?'Relacher':'Tirer pour actualiser'}
+            </span>
+          </div>
+        )}
+      </div>
       <Header showLogo right={
         <div style={{display:'flex',gap:14,alignItems:'center'}}>
 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={getC().text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -1062,7 +1223,7 @@ const ScreenCamera = ({user, gps, now}) => {
 
   return (
     <div style={{flex:1,display:'flex',flexDirection:'column',background:'#000',position:'relative'}}>
-      <Toast msg={toastMsg} show={toastShow}/>
+      <Toast msg={toastMsg} show={toastShow} type={toastType}/>
       <canvas ref={cRef} style={{display:'none'}}/>
       {flash && <div style={{position:'absolute',inset:0,background:'#fff',zIndex:50,opacity:.7,pointerEvents:'none'}}/>}
 
@@ -1401,7 +1562,7 @@ const ScreenPointer = ({user,gps}) => {
 
   return (
     <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
-      <Toast msg={toastMsg} show={toastShow}/>
+      <Toast msg={toastMsg} show={toastShow} type={toastType}/>
       <Header title={t('pointage')} right={
         gps && (
           <div style={{background:C.successL,padding:'4px 10px',borderRadius:20,
@@ -1561,7 +1722,7 @@ const ScreenMission = ({user,gps,navigate}) => {
 
   return (
     <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
-      <Toast msg={toastMsg} show={toastShow}/>
+      <Toast msg={toastMsg} show={toastShow} type={toastType}/>
       <Header title={t('my_mission')} right={
         mission && <span style={{background:`${statusColors[mission.status]}22`,
           color:statusColors[mission.status],padding:'4px 10px',
@@ -1837,7 +1998,7 @@ const ScreenDispatch = () => {
 
   return (
     <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
-      <Toast msg={toastMsg} show={toastShow}/>
+      <Toast msg={toastMsg} show={toastShow} type={toastType}/>
       <Header title={t('dispatch')} right={
         <button style={{background:C.primary,border:'none',borderRadius:8,
           padding:'6px 12px',color:'white',fontSize:11,fontWeight:700,
@@ -1987,7 +2148,7 @@ const ScreenApprovals = ({user}) => {
 
   return (
     <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
-      <Toast msg={toastMsg} show={toastShow}/>
+      <Toast msg={toastMsg} show={toastShow} type={toastType}/>
       <Header title={t('approvals')} right={
         <div style={{background:C.dangerL,padding:'4px 10px',borderRadius:20,
           display:'flex',alignItems:'center',gap:4}}>
@@ -2243,7 +2404,7 @@ const ScreenProfil = ({user,onLogout}) => {
 
   return (
     <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
-      <Toast msg={toastMsg} show={toastShow}/>
+      <Toast msg={toastMsg} show={toastShow} type={toastType}/>
       <div style={{background:`linear-gradient(135deg,${C.primary},#004499)`,
         padding:'20px 14px 16px'}}>
         <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:14}}>
@@ -2481,13 +2642,24 @@ export default function MobileApp() {
     return <ScreenFil {...common}/>;
   };
 
+  const [prevPage, setPrevPage] = useState('');
+  useEffect(()=>{ setPrevPage(activePage); }, [activePage]);
   const isCamera = loc.includes('/camera');
 
   return (
     <div style={{minHeight:'100vh',background:C.bg,fontFamily:FONT,
       maxWidth:430,margin:'0 auto',display:'flex',flexDirection:'column',
       position:'relative'}}>
-      <style>{`*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}body{margin:0;overscroll-behavior:none}`}</style>
+      <style>{`
+        *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        body{margin:0;overscroll-behavior:none}
+        @keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}} @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+        .screen-enter{animation:slideIn .25s ease-out}
+        .fade-enter{animation:fadeIn .2s ease-out}
+        .skeleton{animation:pulse 1.5s ease-in-out infinite;background:#E2E8F0;border-radius:6px}
+      `}</style>
       {getPage()}
       {!isCamera && <BottomNav user={user} navigate={navigate} active={activePage}/>}
     </div>
