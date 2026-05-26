@@ -1651,189 +1651,88 @@ const ScreenMission = ({user,gps,navigate}) => {
 
 // ─── SCREEN: EQUIPES ──────────────────────────────────────────
 const ScreenEquipes = ({user}) => {
-  const [tab,setTab] = useState('all');
-  const terrainUsers = USERS.filter(u=>u.role==='terrain');
+  const [tab, setTab] = useState('all');
+  const C2 = getC();
 
-  // Photo viewer plein ecran
-  if(viewPhoto) return (
-    <div style={{position:'fixed',inset:0,background:'#000',zIndex:9999,
-      display:'flex',flexDirection:'column'}}>
+  const terrainUsers = USERS.filter(u => u.role === 'terrain');
+  const bureauUsers = USERS.filter(u => !['terrain','admin'].includes(u.role));
+  const canSeeBureau = ['admin','rh','dg'].includes(user.role);
 
-      {/* Header */}
-      <div style={{padding:'12px 16px',display:'flex',
-        justifyContent:'space-between',alignItems:'center',
-        background:'rgba(0,0,0,.7)'}}>
-        <button onClick={()=>setViewPhoto(null)}
-          style={{background:'rgba(255,255,255,.15)',border:'none',
-            borderRadius:8,padding:'7px 14px',color:'white',
-            cursor:'pointer',fontFamily:FONT,fontSize:13,fontWeight:500}}>
-          ← Retour
-        </button>
-        <div style={{fontSize:12,color:'rgba(255,255,255,.7)',textAlign:'center'}}>
-          <div style={{fontWeight:600,color:'white'}}>{viewPhoto.userName||viewPhoto.name}</div>
-          <div style={{fontSize:10}}>{viewPhoto.time}</div>
-        </div>
-        {viewPhoto.photoUrl ? (
-          <a href={viewPhoto.photoUrl} download={'CleanIT-'+Date.now()+'.jpg'}
-            style={{background:'#0066CC',border:'none',borderRadius:8,
-              padding:'7px 14px',color:'white',cursor:'pointer',
-              fontFamily:FONT,fontSize:12,fontWeight:600,textDecoration:'none'}}>
-            ⬇ Enreg.
-          </a>
-        ) : <div style={{width:70}}/>}
-      </div>
+  const allVisible = canSeeBureau
+    ? USERS.filter(u => u.role !== 'admin')
+    : terrainUsers;
 
-      {/* Photo */}
-      <div style={{flex:1,display:'flex',alignItems:'center',
-        justifyContent:'center',overflow:'hidden',position:'relative'}}>
-        {viewPhoto.photoUrl ? (
-          <img src={viewPhoto.photoUrl}
-            style={{maxWidth:'100%',maxHeight:'100%',objectFit:'contain'}}/>
-        ) : (
-          <div style={{textAlign:'center',color:'rgba(255,255,255,.35)',padding:24}}>
-            <div style={{fontSize:56,marginBottom:12}}>📷</div>
-            <div style={{fontSize:14,marginBottom:6}}>Photo CleanCam</div>
-            <div style={{fontSize:11,color:'rgba(255,255,255,.25)',lineHeight:1.5}}>
-              Prenez une photo depuis CleanCam et publiez-la sur le Fil
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* GPS Info Panel - LA PARTIE IMPORTANTE */}
-      <div style={{background:'#0F172A',padding:'14px 16px',
-        borderTop:'2px solid #E86C6C'}}>
-
-        {/* Site */}
-        {viewPhoto.site && (
-          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
-            <div style={{width:28,height:28,borderRadius:6,background:'#1E293B',
-              display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="#0066CC" strokeWidth="2">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>
-                <circle cx="12" cy="10" r="3"/>
-              </svg>
-            </div>
-            <div>
-              <div style={{fontSize:13,fontWeight:700,color:'white'}}>{viewPhoto.site}</div>
-              <div style={{fontSize:10,color:'#64748B'}}>{viewPhoto.siteName}</div>
-            </div>
-          </div>
-        )}
-
-        {/* Coordonnees GPS - BIEN VISIBLE */}
-        <div style={{background:'#1E293B',borderRadius:10,padding:'10px 14px',
-          marginBottom:10,border:'1px solid #334155'}}>
-          <div style={{fontSize:10,fontWeight:700,color:'#94A3B8',
-            textTransform:'uppercase',letterSpacing:.8,marginBottom:6}}>
-            Coordonnees GPS
-          </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-            <div>
-              <div style={{fontSize:10,color:'#64748B',marginBottom:2}}>Latitude</div>
-              <div style={{fontSize:16,fontWeight:700,color:'#22C55E',
-                fontFamily:'monospace'}}>
-                {viewPhoto.gpsLat || '4.0511° N'}
-              </div>
-            </div>
-            <div>
-              <div style={{fontSize:10,color:'#64748B',marginBottom:2}}>Longitude</div>
-              <div style={{fontSize:16,fontWeight:700,color:'#22C55E',
-                fontFamily:'monospace'}}>
-                {viewPhoto.gpsLng || '9.7085° E'}
-              </div>
-            </div>
-          </div>
-          {viewPhoto.gpsAcc && (
-            <div style={{fontSize:10,color:'#64748B',marginTop:6}}>
-              Precision: ±{Math.round(viewPhoto.gpsAcc)}m
-            </div>
-          )}
-        </div>
-
-        {/* What3Words */}
-        <div style={{display:'flex',alignItems:'center',gap:8,
-          background:'#E86C6C22',borderRadius:8,padding:'8px 12px',
-          border:'1px solid #E86C6C44'}}>
-          <div style={{fontSize:16,color:'#E86C6C',fontWeight:900,flexShrink:0}}>///</div>
-          <div>
-            <div style={{fontSize:12,fontWeight:700,color:'#E86C6C'}}>
-              {viewPhoto.what3words || 'mangue.soleil.pylone'}
-            </div>
-            <div style={{fontSize:9,color:'rgba(232,108,108,.6)'}}>What3Words · precision 3m</div>
-          </div>
-        </div>
-
-        {/* Date et heure */}
-        <div style={{marginTop:8,fontSize:10,color:'#475569',textAlign:'center'}}>
-          {viewPhoto.date || new Date().toLocaleDateString('fr-FR')} · {viewPhoto.time}
-        </div>
-
-      </div>
-    </div>
-  );
-  const bureauUsers = USERS.filter(u=>!['terrain'].includes(u.role));
-  const display = tab==='terrain'?terrainUsers:tab==='bureau'?bureauUsers:USERS.filter(u=>u.role!=='admin');
+  const display = tab === 'terrain' ? terrainUsers
+    : tab === 'bureau' && canSeeBureau ? bureauUsers
+    : allVisible;
 
   const getStatus = (u) => {
-    const m = MISSIONS.find(ms=>ms.techId===u.id&&ms.status==='in_progress');
-    if(m) return {label:'Sur site',color:C.success,labelBg:C.successL,site:m.site,since:'07:30'};
-    if(u.role!=='terrain') return {label:'Au bureau',color:C.primary,labelBg:C.primaryL,site:'Bureau Douala',since:'08:45'};
-    return {label:'Absent',color:C.text4,labelBg:C.bg2,site:'',since:''};
+    const m = MISSIONS.find(ms => ms.techId === u.id && ms.status === 'in_progress');
+    if(m) return {label:'Sur site', color:C2.success, bg:C2.successL, site:m.site, since:'07:30'};
+    if(u.role !== 'terrain') return {label:'Au bureau', color:C2.primary, bg:C2.primaryL, site:'Bureau', since:'08:45'};
+    return {label:'Absent', color:C2.text4, bg:C2.bg2, site:'', since:''};
   };
 
+  const tabs = canSeeBureau
+    ? [['all','Tous ('+allVisible.length+')'],['terrain','Terrain ('+terrainUsers.length+')'],['bureau','Bureau ('+bureauUsers.length+')']]
+    : [['all','Terrain ('+terrainUsers.length+')']];
+
   return (
-    <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
-      <Header title={t('equipes')} right={
+    <div style={{flex:1,overflowY:'auto',background:C2.bg,paddingBottom:80}}>
+      <Header title="Equipes" right={
         <div style={{display:'flex',gap:12}}>
-<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={getC().text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <span style={{fontSize:20,cursor:'pointer'}}>⚙️</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke={C2.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            style={{cursor:'pointer'}}>
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
         </div>
       }/>
-      <div style={{display:'flex',borderBottom:'1px solid '+C.border}}>
-        {(canSeeBureau
-    ? [['all',t('all')+' ('+(USERS.length-1)+')'],['terrain',t('terrain')+' ('+terrainUsers.length+')'],['bureau',t('bureau')+' ('+bureauUsers.length+')']]
-    : [['all','Terrain ('+terrainUsers.length+')']]
-  ).map(([id,lbl])=>(
-          <button key={id} onClick={()=>setTab(id)}
-            style={{flex:1,padding:'9px 2px',border:'none',background:C.bg,
+      <div style={{display:'flex',borderBottom:'1px solid '+C2.border}}>
+        {tabs.map(([id,lbl]) => (
+          <button key={id} onClick={() => setTab(id)}
+            style={{flex:1,padding:'9px 4px',border:'none',background:C2.bg,
               fontSize:10,fontWeight:tab===id?700:500,cursor:'pointer',fontFamily:FONT,
-              color:tab===id?C.primary:C.text3,
-              borderBottom:tab===id?'2px solid '+C.primary:'2px solid transparent'}}>
+              color:tab===id?C2.primary:C2.text3,
+              borderBottom:tab===id?'2px solid '+C2.primary:'2px solid transparent'}}>
             {lbl}
           </button>
         ))}
       </div>
       <div>
-        {display.filter(u=>u.role!=='admin').map(u=>{
+        {display.map(u => {
           const st = getStatus(u);
           return (
             <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,
-              padding:'11px 14px',borderBottom:'0.5px solid '+C.border,
-              opacity:st.label==='Absent'?.6:1}}>
+              padding:'11px 14px',borderBottom:'0.5px solid '+C2.border,
+              opacity:st.label==='Absent'?.6:1,background:C2.bg}}>
               <div style={{position:'relative',flexShrink:0}}>
-                <AvatarCircle av={u.av} color={u.color} size={44}/>
+                <div style={{width:44,height:44,borderRadius:'50%',
+                  background:u.color+'22',border:'1.5px solid '+u.color,
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  fontSize:14,fontWeight:700,color:u.color}}>
+                  {u.av}
+                </div>
                 <div style={{position:'absolute',bottom:0,right:0,
                   width:12,height:12,borderRadius:'50%',
                   background:st.color,border:'2px solid white'}}/>
               </div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:600,color:C.text}}>{u.name}</div>
-                <div style={{fontSize:10,color:C.text3}}>{u.post}</div>
+                <div style={{fontSize:13,fontWeight:600,color:C2.text}}>{u.name}</div>
+                <div style={{fontSize:10,color:C2.text3}}>{u.post}</div>
                 {st.site && (
-                  <div style={{fontSize:10,color:C.primary,
+                  <div style={{fontSize:10,color:C2.primary,
                     display:'flex',alignItems:'center',gap:2,marginTop:1}}>
                     📍 {st.site}
                   </div>
                 )}
               </div>
               <div style={{textAlign:'right',flexShrink:0}}>
-                <div style={{background:st.labelBg,color:st.color,
+                <div style={{background:st.bg,color:st.color,
                   padding:'3px 8px',borderRadius:10,fontSize:10,fontWeight:700,marginBottom:2}}>
                   {st.label}
                 </div>
-                {st.since && <div style={{fontSize:9,color:C.text3}}>depuis {st.since}</div>}
+                {st.since && <div style={{fontSize:9,color:C2.text3}}>depuis {st.since}</div>}
               </div>
             </div>
           );
