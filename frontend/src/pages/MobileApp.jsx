@@ -1053,9 +1053,9 @@ const ScreenCamera = ({user, gps, now}) => {
         ) : (
           <button onClick={startCam}
             style={{width:70,height:70,borderRadius:'50%',border:'none',
-              background:'#0066CC',cursor:'pointer',fontSize:28,
+              background:'#0066CC',cursor:'pointer',
               display:'flex',alignItems:'center',justifyContent:'center'}}>
-            📷
+            <svg width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='white' strokeWidth='1.75' strokeLinecap='round' strokeLinejoin='round'><path d='M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z'/><circle cx='12' cy='13' r='4'/></svg>
           </button>
         )}
 
@@ -1792,7 +1792,10 @@ const ScreenEquipes = () => {
         </div>
       }/>
       <div style={{display:'flex',borderBottom:'1px solid '+C.border}}>
-        {[['all',`${t('all')} (${USERS.length-1})`],['terrain',`${t('terrain')} (${terrainUsers.length})`],['bureau',`${t('bureau')} (${bureauUsers.length})`]].map(([id,lbl])=>(
+        {(canSeeBureau
+    ? [['all',t('all')+' ('+(USERS.length-1)+')'],['terrain',t('terrain')+' ('+terrainUsers.length+')'],['bureau',t('bureau')+' ('+bureauUsers.length+')']]
+    : [['all','Terrain ('+terrainUsers.length+')']]
+  ).map(([id,lbl])=>(
           <button key={id} onClick={()=>setTab(id)}
             style={{flex:1,padding:'9px 2px',border:'none',background:C.bg,
               fontSize:10,fontWeight:tab===id?700:500,cursor:'pointer',fontFamily:FONT,
@@ -2413,8 +2416,10 @@ const ScreenProfil = ({user,onLogout}) => {
           marginBottom:12,border:'0.5px solid '+C.border,cursor:'pointer',
           display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <div style={{display:'flex',alignItems:'center',gap:10}}>
-            <div style={{width:32,height:32,borderRadius:8,background:C.bg2,
-              display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>📲</div>
+            <div style={{width:32,height:32,borderRadius:8,background:getC().bg2,
+              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={getC().text2} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
             <div>
               <div style={{fontSize:13,color:C.text}}>{t('install')}</div>
               <div style={{fontSize:10,color:C.text3}}>Ajouter CleanIT sur votre ecran</div>
@@ -2424,12 +2429,13 @@ const ScreenProfil = ({user,onLogout}) => {
         </div>
 
         <button onClick={onLogout}
-          style={{width:'100%',padding:13,border:'0.5px solid '+C.dangerL,
-            background:C.bg,borderRadius:12,fontSize:13,fontWeight:700,
-            color:C.danger,cursor:'pointer',fontFamily:FONT,
+          style={{width:'100%',padding:13,border:'0.5px solid '+getC().dangerL,
+            background:getC().bg,borderRadius:12,fontSize:13,fontWeight:700,
+            color:getC().danger,cursor:'pointer',fontFamily:FONT,
             display:'flex',alignItems:'center',justifyContent:'center',gap:8,
             marginBottom:8}}>
-          🚪 {t('logout')}
+          <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><path d='M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4'/><polyline points='16 17 21 12 16 7'/><line x1='21' y1='12' x2='9' y2='12'/></svg>
+          {t('logout')}
         </button>
         <div style={{textAlign:'center',fontSize:10,color:C.text4}}>
           CleanIT ERP Mobile v4.0 · Cameroun
