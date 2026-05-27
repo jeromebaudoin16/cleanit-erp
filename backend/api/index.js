@@ -4,89 +4,164 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
-app.use(express.json());
+
+// ─── SÉCURITÉ ────────────────────────────────────────────────
+app.use(express.json({ limit: '10kb' }));
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
   next();
 });
 
+// ─── RATE LIMITING ───────────────────────────────────────────
+const rateLimitMap = new Map();
+const rateLimit = (max, windowMs) => (req, res, next) => {
+  const key = req.ip + req.path;
+  const now = Date.now();
+  const record = rateLimitMap.get(key) || { count: 0, start: now };
+  if (now - record.start > windowMs) { record.count = 0; record.start = now; }
+  record.count++;
+  rateLimitMap.set(key, record);
+  if (record.count > max) return res.status(429).json({ message: 'Trop de tentatives. Attendez.' });
+  next();
+};
+
+// ─── BASE DE DONNÉES ─────────────────────────────────────────
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 1,
-  idleTimeoutMillis: 10000,
+  max: 3,
+  idleTimeoutMillis: 20000,
   connectionTimeoutMillis: 8000,
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'cleanit_secret';
+const sanitize = (str) => str ? String(str).replace(/[<>'"`;]/g, '').trim() : '';
 
-// POST /auth/login
-app.post('/auth/login', async (req, res) => {
+// ─── MIDDLEWARE AUTH ──────────────────────────────────────────
+const auth = (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const token = (req.headers.authorization || '').replace('Bearer ', '');
+    if (!token) return res.status(401).json({ message: 'Token requis' });
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch { res.status(401).json({ message: 'Token invalide ou expiré' }); }
+};
+
+const isAdmin = (req, res, next) => {
+  if (!['admin', 'dg'].includes(req.user?.role)) return res.status(403).json({ message: 'Accès refusé' });
+  next();
+};
+
+// ─── AUTH ROUTES ─────────────────────────────────────────────
+app.post('/auth/login', rateLimit(5, 60000), async (req, res) => {
+  try {
+    const email = sanitize(req.body.email || '');
+    const password = req.body.password || '';
     if (!email || !password) return res.status(400).json({ message: 'Email et mot de passe requis' });
-    const result = await pool.query('SELECT * FROM "users" WHERE email = $1', [email]);
+    if (password.length > 100) return res.status(400).json({ message: 'Mot de passe invalide' });
+    const result = await pool.query('SELECT * FROM users WHERE email = $1 AND "isActive" = true', [email.toLowerCase()]);
     const user = result.rows[0];
-    if (!user) return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
-    const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
+    if (!user || !(await bcrypt.compare(password, user.password)))
+      return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
     const token = jwt.sign({ sub: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    await pool.query('UPDATE users SET "lastSeen" = NOW() WHERE id = $1', [user.id]);
     res.json({ token, user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role } });
-  } catch (e) {
-    console.error('Login error:', e.message);
-    res.status(500).json({ message: 'Erreur serveur', error: e.message });
-  }
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
-// POST /auth/register
-app.post('/auth/register', async (req, res) => {
+app.post('/auth/register', rateLimit(3, 60000), async (req, res) => {
   try {
-    const { email, password, firstName, lastName, role } = req.body;
+    const email = sanitize(req.body.email || '').toLowerCase();
+    const firstName = sanitize(req.body.firstName || '');
+    const lastName = sanitize(req.body.lastName || '');
+    const role = ['terrain', 'bureau', 'pm'].includes(req.body.role) ? req.body.role : 'bureau';
+    const password = req.body.password || '';
     if (!email || !password || !firstName) return res.status(400).json({ message: 'Champs requis manquants' });
-    const exists = await pool.query('SELECT id FROM "users" WHERE email = $1', [email]);
-    if (exists.rows[0]) return res.status(400).json({ message: 'Email deja utilise' });
-    const hash = await bcrypt.hash(password, 10);
+    if (password.length < 8) return res.status(400).json({ message: 'Mot de passe trop court (min 8 caractères)' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ message: 'Email invalide' });
+    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (exists.rows[0]) return res.status(409).json({ message: 'Email déjà utilisé' });
+    const hash = await bcrypt.hash(password, 12);
     const result = await pool.query(
-      'INSERT INTO "users" (email, password, "firstName", "lastName", role, "isActive") VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, email, "firstName", "lastName", role',
-      [email, hash, firstName, lastName || '', role || 'bureau', false]
+      'INSERT INTO users (email, password, "firstName", "lastName", role, "isActive", "createdAt") VALUES ($1,$2,$3,$4,$5,false,NOW()) RETURNING id, email, "firstName", "lastName", role, "isActive"',
+      [email, hash, firstName, lastName, role]
     );
     const user = result.rows[0];
     const token = jwt.sign({ sub: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user, message: 'Compte cree. En attente de validation admin.' });
-  } catch (e) {
-    console.error('Register error:', e.message);
-    res.status(500).json({ message: 'Erreur serveur', error: e.message });
-  }
+    res.status(201).json({ token, user, message: 'Compte créé. En attente de validation admin.' });
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
-// GET /auth/me
-app.get('/auth/me', async (req, res) => {
+app.get('/auth/me', auth, async (req, res) => {
   try {
-    const auth = req.headers.authorization;
-    if (!auth) return res.status(401).json({ message: 'Token requis' });
-    const token = auth.replace('Bearer ', '');
-    const payload = jwt.verify(token, JWT_SECRET);
-    const result = await pool.query('SELECT id, email, "firstName", "lastName", role FROM "users" WHERE id = $1', [payload.sub]);
+    const result = await pool.query('SELECT id, email, "firstName", "lastName", role, "isActive", "lastSeen" FROM users WHERE id = $1', [req.user.sub]);
+    if (!result.rows[0]) return res.status(404).json({ message: 'Utilisateur introuvable' });
     res.json(result.rows[0]);
-  } catch (e) {
-    res.status(401).json({ message: 'Token invalide' });
-  }
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
-// GET /users
-app.get('/users', async (req, res) => {
+// ─── USERS ROUTES ─────────────────────────────────────────────
+app.get('/users', auth, async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, email, "firstName", "lastName", role, "isActive" FROM "users" ORDER BY id');
+    const result = await pool.query('SELECT id, email, "firstName", "lastName", role, "isActive", "lastSeen", "createdAt" FROM users ORDER BY "createdAt" DESC');
     res.json(result.rows);
-  } catch (e) {
-    res.status(500).json({ message: 'Erreur serveur' });
-  }
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
-// Health check
-app.get('/', (req, res) => res.json({ status: 'ok', app: 'CleanIT ERP API', version: '2.0' }));
+app.post('/users', auth, isAdmin, async (req, res) => {
+  try {
+    const email = sanitize(req.body.email || '').toLowerCase();
+    const firstName = sanitize(req.body.firstName || '');
+    const lastName = sanitize(req.body.lastName || '');
+    const role = req.body.role || 'bureau';
+    const password = req.body.password || 'CleanIT2024!';
+    if (!email || !firstName) return res.status(400).json({ message: 'Email et prénom requis' });
+    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (exists.rows[0]) return res.status(409).json({ message: 'Email déjà utilisé' });
+    const hash = await bcrypt.hash(password, 12);
+    const result = await pool.query(
+      'INSERT INTO users (email, password, "firstName", "lastName", role, "isActive", "createdAt") VALUES ($1,$2,$3,$4,$5,true,NOW()) RETURNING id, email, "firstName", "lastName", role, "isActive"',
+      [email, hash, firstName, lastName, role]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+app.put('/users/:id', auth, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (isNaN(id)) return res.status(400).json({ message: 'ID invalide' });
+    const updates = [];
+    const values = [];
+    let idx = 1;
+    if (req.body.isActive !== undefined) { updates.push(`"isActive" = $${idx++}`); values.push(req.body.isActive); }
+    if (req.body.role) { updates.push(`role = $${idx++}`); values.push(req.body.role); }
+    if (req.body.firstName) { updates.push(`"firstName" = $${idx++}`); values.push(sanitize(req.body.firstName)); }
+    if (req.body.password) { updates.push(`password = $${idx++}`); values.push(await bcrypt.hash(req.body.password, 12)); }
+    if (!updates.length) return res.status(400).json({ message: 'Aucune modification' });
+    values.push(id);
+    const result = await pool.query(`UPDATE users SET ${updates.join(',')} WHERE id = $${idx} RETURNING id, email, "firstName", "lastName", role, "isActive"`, values);
+    res.json(result.rows[0]);
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+// ─── HEALTH + DRP ─────────────────────────────────────────────
+app.get('/', (req, res) => res.json({ status: 'ok', app: 'CleanIT ERP API', version: '2.1', ts: new Date().toISOString() }));
+app.get('/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'healthy', db: 'connected', ts: new Date().toISOString() });
+  } catch (e) { res.status(503).json({ status: 'unhealthy', db: 'disconnected' }); }
+});
+
+// 404
+app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 
 module.exports = app;
