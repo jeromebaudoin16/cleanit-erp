@@ -1619,11 +1619,35 @@ const ScreenPointer = ({user,gps}) => {
 
 // ─── SCREEN: MISSION ──────────────────────────────────────────
 const ScreenMission = ({user,gps,navigate}) => {
-  const mission = MISSIONS.find(m=>m.techId===user.id);
+  const [mission, setMission] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [arrived,setArrived] = useState(false);
   const [showReport,setShowReport] = useState(false);
   const [report,setReport] = useState({done:'',issues:''});
   const {toast,toastMsg,toastShow,toastType} = useToast();
+
+  useEffect(() => {
+    MissionsAPI.getMy().then(data => {
+      if(Array.isArray(data) && data.length > 0) {
+        const m = data[0];
+        setMission({
+          id: m.id, site: m.site, siteName: m.site_name,
+          client: m.client, type: m.type, techId: m.tech_id,
+          status: m.status, pct: m.progress||0,
+          deadline: m.deadline||'', bc: m.bc_number||'',
+          checklist: m.checklist||[], team: m.team_ids||[],
+          reports: []
+        });
+      } else {
+        // Fallback demo
+        const demo = MISSIONS.find(ms=>ms.techId===user.id);
+        setMission(demo||null);
+      }
+    }).catch(() => {
+      const demo = MISSIONS.find(ms=>ms.techId===user.id);
+      setMission(demo||null);
+    }).finally(() => setLoading(false));
+  }, []);
   const statusColors = {in_progress:C.primary,pending:C.warning,done:C.success};
 
   return (
