@@ -2465,6 +2465,34 @@ export default function MobileApp() {
   },[user]);
 
   const login = (u) => {setUser(u);localStorage.setItem('cit_mobile_user',JSON.stringify(u));};
+
+  // Handler Google OAuth - recuperer le token depuis l URL
+  useEffect(() => {
+    const hash = window.location.hash;
+    if(hash && hash.includes('access_token')) {
+      const params = new URLSearchParams(hash.substring(1));
+      const token = params.get('access_token');
+      if(token) {
+        fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+          headers: {'Authorization': 'Bearer '+token}
+        }).then(r=>r.json()).then(profile=>{
+          const u = {
+            id: 'g_'+profile.sub,
+            name: profile.name,
+            email: profile.email,
+            role: 'bureau',
+            post: 'Employe',
+            av: (profile.given_name[0]||'G')+(profile.family_name?.[0]||''),
+            color: '#4285F4',
+            region: 'CleanIT',
+            avatar: profile.picture,
+          };
+          login(u);
+          window.location.hash = '';
+        }).catch(console.error);
+      }
+    }
+  }, []);
   const logout = () => {setUser(null);localStorage.removeItem('cit_mobile_user');};
 
   if(!user) return <ScreenLogin onLogin={login}/>;
