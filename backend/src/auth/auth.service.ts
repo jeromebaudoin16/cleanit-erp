@@ -23,7 +23,7 @@ export class AuthService {
     if (exists) throw new UnauthorizedException('Email deja utilise');
     const user = await this.users.create({
       ...data,
-      role: data.role || 'bureau',
+      role: (data.role as any) || 'bureau',
       isActive: false, // En attente approbation admin
     });
     const payload = { sub: user.id, email: user.email, role: user.role };

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE = import.meta.env.VITE_API_URL || 'https://cleanit-erp.onrender.com';
+const BASE = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
 
 export const api = axios.create({ baseURL: BASE });
 

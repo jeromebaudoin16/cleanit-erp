@@ -21,12 +21,8 @@ async function bootstrap() {
   await app.listen(3000);
 
   // Seed CleanITBooks au demarrage
-  try {
-    const dataSource = app.get(DataSource);
-    await seedCleanITBooks(dataSource);
-  } catch(e) {
-    console.error('Seed CleanITBooks erreur:', e.message);
-  }
+  // Seed desactive pour serverless - trop lent au demarrage
+  // await seedCleanITBooks(...);
 
   console.log('\n🚀 CleanIT ERP Backend: http://localhost:3000');
   console.log('📚 API Docs: http://localhost:3000/api/docs\n');
