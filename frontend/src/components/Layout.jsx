@@ -75,9 +75,8 @@ export default function Layout() {
       setNotifs(Array.isArray(r.data) ? r.data : []);
     } catch {
       setNotifs([
-        { id:1, title:'Alarme critique', message:'LINK_DOWN BBU-01 — YDE-003', type:'error', read:false },
-        { id:2, title:'Ticket assigné', message:'TK-1042 Réparation urgente fibre', type:'warning', read:false },
-        { id:3, title:'Intervention validée', message:'BFS-001 Validée Client ✓', type:'success', read:true },
+        { id:1, title:'Bienvenue sur CleanIT', message:'Système opérationnel — Bonne journée', type:'success', read:false },
+        { id:2, title:'Backend connecté', message:'Vercel API · Neon PostgreSQL · OK', type:'success', read:false },
       ]);
     }
   };
