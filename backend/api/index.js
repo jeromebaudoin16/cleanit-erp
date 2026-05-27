@@ -154,6 +154,45 @@ app.put('/users/:id', auth, isAdmin, async (req, res) => {
 
 // ─── HEALTH + DRP ─────────────────────────────────────────────
 app.get('/', (req, res) => res.json({ status: 'ok', app: 'CleanIT ERP API', version: '2.1', ts: new Date().toISOString() }));
+// GET /init - Créer les tables (admin only)
+app.get('/init-db', async (req, res) => {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS feed_posts (
+      id SERIAL PRIMARY KEY, user_id INTEGER, user_name VARCHAR(100),
+      user_av VARCHAR(10), site VARCHAR(50), site_name VARCHAR(100),
+      text TEXT NOT NULL, photo_url TEXT, gps_lat VARCHAR(20),
+      gps_lng VARCHAR(20), what3words VARCHAR(100),
+      type VARCHAR(20) DEFAULT 'text',
+      reactions JSONB DEFAULT '{"like":0,"fire":0,"clap":0}',
+      comments_count INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS missions (
+      id SERIAL PRIMARY KEY, code VARCHAR(20) UNIQUE NOT NULL,
+      site VARCHAR(50), site_name VARCHAR(100), client VARCHAR(100),
+      type VARCHAR(100), tech_id INTEGER, status VARCHAR(20) DEFAULT 'pending',
+      progress INTEGER DEFAULT 0, deadline VARCHAR(50), bc_number VARCHAR(100),
+      checklist JSONB DEFAULT '[]', team_ids JSONB DEFAULT '[]',
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS post_reactions (
+      id SERIAL PRIMARY KEY, post_id INTEGER, user_id INTEGER,
+      emoji VARCHAR(10), UNIQUE(post_id, user_id)
+    )`);
+    res.json({ ok: true, message: 'Tables créées avec succès' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// GET /init-db - Créer les tables
+app.get('/init-db', async (req, res) => {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS feed_posts (id SERIAL PRIMARY KEY, user_id INTEGER, user_name VARCHAR(100), user_av VARCHAR(10), site VARCHAR(50), site_name VARCHAR(100), text TEXT NOT NULL, photo_url TEXT, gps_lat VARCHAR(20), gps_lng VARCHAR(20), what3words VARCHAR(100), type VARCHAR(20) DEFAULT 'text', reactions JSONB DEFAULT '{"like":0,"fire":0,"clap":0}', comments_count INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS missions (id SERIAL PRIMARY KEY, code VARCHAR(20) UNIQUE NOT NULL, site VARCHAR(50), site_name VARCHAR(100), client VARCHAR(100), type VARCHAR(100), tech_id INTEGER, status VARCHAR(20) DEFAULT 'pending', progress INTEGER DEFAULT 0, deadline VARCHAR(50), bc_number VARCHAR(100), checklist JSONB DEFAULT '[]', team_ids JSONB DEFAULT '[]', created_at TIMESTAMP DEFAULT NOW())`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS post_reactions (id SERIAL PRIMARY KEY, post_id INTEGER, user_id INTEGER, emoji VARCHAR(10), UNIQUE(post_id, user_id))`);
+    res.json({ ok: true, message: 'Tables creees' });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
