@@ -161,7 +161,73 @@ app.get('/health', async (req, res) => {
   } catch (e) { res.status(503).json({ status: 'unhealthy', db: 'disconnected' }); }
 });
 
+
+// DELETE /users/:id
+app.delete('/users/:id', auth, isAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (isNaN(id)) return res.status(400).json({ message: 'ID invalide' });
+    // Empecher suppression de son propre compte
+    if (parseInt(id) === req.user.sub) return res.status(400).json({ message: 'Impossible de supprimer votre propre compte' });
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
+    res.json({ message: 'Compte supprime' });
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+// POST /users/bulk - Import CSV/JSON multiple
+app.post('/users/bulk', auth, isAdmin, async (req, res) => {
+  try {
+    const { users } = req.body;
+    if (!Array.isArray(users) || users.length === 0)
+      return res.status(400).json({ message: 'Liste utilisateurs requise' });
+    if (users.length > 200)
+      return res.status(400).json({ message: 'Maximum 200 utilisateurs par import' });
+
+    const results = { created: [], errors: [] };
+    for (const u of users) {
+      try {
+        const email = sanitize(u.email || '').toLowerCase();
+        const firstName = sanitize(u.firstName || u.prenom || '');
+        const lastName = sanitize(u.lastName || u.nom || '');
+        const role = u.role || 'technician';
+        const password = u.password || 'CleanIT2024!';
+        if (!email || !firstName) { results.errors.push({ email, reason: 'Email ou prenom manquant' }); continue; }
+        const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+        if (exists.rows[0]) { results.errors.push({ email, reason: 'Email deja utilise' }); continue; }
+        const hash = await bcrypt.hash(password, 10);
+        const r = await pool.query(
+          'INSERT INTO users (email, password, "firstName", "lastName", role, "isActive", "createdAt") VALUES ($1,$2,$3,$4,$5,true,NOW()) RETURNING id, email, "firstName", "lastName", role',
+          [email, hash, firstName, lastName, role]
+        );
+        results.created.push(r.rows[0]);
+      } catch (err) { results.errors.push({ email: u.email, reason: err.message }); }
+    }
+    res.json({ total: users.length, created: results.created.length, errors: results.errors.length, details: results });
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
 // 404
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 
 module.exports = app;
+
+// GET /metrics - Dashboard monitoring admin
+app.get('/metrics', auth, isAdmin, async (req, res) => {
+  try {
+    const [users, dbCheck] = await Promise.all([
+      pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN "isActive" THEN 1 END) as active FROM users'),
+      pool.query('SELECT NOW() as db_time')
+    ]);
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: { connected: true, time: dbCheck.rows[0].db_time },
+      users: { total: parseInt(users.rows[0].total), active: parseInt(users.rows[0].active) },
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      version: '2.1'
+    });
+  } catch (e) {
+    res.status(503).json({ status: 'degraded', error: e.message });
+  }
+});
