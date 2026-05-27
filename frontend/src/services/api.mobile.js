@@ -27,9 +27,12 @@ export const AuthAPI = {
 export const FeedAPI = {
   getPosts: () => apiCall('GET', '/feed'),
   createPost: (data) => apiCall('POST', '/feed', data),
+  react: (postId, emoji) => apiCall('POST', '/feed/' + postId + '/react', { emoji }),
 };
 
 export const MissionsAPI = {
   getAll: () => apiCall('GET', '/missions'),
-  getMy: (userId) => apiCall('GET', '/missions/user/' + userId),
+  getMy: () => apiCall('GET', '/missions/my'),
+  create: (data) => apiCall('POST', '/missions', data),
+  update: (id, data) => apiCall('PUT', '/missions/' + id, data),
 };

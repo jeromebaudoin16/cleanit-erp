@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { AuthAPI } from '../services/api.mobile.js';
+import { AuthAPI, FeedAPI, MissionsAPI } from '../services/api.mobile.js';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 // ─── DESIGN SYSTEM ───────────────────────────────────────────
@@ -669,9 +669,47 @@ const ScreenFil = ({user,navigate}) => {
   const [viewPhoto,setViewPhoto] = useState(null);
   const [refreshing,setRefreshing] = useState(false);
   const [pullY,setPullY] = useState(0);
+  const [posts, setPosts] = useState(FEED_POSTS);
+  const [loadingFeed, setLoadingFeed] = useState(false);
   const touchStartY = useRef(0);
   const C2 = getC();
   const EMOJIS = ['👍','🔥','👏','😮','😂','🙏'];
+
+  // Charger posts depuis la DB
+  useEffect(() => {
+    const loadPosts = async () => {
+      setLoadingFeed(true);
+      try {
+        const data = await FeedAPI.getPosts();
+        if(Array.isArray(data) && data.length > 0) {
+          const formatted = data.map(p => ({
+            id: p.id,
+            userId: String(p.user_id),
+            userName: p.user_name?.toLowerCase().replace(' ','_') || 'user',
+            name: p.user_name,
+            site: p.site,
+            siteName: p.site_name,
+            text: p.text,
+            photoUrl: p.photo_url,
+            gpsLat: p.gps_lat,
+            gpsLng: p.gps_lng,
+            what3words: p.what3words,
+            type: p.photo_url ? 'photo' : 'text',
+            reactions: p.reactions || {like:0,fire:0,clap:0},
+            comments: p.comments_count || 0,
+            time: new Date(p.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+            date: new Date(p.created_at).toLocaleDateString('fr-FR'),
+          }));
+          setPosts(formatted);
+          FEED_POSTS.length = 0;
+          FEED_POSTS.push(...formatted);
+        }
+      } catch(e) {
+        console.log('Feed offline - localStorage');
+      } finally { setLoadingFeed(false); }
+    };
+    loadPosts();
+  }, []);
 
   const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
   const handleTouchMove = (e) => {
@@ -682,7 +720,23 @@ const ScreenFil = ({user,navigate}) => {
   const handleTouchEnd = async () => {
     if(pullY > 40){
       setRefreshing(true);
-      await new Promise(r=>setTimeout(r,1200));
+      try {
+        const data = await FeedAPI.getPosts();
+        if(Array.isArray(data) && data.length > 0) {
+          const formatted = data.map(p => ({
+            id: p.id, userId: String(p.user_id),
+            userName: p.user_name?.toLowerCase().replace(' ','_')||'user',
+            name: p.user_name, site: p.site, siteName: p.site_name,
+            text: p.text, photoUrl: p.photo_url,
+            gpsLat: p.gps_lat, gpsLng: p.gps_lng, what3words: p.what3words,
+            type: p.photo_url?'photo':'text',
+            reactions: p.reactions||{like:0,fire:0,clap:0},
+            comments: p.comments_count||0,
+            time: new Date(p.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+          }));
+          setPosts(formatted);
+        }
+      } catch(e) { console.log('Refresh offline'); }
       setRefreshing(false);
     }
     setPullY(0);
@@ -834,7 +888,7 @@ const ScreenFil = ({user,navigate}) => {
       </div>
 
       {/* Feed */}
-      {FEED_POSTS.map(post=>(
+      {posts.map(post=>(
         <div key={post.id} style={{borderBottom:'1px solid '+C2.border}}>
           <div style={{padding:'8px 12px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div style={{display:'flex',alignItems:'center',gap:8}}>
@@ -1207,9 +1261,17 @@ const ScreenCamera = ({user, gps, now}) => {
                     type:'photo',
                     photoUrl:last
                   };
+                  // Publier vers API
+                  try { FeedAPI.createPost({
+                      text: newPost.text, site: newPost.site,
+                      siteName: newPost.siteName, photoUrl: newPost.photoUrl,
+                      gpsLat: newPost.gpsLat, gpsLng: newPost.gpsLng,
+                      what3words: newPost.what3words, type: 'photo'
+                    }).catch(e => console.log('API offline'));
+                  } catch(e) {}
                   FEED_POSTS.unshift(newPost);
-                  saveFeedPosts(); // async - sauvegarde en arriere-plan
-                  toast('Photo publiee dans le Fil');
+                  saveFeedPosts();
+                  toast('Photo publiee dans le Fil', 'success');
                 } else toast('Prenez une photo d abord');
               }},
               {label:'Projet', action:()=>{ toast('Envoye au projet'); }},

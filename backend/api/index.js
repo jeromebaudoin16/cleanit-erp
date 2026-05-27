@@ -206,6 +206,147 @@ app.post('/users/bulk', auth, isAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
+
+// ─── INIT TABLES (auto-création si inexistantes) ──────────────
+const initTables = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feed_posts (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      user_name VARCHAR(100),
+      user_av VARCHAR(10),
+      site VARCHAR(50),
+      site_name VARCHAR(100),
+      text TEXT NOT NULL,
+      photo_url TEXT,
+      gps_lat VARCHAR(20),
+      gps_lng VARCHAR(20),
+      what3words VARCHAR(100),
+      type VARCHAR(20) DEFAULT 'text',
+      reactions JSONB DEFAULT '{"like":0,"fire":0,"clap":0}',
+      comments_count INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS missions (
+      id SERIAL PRIMARY KEY,
+      code VARCHAR(20) UNIQUE NOT NULL,
+      site VARCHAR(50),
+      site_name VARCHAR(100),
+      client VARCHAR(100),
+      type VARCHAR(100),
+      tech_id INTEGER REFERENCES users(id),
+      status VARCHAR(20) DEFAULT 'pending',
+      progress INTEGER DEFAULT 0,
+      deadline VARCHAR(50),
+      bc_number VARCHAR(100),
+      checklist JSONB DEFAULT '[]',
+      team_ids JSONB DEFAULT '[]',
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS post_reactions (
+      id SERIAL PRIMARY KEY,
+      post_id INTEGER REFERENCES feed_posts(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id),
+      emoji VARCHAR(10),
+      UNIQUE(post_id, user_id)
+    )
+  `);
+};
+initTables().catch(console.error);
+
+// ─── FEED ROUTES ────────────────────────────────────────────
+app.get('/feed', auth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT fp.*, u."firstName" || ' ' || u."lastName" as author_name
+      FROM feed_posts fp
+      LEFT JOIN users u ON fp.user_id = u.id
+      ORDER BY fp.created_at DESC LIMIT 50
+    `);
+    res.json(result.rows);
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
+app.post('/feed', auth, async (req, res) => {
+  try {
+    const { text, site, siteName, photoUrl, gpsLat, gpsLng, what3words, type } = req.body;
+    if (!text) return res.status(400).json({ message: 'Texte requis' });
+    const user = await pool.query('SELECT "firstName", "lastName" FROM users WHERE id = $1', [req.user.sub]);
+    const u = user.rows[0];
+    const av = (u.firstName[0] + u.lastName[0]).toUpperCase();
+    const result = await pool.query(`
+      INSERT INTO feed_posts (user_id, user_name, user_av, site, site_name, text, photo_url, gps_lat, gps_lng, what3words, type)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *
+    `, [req.user.sub, u.firstName+' '+u.lastName, av, site||'', siteName||'', text, photoUrl||null, gpsLat||null, gpsLng||null, what3words||null, type||'text']);
+    res.status(201).json(result.rows[0]);
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
+app.post('/feed/:id/react', auth, async (req, res) => {
+  try {
+    const { emoji } = req.body;
+    const { id } = req.params;
+    await pool.query(`
+      INSERT INTO post_reactions (post_id, user_id, emoji) VALUES ($1,$2,$3)
+      ON CONFLICT (post_id, user_id) DO UPDATE SET emoji = $3
+    `, [id, req.user.sub, emoji]);
+    const count = await pool.query('SELECT COUNT(*) FROM post_reactions WHERE post_id = $1', [id]);
+    res.json({ reactions: parseInt(count.rows[0].count) });
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+// ─── MISSIONS ROUTES ────────────────────────────────────────
+app.get('/missions', auth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT m.*, u."firstName" || ' ' || u."lastName" as tech_name
+      FROM missions m
+      LEFT JOIN users u ON m.tech_id = u.id
+      ORDER BY m.created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
+app.get('/missions/my', auth, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM missions WHERE tech_id = $1 ORDER BY created_at DESC', [req.user.sub]);
+    res.json(result.rows);
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+app.post('/missions', auth, async (req, res) => {
+  try {
+    const { code, site, siteName, client, type, techId, deadline, bcNumber, checklist } = req.body;
+    if (!code || !site || !client) return res.status(400).json({ message: 'Code, site et client requis' });
+    const result = await pool.query(`
+      INSERT INTO missions (code, site, site_name, client, type, tech_id, deadline, bc_number, checklist)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
+    `, [code, site, siteName||'', client, type||'', techId||null, deadline||null, bcNumber||null, JSON.stringify(checklist||[])]);
+    res.status(201).json(result.rows[0]);
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
+app.put('/missions/:id', auth, async (req, res) => {
+  try {
+    const { status, progress, checklist } = req.body;
+    const updates = [];
+    const values = [];
+    let idx = 1;
+    if (status) { updates.push(`status = $${idx++}`); values.push(status); }
+    if (progress !== undefined) { updates.push(`progress = $${idx++}`); values.push(progress); }
+    if (checklist) { updates.push(`checklist = $${idx++}`); values.push(JSON.stringify(checklist)); }
+    if (!updates.length) return res.status(400).json({ message: 'Aucune modification' });
+    values.push(req.params.id);
+    const result = await pool.query(`UPDATE missions SET ${updates.join(',')} WHERE id = $${idx} RETURNING *`, values);
+    res.json(result.rows[0]);
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
 // 404
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 
