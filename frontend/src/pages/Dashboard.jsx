@@ -722,6 +722,26 @@ const AdminSysView = ({nav}) => {
 
 // ── DASHBOARD PRINCIPAL ───────────────────────────────────────
 export default function Dashboard() {
+  const [realData, setRealData] = useState({ users: 0, missions: 0, posts: 0 });
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if(!token) return;
+    const headers = { Authorization: 'Bearer ' + token };
+    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    Promise.all([
+      fetch(base + '/users', { headers }).then(r => r.json()).catch(() => []),
+      fetch(base + '/missions', { headers }).then(r => r.json()).catch(() => []),
+      fetch(base + '/feed', { headers }).then(r => r.json()).catch(() => []),
+    ]).then(([users, missions, posts]) => {
+      setRealData({
+        users: Array.isArray(users) ? users.length : 0,
+        missions: Array.isArray(missions) ? missions.length : 0,
+        missionsActive: Array.isArray(missions) ? missions.filter(m => m.status === 'in_progress').length : 0,
+        posts: Array.isArray(posts) ? posts.length : 0,
+      });
+    });
+  }, []);
+
   const nav = useNavigate();
   const [dashData, setDashData] = useState(null);
   const [invoices, setInvoices] = useState([]);

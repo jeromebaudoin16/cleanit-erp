@@ -4,12 +4,12 @@ import { api } from '../utils/api';
 import loginIllustration from '../assets/login-illustration.png';
 
 const DEMO = [
-  { email:'jerome@cleanit.cm',  password:'Jerome123!',  role:'DG',          color:'#E05C5C', initials:'JB' },
-  { email:'finance@cleanit.cm', password:'Finance123!', role:'Comptable',    color:'#888',    initials:'AF' },
-  { email:'chef@cleanit.cm',    password:'Chef123!',    role:'Chef Projet',  color:'#E05C5C', initials:'PE' },
-  { email:'terrain@cleanit.cm', password:'Terrain123!', role:'Terrain',      color:'#888',    initials:'TN' },
-  { email:'hr@cleanit.cm',      password:'HR123!',      role:'RH',           color:'#E05C5C', initials:'CR' },
-  { email:'admin@cleanit.cm',   password:'Admin123!',   role:'Admin',        color:'#888',    initials:'AD' },
+  { email:'jerome@cleanit.cm', password:'Jerome123!',   role:'Admin',        color:'#E05C5C', initials:'JB' },
+  { email:'dg@cleanit.cm',     password:'CleanIT2024!', role:'DG',           color:'#0F172A', initials:'DG' },
+  { email:'marie@cleanit.cm',  password:'CleanIT2024!', role:'Chef Projet',  color:'#7C3AED', initials:'MK' },
+  { email:'alice@cleanit.cm',  password:'CleanIT2024!', role:'RH',           color:'#059669', initials:'AR' },
+  { email:'jean@cleanit.cm',   password:'CleanIT2024!', role:'Chef Projet',  color:'#0066CC', initials:'JF' },
+  { email:'thomas@cleanit.cm', password:'CleanIT2024!', role:'Terrain',      color:'#EA580C', initials:'TN' },
 ];
 
 const CleanITLogo = () => (
