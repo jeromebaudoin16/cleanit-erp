@@ -2395,12 +2395,29 @@ const ScreenProfil = ({user,onLogout}) => {
           )}
         </div>
 
-        <div onClick={()=>{
+        <div onClick={async ()=>{
+          // Demander permission notifications
+          if('Notification' in window){
+            const perm = await Notification.requestPermission();
+            if(perm==='granted'){
+              toast('Notifications activees', 'success');
+              // Enregistrer service worker
+              if('serviceWorker' in navigator){
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.subscribe({
+                  userVisibleOnly:true,
+                  applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY||'BNSQIjGGELW6UAg0K1bkGLRgkWf0xSn9pocHSAwrtMauehwBVm-v1fM3TE_QRoQVlBmq15FGbqMP3ZNmH7ZSjZc'
+                });
+                localStorage.setItem('push_sub', JSON.stringify(sub));
+              }
+            } else {
+              toast('Permission refusee', 'error');
+            }
+          }
+          // PWA install
           if(window.deferredPrompt){
             window.deferredPrompt.prompt();
             window.deferredPrompt.userChoice.then(()=>{window.deferredPrompt=null;});
-          } else {
-            toast('Ouvrez ce lien dans Chrome sur Android pour installer');
           }
         }} style={{background:C.bg2,borderRadius:12,padding:'12px 14px',
           marginBottom:12,border:'0.5px solid '+C.border,cursor:'pointer',
