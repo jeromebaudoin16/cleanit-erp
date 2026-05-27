@@ -379,6 +379,7 @@ app.put('/missions/:id', auth, async (req, res) => {
     if (status) { updates.push(`status = $${idx++}`); values.push(status); }
     if (progress !== undefined) { updates.push(`progress = $${idx++}`); values.push(progress); }
     if (checklist) { updates.push(`checklist = $${idx++}`); values.push(JSON.stringify(checklist)); }
+    if (req.body.techId) { updates.push(`tech_id = $${idx++}`); values.push(req.body.techId); }
     if (!updates.length) return res.status(400).json({ message: 'Aucune modification' });
     values.push(req.params.id);
     const result = await pool.query(`UPDATE missions SET ${updates.join(',')} WHERE id = $${idx} RETURNING *`, values);
