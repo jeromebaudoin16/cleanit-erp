@@ -12,8 +12,9 @@ const SECTION_THEME = {
   reunions: {primary:'#6D28D9',light:'#EDE9FE',grad:'linear-gradient(135deg,#6D28D9 0%,#8b5cf6 100%)'},
   email:    {primary:'#0D9488',light:'#CCFBF1',grad:'linear-gradient(135deg,#0D9488 0%,#14b8a6 100%)'},
   drive:    {primary:'#D97706',light:'#FEF3C7',grad:'linear-gradient(135deg,#B45309 0%,#f59e0b 100%)'},
-  contacts: {primary:'#0F7B3C',light:'#D1FAE5',grad:'linear-gradient(135deg,#0F7B3C 0%,#22c55e 100%)'},
   whatsapp: {primary:'#25D366',light:'#F0FFF4',grad:'linear-gradient(135deg,#128C7E 0%,#25D366 100%)'},
+  contacts: {primary:'#0F7B3C',light:'#D1FAE5',grad:'linear-gradient(135deg,#0F7B3C 0%,#22c55e 100%)'},
+  contacts: {primary:'#0F7B3C',light:'#D1FAE5',grad:'linear-gradient(135deg,#0F7B3C 0%,#22c55e 100%)'}, whatsapp: {primary:'#25D366',light:'#F0FFF4',grad:'linear-gradient(135deg,#128C7E 0%,#25D366 100%)'},
 };
 
 const P = {
