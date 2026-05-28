@@ -1499,162 +1499,162 @@ const ScreenMessages = () => {
 };
 
 // ─── SCREEN: POINTER ──────────────────────────────────────────
-const ScreenPointer = ({user,gps}) => {
-  const [tab,setTab] = useState('scan');
+const ScreenPointer = ({user, gps}) => {
+  const [mode, setMode] = useState('badge');
+  const [scanning, setScanning] = useState(false);
+  const [scanned, setScanned] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+  const animRef = useRef(null);
   const {toast,toastMsg,toastShow,toastType} = useToast();
+  const C2 = getC();
 
-  return (
-    <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
+  useEffect(() => {
+    const token = localStorage.getItem('cit_token');
+    fetch('https://backend-cleanit-erp.vercel.app/pointages',{headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(d=>{if(Array.isArray(d))setHistory(d);}).catch(()=>{});
+    if(!window.jsQR){
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js';
+      document.head.appendChild(s);
+    }
+    return()=>stopScan();
+  },[]);
+
+  const stopScan = () => {
+    if(animRef.current) cancelAnimationFrame(animRef.current);
+    if(streamRef.current) streamRef.current.getTracks().forEach(t=>t.stop());
+    streamRef.current=null; setScanning(false);
+  };
+
+  const scanFrame = () => {
+    if(!videoRef.current||!canvasRef.current) return;
+    const v=videoRef.current; const cv=canvasRef.current;
+    const ctx=cv.getContext('2d');
+    if(v.readyState===v.HAVE_ENOUGH_DATA){
+      cv.width=v.videoWidth; cv.height=v.videoHeight;
+      ctx.drawImage(v,0,0,cv.width,cv.height);
+      const img=ctx.getImageData(0,0,cv.width,cv.height);
+      if(window.jsQR){
+        const code=window.jsQR(img.data,img.width,img.height);
+        if(code){handleQRCode(code.data);return;}
+      }
+    }
+    animRef.current=requestAnimationFrame(scanFrame);
+  };
+
+  const startScan = async() => {
+    setScanning(true); setScanned(null);
+    try {
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});
+      streamRef.current=stream;
+      if(videoRef.current){videoRef.current.srcObject=stream;await videoRef.current.play();}
+      scanFrame();
+    } catch(e){toast('Camera non disponible','error');setScanning(false);}
+  };
+
+  const handleQRCode = async(data) => {
+    stopScan();
+    let site={code:data,name:data};
+    try{const p=JSON.parse(data);site={code:p.code||data,name:p.name||data};}catch(e){}
+    setScanned(site); setLoading(true);
+    try {
+      const token=localStorage.getItem('cit_token');
+      const r=await fetch('https://backend-cleanit-erp.vercel.app/pointages',{
+        method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body:JSON.stringify({siteCode:site.code,siteName:site.name,type:'arrivee',gpsLat:gps?.lat,gpsLng:gps?.lng})
+      });
+      const d=await r.json();
+      toast('Pointage: '+site.name,'success');
+      setHistory(h=>[{...d,site_name:site.name,created_at:new Date().toISOString()},...h]);
+    } catch(e){toast('Erreur','error');}
+    setLoading(false);
+  };
+
+  const bColor={admin:'#DC2626',project_manager:'#7C3AED',hr:'#059669',technician:'#EA580C',terrain:'#EA580C'}[user.role]||C2.primary;
+  const av=((user.firstName||user.name||'U')[0]+((user.lastName||'')[0]||'')).toUpperCase();
+
+  return(
+    <div style={{flex:1,overflowY:'auto',background:C2.bg,paddingBottom:80}}>
       <Toast msg={toastMsg} show={toastShow} type={toastType}/>
-      <Header title={t('pointage')} right={
-        gps && (
-          <div style={{background:C.successL,padding:'4px 10px',borderRadius:20,
-            display:'flex',alignItems:'center',gap:4}}>
-            <div style={{width:6,height:6,borderRadius:'50%',background:C.success}}/>
-            <span style={{fontSize:10,color:'#3B6D11',fontWeight:600}}>GPS · {Math.round(gps.accuracy||6)}m</span>
-          </div>
-        )
-      }/>
-      <div style={{display:'flex',margin:'8px 14px',background:C.bg2,
-        borderRadius:10,padding:3,gap:2}}>
-        {[['scan','Scanner QR'],['badge','Mon badge']].map(([id,lbl])=>(
-          <button key={id} onClick={()=>setTab(id)}
-            style={{flex:1,padding:'7px 4px',border:'none',cursor:'pointer',fontFamily:FONT,
-              fontSize:11,fontWeight:tab===id?700:500,borderRadius:8,
-              background:tab===id?C.bg:'transparent',
-              color:tab===id?C.primary:C.text3,
-              boxShadow:tab===id?'0 1px 3px rgba(0,0,0,.1)':'none'}}>
-            {lbl}
-          </button>
+      <Header title="Pointer"/>
+      <div style={{display:'flex',borderBottom:'1px solid '+C2.border}}>
+        {[['badge','Badge'],['scan','Scanner QR'],['historique','Historique']].map(([id,lbl])=>(
+          <button key={id} onClick={()=>{setMode(id);if(id!=='scan')stopScan();}}
+            style={{flex:1,padding:'9px 4px',border:'none',background:C2.bg,fontSize:10,
+              fontWeight:mode===id?700:500,cursor:'pointer',fontFamily:FONT,
+              color:mode===id?C2.primary:C2.text3,
+              borderBottom:mode===id?'2px solid '+C2.primary:'2px solid transparent'}}>{lbl}</button>
         ))}
       </div>
-
-      {tab==='scan' && (
-        <div style={{padding:'0 14px'}}>
-          <div style={{background:'#0F172A',borderRadius:14,height:180,
-            display:'flex',alignItems:'center',justifyContent:'center',
-            position:'relative',marginBottom:12,overflow:'hidden'}}>
-            <div style={{width:140,height:140,position:'relative'}}>
-              {[[0,0],[0,1],[1,0],[1,1]].map(([t,l],i)=>(
-                <div key={i} style={{position:'absolute',width:24,height:24,
-                  [t?'bottom':'top']:0,[l?'right':'left']:0,
-                  borderTop:!t?'3px solid '+C.pink:'none',
-                  borderBottom:t?'3px solid '+C.pink:'none',
-                  borderLeft:!l?'3px solid '+C.pink:'none',
-                  borderRight:l?'3px solid '+C.pink:'none',
-                  borderRadius:!t&&!l?'4px 0 0 0':!t&&l?'0 4px 0 0':t&&!l?'0 0 0 4px':'0 0 4px 0'}}/>
-              ))}
-              <div style={{position:'absolute',top:'50%',left:'10%',right:'10%',
-                height:1.5,background:'rgba(232,108,108,.6)',transform:'translateY(-50%)'}}/>
-              <div style={{position:'absolute',inset:0,display:'flex',
-                alignItems:'center',justifyContent:'center',
-                color:'rgba(255,255,255,.15)',fontSize:10,textAlign:'center',paddingTop:20}}>
-                QR de votre bureau
-              </div>
-            </div>
-            {gps && (
-              <div style={{position:'absolute',bottom:8,right:10,
-                background:'rgba(255,255,255,.1)',padding:'2px 7px',
-                borderRadius:8,fontSize:8,color:'rgba(255,255,255,.6)'}}>
-                Bureau Douala · {Math.round(gps.accuracy||6)}m
-              </div>
-            )}
+      {mode==='badge'&&(
+        <div style={{padding:20,display:'flex',flexDirection:'column',alignItems:'center',gap:14}}>
+          <div style={{width:120,height:120,borderRadius:24,background:bColor+'15',border:'2px solid '+bColor,
+            display:'flex',alignItems:'center',justifyContent:'center',fontSize:44,fontWeight:800,color:bColor}}>{av}</div>
+          <div style={{textAlign:'center'}}>
+            <div style={{fontSize:18,fontWeight:700,color:C2.text}}>{user.firstName||user.name} {user.lastName||''}</div>
+            <div style={{fontSize:12,color:C2.text3}}>{user.role} · CleanIT</div>
           </div>
-          <div style={{background:C.warningL,borderRadius:10,padding:'9px 12px',
-            marginBottom:12,borderLeft:'3px solid '+C.warning,fontSize:10,color:'#92400E'}}>
-            Scannez le QR code imprime sur votre bureau pour enregistrer votre arrivee ou depart
-          </div>
-          <div style={{background:C.bg2,borderRadius:12,padding:'12px',marginBottom:12}}>
-            <div style={{fontSize:10,fontWeight:700,color:C.text3,
-              textTransform:'uppercase',letterSpacing:.5,marginBottom:10}}>
-              {t('today')}
-            </div>
-            <div style={{display:'flex',justifyContent:'space-around'}}>
-              {[
-                {icon:'🟢',label:t('arrival'),val:'08:45',color:C.success},
-                {icon:'🔵',label:t('duration'),val:'3h15',color:C.primary},
-                {icon:'⚪',label:t('departure'),val:'--:--',color:C.text4},
-              ].map(({icon,label,val,color})=>(
-                <div key={label} style={{textAlign:'center'}}>
-                  <div style={{fontSize:22,marginBottom:4}}>{icon}</div>
-                  <div style={{fontSize:13,fontWeight:700,color}}>{val}</div>
-                  <div style={{fontSize:9,color:C.text3}}>{label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div style={{fontSize:10,fontWeight:700,color:C.text3,
-              textTransform:'uppercase',letterSpacing:.5,marginBottom:6}}>
-              {t('history')}
-            </div>
-            {[['Ven 23 mai','08:52','17:30','8h38'],['Jeu 22 mai','09:05','17:45','8h40']].map(([day,arr,dep,dur])=>(
-              <div key={day} style={{display:'flex',justifyContent:'space-between',
-                alignItems:'center',padding:'8px 10px',background:C.bg2,
-                borderRadius:8,marginBottom:5}}>
-                <span style={{fontSize:11,fontWeight:500,color:C.text}}>{day}</span>
-                <div style={{display:'flex',gap:6,alignItems:'center',fontSize:10}}>
-                  <span style={{color:C.success}}>{arr}</span>
-                  <span style={{color:C.text4}}>→</span>
-                  <span style={{color:C.danger}}>{dep}</span>
-                  <span style={{background:C.primaryL,color:C.primary,
-                    padding:'1px 6px',borderRadius:10,fontWeight:600}}>{dur}</span>
-                </div>
-              </div>
-            ))}
+          <div style={{background:bColor,borderRadius:10,padding:'8px 20px',width:'100%',textAlign:'center',color:'white',fontSize:12,fontWeight:600}}>
+            ID: EMP-{String(user.id||'001').padStart(4,'0')}
           </div>
         </div>
       )}
-
-      {tab==='badge' && (
-        <div style={{padding:'0 14px'}}>
-          <div style={{background:`linear-gradient(135deg,${C.primary},#004499)`,
-            borderRadius:14,padding:16,textAlign:'center',marginBottom:12}}>
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-              <AvatarCircle av={user.av} color={'rgba(255,255,255,.5)'} size={40}/>
-              <div style={{textAlign:'left'}}>
-                <div style={{fontSize:14,fontWeight:700,color:'white'}}>{user.name}</div>
-                <div style={{fontSize:10,color:'rgba(255,255,255,.8)'}}>{user.post} · {user.id}</div>
+      {mode==='scan'&&(
+        <div style={{padding:16,display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
+          {!scanning&&!scanned&&(
+            <button onClick={startScan} style={{background:C2.primary,border:'none',borderRadius:12,
+              padding:'14px 32px',color:'white',fontSize:14,fontWeight:700,cursor:'pointer',fontFamily:FONT}}>
+              📷 Scanner QR du site
+            </button>
+          )}
+          {scanning&&(
+            <div style={{position:'relative',width:'100%',maxWidth:320,borderRadius:16,overflow:'hidden',border:'2px solid '+C2.primary}}>
+              <video ref={videoRef} style={{width:'100%',display:'block'}} playsInline muted/>
+              <canvas ref={canvasRef} style={{display:'none'}}/>
+              <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',
+                width:180,height:180,border:'2px solid white',borderRadius:8,
+                boxShadow:'0 0 0 1000px rgba(0,0,0,.5)'}}/>
+              <button onClick={stopScan} style={{position:'absolute',bottom:12,left:'50%',transform:'translateX(-50%)',
+                background:'rgba(0,0,0,.6)',border:'none',borderRadius:20,padding:'8px 20px',
+                color:'white',fontSize:12,cursor:'pointer',fontFamily:FONT}}>Annuler</button>
+            </div>
+          )}
+          {scanned&&(
+            <div style={{background:C2.successL,borderRadius:12,padding:16,width:'100%',textAlign:'center',border:'1px solid '+C2.success}}>
+              <div style={{fontSize:24,marginBottom:8}}>✅</div>
+              <div style={{fontSize:14,fontWeight:700,color:C2.success}}>Pointage enregistré</div>
+              <div style={{fontSize:12,color:C2.text,marginTop:6}}>{scanned.name}</div>
+              <div style={{fontSize:10,color:C2.text3,marginTop:4}}>{new Date().toLocaleString('fr-FR')}</div>
+              <button onClick={()=>{setScanned(null);}} style={{marginTop:12,background:C2.primary,border:'none',
+                borderRadius:8,padding:'8px 20px',color:'white',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:FONT}}>
+                Scanner encore
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      {mode==='historique'&&(
+        <div style={{padding:'8px 0'}}>
+          {history.length===0?<div style={{padding:32,textAlign:'center',color:C2.text3}}>Aucun pointage</div>:
+          history.map((h,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderBottom:'0.5px solid '+C2.border}}>
+              <div style={{width:36,height:36,borderRadius:'50%',background:C2.successL,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>📍</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:600,color:C2.text}}>{h.site_name||h.site_code}</div>
+                <div style={{fontSize:10,color:C2.text3}}>{new Date(h.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
               </div>
+              <div style={{background:C2.successL,color:C2.success,padding:'3px 8px',borderRadius:8,fontSize:10,fontWeight:700}}>✓</div>
             </div>
-            <div style={{background:'white',borderRadius:8,padding:12,
-              display:'inline-block',marginBottom:8}}>
-              <svg width="100" height="100" viewBox="0 0 21 21">
-                <rect width="21" height="21" fill="white"/>
-                <rect x="0" y="0" width="7" height="7" fill="#0F172A" rx="1"/>
-                <rect x="1" y="1" width="5" height="5" fill="white"/>
-                <rect x="2" y="2" width="3" height="3" fill="#0F172A"/>
-                <rect x="14" y="0" width="7" height="7" fill="#0F172A" rx="1"/>
-                <rect x="15" y="1" width="5" height="5" fill="white"/>
-                <rect x="16" y="2" width="3" height="3" fill="#0F172A"/>
-                <rect x="0" y="14" width="7" height="7" fill="#0F172A" rx="1"/>
-                <rect x="1" y="15" width="5" height="5" fill="white"/>
-                <rect x="2" y="16" width="3" height="3" fill="#0F172A"/>
-                <rect x="9" y="1" width="1" height="2" fill="#0F172A"/>
-                <rect x="11" y="0" width="2" height="1" fill="#0F172A"/>
-                <rect x="8" y="8" width="2" height="2" fill="#0F172A"/>
-                <rect x="11" y="8" width="3" height="1" fill="#0F172A"/>
-                <rect x="17" y="8" width="3" height="2" fill="#0F172A"/>
-                <rect x="8" y="12" width="3" height="1" fill="#0F172A"/>
-                <rect x="14" y="12" width="4" height="2" fill="#0F172A"/>
-              </svg>
-            </div>
-            <div style={{fontSize:9,color:'rgba(255,255,255,.6)'}}>Badge d identification uniquement</div>
-          </div>
-          <div style={{background:C.bg2,borderRadius:10,padding:'12px 14px',textAlign:'center',
-            border:'0.5px solid '+C.border}}>
-            <div style={{fontSize:20,marginBottom:6}}>🖨️</div>
-            <div style={{fontSize:11,color:C.text3,lineHeight:1.5}}>
-              Le QR de pointage est imprime et pose sur votre bureau par l admin
-            </div>
-          </div>
+          ))}
         </div>
       )}
     </div>
   );
 };
-
-// ─── SCREEN: MISSION ──────────────────────────────────────────
 const ScreenMission = ({user,gps,navigate}) => {
   const [mission, setMission] = useState(null);
   const [loading, setLoading] = useState(true);
