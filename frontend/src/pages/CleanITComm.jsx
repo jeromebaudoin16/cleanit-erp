@@ -13,6 +13,7 @@ const SECTION_THEME = {
   email:    {primary:'#0D9488',light:'#CCFBF1',grad:'linear-gradient(135deg,#0D9488 0%,#14b8a6 100%)'},
   drive:    {primary:'#D97706',light:'#FEF3C7',grad:'linear-gradient(135deg,#B45309 0%,#f59e0b 100%)'},
   contacts: {primary:'#0F7B3C',light:'#D1FAE5',grad:'linear-gradient(135deg,#0F7B3C 0%,#22c55e 100%)'},
+  whatsapp: {primary:'#25D366',light:'#F0FFF4',grad:'linear-gradient(135deg,#128C7E 0%,#25D366 100%)'},
 };
 
 const P = {
@@ -1116,6 +1117,115 @@ const SectionContacts = ({navigate}) => {
 // ═══════════════════════════════════════════════════════════════════
 //  COMPOSANT PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════
+
+// ── Section WhatsApp ────────────────────────────────────────────────
+function SectionWhatsApp({waMessages,waContacts,sendWAMessage,waInput,setWaInput,sending,selectedContact,setSelectedContact,messagesEndRef}) {
+  const T = SECTION_THEME.whatsapp;
+  const msgs = selectedContact
+    ? waMessages.filter(m=>m.from_number===selectedContact.number||m.to_number===selectedContact.number)
+        .sort((a,b)=>new Date(a.created_at)-new Date(b.created_at))
+    : [];
+  return (
+    <div style={{display:'flex',flex:1,overflow:'hidden'}}>
+      {/* Liste contacts WA */}
+      <div style={{width:280,flexShrink:0,borderRight:'1px solid #E5E7EB',overflowY:'auto',background:'#fff'}}>
+        <div style={{padding:'12px 14px',borderBottom:'1px solid #E5E7EB',background:T.grad}}>
+          <div style={{color:'white',fontWeight:700,fontSize:14,display:'flex',alignItems:'center',gap:8}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            WhatsApp Business
+          </div>
+          <div style={{color:'rgba(255,255,255,.8)',fontSize:11,marginTop:2}}>
+            {waContacts.length} conversation{waContacts.length!==1?'s':''}
+          </div>
+        </div>
+        {waContacts.length===0 ? (
+          <div style={{padding:32,textAlign:'center',color:'#9CA3AF'}}>
+            <div style={{fontSize:40,marginBottom:8}}>📱</div>
+            <div style={{fontSize:13,fontWeight:600}}>Aucun message</div>
+            <div style={{fontSize:11,marginTop:4}}>Les messages WhatsApp reçus apparaîtront ici</div>
+          </div>
+        ) : waContacts.map(contact=>(
+          <div key={contact.number} onClick={()=>setSelectedContact(contact)}
+            style={{padding:'10px 14px',cursor:'pointer',borderBottom:'0.5px solid #F3F4F6',
+              background:selectedContact?.number===contact.number?T.light:'white',
+              borderLeft:selectedContact?.number===contact.number?'3px solid '+T.primary:'3px solid transparent'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <div style={{width:38,height:38,borderRadius:'50%',background:T.primary+'22',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:15,color:T.primary,fontWeight:700,flexShrink:0}}>
+                {(contact.name||'?')[0].toUpperCase()}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:'flex',justifyContent:'space-between'}}>
+                  <span style={{fontSize:13,fontWeight:600,color:'#111'}}>{contact.name}</span>
+                  {contact.unread>0&&<span style={{background:T.primary,color:'white',borderRadius:10,padding:'1px 7px',fontSize:10,fontWeight:700}}>{contact.unread}</span>}
+                </div>
+                <div style={{fontSize:11,color:'#6B7280',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                  {contact.messages[contact.messages.length-1]?.message||''}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Zone chat */}
+      <div style={{flex:1,display:'flex',flexDirection:'column',background:'#F9FAFB'}}>
+        {!selectedContact ? (
+          <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',color:'#9CA3AF'}}>
+            <div style={{fontSize:56,marginBottom:12}}>💬</div>
+            <div style={{fontSize:15,fontWeight:600,color:'#374151'}}>Sélectionnez une conversation</div>
+            <div style={{fontSize:12,marginTop:6}}>Pour envoyer et recevoir des messages WhatsApp</div>
+          </div>
+        ) : (
+          <>
+            <div style={{padding:'12px 16px',borderBottom:'1px solid #E5E7EB',background:'white',
+              display:'flex',alignItems:'center',gap:12}}>
+              <div style={{width:40,height:40,borderRadius:'50%',background:T.primary+'22',
+                display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,color:T.primary,fontWeight:700}}>
+                {(selectedContact.name||'?')[0].toUpperCase()}
+              </div>
+              <div>
+                <div style={{fontSize:14,fontWeight:700,color:'#111'}}>{selectedContact.name}</div>
+                <div style={{fontSize:11,color:T.primary}}>+{selectedContact.number} · WhatsApp Business</div>
+              </div>
+            </div>
+            <div style={{flex:1,overflowY:'auto',padding:16,display:'flex',flexDirection:'column',gap:8}}>
+              {msgs.map((m,i)=>(
+                <div key={i} style={{display:'flex',justifyContent:m.direction==='outgoing'?'flex-end':'flex-start'}}>
+                  <div style={{maxWidth:'65%',padding:'8px 12px',borderRadius:12,
+                    background:m.direction==='outgoing'?T.primary:'white',
+                    color:m.direction==='outgoing'?'white':'#111',
+                    boxShadow:'0 1px 2px rgba(0,0,0,.1)'}}>
+                    <div style={{fontSize:13}}>{m.message}</div>
+                    <div style={{fontSize:10,opacity:.7,marginTop:4,textAlign:'right'}}>
+                      {new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+                      {m.direction==='outgoing'&&' ✓✓'}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef}/>
+            </div>
+            <div style={{padding:12,borderTop:'1px solid #E5E7EB',background:'white',display:'flex',gap:8}}>
+              <input value={waInput} onChange={e=>setWaInput(e.target.value)}
+                onKeyDown={e=>e.key==='Enter'&&sendWAMessage()}
+                placeholder="Message WhatsApp..."
+                style={{flex:1,padding:'10px 14px',border:'1px solid #D1D5DB',borderRadius:24,
+                  fontSize:13,outline:'none',fontFamily:"'Segoe UI',system-ui,Arial,sans-serif"}}/>
+              <button onClick={sendWAMessage} disabled={sending||!waInput.trim()}
+                style={{width:42,height:42,borderRadius:'50%',background:T.primary,border:'none',
+                  cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
+                  opacity:sending||!waInput.trim()?0.5:1,flexShrink:0}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function CleanITComm() {
   const [waMessages, setWaMessages] = useState([]);
   const [waContacts, setWaContacts] = useState([]);
@@ -1184,6 +1294,7 @@ export default function CleanITComm() {
       case 'email':    return <SectionEmail/>;
       case 'drive':    return <SectionDrive/>;
       case 'contacts': return <SectionContacts navigate={navigate}/>;
+      case 'whatsapp': return <SectionWhatsApp waMessages={waMessages} waContacts={waContacts} sendWAMessage={sendWAMessage} waInput={waInput} setWaInput={setWaInput} sending={sending} selectedContact={selectedContact} setSelectedContact={setSelectedContact} messagesEndRef={messagesEndRef}/>;
       default:         return <SectionChat navigate={navigate}/>;
     }
   };
@@ -1191,27 +1302,7 @@ export default function CleanITComm() {
   return(
     <div style={{height:'100vh',display:'flex',fontFamily:"'Segoe UI',system-ui,-apple-system,Arial,sans-serif",overflow:'hidden',background:P.listBg}}>
 
-      {/* ── ONGLETS ── */}
-      <div style={{display:'flex',borderBottom:'1px solid #eee',marginBottom:16}}>
-        {[['whatsapp','💬 WhatsApp Clients'],['internal','👥 Messages Internes']].map(([id,lbl])=>(
-          <button key={id} onClick={()=>setActiveTab(id)}
-            style={{padding:'10px 16px',border:'none',background:'transparent',cursor:'pointer',
-              fontSize:13,fontWeight:activeTab===id?700:400,
-              color:activeTab===id?'#25D366':'#888',
-              borderBottom:activeTab===id?'2px solid #25D366':'2px solid transparent',
-              fontFamily:"'Inter','Segoe UI',Arial,sans-serif"}}>
-            {lbl}
-            {id==='whatsapp' && waContacts.reduce((s,c)=>s+c.unread,0)>0 && (
-              <span style={{background:'#25D366',color:'white',borderRadius:10,padding:'1px 6px',
-                fontSize:10,marginLeft:6}}>{waContacts.reduce((s,c)=>s+c.unread,0)}</span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {activeTab==='whatsapp' && (
-        <div style={{display:'flex',gap:16,height:'calc(100vh - 200px)'}}>
-          {/* Liste contacts */}
+      {/* Liste contacts */}
           <div style={{width:280,flexShrink:0,borderRight:'1px solid #eee',overflowY:'auto'}}>
             <div style={{padding:'8px 12px',background:'#F0FFF4',borderRadius:8,marginBottom:8,
               fontSize:12,color:'#16A34A',fontWeight:600,display:'flex',alignItems:'center',gap:6}}>
