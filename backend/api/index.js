@@ -533,10 +533,10 @@ app.get('/stats', auth, async (req, res) => {
   try {
     const [users, missions, posts, tickets, approvals] = await Promise.all([
       pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN "isActive" THEN 1 END) as active FROM users'),
-      pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN status='in_progress' THEN 1 END) as active, COUNT(CASE WHEN status='pending' THEN 1 END) as pending FROM missions'),
+      pool.query("SELECT COUNT(*) as total, COUNT(CASE WHEN status='in_progress' THEN 1 END) as active, COUNT(CASE WHEN status='pending' THEN 1 END) as pending FROM missions"),
       pool.query('SELECT COUNT(*) as total FROM feed_posts'),
-      pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN status='open' THEN 1 END) as open FROM tickets').catch(()=>({rows:[{total:0,open:0}]})),
-      pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN status='pending' THEN 1 END) as pending FROM approvals').catch(()=>({rows:[{total:0,pending:0}]})),
+      pool.query("SELECT COUNT(*) as total, COUNT(CASE WHEN status='open' THEN 1 END) as open FROM tickets").catch(()=>({rows:[{total:0,open:0}]})),
+      pool.query("SELECT COUNT(*) as total, COUNT(CASE WHEN status='pending' THEN 1 END) as pending FROM approvals").catch(()=>({rows:[{total:0,pending:0}]})),
     ]);
     res.json({
       users: { total: parseInt(users.rows[0].total), active: parseInt(users.rows[0].active) },

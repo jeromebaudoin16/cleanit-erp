@@ -103,6 +103,57 @@ const Av = ({first="",last="",size=40,status,onClick}) => {
   return (
     <div className="rh-avatar" onClick={onClick}
       style={{width:size,height:size,background:ac.bg,color:ac.c,fontSize:size*0.32,position:"relative"}}>
+
+      {/* Widget Approvals Réels */}
+      <div style={{background:'white',borderRadius:12,border:'1px solid #eee',padding:20,marginBottom:20}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <h3 style={{margin:0,fontSize:16,fontWeight:700,color:'#111'}}>Demandes en attente</h3>
+          <span style={{background:'#FEF3C7',color:'#D97706',borderRadius:20,padding:'3px 12px',fontSize:12,fontWeight:600}}>
+            {realApprovals.filter(a=>a.statut==='En attente').length} en attente
+          </span>
+        </div>
+        {loadingRH ? (
+          <div style={{textAlign:'center',padding:20,color:'#888'}}>Chargement...</div>
+        ) : realApprovals.length === 0 ? (
+          <div style={{textAlign:'center',padding:20,color:'#888',fontSize:13}}>Aucune demande</div>
+        ) : (
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {realApprovals.map(a=>(
+              <div key={a.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',
+                background:'#F8FAFC',borderRadius:8,border:'1px solid #E2E8F0'}}>
+                <div style={{width:36,height:36,borderRadius:'50%',background:'#EDE9FE',
+                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:'#7C3AED',flexShrink:0}}>
+                  {(a.nom||'?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:600,color:'#111'}}>{a.nom}</div>
+                  <div style={{fontSize:11,color:'#888'}}>{a.type} · {a.date}</div>
+                  {a.detail && <div style={{fontSize:11,color:'#555',marginTop:2}}>{a.detail}</div>}
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
+                  <span style={{
+                    background: a.statut==='Approuvé'?'#DCFCE7':a.statut==='Rejeté'?'#FEE2E2':'#FEF3C7',
+                    color: a.statut==='Approuvé'?'#16A34A':a.statut==='Rejeté'?'#DC2626':'#D97706',
+                    borderRadius:20,padding:'3px 10px',fontSize:11,fontWeight:600}}>
+                    {a.statut}
+                  </span>
+                  {a.statut==='En attente' && (
+                    <>
+                      <button onClick={()=>approveRequest(a.id,'approve')}
+                        style={{background:'#DCFCE7',border:'none',borderRadius:6,padding:'4px 10px',
+                          color:'#16A34A',fontSize:11,fontWeight:600,cursor:'pointer'}}>✓</button>
+                      <button onClick={()=>approveRequest(a.id,'reject')}
+                        style={{background:'#FEE2E2',border:'none',borderRadius:6,padding:'4px 10px',
+                          color:'#DC2626',fontSize:11,fontWeight:600,cursor:'pointer'}}>✕</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {getInit(first,last)}
       {statusClass && <div className={`rh-status-dot ${statusClass}`}/>}
     </div>
@@ -1512,6 +1563,48 @@ const NAV = [
 
 // ===== COMPOSANT PRINCIPAL =====
 export default function RH() {
+  const [realApprovals, setRealApprovals] = useState([]);
+  const [loadingRH, setLoadingRH] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    Promise.all([
+      fetch(base+'/approvals',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[]),
+      fetch(base+'/users',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[]),
+    ]).then(([approvals, users]) => {
+      if(Array.isArray(approvals)) {
+        const formatted = approvals.map(a => ({
+          id: a.id,
+          nom: a.user_name || 'Inconnu',
+          type: a.label || a.type || 'Demande',
+          detail: a.detail || '',
+          statut: a.status === 'approved' ? 'Approuvé' : a.status === 'rejected' ? 'Rejeté' : 'En attente',
+          date: new Date(a.created_at).toLocaleDateString('fr-FR'),
+          niveau: a.n1_done && a.n2_done ? 3 : a.n1_done ? 2 : 1,
+          raw: a
+        }));
+        setRealApprovals(formatted);
+      }
+    }).finally(() => setLoadingRH(false));
+  }, []);
+
+  const approveRequest = async (id, action) => {
+    const token = localStorage.getItem('token');
+    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    const r = await fetch(base+'/approvals/'+id, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({action})
+    }).then(r=>r.json()).catch(()=>null);
+    if(r?.id) {
+      setRealApprovals(prev => prev.map(a => a.id===id ? {
+        ...a, statut: action==='approve'?'Approuvé':'Rejeté',
+        raw: r
+      } : a));
+    }
+  };
+
   const [tab,setTab] = useState("dashboard");
   const [employees,setEmployees] = useState(EMPLOYES);
   const [externals,setExternals] = useState(EXTERNES);

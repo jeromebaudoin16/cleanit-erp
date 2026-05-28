@@ -98,6 +98,67 @@ function EvDetail({ev, onClose}){
   const type = EV_TYPES.find(t=>t.id===ev.type)||{};
   return (
     <div style={{position:'fixed',top:0,right:0,bottom:0,width:340,background:C.white,boxShadow:'-4px 0 24px rgba(0,0,0,.12)',zIndex:400,display:'flex',flexDirection:'column',borderLeft:`1px solid ${C.border}`}}>
+
+      {/* Widget Missions Réelles */}
+      <div style={{background:'white',borderRadius:12,border:'1px solid #eee',padding:20,marginBottom:20}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <h3 style={{margin:0,fontSize:16,fontWeight:700,color:'#111'}}>Missions en cours</h3>
+          <span style={{background:'#DBEAFE',color:'#1D4ED8',borderRadius:20,padding:'3px 12px',fontSize:12,fontWeight:600}}>
+            {realMissions.filter(m=>m.status==='in_progress').length} actives
+          </span>
+        </div>
+        {loadingPlan ? (
+          <div style={{textAlign:'center',padding:20,color:'#888'}}>Chargement...</div>
+        ) : realMissions.length === 0 ? (
+          <div style={{textAlign:'center',padding:20,color:'#888',fontSize:13}}>Aucune mission</div>
+        ) : (
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {realMissions.map(m=>{
+              const tech = realUsers.find(u=>u.id===m.tech_id);
+              const colors = {in_progress:{bg:'#DBEAFE',text:'#1D4ED8',label:'En cours'},
+                pending:{bg:'#FEF3C7',text:'#D97706',label:'En attente'},
+                done:{bg:'#DCFCE7',text:'#16A34A',label:'Terminé'}};
+              const col = colors[m.status]||colors.pending;
+              return (
+                <div key={m.id} style={{padding:'12px 14px',background:'#F8FAFC',borderRadius:8,border:'1px solid #E2E8F0'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:700,color:'#111'}}>{m.code} · {m.client}</div>
+                      <div style={{fontSize:11,color:'#888'}}>{m.site_name||m.site} · {m.type||'Mission'}</div>
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <span style={{background:col.bg,color:col.text,borderRadius:20,
+                        padding:'3px 10px',fontSize:11,fontWeight:600}}>{col.label}</span>
+                      {tech&&<span style={{fontSize:11,color:'#555'}}>👷 {tech.firstName} {tech.lastName}</span>}
+                    </div>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:10}}>
+                    <div style={{flex:1,background:'#E2E8F0',borderRadius:4,height:6}}>
+                      <div style={{width:(m.progress||0)+'%',height:'100%',
+                        background:col.text,borderRadius:4,transition:'width .3s'}}/>
+                    </div>
+                    <span style={{fontSize:11,fontWeight:700,color:col.text,minWidth:30}}>{m.progress||0}%</span>
+                    {m.deadline&&<span style={{fontSize:10,color:'#888'}}>📅 {m.deadline}</span>}
+                  </div>
+                  <div style={{display:'flex',gap:6,marginTop:8}}>
+                    {m.status!=='done'&&(
+                      <>
+                        <button onClick={()=>updateMissionStatus(m.id,'in_progress',Math.min((m.progress||0)+10,100))}
+                          style={{background:'#DBEAFE',border:'none',borderRadius:6,padding:'4px 10px',
+                            color:'#1D4ED8',fontSize:11,fontWeight:600,cursor:'pointer'}}>+10%</button>
+                        <button onClick={()=>updateMissionStatus(m.id,'done',100)}
+                          style={{background:'#DCFCE7',border:'none',borderRadius:6,padding:'4px 10px',
+                            color:'#16A34A',fontSize:11,fontWeight:600,cursor:'pointer'}}>✓ Terminer</button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       <div style={{padding:'14px 18px',borderBottom:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
         <div style={{display:'flex',alignItems:'center',gap:8}}>
           <div style={{width:32,height:32,borderRadius:8,background:d.bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:17}}>{type.emoji||d.emoji}</div>
@@ -372,6 +433,33 @@ function AddModal({onClose,onAdd}){
 }
 
 export default function Planning(){
+  const [realMissions, setRealMissions] = useState([]);
+  const [realUsers, setRealUsers] = useState([]);
+  const [loadingPlan, setLoadingPlan] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    Promise.all([
+      fetch(base+'/missions',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[]),
+      fetch(base+'/users',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[]),
+    ]).then(([missions, users]) => {
+      if(Array.isArray(missions)) setRealMissions(missions);
+      if(Array.isArray(users)) setRealUsers(users);
+    }).finally(() => setLoadingPlan(false));
+  }, []);
+
+  const updateMissionStatus = async (id, status, progress) => {
+    const token = localStorage.getItem('token');
+    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    await fetch(base+'/missions/'+id, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({status, progress})
+    }).then(r=>r.json()).catch(()=>null);
+    setRealMissions(ms => ms.map(m => m.id===id ? {...m, status, progress} : m));
+  };
+
   const [view,setView]=useState('semaine');
   const [weekIdx,setWeekIdx]=useState(CURRENT_WEEK);
   const [events,setEvents]=useState(SEED_EVENTS);
