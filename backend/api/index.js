@@ -402,7 +402,24 @@ app.get('/webhook/whatsapp', (req, res) => {
   res.status(403).json({ message: 'Token invalide' });
 });
 
-app.post('/webhook/whatsapp', (req, res) => {
+app.post('/webhook/whatsapp', async (req, res) => {
+  try {
+    const body = req.body;
+    if(body.object === 'whatsapp_business_account') {
+      const messages = body.entry?.[0]?.changes?.[0]?.value?.messages;
+      const contacts = body.entry?.[0]?.changes?.[0]?.value?.contacts;
+      if(messages?.[0]) {
+        const msg = messages[0];
+        const contact = contacts?.[0];
+        const fromName = contact?.profile?.name || msg.from;
+        const text = msg.text?.body || msg.type || '';
+        await pool.query(
+          'INSERT INTO wa_messages (from_number,from_name,message,direction,wa_message_id) VALUES ($1,$2,$3,$4,$5)',
+          [msg.from, fromName, text, 'incoming', msg.id]
+        ).catch(()=>{});
+      }
+    }
+  } catch(e) {}
   res.status(200).json({ status: 'ok' });
 });
 
@@ -426,7 +443,12 @@ app.post('/whatsapp/send', auth, async (req, res) => {
     });
     const data = await r.json();
     if(data.error) return res.status(400).json({ message: data.error.message });
-    res.json({ ok: true, messageId: data.messages?.[0]?.id });
+    const msgId = data.messages?.[0]?.id;
+    await pool.query(
+      'INSERT INTO wa_messages (from_number,to_number,message,direction,wa_message_id) VALUES ($1,$2,$3,$4,$5)',
+      [WA_PHONE_ID, to.replace(/[^0-9]/g,''), message, 'outgoing', msgId||'']
+    ).catch(()=>{});
+    res.json({ ok: true, messageId: msgId });
   } catch(e) { res.status(500).json({ message: 'Erreur envoi', error: e.message }); }
 });
 
@@ -585,6 +607,39 @@ app.get('/pointages', auth, async (req, res) => {
 app.get('/pointages/all', auth, async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM pointages ORDER BY created_at DESC LIMIT 200');
+    res.json(result.rows);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+
+// ─── WHATSAPP MESSAGES TABLE ──────────────────────────────────
+pool.query(`CREATE TABLE IF NOT EXISTS wa_messages (
+  id SERIAL PRIMARY KEY,
+  from_number VARCHAR(30),
+  from_name VARCHAR(100),
+  to_number VARCHAR(30),
+  message TEXT NOT NULL,
+  direction VARCHAR(10) DEFAULT 'incoming',
+  status VARCHAR(20) DEFAULT 'received',
+  wa_message_id VARCHAR(200),
+  created_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+
+// GET /wa-messages - Tous les messages
+app.get('/wa-messages', auth, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM wa_messages ORDER BY created_at DESC LIMIT 100');
+    res.json(result.rows);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+// GET /wa-messages/:number - Messages d un contact
+app.get('/wa-messages/:number', auth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM wa_messages WHERE from_number=$1 OR to_number=$1 ORDER BY created_at ASC LIMIT 50',
+      [req.params.number]
+    );
     res.json(result.rows);
   } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });

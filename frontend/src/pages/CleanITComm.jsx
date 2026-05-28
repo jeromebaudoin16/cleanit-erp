@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1117,6 +1117,62 @@ const SectionContacts = ({navigate}) => {
 //  COMPOSANT PRINCIPAL
 // ═══════════════════════════════════════════════════════════════════
 export default function CleanITComm() {
+  const [waMessages, setWaMessages] = useState([]);
+  const [waContacts, setWaContacts] = useState([]);
+  const [selectedContact, setSelectedContact] = useState(null);
+  const [waInput, setWaInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [activeTab, setActiveTab] = useState('whatsapp');
+  const messagesEndRef = useRef(null);
+
+  const loadWAMessages = () => {
+    const token = localStorage.getItem('token');
+    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    fetch(base+'/wa-messages', {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(msgs => {
+        if(Array.isArray(msgs)) {
+          setWaMessages(msgs);
+          // Grouper par contact
+          const contacts = {};
+          msgs.forEach(m => {
+            const num = m.direction==='incoming' ? m.from_number : m.to_number;
+            const name = m.from_name || num;
+            if(!contacts[num]) contacts[num] = {number:num, name, messages:[], unread:0};
+            contacts[num].messages.push(m);
+            if(m.direction==='incoming' && m.status==='received') contacts[num].unread++;
+          });
+          setWaContacts(Object.values(contacts));
+        }
+      }).catch(()=>{});
+  };
+
+  useEffect(() => {
+    loadWAMessages();
+    const iv = setInterval(loadWAMessages, 15000); // refresh 15s
+    return () => clearInterval(iv);
+  }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({behavior:'smooth'});
+  }, [selectedContact, waMessages]);
+
+  const sendWAMessage = async () => {
+    if(!waInput.trim() || !selectedContact) return;
+    setSending(true);
+    const token = localStorage.getItem('token');
+    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    try {
+      await fetch(base+'/whatsapp/send', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body: JSON.stringify({to: selectedContact.number, message: waInput})
+      }).then(r=>r.json());
+      setWaInput('');
+      setTimeout(loadWAMessages, 1000);
+    } catch(e) {}
+    setSending(false);
+  };
+
   const navigate = useNavigate();
   const params   = useParams();
   const section  = params.section||'chat';
@@ -1134,6 +1190,140 @@ export default function CleanITComm() {
 
   return(
     <div style={{height:'100vh',display:'flex',fontFamily:"'Segoe UI',system-ui,-apple-system,Arial,sans-serif",overflow:'hidden',background:P.listBg}}>
+
+      {/* ── ONGLETS ── */}
+      <div style={{display:'flex',borderBottom:'1px solid #eee',marginBottom:16}}>
+        {[['whatsapp','💬 WhatsApp Clients'],['internal','👥 Messages Internes']].map(([id,lbl])=>(
+          <button key={id} onClick={()=>setActiveTab(id)}
+            style={{padding:'10px 16px',border:'none',background:'transparent',cursor:'pointer',
+              fontSize:13,fontWeight:activeTab===id?700:400,
+              color:activeTab===id?'#25D366':'#888',
+              borderBottom:activeTab===id?'2px solid #25D366':'2px solid transparent',
+              fontFamily:"'Inter','Segoe UI',Arial,sans-serif"}}>
+            {lbl}
+            {id==='whatsapp' && waContacts.reduce((s,c)=>s+c.unread,0)>0 && (
+              <span style={{background:'#25D366',color:'white',borderRadius:10,padding:'1px 6px',
+                fontSize:10,marginLeft:6}}>{waContacts.reduce((s,c)=>s+c.unread,0)}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {activeTab==='whatsapp' && (
+        <div style={{display:'flex',gap:16,height:'calc(100vh - 200px)'}}>
+          {/* Liste contacts */}
+          <div style={{width:280,flexShrink:0,borderRight:'1px solid #eee',overflowY:'auto'}}>
+            <div style={{padding:'8px 12px',background:'#F0FFF4',borderRadius:8,marginBottom:8,
+              fontSize:12,color:'#16A34A',fontWeight:600,display:'flex',alignItems:'center',gap:6}}>
+              <div style={{width:8,height:8,borderRadius:'50%',background:'#16A34A'}}/>
+              WhatsApp Business Connecté
+            </div>
+            {waContacts.length===0 ? (
+              <div style={{padding:20,textAlign:'center',color:'#888',fontSize:13}}>
+                <div style={{fontSize:32,marginBottom:8}}>📱</div>
+                Aucun message WhatsApp
+                <div style={{fontSize:11,marginTop:8,color:'#aaa'}}>Les messages reçus apparaîtront ici</div>
+              </div>
+            ) : waContacts.map(contact=>(
+              <div key={contact.number}
+                onClick={()=>setSelectedContact(contact)}
+                style={{padding:'10px 12px',cursor:'pointer',borderRadius:8,marginBottom:4,
+                  background:selectedContact?.number===contact.number?'#F0FFF4':'transparent',
+                  border:selectedContact?.number===contact.number?'1px solid #BBF7D0':'1px solid transparent'}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <div style={{width:36,height:36,borderRadius:'50%',background:'#25D36622',
+                      display:'flex',alignItems:'center',justifyContent:'center',
+                      fontSize:14,color:'#16A34A',fontWeight:700,flexShrink:0}}>
+                      {(contact.name||'?')[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600,color:'#111'}}>{contact.name}</div>
+                      <div style={{fontSize:10,color:'#888'}}>+{contact.number}</div>
+                    </div>
+                  </div>
+                  {contact.unread>0 && (
+                    <span style={{background:'#25D366',color:'white',borderRadius:10,
+                      padding:'2px 7px',fontSize:10,fontWeight:700}}>{contact.unread}</span>
+                  )}
+                </div>
+                <div style={{fontSize:11,color:'#888',marginTop:4,
+                  whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+                  {contact.messages[contact.messages.length-1]?.message||''}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Zone chat */}
+          <div style={{flex:1,display:'flex',flexDirection:'column'}}>
+            {!selectedContact ? (
+              <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',color:'#888'}}>
+                <div style={{fontSize:48,marginBottom:12}}>💬</div>
+                <div style={{fontSize:14,fontWeight:600}}>Sélectionnez une conversation</div>
+                <div style={{fontSize:12,marginTop:4}}>Pour envoyer et recevoir des messages WhatsApp</div>
+              </div>
+            ) : (
+              <>
+                {/* Header contact */}
+                <div style={{padding:'12px 16px',borderBottom:'1px solid #eee',display:'flex',
+                  alignItems:'center',justifyContent:'space-between',background:'#F0FFF4',borderRadius:'8px 8px 0 0'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:10}}>
+                    <div style={{width:40,height:40,borderRadius:'50%',background:'#25D36622',
+                      display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,color:'#16A34A',fontWeight:700}}>
+                      {(selectedContact.name||'?')[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{fontSize:14,fontWeight:700,color:'#111'}}>{selectedContact.name}</div>
+                      <div style={{fontSize:11,color:'#25D366',display:'flex',alignItems:'center',gap:4}}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        +{selectedContact.number}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Messages */}
+                <div style={{flex:1,overflowY:'auto',padding:16,background:'#F9FAFB',display:'flex',flexDirection:'column',gap:8}}>
+                  {waMessages.filter(m=>m.from_number===selectedContact.number||m.to_number===selectedContact.number)
+                    .sort((a,b)=>new Date(a.created_at)-new Date(b.created_at))
+                    .map((m,i)=>(
+                    <div key={i} style={{display:'flex',justifyContent:m.direction==='outgoing'?'flex-end':'flex-start'}}>
+                      <div style={{maxWidth:'70%',padding:'8px 12px',borderRadius:12,
+                        background:m.direction==='outgoing'?'#25D366':'white',
+                        color:m.direction==='outgoing'?'white':'#111',
+                        boxShadow:'0 1px 3px rgba(0,0,0,.1)'}}>
+                        <div style={{fontSize:13}}>{m.message}</div>
+                        <div style={{fontSize:10,opacity:.7,marginTop:4,textAlign:'right'}}>
+                          {new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+                          {m.direction==='outgoing'&&' ✓✓'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef}/>
+                </div>
+
+                {/* Input */}
+                <div style={{padding:12,borderTop:'1px solid #eee',display:'flex',gap:8,background:'white'}}>
+                  <input value={waInput} onChange={e=>setWaInput(e.target.value)}
+                    onKeyDown={e=>e.key==='Enter'&&!e.shiftKey&&sendWAMessage()}
+                    placeholder="Tapez un message WhatsApp..."
+                    style={{flex:1,padding:'10px 14px',border:'1px solid #ddd',borderRadius:24,
+                      fontSize:13,outline:'none',fontFamily:"'Inter','Segoe UI',Arial,sans-serif"}}/>
+                  <button onClick={sendWAMessage} disabled={sending||!waInput.trim()}
+                    style={{width:42,height:42,borderRadius:'50%',background:'#25D366',border:'none',
+                      cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
+                      opacity:sending||!waInput.trim()?0.5:1}}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <style>{`
         *{box-sizing:border-box}
         ::-webkit-scrollbar{width:4px;height:4px}
