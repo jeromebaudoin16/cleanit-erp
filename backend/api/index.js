@@ -494,6 +494,60 @@ app.put('/approvals/:id', auth, async (req, res) => {
   } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
+
+pool.query(`CREATE TABLE IF NOT EXISTS tickets (id SERIAL PRIMARY KEY, code VARCHAR(20), title VARCHAR(200) NOT NULL, description TEXT, type VARCHAR(50) DEFAULT 'incident', priority VARCHAR(20) DEFAULT 'medium', status VARCHAR(20) DEFAULT 'open', site VARCHAR(50), client VARCHAR(100), assigned_to INTEGER, created_by INTEGER, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())`).catch(console.error);
+
+app.get('/tickets', auth, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM tickets ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+app.post('/tickets', auth, async (req, res) => {
+  try {
+    const { title, description, type, priority, site, client } = req.body;
+    if(!title) return res.status(400).json({ message: 'Titre requis' });
+    const count = await pool.query('SELECT COUNT(*) FROM tickets');
+    const code = 'TK-' + String(parseInt(count.rows[0].count)+1001);
+    const result = await pool.query('INSERT INTO tickets (code,title,description,type,priority,site,client,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+      [code, title, description||'', type||'incident', priority||'medium', site||'', client||'', req.user.sub]);
+    res.status(201).json(result.rows[0]);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
+app.put('/tickets/:id', auth, async (req, res) => {
+  try {
+    const { status, priority } = req.body;
+    const updates = []; const values = []; let idx = 1;
+    if(status) { updates.push(`status=$${idx++}`); values.push(status); }
+    if(priority) { updates.push(`priority=$${idx++}`); values.push(priority); }
+    if(!updates.length) return res.status(400).json({ message: 'Aucune modif' });
+    values.push(req.params.id);
+    const result = await pool.query(`UPDATE tickets SET ${updates.join(',')},updated_at=NOW() WHERE id=$${idx} RETURNING *`, values);
+    res.json(result.rows[0]);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+app.get('/stats', auth, async (req, res) => {
+  try {
+    const [users, missions, posts, tickets, approvals] = await Promise.all([
+      pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN "isActive" THEN 1 END) as active FROM users'),
+      pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN status='in_progress' THEN 1 END) as active, COUNT(CASE WHEN status='pending' THEN 1 END) as pending FROM missions'),
+      pool.query('SELECT COUNT(*) as total FROM feed_posts'),
+      pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN status='open' THEN 1 END) as open FROM tickets').catch(()=>({rows:[{total:0,open:0}]})),
+      pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN status='pending' THEN 1 END) as pending FROM approvals').catch(()=>({rows:[{total:0,pending:0}]})),
+    ]);
+    res.json({
+      users: { total: parseInt(users.rows[0].total), active: parseInt(users.rows[0].active) },
+      missions: { total: parseInt(missions.rows[0].total), active: parseInt(missions.rows[0].active), pending: parseInt(missions.rows[0].pending) },
+      posts: parseInt(posts.rows[0].total),
+      tickets: { total: parseInt(tickets.rows[0].total), open: parseInt(tickets.rows[0].open) },
+      approvals: { total: parseInt(approvals.rows[0].total), pending: parseInt(approvals.rows[0].pending) },
+    });
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
 // 404
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 

@@ -1865,223 +1865,139 @@ const ScreenMission = ({user,gps,navigate}) => {
 
 // ─── SCREEN: EQUIPES ──────────────────────────────────────────
 const ScreenEquipes = ({user}) => {
-  const [tab, setTab] = useState('all');
+  const [tab,setTab] = useState('all');
+  const [users,setUsers] = useState([]);
+  const [loading,setLoading] = useState(true);
   const C2 = getC();
-
-  const terrainUsers = USERS.filter(u => u.role === 'terrain');
-  const bureauUsers = USERS.filter(u => !['terrain','admin'].includes(u.role));
-  const canSeeBureau = ['admin','rh','dg'].includes(user.role);
-
-  const allVisible = canSeeBureau
-    ? USERS.filter(u => u.role !== 'admin')
-    : terrainUsers;
-
-  const display = tab === 'terrain' ? terrainUsers
-    : tab === 'bureau' && canSeeBureau ? bureauUsers
-    : allVisible;
-
-  const getStatus = (u) => {
-    const m = MISSIONS.find(ms => ms.techId === u.id && ms.status === 'in_progress');
-    if(m) return {label:'Sur site', color:C2.success, bg:C2.successL, site:m.site, since:'07:30'};
-    if(u.role !== 'terrain') return {label:'Au bureau', color:C2.primary, bg:C2.primaryL, site:'Bureau', since:'08:45'};
-    return {label:'Absent', color:C2.text4, bg:C2.bg2, site:'', since:''};
-  };
-
-  const tabs = canSeeBureau
-    ? [['all','Tous ('+allVisible.length+')'],['terrain','Terrain ('+terrainUsers.length+')'],['bureau','Bureau ('+bureauUsers.length+')']]
-    : [['all','Terrain ('+terrainUsers.length+')']];
-
+  useEffect(()=>{
+    const load = () => {
+      const token = localStorage.getItem('cit_token');
+      fetch('https://backend-cleanit-erp.vercel.app/users',{headers:{'Authorization':'Bearer '+token}})
+        .then(r=>r.json()).then(d=>{if(Array.isArray(d))setUsers(d);}).catch(()=>{}).finally(()=>setLoading(false));
+    };
+    load();
+    const iv = setInterval(load, 30000);
+    return ()=>clearInterval(iv);
+  },[]);
+  const terrain = users.filter(u=>['technician','terrain'].includes(u.role));
+  const bureau = users.filter(u=>!['technician','terrain'].includes(u.role));
+  const canAll = ['admin','hr','dg'].includes(user.role);
+  const display = tab==='terrain'?terrain:tab==='bureau'&&canAll?bureau:canAll?users:terrain;
   return (
     <div style={{flex:1,overflowY:'auto',background:C2.bg,paddingBottom:80}}>
-      <Header title="Equipes" right={
-        <div style={{display:'flex',gap:12}}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-            stroke={C2.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            style={{cursor:'pointer'}}>
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-        </div>
-      }/>
-      <div style={{display:'flex',borderBottom:'1px solid '+C2.border}}>
-        {tabs.map(([id,lbl]) => (
-          <button key={id} onClick={() => setTab(id)}
-            style={{flex:1,padding:'9px 4px',border:'none',background:C2.bg,
-              fontSize:10,fontWeight:tab===id?700:500,cursor:'pointer',fontFamily:FONT,
-              color:tab===id?C2.primary:C2.text3,
-              borderBottom:tab===id?'2px solid '+C2.primary:'2px solid transparent'}}>
-            {lbl}
-          </button>
-        ))}
-      </div>
-      <div>
-        {display.map(u => {
-          const st = getStatus(u);
-          return (
-            <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,
-              padding:'11px 14px',borderBottom:'0.5px solid '+C2.border,
-              opacity:st.label==='Absent'?.6:1,background:C2.bg}}>
-              <div style={{position:'relative',flexShrink:0}}>
-                <div style={{width:44,height:44,borderRadius:'50%',
-                  background:u.color+'22',border:'1.5px solid '+u.color,
-                  display:'flex',alignItems:'center',justifyContent:'center',
-                  fontSize:14,fontWeight:700,color:u.color}}>
-                  {u.av}
-                </div>
-                <div style={{position:'absolute',bottom:0,right:0,
-                  width:12,height:12,borderRadius:'50%',
-                  background:st.color,border:'2px solid white'}}/>
-              </div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:600,color:C2.text}}>{u.name}</div>
-                <div style={{fontSize:10,color:C2.text3}}>{u.post}</div>
-                {st.site && (
-                  <div style={{fontSize:10,color:C2.primary,
-                    display:'flex',alignItems:'center',gap:2,marginTop:1}}>
-                    📍 {st.site}
-                  </div>
-                )}
-              </div>
-              <div style={{textAlign:'right',flexShrink:0}}>
-                <div style={{background:st.bg,color:st.color,
-                  padding:'3px 8px',borderRadius:10,fontSize:10,fontWeight:700,marginBottom:2}}>
-                  {st.label}
-                </div>
-                {st.since && <div style={{fontSize:9,color:C2.text3}}>depuis {st.since}</div>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-// ─── SCREEN: DISPATCH ─────────────────────────────────────────
-const ScreenDispatch = () => {
-  const [tab,setTab] = useState('active');
-  const {toast,toastMsg,toastShow,toastType} = useToast();
-  const statusColors = {in_progress:C.primary,pending:C.warning,done:C.success};
-  const statusLabels = {in_progress:'En cours',pending:'En attente',done:'Termine'};
-
-  return (
-    <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
-      <Toast msg={toastMsg} show={toastShow} type={toastType}/>
-      <Header title={t('dispatch')} right={
-        <button style={{background:C.primary,border:'none',borderRadius:8,
-          padding:'6px 12px',color:'white',fontSize:11,fontWeight:700,
-          cursor:'pointer',fontFamily:FONT,display:'flex',alignItems:'center',gap:4}}>
-          + {t('new_mission')}
-        </button>
-      }/>
-      <div style={{display:'flex',borderBottom:'1px solid '+C.border}}>
-        {[['active','En cours ('+MISSIONS.filter(m=>m.status==='in_progress').length+')'],
-          ['assign',t('to_assign')+' ('+MISSIONS.filter(m=>m.status==='pending').length+')']].map(([id,lbl])=>(
-          <button key={id} onClick={()=>setTab(id)}
-            style={{flex:1,padding:'9px 4px',border:'none',background:C.bg,
-              fontSize:10,fontWeight:tab===id?700:500,cursor:'pointer',fontFamily:FONT,
-              color:tab===id?C.primary:C.text3,
-              borderBottom:tab===id?'2px solid '+C.primary:'2px solid transparent'}}>
-            {lbl}
-          </button>
-        ))}
-      </div>
-
-      <div>
-        {tab==='active' && MISSIONS.filter(m=>m.status==='in_progress').map(m=>{
-          const tech = USERS.find(u=>u.id===m.techId);
-          return (
-            <div key={m.id} style={{padding:'12px 14px',borderBottom:'0.5px solid '+C.border}}>
-              <div style={{display:'flex',justifyContent:'space-between',
-                alignItems:'flex-start',marginBottom:8}}>
-                <div>
-                  <div style={{fontSize:10,color:C.text3,marginBottom:2}}>{m.client} · {m.site}</div>
-                  <div style={{fontSize:14,fontWeight:700,color:C.text}}>{m.type}</div>
-                </div>
-                <div style={{background:statusColors[m.status]+'22',color:statusColors[m.status],
-                  padding:'3px 9px',borderRadius:10,fontSize:10,fontWeight:700}}>
-                  {statusLabels[m.status]}
-                </div>
-              </div>
-              <ProgressBar val={m.pct} color={statusColors[m.status]} height={5}/>
-              <div style={{display:'flex',justifyContent:'space-between',
-                alignItems:'center',marginTop:8}}>
-                <div style={{display:'flex',alignItems:'center',gap:-4}}>
-                  {m.team?.map((tid,i)=>{
-                    const u=USERS.find(u=>u.id===tid);
-                    if(!u) return null;
-                    return (
-                      <div key={tid} style={{width:26,height:26,borderRadius:'50%',
-                        background:u.color+'22',border:'2px solid white',
-                        display:'flex',alignItems:'center',justifyContent:'center',
-                        fontSize:9,fontWeight:700,color:u.color,
-                        marginLeft:i>0?-8:0,zIndex:m.team.length-i}}>
-                        {u.av}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <span style={{fontSize:10,color:C.text3}}>📅 {m.deadline}</span>
-                  <button style={{background:'none',border:'0.5px solid '+C.border,
-                    borderRadius:6,padding:'4px 8px',fontSize:10,color:C.primary,
-                    cursor:'pointer',fontFamily:FONT}}>
-                    Voir
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-
-        {tab==='assign' && (
-          <div style={{padding:14}}>
-            {MISSIONS.filter(m=>m.status==='pending').map(m=>{
-              const available = USERS.filter(u=>u.role==='terrain'&&
-                !MISSIONS.find(ms=>ms.techId===u.id&&ms.status==='in_progress'));
-              return (
-                <div key={m.id} style={{background:C.bg2,borderRadius:12,
-                  padding:12,marginBottom:12,border:'0.5px solid '+C.border}}>
-                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:3}}>
-                    {m.client} · {m.site}
-                  </div>
-                  <div style={{fontSize:11,color:C.text3,marginBottom:10}}>
-                    {m.type} · {m.deadline}
-                  </div>
-                  <div style={{fontSize:10,fontWeight:700,color:C.text3,
-                    textTransform:'uppercase',letterSpacing:.4,marginBottom:8}}>
-                    Techniciens disponibles
-                  </div>
-                  {available.map(u=>(
-                    <div key={u.id} style={{display:'flex',alignItems:'center',
-                      justifyContent:'space-between',padding:'7px 9px',
-                      background:C.bg,borderRadius:8,
-                      border:'0.5px solid '+C.border,marginBottom:5}}>
-                      <div style={{display:'flex',alignItems:'center',gap:8}}>
-                        <AvatarCircle av={u.av} color={u.color} size={30}/>
-                        <div>
-                          <div style={{fontSize:11,fontWeight:600,color:C.text}}>{u.name}</div>
-                          <div style={{fontSize:9,color:C.text3}}>{u.post} · {u.region}</div>
-                        </div>
-                      </div>
-                      <button onClick={()=>toast(u.name+' assigne(e) ✓')}
-                        style={{background:C.primary,border:'none',borderRadius:6,
-                          padding:'4px 10px',color:'white',fontSize:10,fontWeight:700,
-                          cursor:'pointer',fontFamily:FONT}}>
-                        {t('assign')}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
+      <Header title="Equipes"/>
+      {loading?<div style={{padding:32,textAlign:'center'}}><div style={{width:32,height:32,border:'3px solid '+C2.primaryL,borderTopColor:C2.primary,borderRadius:'50%',animation:'spin .8s linear infinite',margin:'0 auto'}}/></div>:(
+        <>
+          <div style={{display:'flex',borderBottom:'1px solid '+C2.border}}>
+            {(canAll?[['all','Tous ('+users.length+')'],['terrain','Terrain ('+terrain.length+')'],['bureau','Bureau ('+bureau.length+')']]:
+              [['all','Terrain ('+terrain.length+')']]).map(([id,lbl])=>(
+              <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:'9px 4px',border:'none',background:C2.bg,
+                fontSize:10,fontWeight:tab===id?700:500,cursor:'pointer',fontFamily:FONT,
+                color:tab===id?C2.primary:C2.text3,borderBottom:tab===id?'2px solid '+C2.primary:'2px solid transparent'}}>{lbl}</button>
+            ))}
           </div>
-        )}
-      </div>
+          {display.map(u=>{
+            const av=((u.firstName||'')[0]+(u.lastName||'')[0]).toUpperCase();
+            const col=u.role==='admin'?'#DC2626':u.role==='project_manager'?'#7C3AED':u.role==='hr'?'#059669':'#EA580C';
+            const active=u.lastSeen&&(Date.now()-new Date(u.lastSeen).getTime())<1800000;
+            return(
+              <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',borderBottom:'0.5px solid '+C2.border}}>
+                <div style={{position:'relative'}}>
+                  <div style={{width:44,height:44,borderRadius:'50%',background:col+'22',border:'1.5px solid '+col,
+                    display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,color:col}}>{av}</div>
+                  <div style={{position:'absolute',bottom:0,right:0,width:12,height:12,borderRadius:'50%',
+                    background:active?'#22C55E':'#9CA3AF',border:'2px solid white'}}/>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:600,color:C2.text}}>{u.firstName} {u.lastName}</div>
+                  <div style={{fontSize:10,color:C2.text3}}>{u.role} · {u.email}</div>
+                </div>
+                <div style={{background:active?'#DCFCE7':'#F3F4F6',color:active?'#16A34A':'#6B7280',
+                  padding:'3px 8px',borderRadius:10,fontSize:10,fontWeight:700}}>
+                  {active?'Actif':'Hors ligne'}
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
     </div>
   );
 };
-
-// ─── SCREEN: APPROVALS ────────────────────────────────────────
+const ScreenDispatch = ({user}) => {
+  const [tab,setTab] = useState('active');
+  const [missions,setMissions] = useState([]);
+  const [users,setUsers] = useState([]);
+  const {toast,toastMsg,toastShow,toastType} = useToast();
+  const C2 = getC();
+  useEffect(()=>{
+    const load = () => {
+      const tk = localStorage.getItem('cit_token');
+      const h = {'Authorization':'Bearer '+tk};
+      const b = 'https://backend-cleanit-erp.vercel.app';
+      Promise.all([fetch(b+'/missions',{headers:h}).then(r=>r.json()).catch(()=>[]),
+        fetch(b+'/users',{headers:h}).then(r=>r.json()).catch(()=>[])]).then(([ms,us])=>{
+        if(Array.isArray(ms))setMissions(ms);if(Array.isArray(us))setUsers(us);});
+    };
+    load();const iv=setInterval(load,30000);return()=>clearInterval(iv);
+  },[]);
+  const active=missions.filter(m=>m.status==='in_progress');
+  const pending=missions.filter(m=>m.status==='pending');
+  const avail=users.filter(u=>['technician','terrain'].includes(u.role)&&!missions.find(m=>m.tech_id===u.id&&m.status==='in_progress'));
+  const assign=async(mId,uId,uName)=>{
+    const tk=localStorage.getItem('cit_token');
+    const r=await fetch('https://backend-cleanit-erp.vercel.app/missions/'+mId,{method:'PUT',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+      body:JSON.stringify({techId:uId,status:'in_progress'})}).then(r=>r.json()).catch(()=>null);
+    if(r?.id){toast(uName+' assigné(e)','success');setMissions(ms=>ms.map(m=>m.id===mId?{...m,tech_id:uId,status:'in_progress'}:m));}
+    else toast('Erreur','error');
+  };
+  const C = getC();
+  return(
+    <div style={{flex:1,overflowY:'auto',background:C2.bg,paddingBottom:80}}>
+      <Toast msg={toastMsg} show={toastShow} type={toastType}/>
+      <Header title="Dispatch"/>
+      <div style={{display:'flex',borderBottom:'1px solid '+C2.border}}>
+        {[['active','En cours ('+active.length+')'],['assign','A assigner ('+pending.length+')']].map(([id,lbl])=>(
+          <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:'9px 4px',border:'none',background:C2.bg,
+            fontSize:10,fontWeight:tab===id?700:500,cursor:'pointer',fontFamily:FONT,
+            color:tab===id?C2.primary:C2.text3,borderBottom:tab===id?'2px solid '+C2.primary:'2px solid transparent'}}>{lbl}</button>
+        ))}
+      </div>
+      {tab==='active'&&active.map(m=>{
+        const tech=users.find(u=>u.id===m.tech_id);
+        return(<div key={m.id} style={{padding:'12px 14px',borderBottom:'0.5px solid '+C2.border}}>
+          <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+            <div><div style={{fontSize:10,color:C2.text3}}>{m.client} · {m.site}</div>
+              <div style={{fontSize:13,fontWeight:700,color:C2.text}}>{m.type||'Mission'}</div></div>
+            <div style={{background:C2.primaryL,color:C2.primary,padding:'3px 9px',borderRadius:10,fontSize:10,fontWeight:700}}>En cours</div>
+          </div>
+          <div style={{background:C2.bg2,borderRadius:4,height:5,marginBottom:6}}>
+            <div style={{width:(m.progress||0)+'%',height:'100%',background:C2.primary,borderRadius:4}}/></div>
+          <div style={{display:'flex',justifyContent:'space-between'}}>
+            {tech&&<span style={{fontSize:11,color:C2.text}}>{tech.firstName} {tech.lastName}</span>}
+            <span style={{fontSize:10,color:C2.text3}}>📅 {m.deadline||'—'}</span>
+          </div>
+        </div>);
+      })}
+      {tab==='assign'&&pending.map(m=>(
+        <div key={m.id} style={{padding:12,margin:'8px 14px',background:C2.bg2,borderRadius:12,border:'0.5px solid '+C2.border}}>
+          <div style={{fontSize:13,fontWeight:700,color:C2.text}}>{m.client} · {m.site}</div>
+          <div style={{fontSize:11,color:C2.text3,marginBottom:10}}>{m.type} · {m.deadline||'—'}</div>
+          {avail.map(u=>(
+            <div key={u.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+              padding:'7px 9px',background:C2.bg,borderRadius:8,border:'0.5px solid '+C2.border,marginBottom:5}}>
+              <span style={{fontSize:11,color:C2.text}}>{u.firstName} {u.lastName}</span>
+              <button onClick={()=>assign(m.id,u.id,u.firstName+' '+u.lastName)}
+                style={{background:C2.primary,border:'none',borderRadius:6,padding:'4px 10px',
+                  color:'white',fontSize:10,fontWeight:700,cursor:'pointer',fontFamily:FONT}}>Assigner</button>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+};
 const ScreenApprovals = ({user}) => {
   const [tab,setTab] = useState('pending');
   const [loadingApprovals, setLoadingApprovals] = useState(false);
@@ -2273,107 +2189,62 @@ const ScreenApprovals = ({user}) => {
 
 // ─── SCREEN: ANALYTICS ────────────────────────────────────────
 const ScreenAnalytics = () => {
-  const kpis = [
-    {label:'CA du mois',val:'207M',change:'+18.4%',up:true},
-    {label:'Missions',val:'5',sub:'3 en cours',color:C.primary},
-    {label:'Paiements dus',val:'7.7M',sub:'3 factures',danger:true},
-    {label:'Equipe active',val:'8/8',sub:'Tous actifs',color:C.success},
+  const [stats,setStats] = useState(null);
+  const [missions,setMissions] = useState([]);
+  const C2 = getC();
+  useEffect(()=>{
+    const load = () => {
+      const tk=localStorage.getItem('cit_token');
+      const h={'Authorization':'Bearer '+tk};
+      const b='https://backend-cleanit-erp.vercel.app';
+      Promise.all([fetch(b+'/stats',{headers:h}).then(r=>r.json()).catch(()=>null),
+        fetch(b+'/missions',{headers:h}).then(r=>r.json()).catch(()=>[])]).then(([s,ms])=>{
+        if(s)setStats(s);if(Array.isArray(ms))setMissions(ms);});
+    };
+    load();const iv=setInterval(load,30000);return()=>clearInterval(iv);
+  },[]);
+  if(!stats)return(<div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',background:getC().bg}}>
+    <div style={{width:40,height:40,border:'3px solid '+getC().primaryL,borderTopColor:getC().primary,borderRadius:'50%',animation:'spin .8s linear infinite'}}/></div>);
+  const kpis=[
+    {l:'Utilisateurs actifs',v:stats.users?.active||0,s:'/ '+stats.users?.total+' total',c:getC().primary},
+    {l:'Missions en cours',v:stats.missions?.active||0,s:stats.missions?.total+' total',c:getC().success},
+    {l:'Tickets ouverts',v:stats.tickets?.open||0,s:'urgence',c:(stats.tickets?.open||0)>5?getC().danger:getC().warning},
+    {l:'Approvals en attente',v:stats.approvals?.pending||0,s:'à valider',c:getC().warning},
   ];
-  const clients = [
-    {name:'MTN',val:78,color:'#FFCC00',amount:'78M'},
-    {name:'Orange',val:55,color:'#F97316',amount:'55M'},
-    {name:'CAMTEL',val:45,color:C.primary,amount:'45M'},
-    {name:'Autres',val:29,color:C.text4,amount:'29M'},
-  ];
-  const alerts = [
-    {icon:'🔴',title:'Facture impayee MTN',sub:'4.2M FCFA · Echeance depassee',border:C.danger},
-    {icon:'🟡',title:'KRI-001 deadline proche',sub:'Deadline dans 2 jours · 80% fait',border:C.warning},
-    {icon:'🔵',title:'3 approvals en attente',sub:'Dont 1 decision finale DG',border:C.primary},
-  ];
-
-  return (
-    <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
-      <Header title={t('analytics')} right={
-        <div style={{background:C.bg2,borderRadius:8,padding:'4px 10px',
-          fontSize:10,color:C.text2,display:'flex',alignItems:'center',gap:4,cursor:'pointer'}}>
-          📅 Mai 2025
-        </div>
-      }/>
-      <div style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:12}}>
+  return(
+    <div style={{flex:1,overflowY:'auto',background:getC().bg,paddingBottom:80}}>
+      <Header title="Analytics"/>
+      <div style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:10}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-          {kpis.map(({label,val,change,up,sub,color,danger})=>(
-            <div key={label} style={{background:C.bg2,borderRadius:10,padding:'10px 12px'}}>
-              <div style={{fontSize:10,color:C.text3,marginBottom:4}}>{label}</div>
-              <div style={{fontSize:20,fontWeight:700,color:danger?C.danger:C.text}}>{val}</div>
-              {change && (
-                <div style={{fontSize:10,color:up?C.success:C.danger,fontWeight:600,
-                  display:'flex',alignItems:'center',gap:2}}>
-                  {up?'📈':'📉'} {change}
-                </div>
-              )}
-              {sub && <div style={{fontSize:9,color:color||C.text3,fontWeight:500}}>{sub}</div>}
+          {kpis.map(({l,v,s,c})=>(
+            <div key={l} style={{background:getC().bg2,borderRadius:10,padding:'10px 12px'}}>
+              <div style={{fontSize:9,color:getC().text3,marginBottom:4}}>{l}</div>
+              <div style={{fontSize:22,fontWeight:700,color:getC().text}}>{v}</div>
+              <div style={{fontSize:9,color:c,fontWeight:600}}>{s}</div>
             </div>
           ))}
         </div>
-
-        <div style={{background:C.bg2,borderRadius:10,padding:'10px 12px'}}>
-          <div style={{display:'flex',justifyContent:'space-between',
-            alignItems:'center',marginBottom:10}}>
-            <span style={{fontSize:12,fontWeight:700,color:C.text}}>{t('missions_progress')}</span>
-            <span style={{fontSize:10,color:C.primary,cursor:'pointer'}}>Voir tout</span>
-          </div>
-          {MISSIONS.map(m=>{
-            const colors = {in_progress:C.primary,pending:C.warning,done:C.success};
-            return (
-              <div key={m.id} style={{marginBottom:8}}>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
-                  <span style={{fontSize:11,color:C.text}}>{m.site} · {m.client}</span>
-                  <span style={{fontSize:11,fontWeight:700,color:colors[m.status]}}>{m.pct}%</span>
-                </div>
-                <ProgressBar val={m.pct} color={colors[m.status]} height={5}/>
+        <div style={{background:getC().bg2,borderRadius:10,padding:'10px 12px'}}>
+          <div style={{fontSize:12,fontWeight:700,color:getC().text,marginBottom:10}}>Missions</div>
+          {missions.map(m=>(
+            <div key={m.id} style={{marginBottom:8}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:3}}>
+                <span style={{fontSize:11,color:getC().text}}>{m.code} · {m.client}</span>
+                <span style={{fontSize:11,fontWeight:700,color:m.status==='in_progress'?getC().primary:getC().warning}}>{m.progress||0}%</span>
               </div>
-            );
-          })}
-        </div>
-
-        <div style={{background:C.bg2,borderRadius:10,padding:'10px 12px'}}>
-          <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:10}}>
-            {t('revenue_client')}
-          </div>
-          {clients.map(({name,val,color,amount})=>(
-            <div key={name} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-              <span style={{fontSize:11,color:C.text,minWidth:60}}>{name}</span>
-              <div style={{flex:1,background:C.border,borderRadius:4,height:8,overflow:'hidden'}}>
-                <div style={{width:val+'%',height:'100%',background:color,borderRadius:4,
-                  transition:'width .6s'}}/>
-              </div>
-              <span style={{fontSize:10,fontWeight:700,color:C.text,minWidth:30}}>{amount}</span>
-            </div>
-          ))}
-        </div>
-
-        <div style={{background:C.bg2,borderRadius:10,padding:'10px 12px'}}>
-          <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:8}}>
-            {t('alerts')}
-          </div>
-          {alerts.map(({icon,title,sub,border})=>(
-            <div key={title} style={{display:'flex',gap:8,padding:'7px 9px',
-              background:C.bg,borderRadius:8,marginBottom:5,
-              borderLeft:'3px solid '+border}}>
-              <span style={{fontSize:14,flexShrink:0}}>{icon}</span>
-              <div>
-                <div style={{fontSize:11,fontWeight:700,color:C.text}}>{title}</div>
-                <div style={{fontSize:10,color:C.text3}}>{sub}</div>
+              <div style={{background:getC().border,borderRadius:4,height:4}}>
+                <div style={{width:(m.progress||0)+'%',height:'100%',background:m.status==='in_progress'?getC().primary:getC().warning,borderRadius:4}}/>
               </div>
             </div>
           ))}
+        </div>
+        <div style={{textAlign:'center',padding:8,background:getC().bg2,borderRadius:10}}>
+          <div style={{fontSize:10,color:getC().primary}}>⟳ Mise à jour toutes les 30 secondes</div>
         </div>
       </div>
     </div>
   );
 };
-
-// ─── SCREEN: PROFIL ───────────────────────────────────────────
 const ScreenProfil = ({user,onLogout}) => {
   const [lang,setLang] = useState(getLang());
   const [theme,setTheme] = useState(getTheme());
