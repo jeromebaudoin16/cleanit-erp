@@ -548,6 +548,47 @@ app.get('/stats', auth, async (req, res) => {
   } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
 });
 
+
+// ─── POINTAGES TABLE ──────────────────────────────────────────
+pool.query(`CREATE TABLE IF NOT EXISTS pointages (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id),
+  user_name VARCHAR(100),
+  site_code VARCHAR(50),
+  site_name VARCHAR(100),
+  type VARCHAR(20) DEFAULT 'arrivee',
+  gps_lat VARCHAR(20),
+  gps_lng VARCHAR(20),
+  created_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+
+app.post('/pointages', auth, async (req, res) => {
+  try {
+    const { siteCode, siteName, type, gpsLat, gpsLng } = req.body;
+    const user = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1',[req.user.sub]);
+    const u = user.rows[0];
+    const result = await pool.query(
+      'INSERT INTO pointages (user_id,user_name,site_code,site_name,type,gps_lat,gps_lng) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+      [req.user.sub, u.firstName+' '+u.lastName, siteCode||'', siteName||'', type||'arrivee', gpsLat||null, gpsLng||null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
+app.get('/pointages', auth, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM pointages WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50',[req.user.sub]);
+    res.json(result.rows);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+app.get('/pointages/all', auth, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM pointages ORDER BY created_at DESC LIMIT 200');
+    res.json(result.rows);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
 // 404
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 
