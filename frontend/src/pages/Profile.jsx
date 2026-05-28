@@ -445,6 +445,47 @@ function TabUtilisateurs({currentUser}){
         <div style={{display:'flex',gap:8}}>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher..."
             style={{padding:'7px 12px',borderRadius:7,border:`1px solid ${C.border}`,fontSize:12,fontFamily:'inherit',outline:'none',width:180}}/>
+          <label style={{padding:'7px 14px',borderRadius:7,border:'1px solid #E05C5C',
+            background:'white',color:'#E05C5C',cursor:'pointer',fontSize:12,
+            fontWeight:600,display:'flex',alignItems:'center',gap:6}}>
+            ↑ Import CSV
+            <input type="file" accept=".csv" style={{display:'none'}}
+              onChange={async (e)=>{
+                const file = e.target.files[0];
+                if(!file) return;
+                const text = await file.text();
+                const lines = text.split('\n').filter(l=>l.trim());
+                const headers = lines[0].split(',').map(h=>h.trim().toLowerCase());
+                const users = lines.slice(1).map(line => {
+                  const vals = line.split(',');
+                  const obj = {};
+                  headers.forEach((h,i) => obj[h] = (vals[i]||'').trim().replace(/"/g,''));
+                  return {
+                    email: obj.email||obj['e-mail']||'',
+                    firstName: obj.prenom||obj.firstname||obj['prénom']||'',
+                    lastName: obj.nom||obj.lastname||'',
+                    role: obj.role||'bureau',
+                    password: obj.password||obj['mot de passe']||'CleanIT2024!'
+                  };
+                }).filter(u=>u.email && u.firstName);
+                if(users.length === 0){setAlert({type:'error',msg:'CSV invalide. Colonnes: email,prenom,nom,role'});return;}
+                try {
+                  const r = await api.post('/users/bulk',{users});
+                  setAlert({type:'success',msg:`Import: ${r.data.created} créés, ${r.data.errors} erreurs`});
+                  loadUsers();
+                } catch(e){ setAlert({type:'error',msg:'Erreur import'}); }
+              }}/>
+          </label>
+          <button onClick={()=>{
+            const csv = "email,prenom,nom,role,password\nexemple@cleanit.cm,Jean,Dupont,terrain,CleanIT2024!";
+            const a = document.createElement('a');
+            a.href = 'data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+            a.download = 'template_import_cleanit.csv';
+            a.click();
+          }} style={{padding:'7px 14px',borderRadius:7,border:'1px solid #ddd',
+            background:'white',color:'#888',cursor:'pointer',fontSize:12,fontWeight:600}}>
+            ↓ Template
+          </button>
           <button onClick={()=>setShowAdd(!showAdd)}
             style={{padding:'7px 14px',borderRadius:7,border:'none',background:C.blue,color:C.white,cursor:'pointer',fontFamily:'inherit',fontSize:12,fontWeight:600,display:'flex',alignItems:'center',gap:6}}>
             <Icon d={ICONS.plus} size={14} color="white"/>Ajouter

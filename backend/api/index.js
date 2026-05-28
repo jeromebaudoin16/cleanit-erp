@@ -430,6 +430,70 @@ app.post('/whatsapp/send', auth, async (req, res) => {
   } catch(e) { res.status(500).json({ message: 'Erreur envoi', error: e.message }); }
 });
 
+
+// ─── INIT APPROVALS TABLE ─────────────────────────────────────
+pool.query(`CREATE TABLE IF NOT EXISTS approvals (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id),
+  user_name VARCHAR(100),
+  type VARCHAR(50),
+  label VARCHAR(50),
+  detail TEXT,
+  status VARCHAR(20) DEFAULT 'pending',
+  n1_done BOOLEAN DEFAULT false,
+  n2_done BOOLEAN DEFAULT false,
+  dg_done BOOLEAN DEFAULT false,
+  comment TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+
+// ─── APPROVALS ROUTES ─────────────────────────────────────────
+app.get('/approvals', auth, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM approvals ORDER BY created_at DESC');
+    res.json(result.rows);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+app.post('/approvals', auth, async (req, res) => {
+  try {
+    const { type, label, detail } = req.body;
+    const user = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1',[req.user.sub]);
+    const u = user.rows[0];
+    const result = await pool.query(
+      'INSERT INTO approvals (user_id,user_name,type,label,detail) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [req.user.sub, u.firstName+' '+u.lastName, type, label, detail]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+app.put('/approvals/:id', auth, async (req, res) => {
+  try {
+    const { action, comment } = req.body;
+    const role = req.user.role;
+    const appr = await pool.query('SELECT * FROM approvals WHERE id=$1',[req.params.id]);
+    if(!appr.rows[0]) return res.status(404).json({ message: 'Introuvable' });
+    let update = {};
+    if(action==='approve') {
+      if(['hr','rh'].includes(role) && !appr.rows[0].n1_done) update = {n1_done:true};
+      else if(['pm','project_manager','bureau'].includes(role) && appr.rows[0].n1_done && !appr.rows[0].n2_done) update = {n2_done:true};
+      else if(['admin','dg'].includes(role)) update = {dg_done:true, status:'approved'};
+    } else if(action==='reject') {
+      update = {status:'rejected', comment: comment||''};
+    }
+    if(!Object.keys(update).length) return res.status(400).json({ message: 'Action non autorisee' });
+    const sets = Object.entries(update).map(([k,v],i)=>`"${k}"=$${i+1}`).join(',');
+    const vals = [...Object.values(update), req.params.id];
+    const result = await pool.query(
+      `UPDATE approvals SET ${sets},updated_at=NOW() WHERE id=$${vals.length} RETURNING *`,
+      vals
+    );
+    res.json(result.rows[0]);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
 // 404
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 
