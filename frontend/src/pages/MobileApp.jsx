@@ -2416,18 +2416,29 @@ const ScreenProfil = ({user,onLogout}) => {
           if('Notification' in window){
             const perm = await Notification.requestPermission();
             if(perm==='granted'){
-              toast('Notifications activees', 'success');
-              // Enregistrer service worker
-              if('serviceWorker' in navigator){
-                const reg = await navigator.serviceWorker.ready;
-                const sub = await reg.pushManager.subscribe({
-                  userVisibleOnly:true,
-                  applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY||'BNSQIjGGELW6UAg0K1bkGLRgkWf0xSn9pocHSAwrtMauehwBVm-v1fM3TE_QRoQVlBmq15FGbqMP3ZNmH7ZSjZc'
-                });
-                localStorage.setItem('push_sub', JSON.stringify(sub));
+              try {
+                if('serviceWorker' in navigator){
+                  const reg = await navigator.serviceWorker.ready;
+                  const vapidKey = 'BNSQIjGGELW6UAg0K1bkGLRgkWf0xSn9pocHSAwrtMauehwBVm-v1fM3TE_QRoQVlBmq15FGbqMP3ZNmH7ZSjZc';
+                  const sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: vapidKey
+                  });
+                  // Envoyer subscription au backend
+                  const token = localStorage.getItem('cit_token');
+                  await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
+                    body: JSON.stringify({ subscription: sub })
+                  });
+                  localStorage.setItem('push_sub', JSON.stringify(sub));
+                  toast('Notifications activées !', 'success');
+                }
+              } catch(err) {
+                toast('Erreur activation notifs', 'error');
               }
             } else {
-              toast('Permission refusee', 'error');
+              toast('Permission refusée', 'error');
             }
           }
           // PWA install

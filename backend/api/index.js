@@ -644,6 +644,87 @@ app.get('/wa-messages/:number', auth, async (req, res) => {
   } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
+
+// ─── PUSH SUBSCRIPTIONS ───────────────────────────────────────
+pool.query(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id),
+  subscription JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+
+// Sauvegarder subscription push
+app.post('/push/subscribe', auth, async (req, res) => {
+  try {
+    const { subscription } = req.body;
+    if(!subscription) return res.status(400).json({ message: 'Subscription requise' });
+    // Supprimer ancienne subscription de cet user
+    await pool.query('DELETE FROM push_subscriptions WHERE user_id=$1',[req.user.sub]);
+    // Sauvegarder nouvelle
+    await pool.query(
+      'INSERT INTO push_subscriptions (user_id,subscription) VALUES ($1,$2)',
+      [req.user.sub, JSON.stringify(subscription)]
+    );
+    res.json({ ok: true, message: 'Notification push activée' });
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+// Envoyer notification push à un user
+app.post('/push/send', auth, isAdmin, async (req, res) => {
+  try {
+    const { userId, title, body, url } = req.body;
+    const webpush = require('web-push');
+    webpush.setVapidDetails(
+      'mailto:admin@cleanit.cm',
+      process.env.VAPID_PUBLIC_KEY || 'BNSQIjGGELW6UAg0K1bkGLRgkWf0xSn9pocHSAwrtMauehwBVm-v1fM3TE_QRoQVlBmq15FGbqMP3ZNmH7ZSjZc',
+      process.env.VAPID_PRIVATE_KEY || 'R7FtPVAiJzlXqDKECMAToh1CwCGWY0YnAHzdQOKx8Xs'
+    );
+    const query = userId
+      ? 'SELECT subscription FROM push_subscriptions WHERE user_id=$1'
+      : 'SELECT subscription FROM push_subscriptions';
+    const params = userId ? [userId] : [];
+    const subs = await pool.query(query, params);
+    const payload = JSON.stringify({ title, body, url: url||'/mobile', icon:'/icons/icon-192.png' });
+    let sent = 0;
+    for(const row of subs.rows) {
+      try {
+        await webpush.sendNotification(JSON.parse(row.subscription), payload);
+        sent++;
+      } catch(e) {
+        // Subscription expirée - supprimer
+        if(e.statusCode === 410) {
+          await pool.query('DELETE FROM push_subscriptions WHERE subscription=$1',[JSON.stringify(row.subscription)]);
+        }
+      }
+    }
+    res.json({ ok: true, sent, total: subs.rows.length });
+  } catch(e) { res.status(500).json({ message: 'Erreur envoi push', error: e.message }); }
+});
+
+// Envoyer notif automatique lors d'assignation mission
+app.post('/push/notify-mission', auth, async (req, res) => {
+  try {
+    const { techId, missionCode, siteName } = req.body;
+    const webpush = require('web-push');
+    webpush.setVapidDetails(
+      'mailto:admin@cleanit.cm',
+      process.env.VAPID_PUBLIC_KEY || 'BNSQIjGGELW6UAg0K1bkGLRgkWf0xSn9pocHSAwrtMauehwBVm-v1fM3TE_QRoQVlBmq15FGbqMP3ZNmH7ZSjZc',
+      process.env.VAPID_PRIVATE_KEY || 'R7FtPVAiJzlXqDKECMAToh1CwCGWY0YnAHzdQOKx8Xs'
+    );
+    const subs = await pool.query('SELECT subscription FROM push_subscriptions WHERE user_id=$1',[techId]);
+    const payload = JSON.stringify({
+      title: '🔧 Nouvelle mission assignée',
+      body: missionCode+' — '+siteName,
+      url: '/mobile/mission',
+      icon: '/icons/icon-192.png'
+    });
+    for(const row of subs.rows) {
+      await webpush.sendNotification(JSON.parse(row.subscription), payload).catch(()=>{});
+    }
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ ok: false }); }
+});
+
 // 404
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 
