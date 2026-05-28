@@ -218,10 +218,15 @@ const CONVOS = [
   {id:2,type:'project',code:'KRI-001',client:'CAMTEL',color:'#EAF3DE',textColor:'#27500A',
    last:'Pierre: Tests finaux demain matin',time:'Hier',unread:0},
   {id:3,type:'whatsapp',name:'MTN — Ing. Mbarga',av:'MTN',color:'#FFCC00',
+   phone:'237XXXXXXXXX',
    last:'Le test est prevu demain 8h ?',time:'10:30',unread:1},
   {id:4,type:'whatsapp',name:'Orange — Mme Ekani',av:'ORA',color:'#F97316',
+   phone:'237XXXXXXXXX',
    last:'Rapport de la semaine recu merci',time:'Hier',unread:0},
-  {id:5,type:'dm',userId:'EI-002',name:'Jean Fouda',av:'JF',color:'#7C3AED',
+  {id:5,type:'whatsapp',name:'CAMTEL — M. Biya',av:'CAM',color:'#0066CC',
+   phone:'237XXXXXXXXX',
+   last:'Intervention confirmee pour lundi',time:'Hier',unread:2},
+  {id:6,type:'dm',userId:'EI-002',name:'Jean Fouda',av:'JF',color:'#7C3AED',
    last:'Rapport de la semaine recu',time:'Lun',unread:0},
 ];
 
@@ -1326,7 +1331,11 @@ const ScreenMessages = () => {
               : openConv.name||openConv.from}
           </div>
           {openConv.type==='whatsapp'&&(
-            <div style={{fontSize:10,color:'#25D366',fontWeight:600}}>via WhatsApp</div>
+            <div style={{fontSize:10,color:'#25D366',fontWeight:600,
+              display:'flex',alignItems:'center',gap:4}}>
+              <div style={{width:6,height:6,borderRadius:'50%',background:'#25D366'}}/>
+              WhatsApp Business · {openConv.phone||'Non configuré'}
+            </div>
           )}
         </div>
         <span style={{fontSize:20,cursor:'pointer'}}>📞</span>
@@ -1343,8 +1352,12 @@ const ScreenMessages = () => {
               color:m.from==='me'?'#fff':C2.text}}>
               <div style={{fontSize:13,lineHeight:1.4}}>{m.text}</div>
               <div style={{fontSize:9,marginTop:4,textAlign:'right',
-                color:m.from==='me'?'rgba(255,255,255,.7)':C2.text3}}>
+                color:m.from==='me'?'rgba(255,255,255,.7)':C2.text3,
+                display:'flex',alignItems:'center',justifyContent:'flex-end',gap:3}}>
                 {m.time}
+                {m.from==='me' && openConv.type==='whatsapp' && (
+                  <span style={{color:'rgba(255,255,255,.7)'}}>✓✓</span>
+                )}
               </div>
             </div>
           </div>
@@ -1364,11 +1377,24 @@ const ScreenMessages = () => {
           style={{flex:1,padding:'10px 14px',border:'0.5px solid '+C2.border,
             borderRadius:24,fontSize:13,fontFamily:FONT,
             background:C2.bg2,color:C2.text,outline:'none'}}/>
-        <button onClick={()=>{
+        <button onClick={async ()=>{
           if(!msg.trim()) return;
-          setChatMsgs(p=>[...p,{id:Date.now(),from:'me',text:msg,
-            time:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}]);
+          const newMsg = {id:Date.now(),from:'me',text:msg,
+            time:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})};
+          setChatMsgs(p=>[...p,newMsg]);
+          const msgText = msg;
           setMsg('');
+          // Si conversation WhatsApp → envoyer via API
+          if(openConv.type==='whatsapp' && openConv.phone) {
+            try {
+              const token = localStorage.getItem('cit_token');
+              await fetch('https://backend-cleanit-erp.vercel.app/whatsapp/send', {
+                method:'POST',
+                headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+                body: JSON.stringify({to: openConv.phone, message: msgText})
+              });
+            } catch(e) { console.log('WhatsApp send error:', e); }
+          }
         }} style={{width:42,height:42,borderRadius:21,background:C2.primary,
           border:'none',cursor:'pointer',display:'flex',alignItems:'center',
           justifyContent:'center',flexShrink:0}}>
