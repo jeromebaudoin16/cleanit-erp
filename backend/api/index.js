@@ -387,6 +387,49 @@ app.put('/missions/:id', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
+
+// ─── WHATSAPP ────────────────────────────────────────────────
+const WA_TOKEN = process.env.WHATSAPP_TOKEN || '';
+const WA_PHONE_ID = process.env.WHATSAPP_PHONE_ID || '';
+const WA_VERIFY = process.env.WHATSAPP_VERIFY_TOKEN || 'cleanit_webhook_2024';
+
+app.get('/webhook/whatsapp', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+  if(mode === 'subscribe' && token === WA_VERIFY)
+    return res.status(200).send(challenge);
+  res.status(403).json({ message: 'Token invalide' });
+});
+
+app.post('/webhook/whatsapp', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
+app.get('/whatsapp/status', auth, (req, res) => {
+  res.json({
+    configured: !!(WA_TOKEN && WA_PHONE_ID),
+    webhookUrl: 'https://backend-cleanit-erp.vercel.app/webhook/whatsapp',
+    verifyToken: WA_VERIFY
+  });
+});
+
+app.post('/whatsapp/send', auth, async (req, res) => {
+  try {
+    const { to, message } = req.body;
+    if(!to || !message) return res.status(400).json({ message: 'Destinataire et message requis' });
+    if(!WA_TOKEN || !WA_PHONE_ID) return res.status(503).json({ message: 'WhatsApp non configure' });
+    const r = await fetch(`https://graph.facebook.com/v18.0/${WA_PHONE_ID}/messages`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer '+WA_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messaging_product:'whatsapp', to: to.replace(/[^0-9]/g,''), type:'text', text:{ body: message } })
+    });
+    const data = await r.json();
+    if(data.error) return res.status(400).json({ message: data.error.message });
+    res.json({ ok: true, messageId: data.messages?.[0]?.id });
+  } catch(e) { res.status(500).json({ message: 'Erreur envoi', error: e.message }); }
+});
+
 // 404
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 
