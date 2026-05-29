@@ -2381,13 +2381,17 @@ const ScreenProfil = ({user,onLogout}) => {
                           applicationServerKey: outputArray
                         });
                         const token = localStorage.getItem('cit_token');
-                        await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe',{
+                        const resp = await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe',{
                           method:'POST',
-                          headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-                          body:JSON.stringify({subscription:sub})
-                        });
-                        setNotifs(true);
-                        alert('Notifications activées !');
+                          headers:{'Content-Type':'application/json','Authorization':'Bearer '+(token||'')},
+                          body:JSON.stringify({subscription:JSON.parse(JSON.stringify(sub))})
+                        }).then(r=>r.json()).catch(e=>({error:e.message}));
+                        if(resp.ok) {
+                          setNotifs(true);
+                          alert('Notifications activées !');
+                        } else {
+                          alert('Erreur: '+JSON.stringify(resp));
+                        }
                       }
                     } catch(e){ alert('Erreur: '+e.message); }
                   } else { alert('Permission refusée par Chrome'); }
