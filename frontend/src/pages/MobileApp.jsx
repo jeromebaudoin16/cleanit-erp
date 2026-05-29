@@ -2361,7 +2361,32 @@ const ScreenProfil = ({user,onLogout}) => {
                 display:'flex',alignItems:'center',justifyContent:'center',}}><svg width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='#22C55E' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'><path d='M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9'/><path d='M13.73 21a2 2 0 01-3.46 0'/></svg></div>
               <span style={{fontSize:13,color:C.text}}>{t('notifications')}</span>
             </div>
-            <div onClick={()=>setNotifs(!notifs)}
+            <div onClick={async()=>{
+              if(!notifs){
+                if('Notification' in window){
+                  const perm = await Notification.requestPermission();
+                  if(perm==='granted'){
+                    try {
+                      if('serviceWorker' in navigator){
+                        const reg = await navigator.serviceWorker.ready;
+                        const sub = await reg.pushManager.subscribe({
+                          userVisibleOnly:true,
+                          applicationServerKey:'BNSQIjGGELW6UAg0K1bkGLRgkWf0xSn9pocHSAwrtMauehwBVm-v1fM3TE_QRoQVlBmq15FGbqMP3ZNmH7ZSjZc'
+                        });
+                        const token = localStorage.getItem('cit_token');
+                        await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe',{
+                          method:'POST',
+                          headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+                          body:JSON.stringify({subscription:sub})
+                        });
+                        setNotifs(true);
+                        alert('Notifications activées !');
+                      }
+                    } catch(e){ alert('Erreur: '+e.message); }
+                  } else { alert('Permission refusée par Chrome'); }
+                }
+              } else { setNotifs(false); }
+            }}
               style={{width:38,height:22,borderRadius:11,cursor:'pointer',
                 background:notifs?C.success:C.border,position:'relative',
                 transition:'background .2s'}}>
