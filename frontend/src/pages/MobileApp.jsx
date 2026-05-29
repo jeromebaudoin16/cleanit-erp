@@ -2548,6 +2548,17 @@ export default function MobileApp() {
   },[user]);
 
   const login = (u) => {setUser(u);localStorage.setItem('cit_mobile_user',JSON.stringify(u));};
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  useEffect(() => {
+    const handleOnline = () => { setIsOnline(true); };
+    const handleOffline = () => { setIsOnline(false); };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Handler Google OAuth - recuperer le token depuis l URL
   useEffect(() => {

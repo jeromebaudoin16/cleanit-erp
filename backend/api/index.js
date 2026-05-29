@@ -1,4 +1,12 @@
 const express = require('express');
+const webpush = require('web-push');
+
+// Configurer VAPID
+webpush.setVapidDetails(
+  'mailto:admin@cleanit.cm',
+  process.env.VAPID_PUBLIC_KEY || 'BNSQIjGGELW6UAg0K1bkGLRgkWf0xSn9pocHSAwrtMauehwBVm-v1fM3TE_QRoQVlBmq15FGbqMP3ZNmH7ZSjZc',
+  process.env.VAPID_PRIVATE_KEY || 'R7FtPVAiJzlXqDKECMAToh1CwCGWY0YnAHzdQOKx8Xs'
+);
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -671,31 +679,22 @@ app.post('/push/subscribe', async (req, res) => {
     const { subscription } = req.body;
     if(!subscription) return res.status(400).json({ message: 'Subscription requise' });
     // Supprimer ancienne subscription de cet user
-    // Essayer de récupérer user_id depuis token ou body
-    let userId = req.body.userId || null;
-    try {
-      const token = (req.headers.authorization||'').replace('Bearer ','');
-      if(token) { const p = require('jsonwebtoken').verify(token, process.env.JWT_SECRET||'cleanit_jwt_2024_huawei_cameroun_secret'); userId = p.sub; }
-    } catch(e) {}
-    await pool.query('DELETE FROM push_subscriptions WHERE user_id=$1',[userId]);
+    const rawId = req.body.userId;
+    const userId = rawId && !isNaN(parseInt(rawId)) ? parseInt(rawId) : null;
+    if(userId) await pool.query('DELETE FROM push_subscriptions WHERE user_id=$1',[userId]).catch(()=>{});
     await pool.query(
       'INSERT INTO push_subscriptions (user_id,subscription) VALUES ($1,$2)',
       [userId, JSON.stringify(subscription)]
     );
     res.json({ ok: true, message: 'Notification push activée' });
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', detail: e.message }); }
 });
 
 // Envoyer notification push à un user
 app.post('/push/send', auth, isAdmin, async (req, res) => {
   try {
     const { userId, title, body, url } = req.body;
-    const webpush = require('web-push');
-    webpush.setVapidDetails(
-      'mailto:admin@cleanit.cm',
-      process.env.VAPID_PUBLIC_KEY || 'BNSQIjGGELW6UAg0K1bkGLRgkWf0xSn9pocHSAwrtMauehwBVm-v1fM3TE_QRoQVlBmq15FGbqMP3ZNmH7ZSjZc',
-      process.env.VAPID_PRIVATE_KEY || 'R7FtPVAiJzlXqDKECMAToh1CwCGWY0YnAHzdQOKx8Xs'
-    );
+
     const query = userId
       ? 'SELECT subscription FROM push_subscriptions WHERE user_id=$1'
       : 'SELECT subscription FROM push_subscriptions';
@@ -703,18 +702,20 @@ app.post('/push/send', auth, isAdmin, async (req, res) => {
     const subs = await pool.query(query, params);
     const payload = JSON.stringify({ title, body, url: url||'/mobile', icon:'/icons/icon-192.png' });
     let sent = 0;
+    const errors = [];
     for(const row of subs.rows) {
       try {
-        await webpush.sendNotification(JSON.parse(row.subscription), payload);
+        await webpush.sendNotification(row.subscription, payload);
         sent++;
       } catch(e) {
-        // Subscription expirée - supprimer
-        if(e.statusCode === 410) {
-          await pool.query('DELETE FROM push_subscriptions WHERE subscription=$1',[JSON.stringify(row.subscription)]);
+        errors.push({code: e.statusCode, msg: e.message});
+        if(e.statusCode === 410 || e.statusCode === 404) {
+          await pool.query('DELETE FROM push_subscriptions WHERE id=$1',[row.id]).catch(()=>{});
         }
       }
     }
-    res.json({ ok: true, sent, total: subs.rows.length });
+    if(errors.length > 0) console.error('Push errors:', JSON.stringify(errors));
+    res.json({ ok: true, sent, total: subs.rows.length, errors });
   } catch(e) { res.status(500).json({ message: 'Erreur envoi push', error: e.message }); }
 });
 
@@ -722,12 +723,7 @@ app.post('/push/send', auth, isAdmin, async (req, res) => {
 app.post('/push/notify-mission', auth, async (req, res) => {
   try {
     const { techId, missionCode, siteName } = req.body;
-    const webpush = require('web-push');
-    webpush.setVapidDetails(
-      'mailto:admin@cleanit.cm',
-      process.env.VAPID_PUBLIC_KEY || 'BNSQIjGGELW6UAg0K1bkGLRgkWf0xSn9pocHSAwrtMauehwBVm-v1fM3TE_QRoQVlBmq15FGbqMP3ZNmH7ZSjZc',
-      process.env.VAPID_PRIVATE_KEY || 'R7FtPVAiJzlXqDKECMAToh1CwCGWY0YnAHzdQOKx8Xs'
-    );
+
     const subs = await pool.query('SELECT subscription FROM push_subscriptions WHERE user_id=$1',[techId]);
     const payload = JSON.stringify({
       title: '🔧 Nouvelle mission assignée',
