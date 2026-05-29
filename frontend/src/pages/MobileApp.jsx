@@ -2369,9 +2369,16 @@ const ScreenProfil = ({user,onLogout}) => {
                     try {
                       if('serviceWorker' in navigator){
                         const reg = await navigator.serviceWorker.ready;
+                        // Convertir la clé VAPID en Uint8Array (requis par Chrome)
+                        const vapidKey = 'BNSQIjGGELW6UAg0K1bkGLRgkWf0xSn9pocHSAwrtMauehwBVm-v1fM3TE_QRoQVlBmq15FGbqMP3ZNmH7ZSjZc';
+                        const padding = '='.repeat((4 - vapidKey.length % 4) % 4);
+                        const base64 = (vapidKey + padding).replace(/-/g, '+').replace(/_/g, '/');
+                        const rawData = window.atob(base64);
+                        const outputArray = new Uint8Array(rawData.length);
+                        for(let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
                         const sub = await reg.pushManager.subscribe({
-                          userVisibleOnly:true,
-                          applicationServerKey:'BNSQIjGGELW6UAg0K1bkGLRgkWf0xSn9pocHSAwrtMauehwBVm-v1fM3TE_QRoQVlBmq15FGbqMP3ZNmH7ZSjZc'
+                          userVisibleOnly: true,
+                          applicationServerKey: outputArray
                         });
                         const token = localStorage.getItem('cit_token');
                         await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe',{
