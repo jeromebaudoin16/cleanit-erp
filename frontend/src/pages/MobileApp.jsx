@@ -2380,7 +2380,7 @@ const ScreenProfil = ({user,onLogout}) => {
                           userVisibleOnly: true,
                           applicationServerKey: outputArray
                         });
-                        const token = localStorage.getItem('cit_token');
+                        const token = localStorage.getItem('cit_token') || localStorage.getItem('token') || localStorage.getItem('cit_mobile_token');
                         const resp = await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe',{
                           method:'POST',
                           headers:{'Content-Type':'application/json','Authorization':'Bearer '+(token||'')},
