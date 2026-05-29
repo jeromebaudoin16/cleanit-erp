@@ -2384,7 +2384,10 @@ const ScreenProfil = ({user,onLogout}) => {
                         const resp = await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe',{
                           method:'POST',
                           headers:{'Content-Type':'application/json','Authorization':'Bearer '+(token||'')},
-                          body:JSON.stringify({subscription:JSON.parse(JSON.stringify(sub))})
+                          body:JSON.stringify({
+                            subscription:JSON.parse(JSON.stringify(sub)),
+                            userId: JSON.parse(localStorage.getItem('cit_mobile_user')||'{}')?.id || null
+                          })
                         }).then(r=>r.json()).catch(e=>({error:e.message}));
                         if(resp.ok) {
                           setNotifs(true);

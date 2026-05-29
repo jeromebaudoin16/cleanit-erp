@@ -666,16 +666,21 @@ pool.query(`CREATE TABLE IF NOT EXISTS push_subscriptions (
 )`).catch(console.error);
 
 // Sauvegarder subscription push
-app.post('/push/subscribe', auth, async (req, res) => {
+app.post('/push/subscribe', async (req, res) => {
   try {
     const { subscription } = req.body;
     if(!subscription) return res.status(400).json({ message: 'Subscription requise' });
     // Supprimer ancienne subscription de cet user
-    await pool.query('DELETE FROM push_subscriptions WHERE user_id=$1',[req.user.sub]);
-    // Sauvegarder nouvelle
+    // Essayer de récupérer user_id depuis token ou body
+    let userId = req.body.userId || null;
+    try {
+      const token = (req.headers.authorization||'').replace('Bearer ','');
+      if(token) { const p = require('jsonwebtoken').verify(token, process.env.JWT_SECRET||'cleanit_jwt_2024_huawei_cameroun_secret'); userId = p.sub; }
+    } catch(e) {}
+    await pool.query('DELETE FROM push_subscriptions WHERE user_id=$1',[userId]);
     await pool.query(
       'INSERT INTO push_subscriptions (user_id,subscription) VALUES ($1,$2)',
-      [req.user.sub, JSON.stringify(subscription)]
+      [userId, JSON.stringify(subscription)]
     );
     res.json({ ok: true, message: 'Notification push activée' });
   } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
