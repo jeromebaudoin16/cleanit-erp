@@ -1876,7 +1876,7 @@ const ScreenEquipes = ({user}) => {
         .then(r=>r.json()).then(d=>{if(Array.isArray(d))setUsers(d);}).catch(()=>{}).finally(()=>setLoading(false));
     };
     load();
-    const iv = setInterval(load, 30000);
+    const iv = setInterval(load, 10000);
     return ()=>clearInterval(iv);
   },[]);
   const terrain = users.filter(u=>['technician','terrain'].includes(u.role));
@@ -1939,7 +1939,7 @@ const ScreenDispatch = ({user}) => {
         fetch(b+'/users',{headers:h}).then(r=>r.json()).catch(()=>[])]).then(([ms,us])=>{
         if(Array.isArray(ms))setMissions(ms);if(Array.isArray(us))setUsers(us);});
     };
-    load();const iv=setInterval(load,30000);return()=>clearInterval(iv);
+    load();const iv=setInterval(load,10000);return()=>clearInterval(iv);
   },[]);
   const active=missions.filter(m=>m.status==='in_progress');
   const pending=missions.filter(m=>m.status==='pending');
@@ -2201,7 +2201,7 @@ const ScreenAnalytics = () => {
         fetch(b+'/missions',{headers:h}).then(r=>r.json()).catch(()=>[])]).then(([s,ms])=>{
         if(s)setStats(s);if(Array.isArray(ms))setMissions(ms);});
     };
-    load();const iv=setInterval(load,30000);return()=>clearInterval(iv);
+    load();const iv=setInterval(load,10000);return()=>clearInterval(iv);
   },[]);
   if(!stats)return(<div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',background:getC().bg}}>
     <div style={{width:40,height:40,border:'3px solid '+getC().primaryL,borderTopColor:getC().primary,borderRadius:'50%',animation:'spin .8s linear infinite'}}/></div>);
