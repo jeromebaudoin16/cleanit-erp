@@ -178,6 +178,18 @@ app.get('/init-db', async (req, res) => {
       id SERIAL PRIMARY KEY, post_id INTEGER, user_id INTEGER,
       emoji VARCHAR(10), UNIQUE(post_id, user_id)
     )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER,
+      subscription JSONB NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER,
+      subscription JSONB NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
     res.json({ ok: true, message: 'Tables créées avec succès' });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
