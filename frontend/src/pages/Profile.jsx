@@ -787,7 +787,7 @@ export default function Profile(){
     }).catch(()=>{});
   },[]);
 
-  const isAdmin=['ADMIN','DG'].includes(user?.role);
+  const isAdmin=['ADMIN','DG','admin','dg'].includes(user?.role);
   const visibleSections=SECTIONS.filter(s=>s.id!=='utilisateurs'||isAdmin);
 
   const TABS={
