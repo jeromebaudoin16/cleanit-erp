@@ -64,6 +64,7 @@ import Map from './pages/Map';
 import ChaCha from './pages/ChaCha';
 import Terrain from './pages/Terrain';
 import Reports from './pages/Reports';
+import OCRScanner from './pages/OCRScanner';
 import CleanITBooks from './pages/CleanITBooks';
 
 const Guard = ({ children }) =>

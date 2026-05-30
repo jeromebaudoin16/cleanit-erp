@@ -5,6 +5,60 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getPL, getBilan, getBalance, getInvoices, getBills, getJobs, getCustomers, getVendors, getPayments } from '../services/cleanitbooks.api';
 
 
+// ── PDF FACTURE ──────────────────────────────────────────────────
+const exportInvoicePDF = async (invoice, customer) => {
+  if(!window.jspdf) {
+    await new Promise(res => {
+      const s1 = document.createElement('script');
+      s1.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s1.onload = () => {
+        const s2 = document.createElement('script');
+        s2.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js';
+        s2.onload = res;
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s1);
+    });
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFillColor(44,160,28); doc.rect(0,0,220,32,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(20); doc.setFont('helvetica','bold');
+  doc.text('CLEANIT SARL', 14, 13);
+  doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text('Services Telecom - Douala, Cameroun', 14, 20);
+  doc.setTextColor(0,0,0);
+  doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text('FACTURE', 148, 13);
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text('N: '+(invoice.ref||invoice.id||'-'), 148, 20);
+  doc.text('Date: '+(invoice.date||new Date().toLocaleDateString('fr-FR')), 148, 26);
+  doc.setFillColor(240,250,240); doc.rect(12,38,85,26,'F');
+  doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text('FACTURE A:', 14, 45);
+  doc.setFont('helvetica','normal');
+  doc.text(String(customer?.company||customer?.name||'-'), 14, 52);
+  doc.text(String(customer?.email||'-'), 14, 58);
+  const rows = invoice.lines && invoice.lines.length > 0
+    ? invoice.lines.map(l => [String(l.desc||l.description||'Service'),String(l.qty||1),String(l.unit||0)+' F',String(l.total||0)+' F'])
+    : [['Prestations telecom','1',String(invoice.total||0)+' F',String(invoice.total||0)+' F']];
+  doc.autoTable({head:[['Description','Qte','P.U.','Total']],body:rows,startY:70,
+    headStyles:{fillColor:[44,160,28],textColor:255,fontSize:9},bodyStyles:{fontSize:9}});
+  const y = doc.lastAutoTable.finalY + 8;
+  const total = invoice.total||0;
+  const tva = Math.round(total*0.1925);
+  doc.setFontSize(9);
+  doc.text('HT: '+total+' FCFA', 130, y+8);
+  doc.text('TVA 19.25%: '+tva+' FCFA', 130, y+15);
+  doc.setFillColor(44,160,28); doc.rect(120,y+20,76,12,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold');
+  doc.text('TOTAL TTC: '+(total+tva)+' FCFA', 130, y+28);
+  doc.setTextColor(100); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  doc.text('Merci - CleanIT SARL', 105, 285, {align:'center'});
+  doc.save('Facture_'+(invoice.ref||invoice.id||'XXX')+'_CleanIT.pdf');
+};
+
 // ── EXPORT XLSX UTILITY ────────────────────────────────────────
 const exportXLSX = (rows, cols, filename) => {
   try {
@@ -4264,6 +4318,10 @@ const PageInvoiceDetail = ({invoices,customers,jobs}) => {
       <CIBTopBar title={"Facture "+inv.id} icon="invoice" color={C.green}>
         <div style={{display:"flex",gap:8}}>
           <Btn label="Retour" variant="light" sm onClick={()=>navigate("/cleanitbooks/invoices")}/>
+          <button onClick={()=>exportInvoicePDF(inv,customers.find(x=>x.id===inv.customerId))}
+            style={{background:"#2CA01C",border:"none",borderRadius:5,padding:"5px 12px",color:"white",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+            PDF
+          </button>
           {inv.balance>0&&<Btn label="Recevoir paiement" variant="primary" sm icon="receive" onClick={()=>setShowPay(true)}/>}
         </div>
       </CIBTopBar>
