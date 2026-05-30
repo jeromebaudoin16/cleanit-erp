@@ -457,7 +457,15 @@ function TabUtilisateurs({currentUser}){
                 const lines = text.split('\n').filter(l=>l.trim());
                 const headers = lines[0].split(',').map(h=>h.trim().toLowerCase());
                 const users = lines.slice(1).map(line => {
-                  const vals = line.split(',');
+                  // Gérer les virgules dans les valeurs entre guillemets
+                  const vals = [];
+                  let cur = '', inQ = false;
+                  for(const ch of line) {
+                    if(ch==='"') { inQ=!inQ; }
+                    else if(ch===',' && !inQ) { vals.push(cur.trim()); cur=''; }
+                    else { cur+=ch; }
+                  }
+                  vals.push(cur.trim());
                   const obj = {};
                   headers.forEach((h,i) => obj[h] = (vals[i]||'').trim().replace(/"/g,''));
                   return {
@@ -473,7 +481,7 @@ function TabUtilisateurs({currentUser}){
                   const r = await api.post('/users/bulk',{users});
                   setAlert({type:'success',msg:`Import: ${r.data.created} créés, ${r.data.errors} erreurs`});
                   loadUsers();
-                } catch(e){ setAlert({type:'error',msg:'Erreur import'}); }
+                } catch(e){ setAlert({type:'error',msg:'Erreur: '+(e.response?.data?.message||e.message||'Vérifiez le format CSV')}); }
               }}/>
           </label>
           <button onClick={()=>{
