@@ -738,6 +738,41 @@ app.post('/push/notify-mission', auth, async (req, res) => {
   } catch(e) { res.status(500).json({ ok: false }); }
 });
 
+
+// GET /technicians — Liste des techniciens avec stats
+app.get('/technicians', auth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        u.id, u.email, u.first_name as "firstName", u.last_name as "lastName",
+        u.role, u.is_active as "isActive", u.last_seen as "lastSeen",
+        COUNT(DISTINCT m.id) as missions_count
+      FROM users u
+      LEFT JOIN missions m ON m.tech_id = u.id
+      WHERE u.role = 'technician' AND u.is_active = true
+      GROUP BY u.id
+      ORDER BY u.first_name, u.last_name
+    `);
+    // Formater pour la page Techniciens
+    const techs = result.rows.map(u => ({
+      id: u.id,
+      initials: (u.firstName?.[0]||'') + (u.lastName?.[0]||''),
+      name: u.firstName + ' ' + u.lastName,
+      email: u.email,
+      role: 'Technicien',
+      region: 'Cameroun',
+      statut: 'Disponible',
+      missions: parseInt(u.missions_count) || 0,
+      sites_count: parseInt(u.missions_count) || 0,
+      debut: new Date(u.lastSeen || Date.now()).getFullYear().toString(),
+      certs: [],
+      sites: [],
+      feed: []
+    }));
+    res.json(techs);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
 // 404
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 
