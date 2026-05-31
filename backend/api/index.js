@@ -744,20 +744,20 @@ app.get('/technicians', auth, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
-        u.id, u.email, u.first_name as "firstName", u.last_name as "lastName",
-        u.role, u.is_active as "isActive", u.last_seen as "lastSeen",
+        u.id, u.email, u."firstName", u."lastName",
+        u.role, u."isActive", u."lastSeen",
         COUNT(DISTINCT m.id) as missions_count
       FROM users u
       LEFT JOIN missions m ON m.tech_id = u.id
-      WHERE u.role = 'technician' AND u.is_active = true
+      WHERE u.role = 'technician' AND u."isActive" = true
       GROUP BY u.id
-      ORDER BY u.first_name, u.last_name
+      ORDER BY u."firstName", u."lastName"
     `);
     // Formater pour la page Techniciens
     const techs = result.rows.map(u => ({
       id: u.id,
-      initials: (u.firstName?.[0]||'') + (u.lastName?.[0]||''),
-      name: u.firstName + ' ' + u.lastName,
+      initials: (u.firstName?.[0]||'?') + (u.lastName?.[0]||''),
+      name: (u.firstName||'') + ' ' + (u.lastName||''),
       email: u.email,
       role: 'Technicien',
       region: 'Cameroun',
