@@ -20,6 +20,24 @@ const SEED = [
 ];
 
 export default function Interventions() {
+
+  // __INTERVENTIONS_API__ — Interventions = missions réelles
+  const [realInterventions, setRealInterventions] = React.useState([]);
+  React.useEffect(() => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    fetch('https://backend-cleanit-erp.vercel.app/missions', {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(missions => {
+        if(!Array.isArray(missions)) return;
+        const interventions = missions.map(m => ({
+          id: m.id, code: m.code, titre: m.type || 'Intervention',
+          site: m.siteName || m.site, client: m.client,
+          statut: m.status, progression: m.progress || 0,
+          technicien: m.tech_id, deadline: m.deadline
+        }));
+        if(interventions.length > 0) setRealInterventions(interventions);
+      }).catch(()=>{});
+  }, []);
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

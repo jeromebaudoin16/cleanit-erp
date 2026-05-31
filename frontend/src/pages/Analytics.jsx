@@ -21,6 +21,15 @@ const MONTHLY = [
 const maxVal = Math.max(...MONTHLY.flatMap(m => [m.tickets, m.interventions, m.sites]));
 
 export default function Analytics() {
+
+  // __ANALYTICS_API__ — KPIs réels depuis /stats
+  const [realStats, setRealStats] = React.useState(null);
+  React.useEffect(() => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    fetch('https://backend-cleanit-erp.vercel.app/stats', {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(s=>{ if(s && s.total_users) setRealStats(s); }).catch(()=>{});
+  }, []);
+
   const [activeTab, setActiveTab] = useState('kpis');
 
   return (

@@ -81,6 +81,24 @@ const AUDIT_COLORS = {
 };
 
 export default function PurchaseOrders(){
+
+  // __PO_API__ — Bons commande depuis missions + journal
+  const [realOrders, setRealOrders] = React.useState([]);
+  React.useEffect(() => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    fetch('https://backend-cleanit-erp.vercel.app/missions', {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(missions => {
+        if(Array.isArray(missions) && missions.length > 0) {
+          const orders = missions.filter(m => m.bc_number || m.status === 'in_progress').map(m => ({
+            id: m.id, reference: m.bc_number || 'BC-'+m.code,
+            site: m.siteName || m.site, client: m.client,
+            statut: m.status, montant: 0, date: m.created_at
+          }));
+          if(orders.length > 0) setRealOrders(orders);
+        }
+      }).catch(()=>{});
+  }, []);
+
   const [tab,setTab] = useState('liste');
   const [bcs,setBcs] = useState([]);
   const [loading,setLoading] = useState(true);

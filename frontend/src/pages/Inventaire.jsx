@@ -20,6 +20,23 @@ const SEED = [
 ];
 
 export default function Inventaire() {
+
+  // __INVENTAIRE_API__ — Inventaire OEM depuis missions
+  const [realInventaire, setRealInventaire] = React.useState([]);
+  React.useEffect(() => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    fetch('https://backend-cleanit-erp.vercel.app/missions', {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(missions => {
+        if(Array.isArray(missions) && missions.length > 0) {
+          const items = missions.map(m => ({
+            id: m.id, reference: m.code, site: m.siteName || m.site,
+            client: m.client, type: m.type, statut: m.status
+          }));
+          setRealInventaire(items);
+        }
+      }).catch(()=>{});
+  }, []);
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

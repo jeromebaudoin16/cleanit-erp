@@ -569,6 +569,22 @@ const TABS = [
 ];
 
 export default function Terrain(){
+  // __TERRAIN_API__ — Chargement missions réelles
+  const [realMissions, setRealMissions] = React.useState([]);
+  const [realUsers, setRealUsers] = React.useState([]);
+  React.useEffect(() => {
+    const token = localStorage.getItem('token');
+    const base = 'https://backend-cleanit-erp.vercel.app';
+    const h = {'Authorization':'Bearer '+token};
+    Promise.all([
+      fetch(base+'/missions', {headers:h}).then(r=>r.json()).catch(()=>[]),
+      fetch(base+'/users', {headers:h}).then(r=>r.json()).catch(()=>[])
+    ]).then(([missions, users]) => {
+      if(Array.isArray(missions) && missions.length > 0) setRealMissions(missions);
+      if(Array.isArray(users) && users.length > 0) setRealUsers(users);
+    });
+  }, []);
+
   const navigate = useNavigate();
   const [tab,setTab] = useState('dash');
   const [missions,setMissions] = useState(MISSIONS_SEED);

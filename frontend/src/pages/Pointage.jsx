@@ -493,6 +493,17 @@ function Rapports(){
 
 // ===== PAGE PRINCIPALE =====
 export default function Pointage(){
+
+  // __POINTAGE_API__ — Pointages réels depuis DB
+  const [realPointages, setRealPointages] = React.useState([]);
+  React.useEffect(() => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    fetch('https://backend-cleanit-erp.vercel.app/pointages/all', {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(data => {
+        if(Array.isArray(data) && data.length > 0) setRealPointages(data);
+      }).catch(()=>{});
+  }, []);
+
   const loc=useLocation();
   return (
     <div style={{display:'flex',flexDirection:'column',height:'100%',background:C.bg,fontFamily:'inherit'}}>

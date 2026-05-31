@@ -1350,6 +1350,28 @@ const VueForecast = ({deals, contacts, companies}) => {
 };
 
 export default function CRM() {
+
+  // __CRM_API__ — Clients réels depuis missions (groupés par client)
+  const [realClients, setRealClients] = React.useState([]);
+  React.useEffect(() => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    fetch('https://backend-cleanit-erp.vercel.app/missions', {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(missions => {
+        if(!Array.isArray(missions)) return;
+        const clientMap = {};
+        missions.forEach(m => {
+          if(!clientMap[m.client]) clientMap[m.client] = {
+            id: m.client, nom: m.client, missions: 0,
+            sites: new Set(), statut: 'Actif', type: 'Opérateur Télécom'
+          };
+          clientMap[m.client].missions++;
+          clientMap[m.client].sites.add(m.site);
+        });
+        const arr = Object.values(clientMap).map(c => ({...c, sites: c.sites.size}));
+        if(arr.length > 0) setRealClients(arr);
+      }).catch(()=>{});
+  }, []);
+
   const [tab,setTab] = useState("dashboard");
   const [contacts,setContacts] = useState(CONTACTS);
   const [companies,setCompanies] = useState(COMPANIES);

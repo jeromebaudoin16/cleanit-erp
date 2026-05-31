@@ -143,6 +143,29 @@ function DetailPage({site, onBack}){
 }
 
 export default function Sites(){
+
+  // __SITES_API__ — Sites réels depuis missions DB
+  const [realSites, setRealSites] = React.useState([]);
+  React.useEffect(() => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    fetch('https://backend-cleanit-erp.vercel.app/missions', {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(missions => {
+        if(!Array.isArray(missions)) return;
+        const sitesMap = {};
+        missions.forEach(m => {
+          const key = m.site || m.code;
+          if(!sitesMap[key]) sitesMap[key] = {
+            id: m.id, code: m.code, nom: m.siteName || m.site,
+            client: m.client, type: m.type, statut: m.status,
+            region: 'Cameroun', risk: 'LOW', missions: 0
+          };
+          sitesMap[key].missions++;
+        });
+        const arr = Object.values(sitesMap);
+        if(arr.length > 0) setRealSites(arr);
+      }).catch(()=>{});
+  }, []);
+
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');

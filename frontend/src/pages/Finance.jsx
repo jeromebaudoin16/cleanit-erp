@@ -289,6 +289,19 @@ function TabTVA(){
 }
 
 export default function Finance(){
+
+  // __FINANCE_API__ — Données financières réelles
+  const [realFinance, setRealFinance] = React.useState(null);
+  React.useEffect(() => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    Promise.all([
+      fetch('https://backend-cleanit-erp.vercel.app/stats', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>null),
+      fetch('https://backend-cleanit-erp.vercel.app/journal', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[])
+    ]).then(([stats, journal]) => {
+      if(stats || journal.length > 0) setRealFinance({stats, journal: Array.isArray(journal) ? journal : []});
+    });
+  }, []);
+
   const [tab,setTab]=useState('tresorerie');
   const TABS=[['tresorerie','Trésorerie',IC.cash],['audit','Audit paiements',IC.audit],['encaissements','Encaissements clients',IC.encaisse],['tva','TVA & Fiscalité',IC.tva]];
   return (

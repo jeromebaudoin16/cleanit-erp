@@ -25,6 +25,25 @@ const SEED = [
 ];
 
 export default function Tickets() {
+
+  // __TICKETS_API__ — Tickets = approvals + missions en difficulté
+  const [realTickets, setRealTickets] = React.useState([]);
+  React.useEffect(() => {
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    fetch('https://backend-cleanit-erp.vercel.app/approvals', {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(approvals => {
+        if(!Array.isArray(approvals)) return;
+        const tickets = approvals.map(a => ({
+          id: a.id, titre: a.label || a.type,
+          type: a.type, statut: a.status,
+          priorite: a.dg_done ? 'Basse' : a.n2_done ? 'Moyenne' : 'Haute',
+          demandeur: a.user_name || a.userId,
+          date: a.created_at
+        }));
+        if(tickets.length > 0) setRealTickets(tickets);
+      }).catch(()=>{});
+  }, []);
+
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
