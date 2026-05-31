@@ -132,6 +132,7 @@ export default function App() {
           <Route path="map"             element={<Map />} />
           <Route path="terrain"         element={<Terrain />} />
           <Route path="evidence"        element={<Evidence />} />
+          <Route path="ocr"             element={<OCRScanner />} />
           <Route path="cleanitbooks" element={<CleanITBooks />} />
           <Route path="cleanitbooks/jobs" element={<CleanITBooks />} />
           <Route path="cleanitbooks/jobs/new" element={<CleanITBooks />} />
