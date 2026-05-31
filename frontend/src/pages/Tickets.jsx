@@ -27,8 +27,8 @@ const SEED = [
 export default function Tickets() {
 
   // __TICKETS_API__ — Tickets = approvals + missions en difficulté
-  const [realTickets, setRealTickets] = React.useState([]);
-  React.useEffect(() => {
+  const [realTickets, setRealTickets] = useState([]);
+  useEffect(() => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     fetch('https://backend-cleanit-erp.vercel.app/approvals', {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(approvals => {

@@ -83,8 +83,8 @@ const AUDIT_COLORS = {
 export default function PurchaseOrders(){
 
   // __PO_API__ — Bons commande depuis missions + journal
-  const [realOrders, setRealOrders] = React.useState([]);
-  React.useEffect(() => {
+  const [realOrders, setRealOrders] = useState([]);
+  useEffect(() => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     fetch('https://backend-cleanit-erp.vercel.app/missions', {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(missions => {

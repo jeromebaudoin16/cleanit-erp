@@ -291,8 +291,8 @@ function TabTVA(){
 export default function Finance(){
 
   // __FINANCE_API__ — Données financières réelles
-  const [realFinance, setRealFinance] = React.useState(null);
-  React.useEffect(() => {
+  const [realFinance, setRealFinance] = useState(null);
+  useEffect(() => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     Promise.all([
       fetch('https://backend-cleanit-erp.vercel.app/stats', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>null),

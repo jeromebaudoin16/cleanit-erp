@@ -22,8 +22,8 @@ const SEED = [
 export default function Inventaire() {
 
   // __INVENTAIRE_API__ — Inventaire OEM depuis missions
-  const [realInventaire, setRealInventaire] = React.useState([]);
-  React.useEffect(() => {
+  const [realInventaire, setRealInventaire] = useState([]);
+  useEffect(() => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     fetch('https://backend-cleanit-erp.vercel.app/missions', {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(missions => {

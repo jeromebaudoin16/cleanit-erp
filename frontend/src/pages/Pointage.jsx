@@ -495,8 +495,8 @@ function Rapports(){
 export default function Pointage(){
 
   // __POINTAGE_API__ — Pointages réels depuis DB
-  const [realPointages, setRealPointages] = React.useState([]);
-  React.useEffect(() => {
+  const [realPointages, setRealPointages] = useState([]);
+  useEffect(() => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     fetch('https://backend-cleanit-erp.vercel.app/pointages/all', {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(data => {

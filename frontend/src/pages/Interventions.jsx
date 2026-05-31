@@ -22,8 +22,8 @@ const SEED = [
 export default function Interventions() {
 
   // __INTERVENTIONS_API__ — Interventions = missions réelles
-  const [realInterventions, setRealInterventions] = React.useState([]);
-  React.useEffect(() => {
+  const [realInterventions, setRealInterventions] = useState([]);
+  useEffect(() => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     fetch('https://backend-cleanit-erp.vercel.app/missions', {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(missions => {

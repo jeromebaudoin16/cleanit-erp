@@ -145,8 +145,8 @@ function DetailPage({site, onBack}){
 export default function Sites(){
 
   // __SITES_API__ — Sites réels depuis missions DB
-  const [realSites, setRealSites] = React.useState([]);
-  React.useEffect(() => {
+  const [realSites, setRealSites] = useState([]);
+  useEffect(() => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     fetch('https://backend-cleanit-erp.vercel.app/missions', {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(missions => {
