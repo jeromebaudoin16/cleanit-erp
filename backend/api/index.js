@@ -773,6 +773,22 @@ app.get('/technicians', auth, async (req, res) => {
   } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
 });
 
+
+// GET /notifications — Notifications système
+app.get('/notifications', auth, async (req, res) => {
+  try {
+    const [feed, approvals] = await Promise.all([
+      pool.query('SELECT * FROM feed_posts ORDER BY created_at DESC LIMIT 5'),
+      pool.query("SELECT * FROM approvals WHERE status='pending' ORDER BY created_at DESC LIMIT 5")
+    ]);
+    const notifs = [
+      ...feed.rows.map(f=>({id:'f'+f.id,title:'Nouveau post',message:f.content?.substring(0,60),type:'feed',read:false,created_at:f.created_at})),
+      ...approvals.rows.map(a=>({id:'a'+a.id,title:'Approbation en attente',message:a.label||a.type,type:'approval',read:false,created_at:a.created_at}))
+    ];
+    res.json(notifs);
+  } catch(e) { res.json([]); }
+});
+
 // 404
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 

@@ -336,7 +336,7 @@ const SectionChat = ({navigate}) => {
         <div style={{flex:1,overflowY:'auto'}}>
           <div style={{padding:'6px 12px 3px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <span style={{fontSize:10,fontWeight:700,color:P.text4,textTransform:'uppercase',letterSpacing:.6}}>Canaux</span>
-            <div style={{cursor:'pointer',color:P.blue}} onClick={()=>setShowDMModal(true)}><Icon name="plus" size={14} color={P.blue}/></div>
+            <div style={{cursor:'pointer',color:P.blue}} onClick={()=>{}}><Icon name="plus" size={14} color={P.blue}/></div>
           </div>
 
           {filtChannels.map(ch=>{
@@ -374,7 +374,7 @@ const SectionChat = ({navigate}) => {
           {/* Messages directs */}
           <div style={{padding:'10px 12px 3px',display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
             <span style={{fontSize:10,fontWeight:700,color:P.text4,textTransform:'uppercase',letterSpacing:.6}}>Messages directs</span>
-            <div style={{cursor:'pointer'}}><Icon name="plus" size={14} color={P.blue}/></div>
+            <div style={{cursor:'pointer'}} onClick={()=>setShowDMModal(true)}><Icon name="plus" size={14} color={P.blue}/></div>
           </div>
 
           {filtContacts.map(u=>{
@@ -1385,7 +1385,7 @@ export default function CleanITComm() {
   const [feedMessages, setFeedMessages] = useState([]);
   const [activeChannel, setActiveChannel] = useState('general');
   const [channelInput, setChannelInput] = useState('');
-  const currentUser = JSON.parse(localStorage.getItem('cleanit_user') || '{}');
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const token = localStorage.getItem('token');
   const BASE = 'https://backend-cleanit-erp.vercel.app';
 
