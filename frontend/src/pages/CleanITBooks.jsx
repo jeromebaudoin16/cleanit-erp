@@ -6171,7 +6171,7 @@ export default function CleanITBooks() {
     if(loc.includes('/bills')){
     const billId = params.billId;
     if(loc.endsWith('/new')){
-      return <PageBillNew vendors={INIT_VENDORS} jobs={jobs}/>;
+      return <BillForm bill={null} vendors={INIT_VENDORS} onSave={()=>navigate("/cleanitbooks/bills")} onCancel={()=>navigate("/cleanitbooks/bills")}/>;
     }
     if(billId&&billId!=='new'){
       return <PageBillDetail bills={INIT_BILLS_AP} vendors={INIT_VENDORS} jobs={jobs}/>;
@@ -6183,7 +6183,7 @@ export default function CleanITBooks() {
   if(loc.includes('/invoices')){
     const invoiceId = params.invoiceId;
     if(loc.endsWith('/new')){
-      return <PageInvoiceNew invoices={INIT_INVOICES_AR} setInvoices={()=>{}} customers={customers} jobs={jobs}/>;
+      return <InvoiceForm invoice={null} customers={customers} onSave={()=>navigate("/cleanitbooks/invoices")} onCancel={()=>navigate("/cleanitbooks/invoices")}/>;
     }
     if(invoiceId&&invoiceId!=='new'){
       return <PageInvoiceDetail invoices={INIT_INVOICES_AR} customers={customers} jobs={jobs}/>;
@@ -6195,7 +6195,7 @@ export default function CleanITBooks() {
   if(loc.includes('/vendors')){
     const vendorId = params.vendorId;
     if(loc.endsWith('/new')){
-      return <PageVendorNew vendors={INIT_VENDORS} setVendors={()=>{}}/>;
+      return <VendorForm vendor={null} onSave={()=>navigate("/cleanitbooks/vendors")} onCancel={()=>navigate("/cleanitbooks/vendors")}/>;
     }
     if(vendorId&&vendorId!=='new'){
       return <PageVendorDetail vendors={INIT_VENDORS} jobs={jobs}/>;
@@ -6207,13 +6207,13 @@ export default function CleanITBooks() {
   if(loc.includes('/customers')){
     const custId = params.custId;
     if(loc.endsWith('/new')){
-      return <PageCustomerForm customers={customers} setCustomers={setCustomers} jobs={jobs}/>;
+      return <CustomerForm customer={null} onSave={()=>navigate("/cleanitbooks/customers")} onCancel={()=>navigate("/cleanitbooks/customers")}/>;
     }
     if(loc.endsWith('/edit')&&custId){
-      return <PageCustomerForm customers={customers} setCustomers={setCustomers} jobs={jobs}/>;
+      return <CustomerForm customer={null} onSave={()=>navigate("/cleanitbooks/customers")} onCancel={()=>navigate("/cleanitbooks/customers")}/>;
     }
     if(custId){
-      return <PageCustomerDetail customers={customers} invoices={[]} jobs={jobs}/>;
+      return <CustomerDetail customer={customers.find(cu=>cu.id==custId)||customers[0]} onEdit={()=>{}} onBack={()=>navigate("/cleanitbooks/customers")} onNewInvoice={()=>navigate("/cleanitbooks/invoices/new")}/>;
     }
     return <PageCustomerList customers={customers} setCustomers={setCustomers} invoices={[]} jobs={jobs}/>;
   }
