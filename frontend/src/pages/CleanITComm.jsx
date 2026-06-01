@@ -336,7 +336,7 @@ const SectionChat = ({navigate}) => {
         <div style={{flex:1,overflowY:'auto'}}>
           <div style={{padding:'6px 12px 3px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <span style={{fontSize:10,fontWeight:700,color:P.text4,textTransform:'uppercase',letterSpacing:.6}}>Canaux</span>
-            <div style={{cursor:'pointer',color:P.blue}} onClick={()=>{}}><Icon name="plus" size={14} color={P.blue}/></div>
+            <div style={{cursor:'pointer',color:P.blue}} onClick={()=>setShowDMModal(true)}><Icon name="plus" size={14} color={P.blue}/></div>
           </div>
 
           {filtChannels.map(ch=>{
@@ -1129,6 +1129,150 @@ function SectionWhatsApp({waMessages,waContacts,sendWAMessage,waInput,setWaInput
     ? waMessages.filter(m=>m.from_number===selectedContact.number||m.to_number===selectedContact.number)
         .sort((a,b)=>new Date(a.created_at)-new Date(b.created_at))
     : [];
+
+  {/* ── MODAL SÉLECTION DESTINATAIRE DM ── */}
+  {showDMModal && (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}
+      onClick={()=>setShowDMModal(false)}>
+      <div style={{background:'white',borderRadius:12,padding:24,width:360,maxHeight:'70vh',overflow:'auto'}}
+        onClick={e=>e.stopPropagation()}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <span style={{fontSize:16,fontWeight:700,color:'#1a1a2e'}}>Nouveau message direct</span>
+          <button onClick={()=>setShowDMModal(false)} style={{background:'none',border:'none',fontSize:20,cursor:'pointer'}}>×</button>
+        </div>
+        <input placeholder="Rechercher un utilisateur..." style={{width:'100%',padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:8,fontSize:14,marginBottom:12,outline:'none',boxSizing:'border-box'}}/>
+        {realUsers.filter(u=>u.id!==currentUser.id).map((u,i)=>(
+          <div key={i} onClick={()=>{setActiveDM(u);setShowDMModal(false);setDMMessages([]);}}
+            style={{display:'flex',alignItems:'center',gap:12,padding:'10px',borderRadius:8,cursor:'pointer',marginBottom:4}}
+            onMouseOver={e=>e.currentTarget.style.background='#f3f4f6'}
+            onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+            <div style={{width:36,height:36,borderRadius:18,background:'#1B4F8A',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:700,fontSize:14}}>
+              {(u.firstName||'?')[0]}{(u.lastName||'')[0]}
+            </div>
+            <div>
+              <div style={{fontWeight:600,fontSize:14,color:'#1a1a2e'}}>{u.firstName} {u.lastName}</div>
+              <div style={{fontSize:12,color:'#6b7280'}}>{u.role==='admin'?'Admin':u.role==='project_manager'?'Project Manager':'Technicien'}</div>
+            </div>
+          </div>
+        ))}
+        {realUsers.length===0&&<div style={{textAlign:'center',color:'#6b7280',padding:24}}>Chargement...</div>}
+      </div>
+    </div>
+  )}
+
+  {/* ── FENÊTRE DM ACTIVE ── */}
+  {activeDM && (
+    <div style={{position:'fixed',bottom:80,right:24,width:340,height:480,background:'white',borderRadius:12,boxShadow:'0 8px 32px rgba(0,0,0,0.2)',display:'flex',flexDirection:'column',zIndex:900}}>
+      <div style={{background:'#1B4F8A',borderRadius:'12px 12px 0 0',padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:32,height:32,borderRadius:16,background:'white',display:'flex',alignItems:'center',justifyContent:'center',color:'#1B4F8A',fontWeight:700,fontSize:13}}>
+            {(activeDM.firstName||'?')[0]}{(activeDM.lastName||'')[0]}
+          </div>
+          <div>
+            <div style={{color:'white',fontWeight:700,fontSize:14}}>{activeDM.firstName} {activeDM.lastName}</div>
+            <div style={{color:'#B8D4F0',fontSize:11}}>{activeDM.role==='project_manager'?'Project Manager':'Utilisateur'}</div>
+          </div>
+        </div>
+        <button onClick={()=>setActiveDM(null)} style={{background:'none',border:'none',color:'white',fontSize:18,cursor:'pointer'}}>×</button>
+      </div>
+      <div style={{flex:1,padding:12,overflowY:'auto',background:'#F8FAFF'}}>
+        {dmMessages.length===0&&(
+          <div style={{textAlign:'center',color:'#9ca3af',fontSize:13,marginTop:40}}>
+            <div style={{fontSize:32,marginBottom:8}}>💬</div>
+            Début de votre conversation avec {activeDM.firstName}
+          </div>
+        )}
+        {dmMessages.map((m,i)=>(
+          <div key={i} style={{display:'flex',justifyContent:m.fromId===currentUser.id?'flex-end':'flex-start',marginBottom:8}}>
+            <div style={{maxWidth:'75%',background:m.fromId===currentUser.id?'#1B4F8A':'white',color:m.fromId===currentUser.id?'white':'#1a1a2e',padding:'8px 12px',borderRadius:m.fromId===currentUser.id?'12px 12px 2px 12px':'12px 12px 12px 2px',fontSize:13,boxShadow:'0 1px 2px rgba(0,0,0,0.1)'}}>
+              <div>{m.content}</div>
+              <div style={{fontSize:10,opacity:0.7,marginTop:3,textAlign:'right'}}>{m.time}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{padding:'8px 12px',borderTop:'1px solid #e5e7eb',display:'flex',gap:8,background:'white',borderRadius:'0 0 12px 12px'}}>
+        <input value={dmInput} onChange={e=>setDMInput(e.target.value)}
+          onKeyDown={e=>e.key==='Enter'&&sendDM()}
+          placeholder={`Message à ${activeDM.firstName}...`}
+          style={{flex:1,padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:20,fontSize:13,outline:'none'}}/>
+        <button onClick={sendDM} style={{background:'#1B4F8A',color:'white',border:'none',borderRadius:20,padding:'8px 14px',cursor:'pointer',fontSize:13,fontWeight:700}}>→</button>
+      </div>
+    </div>
+  )}
+
+
+  {/* ── MODAL SÉLECTION DESTINATAIRE DM ── */}
+  {showDMModal && (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center'}}
+      onClick={()=>setShowDMModal(false)}>
+      <div style={{background:'white',borderRadius:12,padding:24,width:360,maxHeight:'70vh',overflow:'auto'}}
+        onClick={e=>e.stopPropagation()}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <span style={{fontSize:16,fontWeight:700,color:'#1a1a2e'}}>Nouveau message direct</span>
+          <button onClick={()=>setShowDMModal(false)} style={{background:'none',border:'none',fontSize:20,cursor:'pointer'}}>×</button>
+        </div>
+        <input placeholder="Rechercher un utilisateur..." style={{width:'100%',padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:8,fontSize:14,marginBottom:12,outline:'none',boxSizing:'border-box'}}/>
+        {realUsers.filter(u=>u.id!==currentUser.id).map((u,i)=>(
+          <div key={i} onClick={()=>{setActiveDM(u);setShowDMModal(false);setDMMessages([]);}}
+            style={{display:'flex',alignItems:'center',gap:12,padding:'10px',borderRadius:8,cursor:'pointer',marginBottom:4}}
+            onMouseOver={e=>e.currentTarget.style.background='#f3f4f6'}
+            onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+            <div style={{width:36,height:36,borderRadius:18,background:'#1B4F8A',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:700,fontSize:14}}>
+              {(u.firstName||'?')[0]}{(u.lastName||'')[0]}
+            </div>
+            <div>
+              <div style={{fontWeight:600,fontSize:14,color:'#1a1a2e'}}>{u.firstName} {u.lastName}</div>
+              <div style={{fontSize:12,color:'#6b7280'}}>{u.role==='admin'?'Admin':u.role==='project_manager'?'Project Manager':'Technicien'}</div>
+            </div>
+          </div>
+        ))}
+        {realUsers.length===0&&<div style={{textAlign:'center',color:'#6b7280',padding:24}}>Chargement...</div>}
+      </div>
+    </div>
+  )}
+
+  {/* ── FENÊTRE DM ACTIVE ── */}
+  {activeDM && (
+    <div style={{position:'fixed',bottom:80,right:24,width:340,height:480,background:'white',borderRadius:12,boxShadow:'0 8px 32px rgba(0,0,0,0.2)',display:'flex',flexDirection:'column',zIndex:900}}>
+      <div style={{background:'#1B4F8A',borderRadius:'12px 12px 0 0',padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:32,height:32,borderRadius:16,background:'white',display:'flex',alignItems:'center',justifyContent:'center',color:'#1B4F8A',fontWeight:700,fontSize:13}}>
+            {(activeDM.firstName||'?')[0]}{(activeDM.lastName||'')[0]}
+          </div>
+          <div>
+            <div style={{color:'white',fontWeight:700,fontSize:14}}>{activeDM.firstName} {activeDM.lastName}</div>
+            <div style={{color:'#B8D4F0',fontSize:11}}>{activeDM.role==='project_manager'?'Project Manager':'Utilisateur'}</div>
+          </div>
+        </div>
+        <button onClick={()=>setActiveDM(null)} style={{background:'none',border:'none',color:'white',fontSize:18,cursor:'pointer'}}>×</button>
+      </div>
+      <div style={{flex:1,padding:12,overflowY:'auto',background:'#F8FAFF'}}>
+        {dmMessages.length===0&&(
+          <div style={{textAlign:'center',color:'#9ca3af',fontSize:13,marginTop:40}}>
+            <div style={{fontSize:32,marginBottom:8}}>💬</div>
+            Début de votre conversation avec {activeDM.firstName}
+          </div>
+        )}
+        {dmMessages.map((m,i)=>(
+          <div key={i} style={{display:'flex',justifyContent:m.fromId===currentUser.id?'flex-end':'flex-start',marginBottom:8}}>
+            <div style={{maxWidth:'75%',background:m.fromId===currentUser.id?'#1B4F8A':'white',color:m.fromId===currentUser.id?'white':'#1a1a2e',padding:'8px 12px',borderRadius:m.fromId===currentUser.id?'12px 12px 2px 12px':'12px 12px 12px 2px',fontSize:13,boxShadow:'0 1px 2px rgba(0,0,0,0.1)'}}>
+              <div>{m.content}</div>
+              <div style={{fontSize:10,opacity:0.7,marginTop:3,textAlign:'right'}}>{m.time}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{padding:'8px 12px',borderTop:'1px solid #e5e7eb',display:'flex',gap:8,background:'white',borderRadius:'0 0 12px 12px'}}>
+        <input value={dmInput} onChange={e=>setDMInput(e.target.value)}
+          onKeyDown={e=>e.key==='Enter'&&sendDM()}
+          placeholder={`Message à ${activeDM.firstName}...`}
+          style={{flex:1,padding:'8px 12px',border:'1px solid #e5e7eb',borderRadius:20,fontSize:13,outline:'none'}}/>
+        <button onClick={sendDM} style={{background:'#1B4F8A',color:'white',border:'none',borderRadius:20,padding:'8px 14px',cursor:'pointer',fontSize:13,fontWeight:700}}>→</button>
+      </div>
+    </div>
+  )}
+
   return (
     <div style={{display:'flex',flex:1,overflow:'hidden'}}>
       {/* Liste contacts WA */}
@@ -1231,6 +1375,62 @@ function SectionWhatsApp({waMessages,waContacts,sendWAMessage,waInput,setWaInput
 }
 
 export default function CleanITComm() {
+  
+  // ── DM RÉELS ──────────────────────────────────────────────
+  const [realUsers, setRealUsers] = useState([]);
+  const [showDMModal, setShowDMModal] = useState(false);
+  const [activeDM, setActiveDM] = useState(null);
+  const [dmMessages, setDMMessages] = useState([]);
+  const [dmInput, setDMInput] = useState('');
+  const [feedMessages, setFeedMessages] = useState([]);
+  const [activeChannel, setActiveChannel] = useState('general');
+  const [channelInput, setChannelInput] = useState('');
+  const currentUser = JSON.parse(localStorage.getItem('cleanit_user') || '{}');
+  const token = localStorage.getItem('token');
+  const BASE = 'https://backend-cleanit-erp.vercel.app';
+
+  useEffect(() => {
+    // Charger tous les utilisateurs pour DMs
+    fetch(BASE+'/users', {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(u=>{ if(Array.isArray(u)) setRealUsers(u); }).catch(()=>{});
+    // Charger les messages du feed pour les canaux
+    fetch(BASE+'/feed', {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(m=>{ if(Array.isArray(m)) setFeedMessages(m); }).catch(()=>{});
+  }, []);
+
+  const sendChannelMessage = async () => {
+    if(!channelInput.trim()) return;
+    try {
+      await fetch(BASE+'/feed', {method:'POST',
+        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body: JSON.stringify({content:channelInput, type:'channel', channel:activeChannel})
+      });
+      setChannelInput('');
+      fetch(BASE+'/feed',{headers:{'Authorization':'Bearer '+token}})
+        .then(r=>r.json()).then(m=>{ if(Array.isArray(m)) setFeedMessages(m); });
+    } catch(e) {}
+  };
+
+  const sendDM = async () => {
+    if(!dmInput.trim() || !activeDM) return;
+    const msg = {
+      id: Date.now(), content: dmInput,
+      from: currentUser.firstName || 'Moi',
+      fromId: currentUser.id, toId: activeDM.id,
+      to: activeDM.firstName, time: new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
+    };
+    setDMMessages(p=>[...p, msg]);
+    setDMInput('');
+    try {
+      await fetch(BASE+'/feed', {method:'POST',
+        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body: JSON.stringify({content:dmInput, type:'dm',
+          recipient_id: activeDM.id,
+          recipient_name: activeDM.firstName+' '+activeDM.lastName})
+      });
+    } catch(e) {}
+  };
+
   const [waMessages, setWaMessages] = useState([]);
   const [waContacts, setWaContacts] = useState([]);
   const [selectedContact, setSelectedContact] = useState(null);
