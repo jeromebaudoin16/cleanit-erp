@@ -28,7 +28,7 @@ const Badge = ({status}) => {
 };
 
 const TypeIcon = ({type}) => {
-  const icons = {conge:'🌴',autorisation:'📋',prime:'💰',formation:'🎓',autre:'📄'};
+  const icons = {conge:'🌴',autorisation:'📋',prime:'💰',formation:'🎓',autre:'📄',bill_approbation:'🧾',invoice_approbation:'📑',po_approbation:'🛒'};
   return <span style={{fontSize:20}}>{icons[type]||'📄'}</span>;
 };
 
@@ -48,8 +48,26 @@ export default function ApprovalsMax() {
   const loadApprovals = async () => {
     setLoading(true);
     try {
-      const r = await api.get('/approvals');
-      if(Array.isArray(r.data) && r.data.length > 0) setApprovals(r.data);
+      const [approvalsRes, journalRes] = await Promise.all([
+        api.get('/approvals').catch(()=>({data:[]})),
+        api.get('/journal').catch(()=>({data:[]}))
+      ]);
+      const hrApprovals = Array.isArray(approvalsRes.data) ? approvalsRes.data : [];
+      // Créer approvals financières depuis les bills/factures
+      const journal = Array.isArray(journalRes.data) ? journalRes.data : [];
+      const finApprovals = journal
+        .filter(j => j.type === 'bill' || j.amount > 5000000)
+        .map(j => ({
+          id: 'FIN-'+j.id, type: 'bill_approbation',
+          label: 'Bill ' + (j.reference||j.id) + ' — ' + new Intl.NumberFormat('fr-FR').format(j.amount||0) + ' FCFA',
+          status: j.approved ? 'approved' : 'pending',
+          n1_done: false, n2_done: false, dg_done: false,
+          user_name: j.vendor || 'CleanITBooks',
+          created_at: j.date || new Date().toISOString(),
+          amount: j.amount, source: 'cleanitbooks'
+        }));
+      const all = [...hrApprovals, ...finApprovals];
+      if(all.length > 0) setApprovals(all);
     } catch(e) {}
     setLoading(false);
   };
