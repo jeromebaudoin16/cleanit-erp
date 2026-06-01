@@ -1,4 +1,3 @@
-import { InvoiceForm, BillForm, CustomerForm, VendorForm, CustomerDetail, VendorDetail } from '../components/CIBForms';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -6088,17 +6087,6 @@ const PageReports = () => {
 };
 
 export default function CleanITBooks() {
-  // ── QB FORMS OVERLAY ──────────────────────────────────────
-  const [qbView, setQbView] = useState(null);
-  const [qbData, setQbData] = useState(null);
-  const closeQb = () => { setQbView(null); setQbData(null); };
-  if(qbView==='invoice') return <InvoiceForm invoice={qbData} onSave={closeQb} onCancel={closeQb}/>;
-  if(qbView==='bill') return <BillForm bill={qbData} onSave={closeQb} onCancel={closeQb}/>;
-  if(qbView==='customer') return <CustomerForm customer={qbData} onSave={closeQb} onCancel={closeQb}/>;
-  if(qbView==='vendor') return <VendorForm vendor={qbData} onSave={closeQb} onCancel={closeQb}/>;
-  if(qbView==='customerDetail') return <CustomerDetail customer={qbData} onEdit={d=>{setQbData(d);setQbView('customer');}} onBack={closeQb} onNewInvoice={c=>{ setQbData({customer:c?.nom}); setQbView('invoice'); }}/>;
-  if(qbView==='vendorDetail') return <VendorDetail vendor={qbData} onEdit={d=>{setQbData(d);setQbView('vendor');}} onBack={closeQb} onNewBill={v=>{ setQbData({vendor:v?.nom}); setQbView('bill'); }}/>;
-
   const [jobs,      setJobs]      = useState(INIT_JOBS);
   const [customers, setCustomers] = useState(INIT_CUSTOMERS);
   const [vendors,   setVendors]   = useState(INIT_VENDORS);

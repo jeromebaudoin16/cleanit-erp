@@ -51,6 +51,7 @@ import Pointage from './pages/Pointage';
 import MobileApp from './pages/MobileApp';
 import CleanITComm from './pages/CleanITComm';
 import Approvals from './pages/Approvals';
+import ApprovalsMax from './pages/ApprovalsMax';
 import CRM from './pages/CRM';
 import Analytics from './pages/Analytics';
 import Contrats from './pages/Contrats';
@@ -100,9 +101,9 @@ export default function App() {
           <Route path="contrats"        element={<Contrats />} />
           <Route path="mediation"       element={<Mediation />} />
           <Route path="purchase-orders" element={<PurchaseOrders />} />
-          <Route path="approvals"       element={<Approvals />} />
-          <Route path="approvals/:id"    element={<Approvals />} />
-          <Route path="approvals/new"   element={<Approvals />} />
+          <Route path="approvals"       element={<ApprovalsMax />} />
+          <Route path="approvals/:id"    element={<ApprovalsMax />} />
+          <Route path="approvals/new"   element={<ApprovalsMax />} />
           <Route path="bons-commande" element={<Navigate to="/purchase-orders" replace />} />
           <Route path="finance"         element={<Finance />} />
           <Route path="projets" element={<Projets />} />
