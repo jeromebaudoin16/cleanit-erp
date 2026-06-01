@@ -1323,7 +1323,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
           <div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
               <div style={{fontSize:13,fontWeight:700,color:C.text}}>Factures liees a ce job</div>
-              <Btn label="Nouvelle facture" variant="primary" sm icon="invoice" onClick={()=>{setQbView('invoice');setQbData(null);}}/>
+              <Btn label="Nouvelle facture" variant="primary" sm icon="invoice" onClick={()=>navigate('/cleanitbooks/invoices/new')}/>
             </div>
             {job.invoices.length===0?(
               <div style={{textAlign:"center",padding:"40px",color:C.text4,fontSize:14,background:C.bg,borderRadius:6,border:"1px dashed "+C.border}}>
@@ -1668,7 +1668,7 @@ const PageVendorList = ({vendors,setVendors,jobs}) => {
               <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher fournisseur..."
                 style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:180,fontFamily:"inherit"}}/>
             </div>
-            <Btn label="Nouveau fournisseur" variant="primary" sm icon="plus" onClick={()=>{setQbView('vendor');setQbData(null);}}/>
+            <Btn label="Nouveau fournisseur" variant="primary" sm icon="plus" onClick={()=>navigate('/cleanitbooks/vendors/new')}/>
             <button onClick={()=>navigate("/cleanitbooks")} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:4,border:"1px solid "+C.border,background:C.bg,cursor:"pointer",fontFamily:"inherit",fontSize:12,color:C.text3}}>
               <Ico n="job" s={12} c={C.text3}/>Accueil
             </button>
@@ -1713,7 +1713,7 @@ const PageVendorList = ({vendors,setVendors,jobs}) => {
           </select>
           <div style={{marginLeft:"auto",display:"flex",gap:8}}>
             <Btn label="Saisir un bill" variant="ghost" sm icon="bill"/>
-            <Btn label="Nouveau fournisseur" variant="primary" sm icon="plus" onClick={()=>{setQbView('vendor');setQbData(null);}}/>
+            <Btn label="Nouveau fournisseur" variant="primary" sm icon="plus" onClick={()=>navigate('/cleanitbooks/vendors/new')}/>
           </div>
         </div>
 
@@ -2129,7 +2129,7 @@ const PageCustomerList = ({customers,setCustomers,invoices,jobs}) => {
               <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher client..."
                 style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:180,fontFamily:"inherit"}}/>
             </div>
-            <Btn label="Nouveau client" variant="primary" sm icon="plus" onClick={()=>{setQbView('customer');setQbData(null);}}/>
+            <Btn label="Nouveau client" variant="primary" sm icon="plus" onClick={()=>navigate('/cleanitbooks/customers/new')}/>
             <button onClick={()=>navigate("/cleanitbooks")}
               style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:4,border:"1px solid "+C.border,background:C.bg,cursor:"pointer",fontFamily:"inherit",fontSize:12,color:C.text3}}>
               <Ico n="job" s={12} c={C.text3}/>
@@ -2198,7 +2198,7 @@ const PageCustomerList = ({customers,setCustomers,invoices,jobs}) => {
               const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
               a.download="CleanITBooks_Clients_"+new Date().toISOString().split("T")[0]+".xlsx"; a.click();
             }}/>
-            <Btn label="Nouveau client" variant="primary" sm icon="plus" onClick={()=>{setQbView('customer');setQbData(null);}}/>
+            <Btn label="Nouveau client" variant="primary" sm icon="plus" onClick={()=>navigate('/cleanitbooks/customers/new')}/>
           </div>
         </div>
 
@@ -2361,7 +2361,7 @@ const PageCustomerDetail = ({customers,invoices,jobs}) => {
           <div style={{display:"flex",gap:8}}>
             <Btn label="Retour" variant="light" sm onClick={()=>navigate("/cleanitbooks/customers")}/>
             <Btn label="Modifier" variant="default" sm icon="edit" onClick={()=>navigate("/cleanitbooks/customers/"+custId+"/edit")}/>
-            <Btn label="Nouvelle facture" variant="primary" sm icon="invoice" onClick={()=>{setQbView('invoice');setQbData(null);}}/>
+            <Btn label="Nouvelle facture" variant="primary" sm icon="invoice" onClick={()=>navigate('/cleanitbooks/invoices/new')}/>
           </div>
         </div>
 
@@ -2533,7 +2533,7 @@ const PageCustomerDetail = ({customers,invoices,jobs}) => {
           <div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
               <div style={{fontSize:16,fontWeight:700,color:C.text}}>Transactions — {cust.company}</div>
-              <Btn label="Nouvelle facture" variant="primary" sm icon="invoice" onClick={()=>{setQbView('invoice');setQbData(null);}}/>
+              <Btn label="Nouvelle facture" variant="primary" sm icon="invoice" onClick={()=>navigate('/cleanitbooks/invoices/new')}/>
             </div>
             {custInvs.length===0?(
               <div style={{padding:"60px",textAlign:"center",background:C.white,border:"1px dashed "+C.border,borderRadius:6}}>
@@ -3614,7 +3614,7 @@ const PageJobDetail = ({jobs,setJobs,customers}) => {
           <div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
               <div style={{fontSize:16,fontWeight:700,color:C.text}}>Factures liees a ce job</div>
-              <Btn label="Nouvelle facture" variant="primary" sm icon="invoice" onClick={()=>{setQbView('invoice');setQbData(null);}}/>
+              <Btn label="Nouvelle facture" variant="primary" sm icon="invoice" onClick={()=>navigate('/cleanitbooks/invoices/new')}/>
             </div>
             {job.invoices.length===0?(
               <div style={{padding:"60px",textAlign:"center",background:C.white,border:"1px dashed "+C.border,borderRadius:6}}>
@@ -4218,7 +4218,7 @@ const PageInvoiceList = ({invoices,customers,jobs}) => {
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher..."
               style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:150,fontFamily:"inherit"}}/>
           </div>
-          <Btn label="Nouvelle facture" variant="primary" sm icon="plus" onClick={()=>{setQbView('invoice');setQbData(null);}}/>
+          <Btn label="Nouvelle facture" variant="primary" sm icon="plus" onClick={()=>navigate('/cleanitbooks/invoices/new')}/>
         </div>
       </CIBTopBar>
       <div style={{padding:"24px",animation:"fadeUp .3s ease"}}>
@@ -4693,7 +4693,7 @@ const PageBillList = ({bills,vendors,jobs}) => {
             a.href=URL.createObjectURL(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
             a.download="Bills_AP_"+new Date().toISOString().split("T")[0]+".xlsx";a.click();
           }}/>
-          <Btn label="Saisir un bill" variant="primary" sm icon="plus" onClick={()=>{setQbView('bill');setQbData(null);}}/>
+          <Btn label="Saisir un bill" variant="primary" sm icon="plus" onClick={()=>navigate('/cleanitbooks/bills/new')}/>
         </div>
       </CIBTopBar>
 
