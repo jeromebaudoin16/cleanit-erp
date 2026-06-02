@@ -345,7 +345,15 @@ const SectionChat = ({navigate}) => {
   };
 
   const filtChannels = CHANNELS.filter(c=>!search||c.nom.includes(search.toLowerCase()));
-  const filtContacts = CONTACTS.filter(u=>!search||u.nom.toLowerCase().includes(search.toLowerCase()));
+  const filtContacts = (realUsers.length > 0 ? realUsers.map(u=>({
+    id: u.id,
+    nom: (u.firstName||'')+(u.lastName?' '+u.lastName:''),
+    poste: u.role==='admin'?'Administrateur':u.role==='project_manager'?'Project Manager':u.role==='hr'?'Ressources Humaines':'Technicien',
+    dept: 'CleanIT',
+    avatar: (u.firstName?.[0]||'?')+(u.lastName?.[0]||''),
+    couleur: u.role==='admin'?'#1B4F8A':u.role==='project_manager'?'#5B4FE9':u.role==='hr'?'#2E7D32':'#E97D05',
+    status: 'online', email: u.email
+  })) : CONTACTS).filter(u=>!search||u.nom.toLowerCase().includes(search.toLowerCase()) || (u.poste||'').toLowerCase().includes(search.toLowerCase()))
 
   return(
     <div style={{flex:1,display:'flex',overflow:'hidden'}}>
