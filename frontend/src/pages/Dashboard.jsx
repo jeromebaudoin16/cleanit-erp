@@ -160,7 +160,7 @@ const AIBrief = ({user, role, dashData}) => {
   const generate = useCallback(async() => {
     setLoading(true);
     try {
-      const userName = user?.name || user?.username || user?.email?.split('@')[0] || 'Collaborateur';
+      const userName = user?.firstName || user?.first_name || user?.email?.split('@')[0] || 'Collaborateur';
       const context = [
         `Utilisateur: ${userName}, Rôle: ${role.label}`,
         `CA ce mois: ${fM(dashData?.totalCA||87000000)}`,
@@ -754,7 +754,7 @@ export default function Dashboard() {
   const user = getUser();
   const roleId = getRoleFromUser(user);
   const role = ROLE_CONFIG[roleId] || ROLE_CONFIG.chef_proj;
-  const userName = user?.name || user?.username || user?.email?.split('@')[0] || 'Utilisateur';
+  const userName = user?.firstName || user?.first_name || user?.email?.split('@')[0] || 'Utilisateur';
 
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 60000);
