@@ -286,11 +286,9 @@ const SectionChat = ({navigate}) => {
   const [dmMessages, setDMMessages] = useState([]);
   const [dmInput, setDMInput] = useState('');
   const [realUsers, setRealUsers] = useState([]);
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const token = localStorage.getItem('token');
 
   useEffect(() => {
-    fetch('https://backend-cleanit-erp.vercel.app'+'/users', {headers:{'Authorization':'Bearer '+token}})
+    fetch('https://backend-cleanit-erp.vercel.app'+'/users', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
       .then(r=>r.json()).then(u=>{ if(Array.isArray(u)) setRealUsers(u); }).catch(()=>{});
   }, []);
 
@@ -298,8 +296,8 @@ const SectionChat = ({navigate}) => {
     if(!dmInput.trim() || !activeDM) return;
     const msg = {
       id: Date.now(), content: dmInput,
-      fromId: currentUser.id,
-      from: currentUser.firstName || 'Moi',
+      fromId: JSON.parse(localStorage.getItem('user')||'{}').id,
+      from: JSON.parse(localStorage.getItem('user')||'{}').firstName || 'Moi',
       to: activeDM.firstName,
       toId: activeDM.id,
       time: new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
@@ -1269,10 +1267,10 @@ export default function CleanITComm() {
 
   useEffect(() => {
     // Charger tous les utilisateurs pour DMs
-    fetch('https://backend-cleanit-erp.vercel.app'+'/users', {headers:{'Authorization':'Bearer '+token}})
+    fetch('https://backend-cleanit-erp.vercel.app'+'/users', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
       .then(r=>r.json()).then(u=>{ if(Array.isArray(u)) setRealUsers(u); }).catch(()=>{});
     // Charger les messages du feed pour les canaux
-    fetch('https://backend-cleanit-erp.vercel.app'+'/feed', {headers:{'Authorization':'Bearer '+token}})
+    fetch('https://backend-cleanit-erp.vercel.app'+'/feed', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
       .then(r=>r.json()).then(m=>{ if(Array.isArray(m)) setFeedMessages(m); }).catch(()=>{});
   }, []);
 
@@ -1284,7 +1282,7 @@ export default function CleanITComm() {
         body: JSON.stringify({content:channelInput, type:'channel', channel:activeChannel})
       });
       setChannelInput('');
-      fetch('https://backend-cleanit-erp.vercel.app'+'/feed',{headers:{'Authorization':'Bearer '+token}})
+      fetch('https://backend-cleanit-erp.vercel.app'+'/feed',{headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
         .then(r=>r.json()).then(m=>{ if(Array.isArray(m)) setFeedMessages(m); });
     } catch(e) {}
   };
@@ -1293,8 +1291,8 @@ export default function CleanITComm() {
     if(!dmInput.trim() || !activeDM) return;
     const msg = {
       id: Date.now(), content: dmInput,
-      from: currentUser.firstName || 'Moi',
-      fromId: currentUser.id, toId: activeDM.id,
+      from: JSON.parse(localStorage.getItem('user')||'{}').firstName || 'Moi',
+      fromId: JSON.parse(localStorage.getItem('user')||'{}').id, toId: activeDM.id,
       to: activeDM.firstName, time: new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
     };
     setDMMessages(p=>[...p, msg]);
@@ -1320,7 +1318,7 @@ export default function CleanITComm() {
   const loadWAMessages = () => {
     const token = localStorage.getItem('token');
     const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
-    fetch(base+'/wa-messages', {headers:{'Authorization':'Bearer '+token}})
+    fetch(base+'/wa-messages', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
       .then(r=>r.json()).then(msgs => {
         if(Array.isArray(msgs)) {
           setWaMessages(msgs);

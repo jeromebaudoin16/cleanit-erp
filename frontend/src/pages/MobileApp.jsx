@@ -437,238 +437,72 @@ const Header = ({title,right,showLogo}) => (
 
 // ─── SCREEN: LOGIN ────────────────────────────────────────────
 const ScreenLogin = ({onLogin}) => {
-  // TOUS les hooks en premier - avant tout return conditionnel
-  const [sel, setSel] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [loginErr, setLoginErr] = useState('');
-  const [email, setEmail] = useState('');
-  const [pwd, setPwd] = useState('');
-  const [showPwd, setShowPwd] = useState(false);
-  const [mode, setMode] = useState('demo');
-  const [subMode, setSubMode] = useState('login');
-  const [regData, setRegData] = useState({firstName:'',lastName:'',role:'terrain'});
+  const [email, setEmail] = React.useState('');
+  const [pwd, setPwd] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const [err, setErr] = React.useState('');
 
-  const handleRealLogin = async () => {
-    if(!email||!pwd){setLoginErr('Remplissez email et mot de passe');return;}
-    setLoading(true);setLoginErr('');
+  const doLogin = async() => {
+    if(!email||!pwd) return setErr('Email et mot de passe requis');
+    setLoading(true); setErr('');
     try {
-      const res = await AuthAPI.login(email,pwd);
-      localStorage.setItem('cit_token',res.token);
-      onLogin({
-        id:res.user.id,
-        name:res.user.firstName+' '+res.user.lastName,
-        role:res.user.role,post:res.user.role,
-        av:(res.user.firstName[0]||'U')+(res.user.lastName[0]||''),
-        color:'#0066CC',region:'CleanIT',email:res.user.email,
+      const r = await fetch('https://backend-cleanit-erp.vercel.app/auth/login',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email:email.trim(), password:pwd})
       });
-    } catch(e){setLoginErr(e.message||'Connexion impossible');}
-    finally{setLoading(false);}
+      const d = await r.json();
+      if(d.token) {
+        localStorage.setItem('token', d.token);
+        localStorage.setItem('user', JSON.stringify(d.user));
+        onLogin({
+          id: d.user.id, name: d.user.firstName+' '+d.user.lastName,
+          firstName: d.user.firstName, lastName: d.user.lastName,
+          email: d.user.email, role: d.user.role,
+          av: (d.user.firstName?.[0]||'?')+(d.user.lastName?.[0]||''),
+          color: '#1B4F8A'
+        });
+      } else { setErr(d.message || 'Identifiants invalides'); }
+    } catch(e) { setErr('Erreur de connexion au serveur'); }
+    setLoading(false);
   };
 
-  const handleRegister = async () => {
-    if(!regData.firstName||!regData.lastName||!email||!pwd){setLoginErr('Tous les champs sont obligatoires');return;}
-    if(pwd.length<8){setLoginErr('Mot de passe trop court (min 8 caracteres)');return;}
-    setLoading(true);setLoginErr('');
-    try {
-      const res = await AuthAPI.register({...regData,email,password:pwd});
-      localStorage.setItem('cit_token',res.token);
-      onLogin({
-        id:res.user.id,
-        name:regData.firstName+' '+regData.lastName,
-        role:regData.role,post:regData.role,
-        av:regData.firstName[0]+regData.lastName[0],
-        color:'#0066CC',region:'CleanIT',email,
-      });
-    } catch(e){setLoginErr(e.message||'Erreur creation compte');}
-    finally{setLoading(false);}
-  };
-
-  const bureauUsers = USERS.filter(u=>u.role!=='terrain');
-  const terrainUsers = USERS.filter(u=>u.role==='terrain');
-
-  // Selection profil
-  if(!sel) return (
-    <div style={{minHeight:'100vh',background:'#FFFFFF',fontFamily:FONT,
-      maxWidth:430,margin:'0 auto',display:'flex',flexDirection:'column'}}>
-      <div style={{padding:'32px 20px 12px',textAlign:'center'}}>
-        <div style={{width:68,height:68,background:'#fff',borderRadius:18,
-          margin:'0 auto 14px',display:'flex',alignItems:'center',
-          justifyContent:'center',border:'0.5px solid #EFEFEF',
-          boxShadow:'0 2px 12px rgba(0,0,0,.07)'}}>
-          <svg width="44" height="40" viewBox="0 0 122 111" fill="none">
-            <circle cx="61" cy="55" r="38" stroke="#888" strokeWidth="8" fill="none"/>
-            <circle cx="61" cy="17" r="12" fill="#E86C6C"/>
-            <circle cx="61" cy="93" r="12" fill="#E86C6C"/>
-            <circle cx="23" cy="55" r="12" fill="#E86C6C"/>
-            <circle cx="99" cy="55" r="12" fill="#E86C6C"/>
-          </svg>
-        </div>
-        <div style={{fontSize:22,fontWeight:700,marginBottom:3}}>
-          <span style={{color:'#888'}}>Clean</span>
-          <span style={{color:'#E86C6C'}}>IT</span>
-          <span style={{color:'#262626',fontWeight:400,fontSize:16}}> ERP</span>
-        </div>
-        <div style={{fontSize:11,color:'#8E8E8E',textTransform:'uppercase',letterSpacing:.8}}>
-          Choisissez votre profil
-        </div>
-      </div>
-      <div style={{flex:1,overflowY:'auto',padding:'8px 16px 24px'}}>
-        {[['Bureau et Management',bureauUsers],['Equipe Terrain',terrainUsers]].map(([label,users])=>(
-          <div key={label}>
-            <div style={{fontSize:10,fontWeight:700,color:'#8E8E8E',
-              textTransform:'uppercase',letterSpacing:.6,margin:'12px 0 6px'}}>{label}</div>
-            {users.map(u=>(
-              <button key={u.id} onClick={()=>setSel(u)}
-                style={{width:'100%',display:'flex',alignItems:'center',
-                  gap:12,padding:'12px 14px',background:'#fff',
-                  border:'0.5px solid #EFEFEF',borderRadius:12,
-                  marginBottom:7,cursor:'pointer',fontFamily:FONT,textAlign:'left'}}>
-                <div style={{width:44,height:44,borderRadius:11,
-                  background:u.color+'22',border:'1.5px solid '+u.color,
-                  display:'flex',alignItems:'center',justifyContent:'center',
-                  fontSize:14,fontWeight:700,color:u.color,flexShrink:0}}>{u.av}</div>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:600,color:'#262626'}}>{u.name}</div>
-                  <div style={{fontSize:11,color:'#8E8E8E',marginTop:2}}>{u.post} · {u.region}</div>
-                </div>
-                <span style={{color:'#CBD5E1',fontSize:18}}>›</span>
-              </button>
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  // Connexion avec profil selectionne
   return (
-    <div style={{minHeight:'100vh',background:'#fff',fontFamily:FONT,
-      maxWidth:430,margin:'0 auto',display:'flex',flexDirection:'column',padding:'40px 24px'}}>
-      <button onClick={()=>{setSel(null);setLoginErr('');}}
-        style={{background:'none',border:'none',cursor:'pointer',color:'#475569',
-          fontSize:13,fontFamily:FONT,marginBottom:20,
-          display:'flex',alignItems:'center',gap:4,padding:0}}>
-        ← Retour
-      </button>
-      <div style={{textAlign:'center',marginBottom:20}}>
-        <div style={{width:60,height:60,borderRadius:15,margin:'0 auto 10px',
-          background:sel.color+'22',border:'1.5px solid '+sel.color,
-          display:'flex',alignItems:'center',justifyContent:'center',
-          fontSize:20,fontWeight:700,color:sel.color}}>{sel.av}</div>
-        <div style={{fontSize:17,fontWeight:700,color:'#262626'}}>{sel.name}</div>
-        <div style={{fontSize:12,color:'#8E8E8E',marginTop:3}}>{sel.post}</div>
-      </div>
-
-      {/* Tabs Demo / Mon compte */}
-      <div style={{display:'flex',background:'#F5F7FA',borderRadius:10,padding:3,gap:2,marginBottom:16}}>
-        {[['demo','Demo'],['real','Mon compte']].map(([m,l])=>(
-          <button key={m} onClick={()=>{setMode(m);setLoginErr('');}}
-            style={{flex:1,padding:'7px',border:'none',cursor:'pointer',fontFamily:FONT,
-              fontSize:12,fontWeight:mode===m?700:500,borderRadius:8,
-              background:mode===m?'white':'transparent',color:mode===m?'#0066CC':'#8E8E8E',
-              boxShadow:mode===m?'0 1px 3px rgba(0,0,0,.1)':'none'}}>{l}
-          </button>
-        ))}
-      </div>
-
-      {mode==='demo' ? (
-        <button onClick={()=>onLogin(sel)}
-          style={{width:'100%',padding:14,border:'none',background:'#0066CC',
-            color:'white',borderRadius:12,fontSize:15,fontWeight:700,
-            cursor:'pointer',fontFamily:FONT,marginBottom:12}}>
-          Se connecter en demo
-        </button>
-      ) : (
-        <div>
-          {/* Tabs login/register */}
-          <div style={{display:'flex',background:'#F5F7FA',borderRadius:10,padding:3,gap:2,marginBottom:14}}>
-            {[['login','Connexion'],['register','Creer un compte']].map(([m,l])=>(
-              <button key={m} onClick={()=>{setSubMode(m);setLoginErr('');}}
-                style={{flex:1,padding:'6px 4px',border:'none',cursor:'pointer',fontFamily:FONT,
-                  fontSize:11,fontWeight:subMode===m?700:500,borderRadius:8,
-                  background:subMode===m?'white':'transparent',
-                  color:subMode===m?'#0066CC':'#8E8E8E',
-                  boxShadow:subMode===m?'0 1px 3px rgba(0,0,0,.1)':'none'}}>{l}
-              </button>
-            ))}
+    <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#1B4F8A 0%,#0C447C 100%)',display:'flex',alignItems:'center',justifyContent:'center',padding:'20px',fontFamily:"'Inter',sans-serif"}}>
+      <div style={{background:'white',borderRadius:20,padding:'36px 28px',width:'100%',maxWidth:380,boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
+        <div style={{textAlign:'center',marginBottom:28}}>
+          <div style={{width:64,height:64,borderRadius:16,background:'#1B4F8A',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
+            <span style={{fontSize:28}}>🏢</span>
           </div>
-          {subMode==='register' && (
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
-              <div>
-                <div style={{fontSize:10,fontWeight:600,color:'#475569',marginBottom:4}}>Prenom *</div>
-                <input value={regData.firstName} onChange={e=>setRegData(r=>({...r,firstName:e.target.value}))}
-                  placeholder="Jean"
-                  style={{width:'100%',padding:'10px 12px',border:'0.5px solid #EFEFEF',
-                    borderRadius:10,fontSize:12,fontFamily:FONT,background:'#F5F7FA',
-                    color:'#262626',outline:'none',boxSizing:'border-box'}}/>
-              </div>
-              <div>
-                <div style={{fontSize:10,fontWeight:600,color:'#475569',marginBottom:4}}>Nom *</div>
-                <input value={regData.lastName} onChange={e=>setRegData(r=>({...r,lastName:e.target.value}))}
-                  placeholder="Dupont"
-                  style={{width:'100%',padding:'10px 12px',border:'0.5px solid #EFEFEF',
-                    borderRadius:10,fontSize:12,fontFamily:FONT,background:'#F5F7FA',
-                    color:'#262626',outline:'none',boxSizing:'border-box'}}/>
-              </div>
-            </div>
-          )}
-          <div style={{marginBottom:10}}>
-            <div style={{fontSize:11,fontWeight:600,color:'#475569',marginBottom:4}}>Email *</div>
-            <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
-              placeholder="votre@email.cm"
-              style={{width:'100%',padding:'11px 13px',border:'0.5px solid #EFEFEF',
-                borderRadius:10,fontSize:13,fontFamily:FONT,background:'#F5F7FA',
-                color:'#262626',outline:'none',boxSizing:'border-box'}}/>
-          </div>
-          <div style={{position:'relative',marginBottom:subMode==='register'?10:14}}>
-            <div style={{fontSize:11,fontWeight:600,color:'#475569',marginBottom:4}}>Mot de passe *</div>
-            <input type={showPwd?'text':'password'} value={pwd}
-              onChange={e=>setPwd(e.target.value)}
-              placeholder="Min. 8 caracteres"
-              onKeyDown={e=>e.key==='Enter'&&(subMode==='login'?handleRealLogin():handleRegister())}
-              style={{width:'100%',padding:'11px 40px 11px 13px',border:'0.5px solid #EFEFEF',
-                borderRadius:10,fontSize:13,fontFamily:FONT,background:'#F5F7FA',
-                color:'#262626',outline:'none',boxSizing:'border-box'}}/>
-            <button onClick={()=>setShowPwd(!showPwd)}
-              style={{position:'absolute',right:12,bottom:12,background:'none',
-                border:'none',cursor:'pointer',color:'#8E8E8E',fontSize:16}}>
-              {showPwd?'🙈':'👁'}
-            </button>
-            {pwd.length>0&&pwd.length<8&&(
-              <div style={{fontSize:10,color:'#DC2626',marginTop:4}}>Minimum 8 caracteres</div>
-            )}
-          </div>
-          {subMode==='register'&&(
-            <div style={{marginBottom:14}}>
-              <div style={{fontSize:11,fontWeight:600,color:'#475569',marginBottom:4}}>Role</div>
-              <select value={regData.role} onChange={e=>setRegData(r=>({...r,role:e.target.value}))}
-                style={{width:'100%',padding:'10px 13px',border:'0.5px solid #EFEFEF',
-                  borderRadius:10,fontSize:13,fontFamily:FONT,background:'#F5F7FA',
-                  color:'#262626',outline:'none',boxSizing:'border-box'}}>
-                <option value="terrain">Technicien Terrain</option>
-                <option value="bureau">Agent Bureau</option>
-                <option value="pm">Chef de Projet</option>
-              </select>
-              <div style={{fontSize:10,color:'#8E8E8E',marginTop:4}}>En attente de validation admin</div>
-            </div>
-          )}
-          {loginErr&&(
-            <div style={{fontSize:12,color:'#DC2626',marginBottom:10,textAlign:'center',
-              background:'#FEF2F2',borderRadius:8,padding:'8px 12px'}}>{loginErr}</div>
-          )}
-          <button onClick={subMode==='login'?handleRealLogin:handleRegister}
-            disabled={loading}
-            style={{width:'100%',padding:13,border:'none',
-              background:loading?'#94A3B8':'#0066CC',color:'white',
-              borderRadius:12,fontSize:14,fontWeight:700,
-              cursor:loading?'not-allowed':'pointer',fontFamily:FONT,marginBottom:12}}>
-            {loading?(subMode==='login'?'Connexion...':'Creation...'):(subMode==='login'?'Se connecter':'Creer mon compte')}
-          </button>
+          <h1 style={{fontSize:22,fontWeight:800,color:'#1B4F8A',margin:'0 0 4px'}}>CleanIT ERP</h1>
+          <p style={{fontSize:13,color:'#6B7280',margin:0}}>Application Mobile — Connexion</p>
         </div>
-      )}
+        <div style={{marginBottom:14}}>
+          <label style={{display:'block',fontSize:13,fontWeight:600,color:'#374151',marginBottom:4}}>Email</label>
+          <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
+            placeholder="votre@email.com"
+            onKeyDown={e=>e.key==='Enter'&&doLogin()}
+            style={{width:'100%',padding:'12px 14px',border:'1.5px solid #E5E7EB',borderRadius:10,fontSize:14,outline:'none',boxSizing:'border-box'}}/>
+        </div>
+        <div style={{marginBottom:20}}>
+          <label style={{display:'block',fontSize:13,fontWeight:600,color:'#374151',marginBottom:4}}>Mot de passe</label>
+          <input type="password" value={pwd} onChange={e=>setPwd(e.target.value)}
+            placeholder="••••••••"
+            onKeyDown={e=>e.key==='Enter'&&doLogin()}
+            style={{width:'100%',padding:'12px 14px',border:'1.5px solid #E5E7EB',borderRadius:10,fontSize:14,outline:'none',boxSizing:'border-box'}}/>
+        </div>
+        {err&&<div style={{background:'#FEE2E2',color:'#991B1B',borderRadius:8,padding:'10px 14px',fontSize:13,marginBottom:14,textAlign:'center'}}>{err}</div>}
+        <button onClick={doLogin} disabled={loading}
+          style={{width:'100%',background:loading?'#9CA3AF':'#1B4F8A',color:'white',border:'none',borderRadius:10,padding:'13px',fontSize:15,fontWeight:700,cursor:loading?'not-allowed':'pointer'}}>
+          {loading ? 'Connexion...' : 'Se connecter →'}
+        </button>
+        <div style={{textAlign:'center',marginTop:16,fontSize:12,color:'#9CA3AF'}}>
+          CleanIT SARL — Système ERP Terrain
+        </div>
+      </div>
     </div>
   );
 };
+
 
 const ScreenFil = ({user,navigate}) => {
   const [openEmoji,setOpenEmoji] = useState(null);
