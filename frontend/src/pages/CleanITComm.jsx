@@ -281,6 +281,39 @@ const IconNav = ({active, navigate, badge}) => {
 //  SECTION CHAT
 // ═══════════════════════════════════════════════════════════════════
 const SectionChat = ({navigate}) => {
+  const [showDMModal, setShowDMModal] = React.useState(false);
+  const [activeDM, setActiveDM] = React.useState(null);
+  const [dmMessages, setDMMessages] = React.useState([]);
+  const [dmInput, setDMInput] = React.useState('');
+  const [realUsers, setRealUsers] = React.useState([]);
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const token = localStorage.getItem('token');
+  const BASE = 'https://backend-cleanit-erp.vercel.app';
+
+  React.useEffect(() => {
+    fetch(BASE+'/users', {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(u=>{ if(Array.isArray(u)) setRealUsers(u); }).catch(()=>{});
+  }, []);
+
+  const sendDM = () => {
+    if(!dmInput.trim() || !activeDM) return;
+    const msg = {
+      id: Date.now(), content: dmInput,
+      fromId: currentUser.id,
+      from: currentUser.firstName || 'Moi',
+      to: activeDM.firstName,
+      toId: activeDM.id,
+      time: new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
+    };
+    setDMMessages(p=>[...p, msg]);
+    setDMInput('');
+    fetch(BASE+'/feed', {method:'POST',
+      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body: JSON.stringify({content:dmInput, type:'dm',
+        recipient_id: activeDM.id,
+        recipient_name: activeDM.firstName+' '+activeDM.lastName})
+    }).catch(()=>{});
+  };
   const [selId,     setSelId]     = useState('ch1');
   const [isDM,      setIsDM]      = useState(false);
   const [messages,  setMessages]  = useState(MSGS);
@@ -1376,18 +1409,7 @@ function SectionWhatsApp({waMessages,waContacts,sendWAMessage,waInput,setWaInput
 
 export default function CleanITComm() {
   
-  // ── DM RÉELS ──────────────────────────────────────────────
-  const [realUsers, setRealUsers] = useState([]);
-  const [showDMModal, setShowDMModal] = useState(false);
-  const [activeDM, setActiveDM] = useState(null);
-  const [dmMessages, setDMMessages] = useState([]);
-  const [dmInput, setDMInput] = useState('');
-  const [feedMessages, setFeedMessages] = useState([]);
-  const [activeChannel, setActiveChannel] = useState('general');
-  const [channelInput, setChannelInput] = useState('');
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const token = localStorage.getItem('token');
-  const BASE = 'https://backend-cleanit-erp.vercel.app';
+  // ── DM géré dans SectionChat ──
 
   useEffect(() => {
     // Charger tous les utilisateurs pour DMs
