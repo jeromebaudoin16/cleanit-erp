@@ -51,25 +51,7 @@ const CURRENT_WEEK = 1;
 const HOURS = [8,9,10,11,12,13,14,15,16,17];
 const H_PX = 48;
 
-const SEED_EVENTS = [
-  {id:1,titre:'Installation 5G NR — DLA-001',dept:'terrain',type:'mission',resp:'Thomas Ngono',photo:'https://i.pravatar.cc/150?img=15',debut:'2025-05-12',fin:'2025-05-16',hStart:8,hEnd:17,visib:'entreprise',conflit:false,lien_module:'terrain',lien_detail:'DLA-001',ai:true},
-  {id:2,titre:'Appel client MTN',dept:'commercial',type:'reunion_externe',resp:'Marie Kamga',photo:'https://i.pravatar.cc/150?img=47',debut:'2025-05-12',fin:'2025-05-12',hStart:14,hEnd:15,visib:'equipe',conflit:false,lien_zoom:'https://zoom.us/j/123456',email_info:'Réunion MTN Q2 · a.fouda@mtn.cm',ai:false},
-  {id:3,titre:'Réunion direction',dept:'direction',type:'reunion_interne',resp:'Jérôme Bell',photo:'',debut:'2025-05-13',fin:'2025-05-13',hStart:9,hEnd:11,visib:'entreprise',conflit:false,canal:'#direction',ai:true},
-  {id:4,titre:'Relance facture MTN',dept:'finance',type:'echeance',resp:'Finance',photo:'',debut:'2025-05-13',fin:'2025-05-13',hStart:16,hEnd:17,visib:'equipe',conflit:false,lien_module:'cleanitbooks',ai:false},
-  {id:5,titre:'Formation CACES R482',dept:'rh',type:'formation',resp:'Ali Moussa',photo:'https://i.pravatar.cc/150?img=15',debut:'2025-05-14',fin:'2025-05-14',hStart:8,hEnd:17,visib:'entreprise',conflit:true,conflitMsg:'Ali en congé vendredi — YDE-001 non couvert',ai:false},
-  {id:6,titre:'Présentation Orange Cameroun',dept:'commercial',type:'reunion_externe',resp:'Marie Kamga',photo:'https://i.pravatar.cc/150?img=47',debut:'2025-05-14',fin:'2025-05-14',hStart:14,hEnd:16,visib:'equipe',conflit:false,lien_zoom:'https://zoom.us/j/856432',email_info:'Présentation offre 5G BAF-001 · claude.mvondo@orange.cm',ai:false},
-  {id:7,titre:'Paiement Thomas Ngono',dept:'finance',type:'echeance',resp:'Finance',photo:'',debut:'2025-05-14',fin:'2025-05-14',hStart:16,hEnd:17,visib:'equipe',conflit:false,lien_module:'approvals',ai:true},
-  {id:8,titre:'Swap 4G→5G — KRI-001',dept:'terrain',type:'mission',resp:'Pierre Etoga',photo:'https://i.pravatar.cc/150?img=3',debut:'2025-05-15',fin:'2025-05-16',hStart:8,hEnd:17,visib:'entreprise',conflit:false,lien_module:'terrain',lien_detail:'KRI-001',ai:true},
-  {id:9,titre:'Entretien candidat fibre',dept:'rh',type:'reunion_interne',resp:'RH',photo:'',debut:'2025-05-15',fin:'2025-05-15',hStart:10,hEnd:11,visib:'equipe',conflit:false,canal:'#rh',ai:false},
-  {id:10,titre:'Revue mensuelle performance',dept:'direction',type:'reunion_interne',resp:'Jérôme Bell',photo:'',debut:'2025-05-15',fin:'2025-05-15',hStart:15,hEnd:17,visib:'entreprise',conflit:false,canal:'#revue-mai',lien_module:'bi',ai:true},
-  {id:11,titre:'Déclaration TVA — Mai 2025',dept:'finance',type:'echeance',resp:'Finance',photo:'',debut:'2025-05-16',fin:'2025-05-16',hStart:8,hEnd:9,visib:'entreprise',conflit:false,lien_module:'cleanitbooks',urgent:true,ai:false},
-  {id:12,titre:'Congé annuel — Ali Moussa',dept:'rh',type:'conge',resp:'Ali Moussa',photo:'https://i.pravatar.cc/150?img=15',debut:'2025-05-16',fin:'2025-05-18',hStart:8,hEnd:17,visib:'entreprise',conflit:true,conflitMsg:'Ali Moussa non disponible pour YDE-001',lien_module:'rh',ai:false},
-  {id:13,titre:'Signature contrat CAMTEL',dept:'commercial',type:'reunion_externe',resp:'Marie Kamga',photo:'https://i.pravatar.cc/150?img=47',debut:'2025-05-16',fin:'2025-05-16',hStart:10,hEnd:12,visib:'equipe',conflit:false,email_info:'Signature BAF-001 · 48 000 000 FCFA · i.sali@camtel.cm',ai:false},
-  {id:14,titre:'Mission GRA-001 Maintenance',dept:'terrain',type:'mission',resp:'Samuel Djomo',photo:'https://i.pravatar.cc/150?img=22',debut:'2025-05-19',fin:'2025-05-23',hStart:8,hEnd:17,visib:'entreprise',conflit:false,lien_module:'terrain',lien_detail:'GRA-001',ai:true},
-  {id:15,titre:'Deadline livraison YDE-001',dept:'finance',type:'jalon',resp:'Marie Kamga',photo:'',debut:'2025-05-20',fin:'2025-05-20',hStart:9,hEnd:10,visib:'entreprise',conflit:false,lien_module:'cleanitbooks',ai:true},
-  {id:16,titre:'Déclaration CNPS',dept:'rh',type:'echeance',resp:'Finance',photo:'',debut:'2025-05-28',fin:'2025-05-28',hStart:9,hEnd:10,visib:'entreprise',conflit:false,urgent:true,ai:false},
-  {id:17,titre:'Paie du personnel',dept:'finance',type:'echeance',resp:'Finance',photo:'',debut:'2025-05-30',fin:'2025-05-30',hStart:9,hEnd:11,visib:'entreprise',conflit:false,lien_module:'cleanitbooks',ai:true},
-];
+const SEED_EVENTS = []; // Données réelles depuis API
 
 const CHACHA_KB = {
   'réunion':   (t) => `Réunion planifiée. ChaCha vérifie les disponibilités... Marie Kamga et Thomas Ngono sont libres ${t?.includes('lundi')?'lundi':'mardi'} prochain à 10h. Canal CleanIT Comm créé automatiquement. Souhaitez-vous que j'envoie les invitations ?`,

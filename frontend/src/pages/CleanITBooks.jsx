@@ -209,232 +209,7 @@ const COST_CATS   = [
   {key:"overhead",     label:"Frais generaux",  icon:"chart",   color:C.gray},
 ];
 
-const INIT_JOBS = [
-  {
-    id:"JOB-001",
-    name:"Installation 5G NR DLA-001",
-    customerId:"C001",
-    bcRef:"BC-2024-143",
-    jobType:"Telecom Installation",
-    statut:"In Progress",
-    description:"Deploiement complet station 5G NR sur le site Akwa Douala. Installation BBU 5900, 3 RRU 5258 4T4R, cablage alimentation DC, configuration parametres reseau et tests end-to-end. Supervision Client OEM.",
-    startDate:"2024-01-15",
-    endDate:"2024-06-30",
-    chefProjet:"Marie Kamga",
-    site:"DLA-001",
-    currency:"FCFA",
-    // Prix Client - CONFIDENTIEL
-    budgetClient:180000000,
-    // Prix negocie CleanIT
-    contractAmount:165000000,
-    // Budget estime par poste de cout
-    budgetEstime:{
-      labor:      12000000,
-      materials:  30000000,
-      subcontract: 5000000,
-      equipment:   2000000,
-      overhead:    3000000,
-    },
-    // Phases de facturation
-    phases:[
-      {id:"PH1",name:"Phase 1 — Mobilisation et preparation",pct:30,amount:49500000,statut:"invoiced",invoiceRef:"INV-2024-001",datePrevue:"2024-01-20",datePaiement:"2024-01-25"},
-      {id:"PH2",name:"Phase 2 — Installation et travaux",pct:40,amount:66000000,statut:"pending",invoiceRef:null,datePrevue:"2024-04-01",datePaiement:null},
-      {id:"PH3",name:"Phase 3 — Tests et reception",pct:30,amount:49500000,statut:"pending",invoiceRef:null,datePrevue:"2024-06-30",datePaiement:null},
-    ],
-    // Lignes Bon de commande detaillees - CONFIDENTIEL
-    lignesBC:[
-      {desc:"BBU 5900 5G NR",qte:2,pu:25000000,total:50000000},
-      {desc:"RRU 5258 4T4R",qte:6,pu:8500000,total:51000000},
-      {desc:"Installation et configuration",qte:1,pu:35000000,total:35000000},
-      {desc:"Engineering services supervision",qte:1,pu:44000000,total:44000000},
-    ],
-    // Couts reels engages
-    coutsReels:{
-      labor:      8500000,
-      materials:  22000000,
-      subcontract: 2000000,
-      equipment:   1200000,
-      overhead:    1800000,
-    },
-    // Factures emises
-    invoices:[
-      {id:"INV-2024-001",date:"2024-01-15",amount:49500000,balance:0,statut:"Paid"},
-    ],
-    // Bills fournisseurs lies
-    bills:[
-      {id:"BILL-2024-001",vendor:"Client OEM",date:"2024-01-15",amount:101000000,statut:"Partial"},
-      {id:"BILL-2024-003",vendor:"Total Energies",date:"2024-01-31",amount:850000,statut:"Paid"},
-    ],
-    // Heures enregistrees
-    timeEntries:[
-      {emp:"Marie Kamga",date:"2024-03-15",service:"Chef de Projet",hours:8,rate:53125,billable:true},
-      {emp:"Jean Fouda",date:"2024-03-15",service:"PM Terrain",hours:8,rate:46875,billable:true},
-      {emp:"Pierre Etoga",date:"2024-03-16",service:"Ingenieur Reseau",hours:10,rate:56250,billable:true},
-    ],
-    notes:"Job cree depuis Bon de commande. Prix Client confidentiel - PM ne voit pas les montants Client. Negociation equipe technique en cours pour Phase 2.",
-    dateCreation:"2024-01-08",
-  },
-  {
-    id:"JOB-002",
-    name:"Maintenance 4G LTE YDE-001",
-    customerId:"C002",
-    bcRef:"BC-2024-141",
-    jobType:"Maintenance",
-    statut:"Closed",
-    description:"Maintenance corrective et preventive reseau 4G LTE Yaounde. Remplacement antennes defectueuses, optimisation parametres radio, mise a jour firmware equipements.",
-    startDate:"2024-02-01",
-    endDate:"2024-02-28",
-    chefProjet:"Jean Fouda",
-    site:"YDE-001",
-    currency:"FCFA",
-    budgetClient:45000000,
-    contractAmount:38000000,
-    budgetEstime:{
-      labor:6000000,materials:12000000,subcontract:2000000,equipment:500000,overhead:1500000,
-    },
-    phases:[
-      {id:"PH1",name:"Paiement unique",pct:100,amount:38000000,statut:"invoiced",invoiceRef:"INV-2024-002",datePrevue:"2024-02-28",datePaiement:"2024-03-05"},
-    ],
-    lignesBC:[
-      {desc:"Survey RF et audit reseau",qte:1,pu:15000000,total:15000000},
-      {desc:"Remplacement antennes 4G LTE x12",qte:12,pu:1500000,total:18000000},
-      {desc:"Optimisation parametres",qte:1,pu:12000000,total:12000000},
-    ],
-    coutsReels:{
-      labor:5200000,materials:10500000,subcontract:1800000,equipment:400000,overhead:1300000,
-    },
-    invoices:[
-      {id:"INV-2024-002",date:"2024-02-01",amount:38000000,balance:0,statut:"Paid"},
-    ],
-    bills:[
-      {id:"BILL-2024-002",vendor:"Nokia Networks",date:"2024-02-01",amount:9232000,statut:"Unpaid"},
-    ],
-    timeEntries:[
-      {emp:"Jean Fouda",date:"2024-02-15",service:"PM Terrain",hours:8,rate:46875,billable:true},
-      {emp:"Samuel Djomo",date:"2024-02-16",service:"Technicien",hours:10,rate:35000,billable:true},
-    ],
-    notes:"Job cloture. Toutes les phases facturees et payees.",
-    dateCreation:"2024-01-20",
-  },
-  {
-    id:"JOB-003",
-    name:"Infrastructure Telecom GAR-001",
-    customerId:"C004",
-    bcRef:"BC-2024-139",
-    jobType:"Infrastructure",
-    statut:"In Progress",
-    description:"Deploiement infrastructure telecom zones rurales Garoua. Construction pylone 45m, installation equipements 3G/4G, raccordement electrique et fibre optique backbone.",
-    startDate:"2024-03-08",
-    endDate:"2024-04-30",
-    chefProjet:"Pierre Etoga",
-    site:"GAR-001",
-    currency:"FCFA",
-    budgetClient:35000000,
-    contractAmount:29000000,
-    budgetEstime:{
-      labor:7000000,materials:8000000,subcontract:3000000,equipment:1000000,overhead:2000000,
-    },
-    phases:[
-      {id:"PH1",name:"Acompte 30%",pct:30,amount:8700000,statut:"invoiced",invoiceRef:"INV-2024-004",datePrevue:"2024-03-10",datePaiement:"2024-03-15"},
-      {id:"PH2",name:"Solde 70%",pct:70,amount:20300000,statut:"pending",invoiceRef:null,datePrevue:"2024-04-30",datePaiement:null},
-    ],
-    lignesBC:[
-      {desc:"Inspection HSE pylone",qte:1,pu:15000000,total:15000000},
-      {desc:"Mise aux normes securite",qte:1,pu:12000000,total:12000000},
-      {desc:"Rapport conformite",qte:1,pu:8000000,total:8000000},
-    ],
-    coutsReels:{
-      labor:4200000,materials:5100000,subcontract:1500000,equipment:600000,overhead:1200000,
-    },
-    invoices:[
-      {id:"INV-2024-004",date:"2024-02-01",amount:8700000,balance:0,statut:"Paid"},
-    ],
-    bills:[
-      {id:"BILL-2024-005",vendor:"Ericsson Cameroun",date:"2024-02-20",amount:5610000,statut:"Paid"},
-      {id:"BILL-2024-006",vendor:"Per diem techniciens",date:"2024-02-25",amount:1800000,statut:"Paid"},
-    ],
-    timeEntries:[
-      {emp:"Pierre Etoga",date:"2024-03-16",service:"Ingenieur Reseau",hours:10,rate:56250,billable:true},
-      {emp:"Ali Moussa",date:"2024-03-17",service:"Technicien HSE",hours:8,rate:37500,billable:true},
-    ],
-    notes:"Acompte recu du Gouvernement. Travaux en cours sur site GAR-001.",
-    dateCreation:"2024-03-01",
-  },
-  {
-    id:"JOB-004",
-    name:"Fibre Optique BFN-001",
-    customerId:"C005",
-    bcRef:"BC-2024-148",
-    jobType:"Fibre Optique",
-    statut:"Awarded",
-    description:"Deploiement reseau fibre optique FTTH 50km Bafoussam Nord. Genie civil (tranchees et fourreaux), pose cable G657A2, raccordements, boitiers epissure et tests optiques.",
-    startDate:"2024-03-10",
-    endDate:"2024-08-31",
-    chefProjet:"Marie Kamga",
-    site:"BFN-001",
-    currency:"FCFA",
-    budgetClient:220000000,
-    contractAmount:195000000,
-    budgetEstime:{
-      labor:20000000,materials:80000000,subcontract:15000000,equipment:5000000,overhead:8000000,
-    },
-    phases:[
-      {id:"PH1",name:"Phase 1 — Genie civil",pct:35,amount:68250000,statut:"pending",invoiceRef:null,datePrevue:"2024-05-01",datePaiement:null},
-      {id:"PH2",name:"Phase 2 — Tirage cable",pct:40,amount:78000000,statut:"pending",invoiceRef:null,datePrevue:"2024-07-01",datePaiement:null},
-      {id:"PH3",name:"Phase 3 — Raccordements",pct:25,amount:48750000,statut:"pending",invoiceRef:null,datePrevue:"2024-08-31",datePaiement:null},
-    ],
-    lignesBC:[
-      {desc:"Cable fibre FTTH G657A2 50km",qte:50,pu:1500000,total:75000000},
-      {desc:"Boitiers epissure etanche x50",qte:50,pu:200000,total:10000000},
-      {desc:"Genie civil tranchees et fourreaux",qte:1,pu:85000000,total:85000000},
-      {desc:"Raccordements et tests optiques",qte:1,pu:50000000,total:50000000},
-    ],
-    coutsReels:{
-      labor:0,materials:27200000,subcontract:0,equipment:0,overhead:0,
-    },
-    invoices:[],
-    bills:[
-      {id:"BILL-2024-007",vendor:"Fournisseur Cable",date:"2024-03-15",amount:22500000,statut:"Paid"},
-    ],
-    timeEntries:[],
-    notes:"Job attribue. Demarrage prevu debut avril. Equipe en cours de mobilisation.",
-    dateCreation:"2024-03-05",
-  },
-  {
-    id:"JOB-005",
-    name:"Survey RF MAR-001",
-    customerId:"C006",
-    bcRef:"BC-2024-149",
-    jobType:"Survey RF",
-    statut:"Pending",
-    description:"Relevé mesures radiofréquences zones nord Maroua. Analyse couverture, optimisation paramètres, rapport technique détaillé avec recommandations.",
-    startDate:"2024-04-01",
-    endDate:"2024-04-30",
-    chefProjet:"Jean Fouda",
-    site:"MAR-001",
-    currency:"FCFA",
-    budgetClient:18000000,
-    contractAmount:15000000,
-    budgetEstime:{
-      labor:5000000,materials:2000000,subcontract:0,equipment:500000,overhead:1000000,
-    },
-    phases:[
-      {id:"PH1",name:"Paiement unique",pct:100,amount:15000000,statut:"pending",invoiceRef:null,datePrevue:"2024-04-30",datePaiement:null},
-    ],
-    lignesBC:[
-      {desc:"Survey RF zones nord",qte:1,pu:10000000,total:10000000},
-      {desc:"Rapport optimisation",qte:1,pu:8000000,total:8000000},
-    ],
-    coutsReels:{
-      labor:0,materials:0,subcontract:0,equipment:0,overhead:0,
-    },
-    invoices:[],
-    bills:[],
-    timeEntries:[],
-    notes:"En attente validation Bon de commande. Aucun technicien disponible dans rayon 50km.",
-    dateCreation:"2024-03-15",
-  },
-];
+const INIT_JOBS = []; // Données depuis CleanITBooks API
 
 // ===== COMPOSANTS UI =====
 
@@ -1615,18 +1390,7 @@ const CIBTopBar = ({title,icon,color,children}) => {
 //  /cleanitbooks/vendors/new
 // ================================================================
 
-const INIT_VENDORS = [
-  {id:"V001",company:"Huawei Technologies",contact:"Mr. Chen Wei",title:"Project Manager",email:"c.wei@huawei.com",phone:"+237 233 401 000",mobile:"+237 699 401 000",address:"Akwa Business Center",city:"Douala",region:"Littoral",country:"Cameroun",type:"Equipementier",terms:"Net 60",currency:"USD",taxId:"",accountNum:"HW-CM-001",balance:72500000,creditLimit:500000000,notes:"Fournisseur principal equipements telecom. Paiement SWIFT USD.",dateCreation:"2021-01-01",status:"Active",
-   bills:[{id:"BILL-2024-001",date:"2024-01-15",dueDate:"2024-03-15",total:101000000,balance:72500000,status:"Partial",memo:"Equipements 5G NR BC-2024-143"}]},
-  {id:"V002",company:"Nokia Networks",contact:"Sophie Martin",title:"Sales Manager",email:"s.martin@nokia.com",phone:"+33 1 40 80 00 00",mobile:"",address:"Paris La Defense",city:"Paris",region:"",country:"France",type:"Equipementier",terms:"Net 45",currency:"USD",taxId:"",accountNum:"NOK-001",balance:9232000,creditLimit:200000000,notes:"Antennes 4G LTE. Contact local: Douala bureau.",dateCreation:"2022-03-01",status:"Active",
-   bills:[{id:"BILL-2024-002",date:"2024-02-01",dueDate:"2024-03-15",total:9232000,balance:9232000,status:"Unpaid",memo:"Antennes Nokia 4G LTE x12"}]},
-  {id:"V003",company:"Ericsson Cameroun",contact:"Paul Biya Jr",title:"Ingenieur Commercial",email:"p.biya@ericsson.cm",phone:"+237 222 230 500",mobile:"+237 677 230 500",address:"Yaounde Bastos",city:"Yaounde",region:"Centre",country:"Cameroun",type:"Equipementier",terms:"Net 30",currency:"EUR",taxId:"P098765432B",accountNum:"ERI-001",balance:0,creditLimit:100000000,notes:"Equipements Ericsson. Conditions paiement 30 jours.",dateCreation:"2022-06-15",status:"Active",
-   bills:[]},
-  {id:"V004",company:"Total Energies Cameroun",contact:"Marc Ateba",title:"Responsable Grands Comptes",email:"m.ateba@total.cm",phone:"+237 222 420 000",mobile:"+237 677 420 000",address:"Bonanjo, Rue du Commerce",city:"Douala",region:"Littoral",country:"Cameroun",type:"Services",terms:"Net 15",currency:"FCFA",taxId:"P112233445C",accountNum:"TOT-001",balance:0,creditLimit:10000000,notes:"Carburant vehicules terrain. Facture mensuelle.",dateCreation:"2021-09-01",status:"Active",
-   bills:[{id:"BILL-2024-003",date:"2024-01-31",dueDate:"2024-02-15",total:850000,balance:0,status:"Paid",memo:"Carburant vehicules terrain janvier 2024"}]},
-  {id:"V005",company:"CAMTEL",contact:"Direction Commerciale",title:"Directeur Commercial",email:"dc@camtel.cm",phone:"+237 222 225 000",mobile:"",address:"Av. Kennedy",city:"Yaounde",region:"Centre",country:"Cameroun",type:"Telecom",terms:"Net 30",currency:"FCFA",taxId:"P556677889D",accountNum:"CAM-001",balance:1200000,creditLimit:50000000,notes:"Liaisons fibre backbone. Facture trimestrielle.",dateCreation:"2022-01-01",status:"Active",
-   bills:[{id:"BILL-2024-004",date:"2024-02-15",dueDate:"2024-03-15",total:1200000,balance:1200000,status:"Unpaid",memo:"Liaisons fibre optique backbone Q1"}]},
-];
+const INIT_VENDORS = []; // Données depuis CleanITBooks API
 
 const VENDOR_TYPES  = ["Equipementier","Services","Telecom","Transport","Sous-traitant","Autre"];
 
@@ -2056,14 +1820,7 @@ const PageVendorDetail = ({vendors,jobs}) => {
 //  URL: /cleanitbooks/customers/new
 // ================================================================
 
-const INIT_CUSTOMERS = [
-  {id:"C001",company:"MTN Cameroun",contact:"Alain Nkoulou",title:"Directeur Technique",email:"a.nkoulou@mtn.cm",phone:"+237 222 501 000",mobile:"+237 677 501 000",address:"Rue Joffre, Bonanjo",city:"Douala",region:"Littoral",country:"Cameroun",zip:"",website:"www.mtn.cm",type:"Telecom",terms:"Net 30",creditLimit:500000000,taxCode:"TVA",taxId:"P045678901A",currency:"FCFA",priceLevel:"Standard",accountNum:"MTN-CM-001",balance:28500000,openInvoices:1,notes:"Client principal. Contrats cadres annuels. Contact facturation: billing@mtn.cm",dateCreation:"2022-01-15",status:"Active"},
-  {id:"C002",company:"Orange Cameroun",contact:"Sophie Biyong",title:"Chef de Projet Reseau",email:"s.biyong@orange.cm",phone:"+237 222 502 000",mobile:"+237 677 502 000",address:"Av. de Gaulle, Centre ville",city:"Yaounde",region:"Centre",country:"Cameroun",zip:"",website:"www.orange.cm",type:"Telecom",terms:"Net 45",creditLimit:300000000,taxCode:"TVA",taxId:"P045678902B",currency:"FCFA",priceLevel:"Standard",accountNum:"ORA-CM-001",balance:10195875,openInvoices:1,notes:"Facture en retard depuis 12 jours. Relance envoyee.",dateCreation:"2022-03-20",status:"Active"},
-  {id:"C003",company:"Client OEM Telecom",contact:"Mr. Chen Wei",title:"Project Manager",email:"c.wei@oemtelecom.com",phone:"+237 233 401 000",mobile:"+237 699 401 000",address:"Akwa Business Center, Bd de la Liberte",city:"Douala",region:"Littoral",country:"Cameroun",zip:"",website:"",type:"OEM",terms:"Net 60",creditLimit:1000000000,taxCode:"Exonere",taxId:"",currency:"USD",priceLevel:"International",accountNum:"OEM-CM-001",balance:28060000,openInvoices:1,notes:"Factures en USD. Paiement par virement SWIFT. Contact finance: finance@oemtelecom.com",dateCreation:"2021-06-01",status:"Active"},
-  {id:"C004",company:"Gouvernement Cameroun",contact:"DG Marches Publics",title:"Directeur General",email:"dg@marchespublics.cm",phone:"+237 222 230 000",mobile:"",address:"Yaounde Centre Administratif, BP 1234",city:"Yaounde",region:"Centre",country:"Cameroun",zip:"",website:"www.marchespublics.cm",type:"Public",terms:"Net 90",creditLimit:2000000000,taxCode:"Exonere",taxId:"",currency:"FCFA",priceLevel:"Gouvernement",accountNum:"GOV-CM-001",balance:38160000,openInvoices:1,notes:"Paiement via Tresor Public. Delais longs. Acomptes obligatoires.",dateCreation:"2021-01-10",status:"Active"},
-  {id:"C005",company:"CAMTEL",contact:"DG CAMTEL",title:"Directeur General",email:"dg@camtel.cm",phone:"+237 222 225 000",mobile:"",address:"Av. Kennedy, Quartier du Lac",city:"Yaounde",region:"Centre",country:"Cameroun",zip:"",website:"www.camtel.cm",type:"Telecom",terms:"Net 60",creditLimit:800000000,taxCode:"TVA",taxId:"P045678905E",currency:"FCFA",priceLevel:"Standard",accountNum:"CAM-CM-001",balance:71550000,openInvoices:1,notes:"Projet fibre optique BFN-001 en cours. Grand compte strategique.",dateCreation:"2022-08-15",status:"Active"},
-  {id:"C006",company:"Nexttel Cameroun",contact:"Pierre Essomba",title:"Responsable Technique",email:"p.essomba@nexttel.cm",phone:"+237 222 610 000",mobile:"+237 677 610 000",address:"Bonanjo, Rue du Commerce",city:"Douala",region:"Littoral",country:"Cameroun",zip:"",website:"www.nexttel.cm",type:"Telecom",terms:"Net 30",creditLimit:100000000,taxCode:"TVA",taxId:"P045678906F",currency:"FCFA",priceLevel:"Standard",accountNum:"NEX-CM-001",balance:5127750,openInvoices:1,notes:"Petit compte. Survey RF MAR-001 en attente validation.",dateCreation:"2023-02-01",status:"Active"},
-];
+const INIT_CUSTOMERS = []; // Données depuis CleanITBooks API
 
 const CUSTOMER_TYPES = ["Telecom","OEM","Public","Privé","Autre"];
 const PAYMENT_TERMS  = ["Net 15","Net 30","Net 45","Net 60","Net 90","Immediate","2/10 Net 30"];
@@ -4168,24 +3925,7 @@ const PageJobNew = ({initial,customers,onSave,onCancel}) => {
 // ================================================================
 //  FACTURATION AR
 // ================================================================
-const INIT_INVOICES_AR = [
-  {id:"INV-2024-001",customerId:"C001",jobId:"JOB-001",date:"2024-01-15",dueDate:"2024-02-15",terms:"Net 30",poNumber:"PO-MTN-001",memo:"Installation 5G NR DLA-001 Phase 1",currency:"FCFA",
-   lines:[{desc:"Service Installation 5G NR",qty:1,rate:40000000,amount:40000000,taxable:true},{desc:"Main oeuvre 15 jours",qty:15,rate:350000,amount:5250000,taxable:true}],
-   subtotal:45250000,taxRate:0.1925,taxAmount:8685625,total:53935625,amountPaid:53935625,balance:0,status:"Paid",
-   payments:[{date:"2024-01-25",amount:53935625,method:"Virement bancaire",ref:"VIR-MTN-001"}]},
-  {id:"INV-2024-002",customerId:"C002",jobId:"JOB-002",date:"2024-01-28",dueDate:"2024-03-13",terms:"Net 45",poNumber:"",memo:"Maintenance 4G LTE YDE-001",currency:"FCFA",
-   lines:[{desc:"Service Maintenance 4G LTE",qty:1,rate:7200000,amount:7200000,taxable:true},{desc:"Configuration et tests",qty:1,rate:1350000,amount:1350000,taxable:true}],
-   subtotal:8550000,taxRate:0.1925,taxAmount:1645875,total:10195875,amountPaid:0,balance:10195875,status:"Overdue",
-   payments:[]},
-  {id:"INV-2024-003",customerId:"C004",jobId:"JOB-003",date:"2024-02-01",dueDate:"2024-04-01",terms:"Net 60",poNumber:"GOV-001",memo:"Infrastructure GAR-001 Acompte 30%",currency:"FCFA",
-   lines:[{desc:"Infrastructure telecom Garoua",qty:1,rate:32000000,amount:32000000,taxable:false}],
-   subtotal:32000000,taxRate:0,taxAmount:0,total:32000000,amountPaid:9600000,balance:22400000,status:"Partial",
-   payments:[{date:"2024-02-15",amount:9600000,method:"Virement Tresor",ref:"TRESOR-001"}]},
-  {id:"INV-2024-004",customerId:"C005",jobId:"JOB-004",date:"2024-03-10",dueDate:"2024-05-09",terms:"Net 60",poNumber:"CAM-FO-001",memo:"Fibre Optique BFN-001",currency:"FCFA",
-   lines:[{desc:"Installation fibre optique 50km",qty:50,rate:1200000,amount:60000000,taxable:true}],
-   subtotal:60000000,taxRate:0.1925,taxAmount:11550000,total:71550000,amountPaid:0,balance:71550000,status:"Sent",
-   payments:[]},
-];
+const INIT_INVOICES_AR = []; // Données depuis CleanITBooks API
 
 const STATUS_INV = {
   "Paid":    {c:C.green,  bg:C.green_l,  l:"Paye"},
@@ -4623,26 +4363,7 @@ const PageInvoiceNew = ({invoices,setInvoices,customers,jobs}) => {
 // ================================================================
 //  DEPENSES AP — Bills fournisseurs
 // ================================================================
-const INIT_BILLS_AP = [
-  {id:"BILL-2024-001",vendorId:"V001",date:"2024-01-15",dueDate:"2024-03-15",refNum:"HW-INV-2024-143",memo:"Equipements 5G NR BC-2024-143",currency:"FCFA",jobId:"JOB-001",
-   lines:[{account:"604",desc:"BBU 5900 5G NR x2",amount:50000000},{account:"604",desc:"RRU 5258 4T4R x6",amount:51000000}],
-   total:101000000,amountPaid:28500000,balance:72500000,status:"Partial",
-   payments:[{date:"2024-01-20",amount:28500000,method:"Virement SWIFT",ref:"SWIFT-001"}]},
-  {id:"BILL-2024-002",vendorId:"V002",date:"2024-02-01",dueDate:"2024-03-15",refNum:"NOK-INV-2024-001",memo:"Antennes Nokia 4G LTE x12",currency:"FCFA",jobId:"JOB-002",
-   lines:[{account:"604",desc:"Antennes Nokia MIMO 4G LTE x12",amount:9232000}],
-   total:9232000,amountPaid:0,balance:9232000,status:"Unpaid",payments:[]},
-  {id:"BILL-2024-003",vendorId:"V004",date:"2024-01-31",dueDate:"2024-02-15",refNum:"TOT-JAN-2024",memo:"Carburant vehicules terrain janvier",currency:"FCFA",jobId:null,
-   lines:[{account:"624",desc:"Carburant vehicules terrain",amount:850000}],
-   total:850000,amountPaid:850000,balance:0,status:"Paid",
-   payments:[{date:"2024-02-05",amount:850000,method:"Cheque",ref:"CHQ-001"}]},
-  {id:"BILL-2024-004",vendorId:"V005",date:"2024-02-15",dueDate:"2024-03-15",refNum:"CAM-Q1-2024",memo:"Liaisons fibre optique backbone Q1",currency:"FCFA",jobId:null,
-   lines:[{account:"626",desc:"Liaisons fibre optique permanentes",amount:1200000}],
-   total:1200000,amountPaid:0,balance:1200000,status:"Unpaid",payments:[]},
-  {id:"BILL-2024-005",vendorId:"V003",date:"2024-02-20",dueDate:"2024-03-20",refNum:"ERI-INV-2024-001",memo:"Equipements Ericsson GAR-001",currency:"EUR",jobId:"JOB-003",
-   lines:[{account:"604",desc:"Equipements reseau Ericsson",amount:5610000}],
-   total:5610000,amountPaid:5610000,balance:0,status:"Paid",
-   payments:[{date:"2024-03-01",amount:5610000,method:"Virement SEPA",ref:"SEPA-001"}]},
-];
+const INIT_BILLS_AP = []; // Données depuis CleanITBooks API
 
 const STATUS_BILL = {
   "Paid":    {c:C.green,  bg:C.green_l,  l:"Paye"},
@@ -4996,23 +4717,9 @@ const PageBillNew = ({vendors,jobs}) => {
 // ================================================================
 //  BANKING — Tresorerie et rapprochement
 // ================================================================
-const INIT_BANKS = [
-  {id:"B001",name:"BICEC Compte principal",accountNum:"CMR-BICEC-****4521",balance:45200000,type:"Checking",currency:"FCFA",lastSync:"2024-03-28",bank:"BICEC"},
-  {id:"B002",name:"SGC Compte operationnel",accountNum:"CMR-SGC-****8834",balance:12500000,type:"Checking",currency:"FCFA",lastSync:"2024-03-28",bank:"SGC"},
-  {id:"B003",name:"Caisse principale Douala",accountNum:"CAISSE-DLA-001",balance:850000,type:"Cash",currency:"FCFA",lastSync:"2024-03-28",bank:"Caisse"},
-];
+const INIT_BANKS = []; // Données depuis CleanITBooks API
 
-const INIT_TRANSACTIONS = [
-  {id:"TXN-001",bankId:"B001",date:"2024-03-28",desc:"VIR RECU MTN CAMEROUN",amount:53935625,type:"credit",status:"matched",ref:"VIR-MTN-001",accountId:"INV-2024-001"},
-  {id:"TXN-002",bankId:"B001",date:"2024-03-25",desc:"PAIEMENT FOURNISSEUR EQUIPEMENTS",amount:-28500000,type:"debit",status:"matched",ref:"BILL-2024-001",accountId:"BILL-2024-001"},
-  {id:"TXN-003",bankId:"B001",date:"2024-03-22",desc:"VIR RECU TRESOR PUBLIC",amount:9600000,type:"credit",status:"matched",ref:"TRESOR-2024-001",accountId:"INV-2024-003"},
-  {id:"TXN-004",bankId:"B001",date:"2024-03-20",desc:"SALAIRES MARS 2024",amount:-18000000,type:"debit",status:"matched",ref:"SAL-MAR-2024",accountId:null},
-  {id:"TXN-005",bankId:"B001",date:"2024-03-15",desc:"CAMTEL LIAISONS FIBRE Q1",amount:-1200000,type:"debit",status:"unmatched",ref:null,accountId:null},
-  {id:"TXN-006",bankId:"B001",date:"2024-03-10",desc:"COMMISSION BANCAIRE MARS",amount:-45000,type:"debit",status:"matched",ref:"COM-MAR-2024",accountId:null},
-  {id:"TXN-007",bankId:"B001",date:"2024-03-05",desc:"VIR RECU ERICSSON GAROUA",amount:5610000,type:"credit",status:"matched",ref:"SEPA-001",accountId:"BILL-2024-005"},
-  {id:"TXN-008",bankId:"B002",date:"2024-03-28",desc:"VIR INTERNE BICEC VERS SGC",amount:5000000,type:"credit",status:"matched",ref:"INT-001",accountId:null},
-  {id:"TXN-009",bankId:"B003",date:"2024-03-25",desc:"RETRAIT CAISSE TERRAIN",amount:500000,type:"credit",status:"matched",ref:"CAI-001",accountId:null},
-];
+const INIT_TRANSACTIONS = []; // Données depuis CleanITBooks API
 
 const PageBanking = () => {
   const navigate  = useNavigate();
@@ -5236,15 +4943,7 @@ const PageBanking = () => {
 // ================================================================
 //  PAIE RH — Payroll SYSCOHADA Cameroun
 // ================================================================
-const INIT_EMPLOYEES = [
-  {id:"E001",firstName:"Marie",lastName:"Kamga",title:"Chef de Projet Senior",dept:"Operations",hireDate:"2020-03-01",payType:"Salary",grossSalary:850000,status:"Active",cnps:"123456789",phone:"+237 677 001 001",email:"m.kamga@cleanit.cm"},
-  {id:"E002",firstName:"Jean",lastName:"Fouda",title:"Project Manager",dept:"Operations",hireDate:"2021-01-15",payType:"Salary",grossSalary:750000,status:"Active",cnps:"234567890",phone:"+237 677 002 002",email:"j.fouda@cleanit.cm"},
-  {id:"E003",firstName:"Pierre",lastName:"Etoga",title:"Ingenieur Reseau Senior",dept:"Technique",hireDate:"2019-06-01",payType:"Salary",grossSalary:900000,status:"Active",cnps:"345678901",phone:"+237 677 003 003",email:"p.etoga@cleanit.cm"},
-  {id:"E004",firstName:"Alice",lastName:"Finance",title:"Directrice Financiere",dept:"Finance",hireDate:"2018-01-01",payType:"Salary",grossSalary:1200000,status:"Active",cnps:"456789012",phone:"+237 677 004 004",email:"a.finance@cleanit.cm"},
-  {id:"E005",firstName:"Bob",lastName:"Comptable",title:"Chef Comptable",dept:"Finance",hireDate:"2020-09-01",payType:"Salary",grossSalary:750000,status:"Active",cnps:"567890123",phone:"+237 677 005 005",email:"b.comptable@cleanit.cm"},
-  {id:"E006",firstName:"Samuel",lastName:"Djomo",title:"Technicien Reseau",dept:"Technique",hireDate:"2022-04-01",payType:"Salary",grossSalary:550000,status:"Active",cnps:"678901234",phone:"+237 677 006 006",email:"s.djomo@cleanit.cm"},
-  {id:"E007",firstName:"Ali",lastName:"Moussa",title:"Technicien HSE",dept:"Technique",hireDate:"2023-01-15",payType:"Salary",grossSalary:480000,status:"Active",cnps:"789012345",phone:"+237 677 007 007",email:"a.moussa@cleanit.cm"},
-];
+const INIT_EMPLOYEES = []; // Données depuis CleanITBooks API
 
 const calcPayroll = (grossSalary) => {
   const cnpsEmp   = Math.round(grossSalary * 0.084);
@@ -5264,11 +4963,7 @@ const calcPayroll = (grossSalary) => {
   return {cnpsEmp, cnpsEmp2, cnpsTotal, irpp, cac, totalDeductions, netSalary, cnpsPatronal};
 };
 
-const INIT_PAYROLL_HISTORY = [
-  {id:"PAY-2024-03",period:"Mars 2024",payDate:"2024-03-31",status:"Processed"},
-  {id:"PAY-2024-02",period:"Fevrier 2024",payDate:"2024-02-29",status:"Processed"},
-  {id:"PAY-2024-01",period:"Janvier 2024",payDate:"2024-01-31",status:"Processed"},
-];
+const INIT_PAYROLL_HISTORY = []; // Données depuis CleanITBooks API
 
 const PagePayroll = () => {
   const navigate   = useNavigate();

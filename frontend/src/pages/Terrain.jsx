@@ -21,28 +21,13 @@ const SS = {
   'En déplacement':{ bg:C.orange_l, c:C.orange, dot:C.orange},
 };
 
-const TECHS_SEED = [
-  {id:'T001',name:'Thomas Ngono',role:'5G NR / 4G LTE',region:'Douala',statut:'En mission',missions:47,note:4.8,lat:4.0511,lng:9.7679,certs:['HCNP-5G','HCIP-Carrier'],photo:'https://i.pravatar.cc/150?img=15'},
-  {id:'T002',name:'Jean Mbarga',role:'Survey RF',region:'Yaoundé',statut:'Disponible',missions:32,note:4.5,lat:3.8480,lng:11.5021,certs:['HCNA-5G'],photo:'https://i.pravatar.cc/150?img=17'},
-  {id:'T003',name:'Samuel Djomo',role:'3G / 4G LTE',region:'Bafoussam',statut:'En déplacement',missions:28,note:4.6,lat:5.4764,lng:10.4214,certs:['HCNP-4G'],photo:'https://i.pravatar.cc/150?img=22'},
-  {id:'T004',name:'Ali Moussa',role:'Supervision HSE',region:'Garoua',statut:'Disponible',missions:19,note:4.2,lat:9.3019,lng:13.3920,certs:['HCNA-3G'],photo:'https://i.pravatar.cc/150?img=3'},
-  {id:'T005',name:'Pierre Etoga',role:'5G NR / Fibre',region:'Douala',statut:'Disponible',missions:55,note:4.9,lat:4.0469,lng:9.6952,certs:['HCIP-5G','HCNP-4G'],photo:'https://i.pravatar.cc/150?img=25'},
-];
+const TECHS_SEED = []; // Données réelles depuis API
 
-const MISSIONS_SEED = [
-  {id:'M001',site:'DLA-001',siteName:'Tour MTN Bassa',client:'MTN',type:'Installation 5G NR',techIds:['T001'],statut:'en_cours',pct:65,deadline:'30 mars',arrivee:'07h30',mode:'CleanCam',checklist:[{t:'Sécurité site vérifiée',done:true},{t:'Photos arrivée envoyées',done:true},{t:'Câblage RRU secteur Sud',done:false},{t:'Tests signal 5G NR',done:false}],messages:[{from:'Thomas N.',time:'16h45',txt:'Câbles posés secteur Nord. En attente validation.'},{from:'Vous',time:'16h50',txt:'OK Thomas. Continuez secteur Sud.',me:true}]},
-  {id:'M002',site:'KRI-001',siteName:'Station CAMTEL Kribi',client:'CAMTEL',type:'Swap 4G→5G',techIds:['T005'],statut:'en_cours',pct:80,deadline:'22 avr',arrivee:'06h45',mode:'Geofencing',checklist:[{t:'Inspection structure',done:true},{t:'Démontage ancien équipement',done:true},{t:'Installation BBU 5900',done:true},{t:'Tests finaux',done:false}],messages:[{from:'Pierre E.',time:'14h20',txt:'Tests signal en cours. Bon résultat jusqu\'ici.'}]},
-];
+const MISSIONS_SEED = []; // Données réelles depuis API
 
-const ORDRES_SEED = [
-  {id:'ORD-001',site:'DLA-004',siteName:'Tour MTN Bonabéri',client:'MTN',type:'Maintenance 4G LTE',deadline:'20 mai',urgence:true,jobId:'JOB-004'},
-  {id:'ORD-002',site:'YDE-002',siteName:'Pylône Orange Melen',client:'Orange',type:'Installation 5G NR',deadline:'30 mai',urgence:false,jobId:'JOB-005'},
-];
+const ORDRES_SEED = []; // Données réelles depuis API
 
-const RAPPORTS_SEED = [
-  {id:'R001',site:'DLA-001',titre:'Rapport Phase 2 — DLA-001',tech:'Thomas Ngono',date:'12 mai 2025',statut:'validé',autoIA:true},
-  {id:'R002',site:'KRI-001',titre:'Rapport Swap 4G→5G — KRI-001',tech:'Pierre Etoga',date:'20 mars 2025',statut:'en_attente',autoIA:false},
-];
+const RAPPORTS_SEED = []; // Données réelles depuis API
 
 const scoreIA = (tech, ordre) => {
   if(tech.statut==='En mission') return null;

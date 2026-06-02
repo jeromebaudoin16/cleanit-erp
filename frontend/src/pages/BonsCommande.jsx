@@ -164,68 +164,7 @@ const Table = ({cols,rows,onRowClick,empty='Aucune donnée'}) => (
 );
 
 // ===== DONNÉES SEED =====
-const SEED_BCS = [
-  {
-    id:'1',
-    numero:'BC-MTN-2024-001',
-    client:'MTN Cameroun',
-    dateReception:'2024-01-10',
-    dateEcheance:'2024-03-31',
-    site:'DLA-001',
-    devise:'FCFA',
-    status:'en_cours',
-    description:'Installation équipements 5G NR Site Akwa Douala — Phase 1',
-    projetCree:'PROJ-2024-001',
-    facturesCrees:['FAC-2024-001','FAC-2024-002'],
-    notes:'BC reçu par email le 10/01/2024. Importé depuis le portail MTN.',
-    lignes:[
-      {id:1,ref:'BBU-5G-01',description:'Base Band Unit 5G NR Client AAU5613',unite:'Unité',qte:2,puBC:4500000,tva:true,status:'facture',qteUtilisee:2,qteFacturee:2,notes:''},
-      {id:2,ref:'ANT-5G-01',description:'Antenne active AAU 5G NR 64T64R',unite:'Unité',qte:6,puBC:850000,tva:true,status:'facture',qteUtilisee:6,qteFacturee:6,notes:''},
-      {id:3,ref:'CBL-FO-01',description:'Câble fibre optique CPRI 10m',unite:'Mètre',qte:50,puBC:25000,tva:false,status:'partiel',qteUtilisee:35,qteFacturee:35,notes:'15m non utilisés'},
-      {id:4,ref:'MOD-RF-01',description:'Module RF 2600MHz',unite:'Unité',qte:4,puBC:320000,tva:true,status:'non_facture',qteUtilisee:0,qteFacturee:0,notes:'Non requis sur ce site'},
-      {id:5,ref:'MAIN-01',description:'Main d\'oeuvre installation & config',unite:'Jour',qte:15,puBC:350000,tva:true,status:'facture',qteUtilisee:15,qteFacturee:15,notes:''},
-      {id:6,ref:'TRANS-01',description:'Transport et logistique matériel',unite:'Forfait',qte:1,puBC:450000,tva:false,status:'facture',qteUtilisee:1,qteFacturee:1,notes:''},
-    ],
-  },
-  {
-    id:'2',
-    numero:'BC-ORA-2024-001',
-    client:'Orange Cameroun',
-    dateReception:'2024-01-25',
-    dateEcheance:'2024-02-28',
-    site:'YDE-001',
-    devise:'FCFA',
-    status:'valide',
-    description:'Maintenance préventive réseau 4G LTE Secteur Centre Yaoundé Q1 2024',
-    projetCree:'PROJ-2024-002',
-    facturesCrees:['FAC-2024-003'],
-    notes:'',
-    lignes:[
-      {id:1,ref:'MAINT-4G-01',description:'Maintenance préventive BTS 4G LTE',unite:'Site',qte:8,puBC:900000,tva:true,status:'facture',qteUtilisee:8,qteFacturee:8,notes:''},
-      {id:2,ref:'REMP-BAT-01',description:'Remplacement batteries backup',unite:'Unité',qte:16,puBC:85000,tva:true,status:'partiel',qteUtilisee:12,qteFacturee:12,notes:'4 unités non remplacées'},
-      {id:3,ref:'DIAG-01',description:'Diagnostic réseau et rapport',unite:'Forfait',qte:1,puBC:350000,tva:true,status:'facture',qteUtilisee:1,qteFacturee:1,notes:''},
-    ],
-  },
-  {
-    id:'3',
-    numero:'BC-HUW-2024-001',
-    client:'Client OEM',
-    dateReception:'2024-02-05',
-    dateEcheance:'2024-04-30',
-    site:'KRI-001',
-    devise:'USD',
-    status:'recu',
-    description:'Engineering Services 5G NR Kribi Port — Technical Supervision',
-    projetCree:'',
-    facturesCrees:[],
-    notes:'BC reçu en USD. Taux de change appliqué: 1 USD = 600 FCFA',
-    lignes:[
-      {id:1,ref:'ENG-5G-01',description:'5G NR Site Engineering Services',unite:'Day',qte:40,puBC:850,tva:false,status:'non_facture',qteUtilisee:0,qteFacturee:0,notes:''},
-      {id:2,ref:'SUP-TEC-01',description:'Technical Supervision & Reporting',unite:'Day',qte:10,puBC:1200,tva:false,status:'non_facture',qteUtilisee:0,qteFacturee:0,notes:''},
-      {id:3,ref:'DOC-01',description:'Technical Documentation',unite:'Package',qte:1,puBC:5000,tva:false,status:'non_facture',qteUtilisee:0,qteFacturee:0,notes:''},
-    ],
-  },
-];
+const SEED_BCS = []; // Données réelles depuis API
 
 // ===== MODAL IMPORT BC =====
 const ImportBCModal = ({onClose, onImport}) => {

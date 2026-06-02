@@ -197,23 +197,9 @@ const COMPANIES = [
   {id:"CO006",name:"Ministère des Postes",sector:"Administration",type:"Secteur public",city:"Yaoundé",phone:"+237 222 234 000",website:"minpostel.cm",ca:65000000,deals:1,contacts:1,owner:"David Mballa",lead:"froid",logo:"MIN",logoColor:"#2D3E50",logoText:"#FFFFFF"},
 ];
 
-const DEALS_SEED = [
-  {id:"D001",name:"Déploiement 5G Réseau Cœur MTN",companyId:"CO001",company:"MTN Cameroun",contactId:"CT001",contact:"Jean-Paul Biya",amount:180000000,stage:"negociation",prob:75,closeDate:"2024-06-30",owner:"Marie Kamga",created:"2024-01-15",desc:"Extension réseau 5G sur 15 sites à Douala et Yaoundé",tags:["5G","Infrastructure","Prioritaire"],activities:3},
-  {id:"D002",name:"Optimisation RF Orange Q2",companyId:"CO002",company:"Orange Cameroun",contactId:"CT003",contact:"Paul Ndongo",amount:85000000,stage:"proposition",prob:60,closeDate:"2024-05-15",owner:"Jean Fouda",created:"2024-02-01",desc:"Mission optimisation RF sur 8 régions",tags:["RF","Optimisation"],activities:2},
-  {id:"D003",name:"Fibre Optique CAMTEL Phase 2",companyId:"CO005",company:"CAMTEL",contactId:"CT001",contact:"Jean-Paul Biya",amount:220000000,stage:"qualifie",prob:45,closeDate:"2024-08-31",owner:"Marie Kamga",created:"2024-02-15",desc:"Déploiement fibre optique nationale phase 2",tags:["Fibre","National"],activities:1},
-  {id:"D004",name:"Maintenance Préventive Client",companyId:"CO003",company:"Client OEM",contactId:"CT005",contact:"Wang Lei",amount:45000000,stage:"negociation",prob:85,closeDate:"2024-04-30",owner:"Pierre Etoga",created:"2024-01-20",desc:"Contrat maintenance préventive 50 sites BTS",tags:["Maintenance"],activities:4},
-  {id:"D005",name:"Audit Réseau Nexttel",companyId:"CO004",company:"Nexttel Cameroun",contactId:"CT006",contact:"Amina Diallo",amount:25000000,stage:"prospect",prob:30,closeDate:"2024-07-31",owner:"Jean Fouda",created:"2024-03-01",desc:"Audit complet infrastructure réseau existante",tags:["Audit"],activities:1},
-  {id:"D006",name:"5G Small Cells MTN Douala",bcPo:"416121376123-2",bcNote:"Lié BC MTN DWDM",companyId:"CO001",company:"MTN Cameroun",contactId:"CT001",contact:"Jean-Paul Biya",amount:95000000,stage:"gagne",prob:100,closeDate:"2024-02-28",owner:"Pierre Etoga",created:"2023-12-01",desc:"Installation small cells 5G centre-ville Douala",tags:["5G","Gagné"],activities:5},
-  {id:"D007",name:"Réseau VSAT Orange Régions",companyId:"CO002",company:"Orange Cameroun",contactId:"CT003",contact:"Paul Ndongo",amount:38000000,stage:"perdu",prob:0,closeDate:"2024-01-31",owner:"Jean Fouda",created:"2023-11-15",desc:"Déploiement VSAT zones rurales",tags:["VSAT"],activities:2},
-];
+const DEALS_SEED = []; // Données réelles depuis API
 
-const TASKS_SEED = [
-  {id:"T001",title:"Appel qualification MTN 5G",type:"appel",dealId:"D001",contact:"Jean-Paul Biya",company:"MTN Cameroun",dueDate:"2024-03-15",status:"fait",owner:"Marie Kamga",notes:"Résultat: Positif. Budget confirmé."},
-  {id:"T002",title:"Présentation offre Orange RF",type:"reunion",dealId:"D002",contact:"Paul Ndongo",company:"Orange Cameroun",dueDate:"2024-03-18",status:"planifie",owner:"Jean Fouda",notes:"Préparer deck technique + chiffrage."},
-  {id:"T003",title:"Envoi proposition CAMTEL",type:"email",dealId:"D003",contact:"Dir. Infrastructure",company:"CAMTEL",dueDate:"2024-03-12",status:"fait",owner:"Marie Kamga",notes:"Proposition envoyée. Délai réponse 15 jours."},
-  {id:"T004",title:"Relance Nexttel budget",type:"appel",dealId:"D005",contact:"Amina Diallo",company:"Nexttel Cameroun",dueDate:"2024-03-22",status:"urgent",owner:"Jean Fouda",notes:"Relancer décision budget audit réseau."},
-  {id:"T005",title:"Visite site Client BTS",type:"visite",dealId:"D004",contact:"Wang Lei",company:"Client OEM",dueDate:"2024-03-20",status:"planifie",owner:"Pierre Etoga",notes:"Inspection 5 sites BTS."},
-];
+const TASKS_SEED = []; // Données réelles depuis API
 
 const STAGES = [
   {id:"prospect",    label:"Prospect",    color:"#99ACC2", bg:"#EAF0F6"},
@@ -228,11 +214,7 @@ const STAGES = [
 const CHART_COLORS = ["#FF7A59","#0091AE","#00BDA5","#6B50C8","#F5C400","#99ACC2"];
 
 // Monthly CA data
-const CA_DATA = [
-  {month:"Oct",ca:85,pipeline:120},{month:"Nov",ca:110,pipeline:180},
-  {month:"Déc",ca:95,pipeline:140},{month:"Jan",ca:130,pipeline:200},
-  {month:"Fév",ca:118,pipeline:165},{month:"Mar",ca:145,pipeline:220},
-];
+const CA_DATA = []; // Données réelles depuis API
 
 // Tooltip custom Recharts
 const CustomTooltip = ({active,payload,label}) => {

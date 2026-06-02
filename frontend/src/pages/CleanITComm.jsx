@@ -184,13 +184,7 @@ const MEETINGS = [
   {id:'m4',titre:'Briefing Garoua', date:'2024-05-09',heure:'07:00',duree:20, participants:['u1','u8'],     statut:'upcoming',room:'cleanit-garoua'},
 ];
 
-const EMAILS_DATA = [
-  {id:'e1',from:'MTN Cameroun',       email:'mtn@mtn.cm',       subject:'RE: Facture INV-2024-001 — Paiement',      preview:'Veuillez trouver le virement de 53,935,625 FCFA...',date:NOW-86400000, lu:true, starred:true, pj:1},
-  {id:'e2',from:'Marchés Publics CM', email:'dg@marchespublics.cm',subject:'Contrat GAR-001 — Signature requise',   preview:'Le contrat d\'infrastructure telecom...',          date:NOW-172800000,lu:false,starred:false,pj:2},
-  {id:'e3',from:'Chen Wei — Huawei',  email:'c.wei@huawei.com', subject:'BC-2024-143 — Mise à jour livraison',      preview:'Following our last discussion regarding...',     date:NOW-259200000,lu:false,starred:true, pj:0},
-  {id:'e4',from:'Pierre Etoga',       email:'p.etoga@cleanit.cm',subject:'Rapport 5G NR DLA-001 Phase 2',           preview:'Voici le rapport d\'avancement...',              date:NOW-345600000,lu:true, starred:false,pj:3},
-  {id:'e5',from:'CleanIT ERP',        email:'noreply@cleanit.cm',subject:'[AUTO] Alerte hors zone — Ali Moussa',    preview:'ALERTE GÉOFENCING: Ali Moussa détecté...',       date:NOW-7200000,  lu:false,starred:false,pj:0},
-];
+const EMAILS_DATA = []; // Données réelles depuis API
 
 // ── Helpers ──────────────────────────────────────────────────────────
 const fmtTime = d => {

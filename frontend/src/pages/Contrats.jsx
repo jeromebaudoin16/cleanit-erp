@@ -1,11 +1,6 @@
 import { useState } from 'react';
 
-const SEED = [
-  { id:1, numero:'SLA-2024-001', client:'MTN Cameroun', type:'SLA Gold', sites:['DLA-001','DLA-002','YDE-001'], dateDebut:'2024-01-01', dateFin:'2024-12-31', valeur:25000000, disponibilite:99.5, mttr:4, statut:'actif', penalites:0 },
-  { id:2, numero:'SLA-2024-002', client:'Orange Cameroun', type:'SLA Silver', sites:['BFN-001','GAR-001'], dateDebut:'2024-03-01', dateFin:'2025-02-28', valeur:15000000, disponibilite:99.0, mttr:6, statut:'actif', penalites:250000 },
-  { id:3, numero:'SLA-2024-003', client:'Nexttel', type:'SLA Bronze', sites:['LIM-001'], dateDebut:'2024-02-15', dateFin:'2025-02-14', valeur:8000000, disponibilite:98.5, mttr:8, statut:'actif', penalites:0 },
-  { id:4, numero:'SLA-2023-004', client:'Camtel', type:'SLA Gold', sites:['MAR-001','KRI-001'], dateDebut:'2023-06-01', dateFin:'2024-05-31', valeur:35000000, disponibilite:99.5, mttr:4, statut:'expire', penalites:500000 },
-];
+const SEED = []; // Données réelles depuis API
 
 const STATUT = { actif:{label:'Actif',color:'#16a34a',bg:'#f0fdf4'}, expire:{label:'Expiré',color:'#dc2626',bg:'#fef2f2'}, suspendu:{label:'Suspendu',color:'#f59e0b',bg:'#fefce8'} };
 const fmtN = n => new Intl.NumberFormat('fr-FR').format(n);
