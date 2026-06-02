@@ -480,7 +480,7 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
                   </svg>
                 </div>
                 <div style={{textAlign:'center'}}>
-                  <div style={{fontSize:14,fontWeight:700,color:'rgba(255,255,255,.7)'}}>Bonjour, je suis ChaCha</div>
+                  <div style={{fontSize:14,fontWeight:700,color:'rgba(255,255,255,.7)'}}>{`Bonjour${user?.firstName ? ' '+user.firstName : ''}, je suis ChaCha`}</div>
                   <div style={{fontSize:12,color:'rgba(255,255,255,.35)',marginTop:4}}>Comment puis-je vous aider ?</div>
                   <div style={{fontSize:11,color:'rgba(255,255,255,.2)',marginTop:8}}>Dites "ChaCha" ou cliquez sur 🎤</div>
                 </div>

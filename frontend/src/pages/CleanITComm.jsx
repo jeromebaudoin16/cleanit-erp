@@ -288,10 +288,9 @@ const SectionChat = ({navigate}) => {
   const [realUsers, setRealUsers] = useState([]);
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const token = localStorage.getItem('token');
-  const BASE = 'https://backend-cleanit-erp.vercel.app';
 
   useEffect(() => {
-    fetch(BASE+'/users', {headers:{'Authorization':'Bearer '+token}})
+    fetch('https://backend-cleanit-erp.vercel.app'+'/users', {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(u=>{ if(Array.isArray(u)) setRealUsers(u); }).catch(()=>{});
   }, []);
 
@@ -307,7 +306,7 @@ const SectionChat = ({navigate}) => {
     };
     setDMMessages(p=>[...p, msg]);
     setDMInput('');
-    fetch(BASE+'/feed', {method:'POST',
+    fetch('https://backend-cleanit-erp.vercel.app'+'/feed', {method:'POST',
       headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
       body: JSON.stringify({content:dmInput, type:'dm',
         recipient_id: activeDM.id,
@@ -1270,22 +1269,22 @@ export default function CleanITComm() {
 
   useEffect(() => {
     // Charger tous les utilisateurs pour DMs
-    fetch(BASE+'/users', {headers:{'Authorization':'Bearer '+token}})
+    fetch('https://backend-cleanit-erp.vercel.app'+'/users', {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(u=>{ if(Array.isArray(u)) setRealUsers(u); }).catch(()=>{});
     // Charger les messages du feed pour les canaux
-    fetch(BASE+'/feed', {headers:{'Authorization':'Bearer '+token}})
+    fetch('https://backend-cleanit-erp.vercel.app'+'/feed', {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(m=>{ if(Array.isArray(m)) setFeedMessages(m); }).catch(()=>{});
   }, []);
 
   const sendChannelMessage = async () => {
     if(!channelInput.trim()) return;
     try {
-      await fetch(BASE+'/feed', {method:'POST',
+      await fetch('https://backend-cleanit-erp.vercel.app'+'/feed', {method:'POST',
         headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
         body: JSON.stringify({content:channelInput, type:'channel', channel:activeChannel})
       });
       setChannelInput('');
-      fetch(BASE+'/feed',{headers:{'Authorization':'Bearer '+token}})
+      fetch('https://backend-cleanit-erp.vercel.app'+'/feed',{headers:{'Authorization':'Bearer '+token}})
         .then(r=>r.json()).then(m=>{ if(Array.isArray(m)) setFeedMessages(m); });
     } catch(e) {}
   };
@@ -1301,7 +1300,7 @@ export default function CleanITComm() {
     setDMMessages(p=>[...p, msg]);
     setDMInput('');
     try {
-      await fetch(BASE+'/feed', {method:'POST',
+      await fetch('https://backend-cleanit-erp.vercel.app'+'/feed', {method:'POST',
         headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
         body: JSON.stringify({content:dmInput, type:'dm',
           recipient_id: activeDM.id,
