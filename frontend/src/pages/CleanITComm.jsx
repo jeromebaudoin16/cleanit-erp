@@ -97,7 +97,7 @@ const Icon = ({name, size=20, color='currentColor', active=false}) => {
 };
 
 // ── Données ─────────────────────────────────────────────────────────
-const ME = {id:'u1',nom:'Marie Kamga',avatar:'MK',couleur:'#2563eb',poste:'Chef de Projet',photo:'https://i.pravatar.cc/150?img=47'};
+const ME = (()=>{ const u=JSON.parse(localStorage.getItem('user')||'{}'); return {id:String(u.id||'me'),nom:(u.firstName||'')+(u.lastName?' '+u.lastName:''),avatar:(u.firstName?.[0]||'?')+(u.lastName?.[0]||''),couleur:'#1B4F8A',poste:u.role==='admin'?'Administrateur':u.role==='project_manager'?'Project Manager':u.role==='hr'?'RH':'Technicien',email:u.email||''}; })();
 
 const CONTACTS = [
   {id:'u2',nom:'Jean Fouda',    poste:'Project Manager',  dept:'Operations',avatar:'JF',couleur:'#8b5cf6',status:'online', photo:'https://i.pravatar.cc/150?img=12'},
@@ -109,14 +109,7 @@ const CONTACTS = [
   {id:'u8',nom:'Thomas Ngono', poste:'Technicien',        dept:'Terrain',   avatar:'TN',couleur:'#ea580c',status:'online', photo:'https://i.pravatar.cc/150?img=33'},
 ];
 
-const CHANNELS = [
-  {id:'ch1',nom:'général',         type:'public', unread:3, lastMsg:'Marie: Réunion à 10h ce matin', lastTs:Date.now()-900000,  pinned:true },
-  {id:'ch2',nom:'terrain-douala',  type:'public', unread:0, lastMsg:'Thomas: Arrivé sur site DLA-001', lastTs:Date.now()-3600000, pinned:false},
-  {id:'ch3',nom:'finance',         type:'private',unread:1, lastMsg:'Alice: Facture payée partiellement', lastTs:Date.now()-1800000, pinned:false},
-  {id:'ch4',nom:'chefs-projet',    type:'private',unread:0, lastMsg:'Jean: Rapport prêt', lastTs:Date.now()-7200000, pinned:false},
-  {id:'ch5',nom:'alertes-terrain', type:'system', unread:5, lastMsg:'⚠ Ali Moussa hors zone GAR-001', lastTs:Date.now()-600000,  pinned:true },
-  {id:'ch6',nom:'annonces',        type:'system', unread:1, lastMsg:'[ANNONCE] Nouvelle politique HSE', lastTs:Date.now()-86400000, pinned:false},
-];
+const CHANNELS = []; // Canaux depuis API
 
 
 const CROSS_NOTIFS = [
@@ -1060,101 +1053,69 @@ const SectionDrive = () => {
 //  SECTION CONTACTS
 // ═══════════════════════════════════════════════════════════════════
 const SectionContacts = ({navigate}) => {
-  const [search, setSearch] = useState('');
-  const [sel, setSel] = useState(null);
-  const filtered = [ME,...CONTACTS].filter(u=>!search||(u.nom+u.poste).toLowerCase().includes(search.toLowerCase()));
+  const [contacts, setContacts] = React.useState([]);
+  const [search, setSearch] = React.useState('');
+  const token = localStorage.getItem('token');
+  const meId = JSON.parse(localStorage.getItem('user')||'{}').id;
 
-  return(
-    <div style={{flex:1,display:'flex',overflow:'hidden'}}>
-      {/* List */}
-      <div style={{width:280,background:P.listBg,borderRight:`1px solid ${P.listBorder}`,display:'flex',flexDirection:'column',flexShrink:0}}>
-        <div style={{padding:'12px'}}>
-          <div style={{display:'flex',alignItems:'center',gap:8,background:'#f5f7fa',borderRadius:9,padding:'8px 11px',border:`1px solid ${P.border}`}}>
-            <Icon name="search" size={15} color={P.text4}/>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher un contact..."
-              style={{flex:1,background:'transparent',border:'none',outline:'none',fontSize:13,fontFamily:'inherit'}}/>
-          </div>
-        </div>
-        <div style={{flex:1,overflowY:'auto'}}>
-          {filtered.map(u=>{
-            const isMe2=u.id==='u1';
-            return(
-              <div key={u.id} onClick={()=>setSel(u)}
-                style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',cursor:'pointer',background:sel?.id===u.id?P.listAct:'transparent',borderLeft:sel?.id===u.id?`3px solid ${P.blue}`:'3px solid transparent',transition:'background .1s'}}
-                onMouseEnter={e=>{if(sel?.id!==u.id)e.currentTarget.style.background=P.listHov;}}
-                onMouseLeave={e=>{if(sel?.id!==u.id)e.currentTarget.style.background='transparent';}}>
-                <Av user={u} size={38} showStatus={true}/>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,fontWeight:700,color:P.text,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.nom}{isMe2?' (moi)':''}</div>
-                  <div style={{fontSize:11,color:P.text3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.poste}</div>
-                </div>
-                <div style={{width:8,height:8,borderRadius:4,background:statusDot(u.status||'online'),flexShrink:0}}/>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+  React.useEffect(() => {
+    fetch('https://backend-cleanit-erp.vercel.app/users', 
+      {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json())
+      .then(users => {
+        if(Array.isArray(users)) {
+          setContacts(users
+            .filter(u => u.id !== meId && u.isActive !== false)
+            .map(u => ({
+              id: u.id,
+              nom: (u.firstName||'')+(u.lastName?' '+u.lastName:''),
+              poste: u.role==='admin'?'Administrateur':u.role==='project_manager'?'Project Manager':u.role==='hr'?'Ressources Humaines':'Technicien',
+              email: u.email,
+              avatar: (u.firstName?.[0]||'?')+(u.lastName?.[0]||''),
+              couleur: u.role==='admin'?'#1B4F8A':u.role==='project_manager'?'#5B4FE9':u.role==='hr'?'#2E7D32':'#E97D05',
+              status: 'online', dept: 'CleanIT'
+            }))
+          );
+        }
+      }).catch(()=>{});
+  }, []);
 
-      {/* Detail */}
-      <div style={{flex:1,background:sel?P.white:P.contentBg,display:'flex',flexDirection:'column',overflow:'hidden'}}>
-        {!sel&&(
-          <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:12,color:P.text4}}>
-            <Icon name="contacts" size={56} color={P.border}/>
-            <div style={{fontSize:15,fontWeight:600}}>Sélectionnez un contact</div>
+  const filtered = contacts.filter(u => 
+    !search || u.nom.toLowerCase().includes(search.toLowerCase()) || 
+    u.poste.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div style={{flex:1,overflowY:'auto',padding:'16px'}}>
+      <input value={search} onChange={e=>setSearch(e.target.value)}
+        placeholder="Rechercher un contact..."
+        style={{width:'100%',padding:'10px 14px',border:'1px solid #E5E7EB',borderRadius:10,fontSize:14,marginBottom:16,outline:'none',boxSizing:'border-box'}}/>
+      {filtered.length === 0 && (
+        <div style={{textAlign:'center',padding:'48px',color:'#9CA3AF'}}>
+          <div style={{fontSize:48,marginBottom:12}}>👥</div>
+          <p>{contacts.length === 0 ? 'Chargement des contacts...' : 'Aucun contact trouvé'}</p>
+        </div>
+      )}
+      {filtered.map((u,i) => (
+        <div key={i} style={{display:'flex',alignItems:'center',gap:14,padding:'12px',borderRadius:10,marginBottom:6,background:'white',border:'1px solid #F3F4F6',cursor:'pointer'}}
+          onMouseOver={e=>e.currentTarget.style.borderColor='#6366F1'}
+          onMouseOut={e=>e.currentTarget.style.borderColor='#F3F4F6'}>
+          <div style={{width:42,height:42,borderRadius:21,background:u.couleur,display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontWeight:700,fontSize:15,flexShrink:0}}>
+            {u.avatar}
           </div>
-        )}
-        {sel&&(
-          <div style={{flex:1,overflowY:'auto'}}>
-            {/* Cover */}
-            <div style={{height:120,background:`linear-gradient(135deg,${sel.couleur}40,${sel.couleur}20)`,position:'relative'}}/>
-            <div style={{padding:'0 28px 24px',marginTop:-32}}>
-              <div style={{display:'flex',alignItems:'flex-end',gap:16,marginBottom:16}}>
-                <Av user={sel} size={72} showStatus={true}/>
-                <div style={{flex:1,paddingBottom:8}}>
-                  <div style={{fontSize:20,fontWeight:900,color:P.text}}>{sel.nom}</div>
-                  <div style={{fontSize:13,color:P.text3}}>{sel.poste}</div>
-                </div>
-                <div style={{display:'flex',gap:8,paddingBottom:8}}>
-                  <button onClick={()=>navigate('/cleanitcomm/chat')}
-                    style={{display:'flex',alignItems:'center',gap:5,padding:'8px 14px',borderRadius:9,border:'none',background:P.blue,color:'#fff',fontSize:12,fontWeight:700,cursor:'pointer'}}>
-                    <Icon name="chat" size={14} color="#fff"/> Message
-                  </button>
-                  <button onClick={()=>navigate('/cleanitcomm/reunions')}
-                    style={{display:'flex',alignItems:'center',gap:5,padding:'8px 14px',borderRadius:9,border:`1px solid ${P.border}`,background:P.white,color:P.text2,fontSize:12,fontWeight:600,cursor:'pointer'}}>
-                    <Icon name="video" size={14} color={P.text3}/> Vidéo
-                  </button>
-                  <button style={{display:'flex',alignItems:'center',gap:5,padding:'8px 14px',borderRadius:9,border:`1px solid ${P.border}`,background:P.white,color:P.text2,fontSize:12,fontWeight:600,cursor:'pointer'}}>
-                    <Icon name="email" size={14} color={P.text3}/> Email
-                  </button>
-                </div>
-              </div>
-              <div style={{background:'#f8fafc',borderRadius:12,padding:'16px 20px',border:`1px solid ${P.border}`}}>
-                <div style={{fontSize:12,fontWeight:700,color:P.text3,textTransform:'uppercase',letterSpacing:.5,marginBottom:12}}>Informations</div>
-                {[
-                  {l:'Département',  v:sel.dept||'—'},
-                  {l:'Poste',        v:sel.poste},
-                  {l:'Email',        v:sel.id+'.cleanit@cleanit.cm'},
-                  {l:'Statut',       v:sel.status==='online'?'En ligne':sel.status==='busy'?'Occupé':sel.status==='away'?'Absent':'Hors ligne', c:statusDot(sel.status)},
-                ].map(item=>(
-                  <div key={item.l} style={{display:'flex',justifyContent:'space-between',padding:'9px 0',borderBottom:`1px solid ${P.border}`,alignItems:'center'}}>
-                    <span style={{fontSize:12,color:P.text3}}>{item.l}</span>
-                    <span style={{fontSize:12,fontWeight:600,color:item.c||P.text}}>{item.v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:600,fontSize:14,color:'#111827'}}>{u.nom}</div>
+            <div style={{fontSize:12,color:'#6B7280'}}>{u.poste}</div>
+            <div style={{fontSize:11,color:'#9CA3AF'}}>{u.email}</div>
           </div>
-        )}
-      </div>
+          <div style={{width:10,height:10,borderRadius:5,background:'#10B981'}}/>
+        </div>
+      ))}
     </div>
   );
 };
 
-// ═══════════════════════════════════════════════════════════════════
-//  COMPOSANT PRINCIPAL
-// ═══════════════════════════════════════════════════════════════════
 
-// ── Section WhatsApp ────────────────────────────────────────────────
 function SectionWhatsApp({waMessages,waContacts,sendWAMessage,waInput,setWaInput,sending,selectedContact,setSelectedContact,messagesEndRef}) {
   const T = SECTION_THEME.whatsapp;
   const msgs = selectedContact
