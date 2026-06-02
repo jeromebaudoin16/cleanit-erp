@@ -281,16 +281,16 @@ const IconNav = ({active, navigate, badge}) => {
 //  SECTION CHAT
 // ═══════════════════════════════════════════════════════════════════
 const SectionChat = ({navigate}) => {
-  const [showDMModal, setShowDMModal] = React.useState(false);
-  const [activeDM, setActiveDM] = React.useState(null);
-  const [dmMessages, setDMMessages] = React.useState([]);
-  const [dmInput, setDMInput] = React.useState('');
-  const [realUsers, setRealUsers] = React.useState([]);
+  const [showDMModal, setShowDMModal] = useState(false);
+  const [activeDM, setActiveDM] = useState(null);
+  const [dmMessages, setDMMessages] = useState([]);
+  const [dmInput, setDMInput] = useState('');
+  const [realUsers, setRealUsers] = useState([]);
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const token = localStorage.getItem('token');
   const BASE = 'https://backend-cleanit-erp.vercel.app';
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetch(BASE+'/users', {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(u=>{ if(Array.isArray(u)) setRealUsers(u); }).catch(()=>{});
   }, []);
