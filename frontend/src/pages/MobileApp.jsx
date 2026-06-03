@@ -444,62 +444,173 @@ const ScreenLogin = ({onLogin}) => {
   const [showPwd, setShowPwd] = useState(false);
 
   const doLogin = async() => {
-    if(!email||!pwd) return setErr('Email et mot de passe requis');
+    if(!email||!pwd) return setErr('Veuillez remplir tous les champs');
     setLoading(true); setErr('');
     try {
       const r = await fetch('https://backend-cleanit-erp.vercel.app/auth/login',{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({email:email.trim().toLowerCase(), password:pwd})
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email:email.trim().toLowerCase(), password:pwd.trim()})
       });
       const d = await r.json();
-      if(d.token) {
+      if(d.token){
         localStorage.setItem('token', d.token);
         localStorage.setItem('user', JSON.stringify(d.user));
         onLogin({
-          id: d.user.id, name: d.user.firstName+' '+d.user.lastName,
-          firstName: d.user.firstName, lastName: d.user.lastName,
-          email: d.user.email, role: d.user.role,
+          id: d.user.id,
+          name: d.user.firstName+' '+d.user.lastName,
+          firstName: d.user.firstName,
+          lastName: d.user.lastName,
+          email: d.user.email,
+          role: d.user.role,
           av: (d.user.firstName?.[0]||'?')+(d.user.lastName?.[0]||''),
-          color: '#1B4F8A'
+          color:'#1B4F8A'
         });
-      } else { setErr(d.message || 'Identifiants invalides'); }
-    } catch(e) { setErr('Erreur de connexion au serveur'); }
+      } else { setErr(d.message||'Email ou mot de passe incorrect'); }
+    } catch(e){ setErr('Erreur de connexion. Vérifiez votre réseau.'); }
     setLoading(false);
   };
 
   return (
-    <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#1B4F8A 0%,#0C447C 100%)',display:'flex',alignItems:'center',justifyContent:'center',padding:'20px',fontFamily:"'Inter',sans-serif"}}>
-      <div style={{background:'white',borderRadius:20,padding:'36px 28px',width:'100%',maxWidth:380,boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
-        <div style={{textAlign:'center',marginBottom:28}}>
-          <div style={{width:64,height:64,borderRadius:16,background:'#1B4F8A',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 14px'}}>
-            <span style={{fontSize:28}}>🏢</span>
+    <div style={{
+      minHeight:'100vh', margin:0,
+      background:'linear-gradient(160deg,#0C2D5A 0%,#1B4F8A 45%,#2E7D32 100%)',
+      display:'flex', flexDirection:'column',
+      alignItems:'center', justifyContent:'center',
+      padding:'20px', fontFamily:"'Inter','Helvetica Neue',Arial,sans-serif",
+      position:'relative', overflow:'hidden'
+    }}>
+      {/* Cercles décoratifs */}
+      <div style={{position:'absolute',top:-80,right:-80,width:250,height:250,borderRadius:125,background:'rgba(255,255,255,0.05)'}}/>
+      <div style={{position:'absolute',bottom:-60,left:-60,width:200,height:200,borderRadius:100,background:'rgba(255,255,255,0.05)'}}/>
+      <div style={{position:'absolute',top:'30%',left:-40,width:120,height:120,borderRadius:60,background:'rgba(46,125,50,0.2)'}}/>
+
+      {/* Logo + Nom */}
+      <div style={{textAlign:'center',marginBottom:32,zIndex:1}}>
+        <div style={{
+          width:80,height:80,borderRadius:20,
+          background:'linear-gradient(135deg,#ffffff22,#ffffff44)',
+          border:'2px solid rgba(255,255,255,0.3)',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          margin:'0 auto 16px', backdropFilter:'blur(10px)'
+        }}>
+          <span style={{fontSize:40}}>🏢</span>
+        </div>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4,marginBottom:4}}>
+          <span style={{fontSize:28,fontWeight:900,color:'white',letterSpacing:'-0.5px'}}>Clean</span>
+          <span style={{fontSize:28,fontWeight:900,color:'#4CAF50',letterSpacing:'-0.5px'}}>IT</span>
+          <span style={{fontSize:16,fontWeight:500,color:'rgba(255,255,255,0.7)',marginLeft:4}}>ERP</span>
+        </div>
+        <p style={{color:'rgba(255,255,255,0.6)',fontSize:13,margin:0,letterSpacing:'0.5px'}}>
+          SYSTÈME DE GESTION TERRAIN
+        </p>
+      </div>
+
+      {/* Carte login */}
+      <div style={{
+        background:'rgba(255,255,255,0.97)',
+        borderRadius:24, padding:'32px 28px',
+        width:'100%', maxWidth:380,
+        boxShadow:'0 24px 80px rgba(0,0,0,0.4)',
+        zIndex:1
+      }}>
+        <h2 style={{fontSize:20,fontWeight:700,color:'#0C2D5A',margin:'0 0 4px',textAlign:'center'}}>
+          Connexion
+        </h2>
+        <p style={{fontSize:13,color:'#6B7280',textAlign:'center',marginBottom:24}}>
+          Accédez à votre espace CleanIT
+        </p>
+
+        {/* Email */}
+        <div style={{marginBottom:16}}>
+          <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.5px'}}>
+            Email
+          </label>
+          <div style={{position:'relative'}}>
+            <span style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',fontSize:16}}>✉️</span>
+            <input
+              type="text" inputMode="email"
+              value={email} onChange={e=>setEmail(e.target.value)}
+              placeholder="votre@email.com"
+              autoComplete="username" autoCorrect="off"
+              autoCapitalize="none" spellCheck="false"
+              onKeyDown={e=>e.key==='Enter'&&doLogin()}
+              style={{
+                width:'100%',padding:'13px 14px 13px 40px',
+                border:'1.5px solid #E5E7EB',borderRadius:12,
+                fontSize:14,outline:'none',boxSizing:'border-box',
+                background:'#F9FAFB',color:'#111827',
+                transition:'border-color 0.2s'
+              }}
+              onFocus={e=>e.target.style.borderColor='#1B4F8A'}
+              onBlur={e=>e.target.style.borderColor='#E5E7EB'}
+            />
           </div>
-          <h1 style={{fontSize:22,fontWeight:800,color:'#1B4F8A',margin:'0 0 4px'}}>CleanIT ERP</h1>
-          <p style={{fontSize:13,color:'#6B7280',margin:0}}>Application Mobile — Connexion</p>
         </div>
-        <div style={{marginBottom:14}}>
-          <label style={{display:'block',fontSize:13,fontWeight:600,color:'#374151',marginBottom:4}}>Email</label>
-          <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
-            placeholder="votre@email.com"
-            onKeyDown={e=>e.key==='Enter'&&doLogin()}
-            style={{width:'100%',padding:'12px 14px',border:'1.5px solid #E5E7EB',borderRadius:10,fontSize:14,outline:'none',boxSizing:'border-box'}}/>
-        </div>
+
+        {/* Mot de passe */}
         <div style={{marginBottom:20}}>
-          <label style={{display:'block',fontSize:13,fontWeight:600,color:'#374151',marginBottom:4}}>Mot de passe</label>
-          <input type="password" value={pwd} onChange={e=>setPwd(e.target.value)}
-            placeholder="••••••••"
-            onKeyDown={e=>e.key==='Enter'&&doLogin()}
-            style={{width:'100%',padding:'12px 14px',border:'1.5px solid #E5E7EB',borderRadius:10,fontSize:14,outline:'none',boxSizing:'border-box'}}/>
+          <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.5px'}}>
+            Mot de passe
+          </label>
+          <div style={{position:'relative'}}>
+            <span style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',fontSize:16}}>🔒</span>
+            <input
+              type={showPwd?'text':'password'}
+              value={pwd} onChange={e=>setPwd(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="new-password" autoCorrect="off" autoCapitalize="none"
+              onKeyDown={e=>e.key==='Enter'&&doLogin()}
+              style={{
+                width:'100%',padding:'13px 44px 13px 40px',
+                border:'1.5px solid #E5E7EB',borderRadius:12,
+                fontSize:14,outline:'none',boxSizing:'border-box',
+                background:'#F9FAFB',color:'#111827',
+                transition:'border-color 0.2s'
+              }}
+              onFocus={e=>e.target.style.borderColor='#1B4F8A'}
+              onBlur={e=>e.target.style.borderColor='#E5E7EB'}
+            />
+            <button type="button" onClick={()=>setShowPwd(!showPwd)} style={{
+              position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',
+              background:'none',border:'none',cursor:'pointer',fontSize:18,
+              color:'#6B7280',padding:4
+            }}>{showPwd?'🙈':'👁️'}</button>
+          </div>
         </div>
-        {err&&<div style={{background:'#FEE2E2',color:'#991B1B',borderRadius:8,padding:'10px 14px',fontSize:13,marginBottom:14,textAlign:'center'}}>{err}</div>}
-        <button onClick={doLogin} disabled={loading}
-          style={{width:'100%',background:loading?'#9CA3AF':'#1B4F8A',color:'white',border:'none',borderRadius:10,padding:'13px',fontSize:15,fontWeight:700,cursor:loading?'not-allowed':'pointer'}}>
-          {loading ? 'Connexion...' : 'Se connecter →'}
+
+        {/* Erreur */}
+        {err&&(
+          <div style={{
+            background:'#FEE2E2',color:'#991B1B',
+            borderRadius:10,padding:'10px 14px',
+            fontSize:13,marginBottom:16,textAlign:'center',
+            border:'1px solid #FECACA'
+          }}>⚠️ {err}</div>
+        )}
+
+        {/* Bouton */}
+        <button onClick={doLogin} disabled={loading} style={{
+          width:'100%',
+          background:loading?'#9CA3AF':'linear-gradient(135deg,#1B4F8A,#0C2D5A)',
+          color:'white',border:'none',borderRadius:12,
+          padding:'14px',fontSize:15,fontWeight:700,
+          cursor:loading?'not-allowed':'pointer',
+          boxShadow:loading?'none':'0 4px 20px rgba(27,79,138,0.4)',
+          transition:'all 0.2s',letterSpacing:'0.3px'
+        }}>
+          {loading ? '⏳ Connexion...' : 'Se connecter →'}
         </button>
-        <div style={{textAlign:'center',marginTop:16,fontSize:12,color:'#9CA3AF'}}>
-          CleanIT SARL — Système ERP Terrain
+
+        <div style={{textAlign:'center',marginTop:20,paddingTop:16,borderTop:'1px solid #F3F4F6'}}>
+          <span style={{fontSize:11,color:'#9CA3AF'}}>CleanIT SARL · Douala, Cameroun</span>
         </div>
       </div>
+
+      {/* Version */}
+      <p style={{color:'rgba(255,255,255,0.3)',fontSize:11,marginTop:20,zIndex:1}}>
+        v2.0 · 2026
+      </p>
     </div>
   );
 };
