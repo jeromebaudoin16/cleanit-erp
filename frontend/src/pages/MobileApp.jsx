@@ -448,7 +448,7 @@ const ScreenLogin = ({onLogin}) => {
     try {
       const r = await fetch('https://backend-cleanit-erp.vercel.app/auth/login',{
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({email:email.trim(), password:pwd})
+        body: JSON.stringify({email:email.trim().toLowerCase(), password:pwd})
       });
       const d = await r.json();
       if(d.token) {
