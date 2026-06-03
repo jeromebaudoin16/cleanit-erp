@@ -441,6 +441,7 @@ const ScreenLogin = ({onLogin}) => {
   const [pwd, setPwd] = useState('');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
 
   const doLogin = async() => {
     if(!email||!pwd) return setErr('Email et mot de passe requis');
