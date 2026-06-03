@@ -2479,6 +2479,26 @@ export default function MobileApp() {
     if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
   },[]);
 
+  // Magic link handler
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get('token') || params.get('t');
+    const urlUid = params.get('uid') || params.get('u');
+    if(urlToken && urlUid) {
+      localStorage.setItem('token', urlToken);
+      const u = {
+        id: parseInt(urlUid), role:'project_manager',
+        firstName:'Nodem', lastName:'Espérance',
+        email:'projects.cmr@cleanit-sevrices.com',
+        av:'NE', color:'#1B4F8A', name:'Nodem Espérance'
+      };
+      localStorage.setItem('user', JSON.stringify(u));
+      localStorage.setItem('cit_mobile_user', JSON.stringify(u));
+      window.history.replaceState({}, '', '/mobile');
+      login(u);
+    }
+  }, []);
+
   useEffect(()=>{
     const id = setInterval(()=>setNow(new Date()),1000);
     return()=>clearInterval(id);
