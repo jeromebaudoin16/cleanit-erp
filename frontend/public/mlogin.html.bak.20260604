@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CleanIT — Connexion</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(160deg,#0C2D5A,#1B4F8A,#2E7D32);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.card{background:white;border-radius:20px;padding:32px 24px;width:90%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.4);}
+h2{color:#0C2D5A;text-align:center;margin:0 0 20px;}
+input{width:100%;padding:12px;border:1.5px solid #E5E7EB;border-radius:10px;font-size:15px;margin-bottom:12px;box-sizing:border-box;}
+button{width:100%;background:#1B4F8A;color:white;border:none;border-radius:10px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;}
+.err{background:#FEE2E2;color:#991B1B;border-radius:8px;padding:10px;text-align:center;margin-bottom:12px;font-size:13px;}
+.logo{text-align:center;margin-bottom:20px;font-size:28px;font-weight:900;}
+.logo span{color:#4CAF50;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">Clean<span>IT</span> ERP</div>
+  <h2>Connexion</h2>
+  <div id="err" class="err" style="display:none"></div>
+  <input type="text" id="email" placeholder="Email" autocomplete="off" autocorrect="off" autocapitalize="none"/>
+  <input type="password" id="pwd" placeholder="Mot de passe" autocomplete="new-password"/>
+  <button onclick="doLogin()">Se connecter →</button>
+</div>
+<script>
+// Vérifier magic link
+const p = new URLSearchParams(location.search);
+const tk = p.get('token') || p.get('t');
+const uid = p.get('uid') || p.get('u');
+if(tk && uid) {
+  localStorage.setItem('token', tk);
+  localStorage.setItem('user', JSON.stringify({
+    id:parseInt(uid), role:'project_manager',
+    firstName:'Nodem', lastName:'Espérance',
+    email:'projects.cmr@cleanit-sevrices.com',
+    av:'NE', color:'#1B4F8A', name:'Nodem Espérance'
+  }));
+  localStorage.setItem('cit_mobile_user', localStorage.getItem('user'));
+  location.href = '/mobile';
+}
+
+async function doLogin(){
+  const email = document.getElementById('email').value.trim().toLowerCase();
+  const pwd = document.getElementById('pwd').value.trim();
+  if(!email||!pwd){showErr('Remplissez tous les champs');return;}
+  try{
+    const r = await fetch('https://backend-cleanit-erp.vercel.app/auth/login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email,password:pwd})
+    });
+    const d = await r.json();
+    if(d.token){
+      localStorage.setItem('token',d.token);
+      localStorage.setItem('user',JSON.stringify(d.user));
+      localStorage.setItem('cit_mobile_user',JSON.stringify(d.user));
+      location.href='/mobile';
+    } else { showErr(d.message||'Identifiants incorrects'); }
+  } catch(e){ showErr('Erreur réseau'); }
+}
+function showErr(m){const e=document.getElementById('err');e.textContent=m;e.style.display='block';}
+document.getElementById('pwd').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+</script>
+</body>
+</html>
