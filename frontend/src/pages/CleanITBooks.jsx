@@ -6628,85 +6628,265 @@ const PageReconciliation = ({invoices=[], bills=[]}) => {
 
 // ── PAGE IMPORT CSV BANCAIRE ────────────────────────────────────
 const PageImportCSV = () => {
+  const [drag, setDrag] = useState(false);
+  const [file, setFile] = useState(null);
   const [rows, setRows] = useState([]);
-  const [importing, setImporting] = useState(false);
-  const [done, setDone] = useState(false);
-  const fileRef = useRef(null);
+  const [headers, setHeaders] = useState([]);
+  const [mapping, setMapping] = useState({date:'',desc:'',credit:'',debit:''});
+  const [step, setStep] = useState(1); // 1=upload 2=mapping 3=preview 4=done
+  const [imported, setImported] = useState(0);
+  const [errors, setErrors] = useState([]);
+  const token = localStorage.getItem('token');
+  const fmtF = n => new Intl.NumberFormat('fr-FR').format(Math.round(Math.abs(n||0)));
+
+  const QB_FIELDS = [
+    {key:'date', label:'Date', required:true, hint:'Ex: 2024-01-15'},
+    {key:'desc', label:'Description', required:true, hint:'Libellé transaction'},
+    {key:'credit', label:'Crédit (entrée)', required:false, hint:'Montant entrant'},
+    {key:'debit', label:'Débit (sortie)', required:false, hint:'Montant sortant'},
+    {key:'ref', label:'Référence', required:false, hint:'N° chèque, virement...'},
+  ];
 
   const parseCSV = (text) => {
-    const lines = text.trim().split(/\r?\n/);
-    return lines.slice(1).map((line,i) => {
-      const cols = line.split(',').map(c=>c.replace(/"/g,'').trim());
-      return {id:i+1, date:cols[0]||'', desc:cols[1]||'', credit:Number(cols[2])||0, debit:Number(cols[3])||0};
-    }).filter(r=>r.date||r.desc);
+    const lines = text.trim().split("\n");
+    if(lines.length < 2) return;
+    const hdrs = lines[0].split(",").map(h=>h.trim().replace(/"/g,""));
+    setHeaders(hdrs);
+    const data = lines.slice(1).map(line=>{
+      const vals = line.split(",").map(v=>v.trim().replace(/"/g,""));
+      const row = {};
+      hdrs.forEach((h,i)=>row[h]=vals[i]||"");
+      return row;
+    }).filter(r=>Object.values(r).some(v=>v));
+    setRows(data);
+    // Auto-mapping intelligent
+    const autoMap = {date:'',desc:'',credit:'',debit:'',ref:''};
+    hdrs.forEach(h=>{
+      const hl = h.toLowerCase();
+      if(hl.includes('date')) autoMap.date = h;
+      else if(hl.includes('desc')||hl.includes('libel')||hl.includes('label')) autoMap.desc = h;
+      else if(hl.includes('credit')||hl.includes('entree')||hl.includes('in')) autoMap.credit = h;
+      else if(hl.includes('debit')||hl.includes('sortie')||hl.includes('out')) autoMap.debit = h;
+      else if(hl.includes('ref')||hl.includes('num')) autoMap.ref = h;
+    });
+    setMapping(autoMap);
+    setStep(2);
   };
 
-  const handleFile = e => {
-    const file = e.target.files[0];
-    if(!file) return;
+  const handleFile = (f) => {
+    if(!f) return;
+    setFile(f);
     const reader = new FileReader();
-    reader.onload = ev => { setRows(parseCSV(ev.target.result)); setDone(false); };
-    reader.readAsText(file);
+    reader.onload = e => parseCSV(e.target.result);
+    reader.readAsText(f);
   };
 
-  const importRows = () => {
-    setImporting(true);
-    setTimeout(() => { setImporting(false); setDone(true); }, 1500);
+  const handleDrop = (e) => {
+    e.preventDefault(); setDrag(false);
+    const f = e.dataTransfer.files[0];
+    if(f&&(f.name.endsWith(".csv")||f.name.endsWith(".txt"))) handleFile(f);
+    else alert("Veuillez déposer un fichier CSV");
   };
 
-  return (
-    <div>
-      <CIBTopBar title="Import relevé bancaire — CSV" icon="download" color={C.blue}/>
-      <div style={{padding:'20px 24px'}}>
-        <div style={{background:C.blue_l,borderRadius:10,padding:'20px 24px',marginBottom:20,border:`1px solid #BFDBFE`}}>
-          <div style={{fontSize:14,fontWeight:700,color:C.blue,marginBottom:8}}>Format CSV attendu</div>
-          <pre style={{fontSize:11,fontFamily:"monospace",background:C.white,padding:10,borderRadius:6,margin:0}}>Date,Description,Credit,Debit{String.fromCharCode(10)}2025-05-01,Virement MTN,45000000,0{String.fromCharCode(10)}2025-05-03,Paiement fournisseur,0,3500000</pre>
-          <div style={{marginTop:12,display:'flex',gap:10}}>
-            <button onClick={()=>fileRef.current?.click()}
-              style={{padding:'9px 20px',borderRadius:8,border:'none',background:C.blue,color:'#fff',fontSize:13,fontWeight:700,cursor:'pointer'}}>
-              📂 Choisir fichier CSV
-            </button>
-            <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} style={{display:'none'}}/>
-            <button onClick={()=>{
-              const sample = `Date,Description,Crédit,Débit
-2025-05-01,"Virement MTN",45000000,0
-2025-05-03,"Paiement fournisseur",0,3500000
-2025-05-05,"Virement Orange",28000000,0`;
-              const b = new Blob([sample],{type:'text/csv'});
-              const a = document.createElement('a'); a.href=URL.createObjectURL(b); a.download='template_bancaire.csv'; a.click();
-            }} style={{padding:'9px 20px',borderRadius:8,border:`1px solid ${C.blue}`,background:'none',color:C.blue,fontSize:13,cursor:'pointer',fontWeight:600}}>
-              📥 Télécharger template
-            </button>
-          </div>
+  const preview = rows.slice(0,5).map(r=>({
+    date: r[mapping.date]||"—",
+    desc: r[mapping.desc]||"—",
+    credit: parseFloat(r[mapping.credit])||0,
+    debit: parseFloat(r[mapping.debit])||0,
+    ref: r[mapping.ref||""]||"",
+  }));
+
+  const doImport = async() => {
+    setStep(4); setImported(0); setErrors([]);
+    let ok=0, errs=[];
+    for(const row of rows){
+      try{
+        const body = {
+          date: row[mapping.date],
+          description: row[mapping.desc],
+          credit: parseFloat(row[mapping.credit])||0,
+          debit: parseFloat(row[mapping.debit])||0,
+          reference: row[mapping.ref||""]||"",
+          type: "import_csv"
+        };
+        const r = await fetch("https://backend-cleanit-erp.vercel.app/journal",{
+          method:"POST",
+          headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+          body: JSON.stringify(body)
+        });
+        if(r.ok) ok++;
+        else errs.push(row[mapping.desc]||"ligne");
+      }catch(e){ errs.push("Erreur réseau"); }
+    }
+    setImported(ok); setErrors(errs);
+  };
+
+  const downloadTemplate = () => {
+    const csv = "Date,Description,Credit,Debit,Reference\n2024-01-15,Virement MTN Cameroun,53935625,0,VIR-MTN-001\n2024-01-20,Paiement fournisseur Huawei,0,28500000,FACT-HW-001\n";
+    const blob = new Blob([csv],{type:"text/csv"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download="template_cleanit.csv"; a.click();
+  };
+
+  return(
+    <div style={{minHeight:"100vh",background:"#F4F5F7",fontFamily:"'Avenir Next','Helvetica Neue',Arial,sans-serif"}}>
+      <CIBTopBar title="Import relevé bancaire — CSV" icon="upload" color={C.blue}>
+        <button onClick={downloadTemplate} style={{background:C.white,border:"1px solid "+C.border,borderRadius:4,padding:"7px 16px",fontSize:13,cursor:"pointer",color:C.text2,fontWeight:600}}>
+          📥 Télécharger template
+        </button>
+      </CIBTopBar>
+
+      <div style={{maxWidth:900,margin:"0 auto",padding:"32px 24px"}}>
+        {/* ÉTAPES QB STYLE */}
+        <div style={{display:"flex",alignItems:"center",marginBottom:32}}>
+          {[{n:1,l:"Importer"},{n:2,l:"Mapper"},{n:3,l:"Vérifier"},{n:4,l:"Terminé"}].map((s,i)=>(
+            <div key={s.n} style={{display:"flex",alignItems:"center"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{width:32,height:32,borderRadius:16,background:step>=s.n?C.green:"#D4D6D8",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,fontWeight:700}}>{step>s.n?"✓":s.n}</div>
+                <span style={{fontSize:14,fontWeight:step===s.n?700:400,color:step>=s.n?C.text:C.text3}}>{s.l}</span>
+              </div>
+              {i<3&&<div style={{width:60,height:2,background:step>s.n?C.green:"#D4D6D8",margin:"0 12px"}}/>}
+            </div>
+          ))}
         </div>
 
-        {rows.length>0&&(
-          <div>
-            <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,overflow:'hidden',marginBottom:16}}>
-              <div style={{padding:'12px 16px',borderBottom:`1px solid ${C.border2}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                <span style={{fontWeight:700,fontSize:13,color:C.text}}>{rows.length} transactions importées</span>
-                {done&&<span style={{color:C.green,fontWeight:700,fontSize:13}}>✓ Import réussi</span>}
+        {/* ÉTAPE 1 — UPLOAD */}
+        {step===1&&(
+          <div style={{background:"#fff",borderRadius:8,border:"1px solid "+C.border,boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
+            <div style={{padding:"20px 24px",borderBottom:"1px solid "+C.border}}>
+              <h3 style={{margin:0,fontSize:17,fontWeight:700,color:C.text}}>Importer un relevé bancaire</h3>
+              <p style={{margin:"4px 0 0",fontSize:13,color:C.text3}}>Formats acceptés: CSV, TXT · Encodage: UTF-8</p>
+            </div>
+            <div style={{padding:32}}>
+              {/* ZONE DRAG & DROP QB STYLE */}
+              <div
+                onDragOver={e=>{e.preventDefault();setDrag(true);}}
+                onDragLeave={()=>setDrag(false)}
+                onDrop={handleDrop}
+                onClick={()=>document.getElementById("csv_input").click()}
+                style={{
+                  border:`2px dashed ${drag?C.green:C.gray4}`,
+                  borderRadius:8, padding:"48px 24px",
+                  textAlign:"center", cursor:"pointer",
+                  background:drag?"#EBF9E8":"#F9FAFB",
+                  transition:"all 0.15s"
+                }}>
+                <div style={{fontSize:48,marginBottom:12}}>📂</div>
+                <p style={{fontSize:16,fontWeight:700,color:C.text,margin:"0 0 8px"}}>
+                  {drag?"Relâchez pour importer":"Glissez-déposez votre fichier CSV ici"}
+                </p>
+                <p style={{fontSize:13,color:C.text3,margin:"0 0 20px"}}>ou</p>
+                <button style={{background:C.blue,color:"#fff",border:"none",borderRadius:4,padding:"10px 24px",fontSize:14,fontWeight:600,cursor:"pointer"}}>
+                  Choisir un fichier
+                </button>
+                <input id="csv_input" type="file" accept=".csv,.txt" style={{display:"none"}}
+                  onChange={e=>handleFile(e.target.files[0])}/>
               </div>
-              <table style={{width:'100%',borderCollapse:'collapse'}}>
-                <thead><tr style={{background:'#F4F5F7'}}>
-                  {['Date','Description','Crédit','Débit'].map(h=><th key={h} style={{padding:'9px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:C.text3,textTransform:'uppercase'}}>{h}</th>)}
-                </tr></thead>
-                <tbody>
-                  {rows.slice(0,10).map((r,i)=>(
-                    <tr key={i} style={{borderBottom:`1px solid ${C.border2}`}}>
-                      <td style={{padding:'9px 14px',fontSize:12,color:C.text3}}>{r.date}</td>
-                      <td style={{padding:'9px 14px',fontSize:13,color:C.text}}>{r.desc}</td>
-                      <td style={{padding:'9px 14px',fontSize:13,fontWeight:700,color:C.green}}>{r.credit>0?fN(r.credit)+' F':'—'}</td>
-                      <td style={{padding:'9px 14px',fontSize:13,fontWeight:700,color:C.red}}>{r.debit>0?fN(r.debit)+' F':'—'}</td>
-                    </tr>
+
+              {/* FORMAT ATTENDU */}
+              <div style={{marginTop:24,background:"#F4F5F7",borderRadius:8,padding:"16px 20px",border:"1px solid "+C.border}}>
+                <p style={{margin:"0 0 10px",fontSize:13,fontWeight:700,color:C.text2}}>📋 Format CSV attendu :</p>
+                <code style={{fontSize:12,color:C.text,background:"#fff",padding:"10px 14px",borderRadius:4,display:"block",border:"1px solid "+C.border}}>
+                  Date,Description,Credit,Debit,Reference<br/>
+                  2024-01-15,Virement MTN Cameroun,53935625,0,VIR-MTN-001<br/>
+                  2024-01-20,Paiement fournisseur,0,28500000,FACT-HW-001
+                </code>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ÉTAPE 2 — MAPPING */}
+        {step===2&&(
+          <div style={{background:"#fff",borderRadius:8,border:"1px solid "+C.border,boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
+            <div style={{padding:"20px 24px",borderBottom:"1px solid "+C.border}}>
+              <h3 style={{margin:0,fontSize:17,fontWeight:700,color:C.text}}>Correspondance des colonnes</h3>
+              <p style={{margin:"4px 0 0",fontSize:13,color:C.text3}}>{rows.length} lignes détectées dans <strong>{file?.name}</strong></p>
+            </div>
+            <div style={{padding:24}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:24}}>
+                {QB_FIELDS.map(field=>(
+                  <div key={field.key}>
+                    <label style={{display:"block",fontSize:13,fontWeight:600,color:C.text2,marginBottom:4}}>
+                      {field.label} {field.required&&<span style={{color:C.red}}>*</span>}
+                    </label>
+                    <select value={mapping[field.key]||""} onChange={e=>setMapping(p=>({...p,[field.key]:e.target.value}))}
+                      style={{width:"100%",padding:"9px 12px",border:"1px solid "+C.border,borderRadius:4,fontSize:14,color:C.text,background:"#fff",outline:"none"}}>
+                      <option value="">— Ne pas importer —</option>
+                      {headers.map(h=><option key={h} value={h}>{h}</option>)}
+                    </select>
+                    <p style={{fontSize:11,color:C.text3,margin:"3px 0 0"}}>{field.hint}</p>
+                  </div>
+                ))}
+              </div>
+              <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+                <button onClick={()=>{setStep(1);setFile(null);setRows([]);}} style={{background:C.white,border:"1px solid "+C.border,borderRadius:4,padding:"9px 20px",fontSize:14,cursor:"pointer",color:C.text2}}>← Retour</button>
+                <button onClick={()=>setStep(3)} disabled={!mapping.date||!mapping.desc} style={{background:(!mapping.date||!mapping.desc)?"#D4D6D8":C.green,color:"#fff",border:"none",borderRadius:4,padding:"9px 20px",fontSize:14,fontWeight:600,cursor:"pointer"}}>
+                  Vérifier ({rows.length} lignes) →
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ÉTAPE 3 — PREVIEW */}
+        {step===3&&(
+          <div style={{background:"#fff",borderRadius:8,border:"1px solid "+C.border,boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
+            <div style={{padding:"20px 24px",borderBottom:"1px solid "+C.border}}>
+              <h3 style={{margin:0,fontSize:17,fontWeight:700,color:C.text}}>Vérification avant import</h3>
+              <p style={{margin:"4px 0 0",fontSize:13,color:C.text3}}>Aperçu des 5 premières lignes sur {rows.length} au total</p>
+            </div>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"collapse"}}>
+                <thead><tr style={{background:"#F4F5F7"}}>
+                  {["Date","Description","Crédit","Débit","Référence"].map(h=>(
+                    <th key={h} style={{padding:"10px 14px",textAlign:"left",fontSize:12,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:"0.5px"}}>{h}</th>
                   ))}
-                </tbody>
+                </tr></thead>
+                <tbody>{preview.map((r,i)=>(
+                  <tr key={i} style={{borderBottom:"1px solid "+C.border2}}>
+                    <td style={{padding:"10px 14px",fontSize:13,color:C.text2}}>{r.date}</td>
+                    <td style={{padding:"10px 14px",fontSize:13,color:C.text,fontWeight:500}}>{r.desc}</td>
+                    <td style={{padding:"10px 14px",fontSize:13,color:C.green,fontWeight:r.credit>0?600:400}}>{r.credit>0?fmtF(r.credit)+" F":"—"}</td>
+                    <td style={{padding:"10px 14px",fontSize:13,color:C.red,fontWeight:r.debit>0?600:400}}>{r.debit>0?fmtF(r.debit)+" F":"—"}</td>
+                    <td style={{padding:"10px 14px",fontSize:13,color:C.text3}}>{r.ref||"—"}</td>
+                  </tr>
+                ))}</tbody>
               </table>
             </div>
-            <button onClick={importRows} disabled={importing||done}
-              style={{padding:'10px 24px',borderRadius:8,border:'none',background:done?C.green:C.blue,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer'}}>
-              {importing?'Import en cours..':done?'✓ Importé dans CleanITBooks':'Importer dans CleanITBooks'}
-            </button>
+            {rows.length>5&&<div style={{padding:"10px 14px",background:"#F4F5F7",borderTop:"1px solid "+C.border,fontSize:13,color:C.text3}}>
+              ... et {rows.length-5} autres lignes
+            </div>}
+            <div style={{padding:"16px 24px",borderTop:"1px solid "+C.border,display:"flex",gap:8,justifyContent:"flex-end"}}>
+              <button onClick={()=>setStep(2)} style={{background:C.white,border:"1px solid "+C.border,borderRadius:4,padding:"9px 20px",fontSize:14,cursor:"pointer",color:C.text2}}>← Modifier</button>
+              <button onClick={doImport} style={{background:C.green,color:"#fff",border:"none",borderRadius:4,padding:"9px 24px",fontSize:14,fontWeight:700,cursor:"pointer"}}>
+                ✓ Importer {rows.length} transactions
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ÉTAPE 4 — RÉSULTAT */}
+        {step===4&&(
+          <div style={{background:"#fff",borderRadius:8,border:"1px solid "+C.border,boxShadow:"0 1px 3px rgba(0,0,0,0.08)",padding:48,textAlign:"center"}}>
+            <div style={{fontSize:56,marginBottom:16}}>{errors.length===0?"✅":"⚠️"}</div>
+            <h3 style={{fontSize:22,fontWeight:700,color:C.text,margin:"0 0 8px"}}>
+              {errors.length===0?"Import réussi !":"Import terminé avec erreurs"}
+            </h3>
+            <p style={{fontSize:15,color:C.text2,margin:"0 0 24px"}}>
+              <strong style={{color:C.green}}>{imported}</strong> transaction(s) importée(s) avec succès
+              {errors.length>0&&<span style={{color:C.red}}> · {errors.length} erreur(s)</span>}
+            </p>
+            <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+              <button onClick={()=>{setStep(1);setFile(null);setRows([]);setImported(0);setErrors([]);}}
+                style={{background:C.white,border:"1px solid "+C.border,borderRadius:4,padding:"10px 24px",fontSize:14,cursor:"pointer",color:C.text2,fontWeight:600}}>
+                Importer un autre fichier
+              </button>
+              <button onClick={()=>window.location.href="/cleanitbooks/banking"}
+                style={{background:C.blue,color:"#fff",border:"none",borderRadius:4,padding:"10px 24px",fontSize:14,fontWeight:700,cursor:"pointer"}}>
+                Voir le Banking →
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -6714,7 +6894,7 @@ const PageImportCSV = () => {
   );
 };
 
-// ── PAGE FACTURES RÉCURRENTES ───────────────────────────────────
+
 const PageRecurring = ({customers=[], invoices=[], setInvoices}) => {
   const [templates, setTemplates] = useState([
     {id:'REC001', name:'Abonnement mensuel MTN', customerId:'C001', amount:5000000, freq:'Mensuelle', nextDate:'2025-06-01', active:true, lastGen:'2025-05-01'},
