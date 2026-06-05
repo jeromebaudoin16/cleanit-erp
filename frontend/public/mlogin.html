@@ -5,63 +5,158 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CleanIT — Connexion</title>
 <style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 body{margin:0;font-family:Arial,sans-serif;background:linear-gradient(160deg,#0C2D5A,#1B4F8A,#2E7D32);min-height:100vh;display:flex;align-items:center;justify-content:center;}
 .card{background:white;border-radius:20px;padding:32px 24px;width:90%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,0.4);}
-h2{color:#0C2D5A;text-align:center;margin:0 0 20px;}
-input{width:100%;padding:12px;border:1.5px solid #E5E7EB;border-radius:10px;font-size:15px;margin-bottom:12px;box-sizing:border-box;}
-button{width:100%;background:#1B4F8A;color:white;border:none;border-radius:10px;padding:14px;font-size:16px;font-weight:700;cursor:pointer;}
-.err{background:#FEE2E2;color:#991B1B;border-radius:8px;padding:10px;text-align:center;margin-bottom:12px;font-size:13px;}
-.logo{text-align:center;margin-bottom:20px;font-size:28px;font-weight:900;}
-.logo span{color:#4CAF50;}
+h2{color:#0C2D5A;text-align:center;margin:0 0 20px;font-size:20px;}
+.field{position:relative;margin-bottom:14px;}
+.field input{
+  width:100%;padding:14px 16px;
+  border:1.5px solid #E5E7EB;border-radius:10px;
+  font-size:16px;/* 16px évite le zoom auto iOS/Android */
+  outline:none;transition:border .2s;
+  /* PAS d'autocomplete tricks — on gère manuellement */
+  background:#fff;
+}
+.field input:focus{border-color:#1B4F8A;}
+button{
+  width:100%;background:#1B4F8A;color:white;
+  border:none;border-radius:10px;padding:14px;
+  font-size:16px;font-weight:700;cursor:pointer;
+  margin-top:4px;
+}
+button:active{opacity:.85;}
+button:disabled{opacity:.6;cursor:not-allowed;}
+.err{background:#FEE2E2;color:#991B1B;border-radius:8px;padding:10px;text-align:center;margin-bottom:12px;font-size:13px;display:none;}
+.logo{text-align:center;margin-bottom:20px;}
+.logo-text{font-size:28px;font-weight:900;color:#0C2D5A;}
+.logo-text span{color:#4CAF50;}
+.spinner{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px;}
+@keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
 <div class="card">
-  <div class="logo">Clean<span>IT</span> ERP</div>
+  <div class="logo">
+    <div class="logo-text">Clean<span>IT</span> ERP</div>
+  </div>
   <h2>Connexion</h2>
-  <div id="err" class="err" style="display:none"></div>
-  <input type="text" id="email" placeholder="Email" autocomplete="off" autocorrect="off" autocapitalize="none"/>
-  <input type="password" id="pwd" placeholder="Mot de passe" autocomplete="new-password"/>
-  <button onclick="doLogin()">Se connecter →</button>
+  <div id="err" class="err"></div>
+
+  <!-- Champs sans autocomplete pour éviter l'interférence Chrome Android -->
+  <div class="field">
+    <input type="email" id="email" placeholder="Email"
+      autocomplete="username"
+      autocorrect="off" autocapitalize="none" spellcheck="false"
+      inputmode="email"
+    />
+  </div>
+  <div class="field">
+    <input type="password" id="pwd" placeholder="Mot de passe"
+      autocomplete="current-password"
+    />
+  </div>
+  <button id="btn" onclick="doLogin()">Se connecter →</button>
 </div>
+
 <script>
-// Vérifier magic link
+// ── Magic link ──────────────────────────────────────────────
 const p = new URLSearchParams(location.search);
-const tk = p.get('token') || p.get('t');
-const uid = p.get('uid') || p.get('u');
-if(tk && uid) {
-  localStorage.setItem('token', tk);
-  localStorage.setItem('user', JSON.stringify({
-    id:parseInt(uid), role:'project_manager',
-    firstName:'Nodem', lastName:'Espérance',
-    email:'projects.cmr@cleanit-sevrices.com',
-    av:'NE', color:'#1B4F8A', name:'Nodem Espérance'
-  }));
-  localStorage.setItem('cit_mobile_user', localStorage.getItem('user'));
-  location.href = '/mobile';
+const tk  = p.get('token') || p.get('t');
+const uid = p.get('uid')   || p.get('u');
+
+if (tk && uid) {
+  try {
+    const userData = {
+      id: parseInt(uid),
+      role: 'project_manager',
+      firstName: 'Nodem',
+      lastName: 'Espérance',
+      email: 'projects.cmr@cleanit-sevrices.com',
+      av: 'NE',
+      color: '#1B4F8A',
+      name: 'Nodem Espérance'
+    };
+    localStorage.setItem('token', tk);
+    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('cit_mobile_user', JSON.stringify(userData));
+    // Nettoyer l'URL avant de rediriger (évite boucle sur rechargement)
+    history.replaceState({}, '', '/mlogin.html');
+    location.replace('/mobile');
+  } catch(e) {
+    showErr('Erreur magic link — connectez-vous manuellement');
+  }
 }
 
-async function doLogin(){
-  const email = document.getElementById('email').value.trim().toLowerCase();
-  const pwd = document.getElementById('pwd').value.trim();
-  if(!email||!pwd){showErr('Remplissez tous les champs');return;}
-  try{
-    const r = await fetch('https://backend-cleanit-erp.vercel.app/auth/login',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({email,password:pwd})
+// ── Login manuel ────────────────────────────────────────────
+async function doLogin() {
+  const emailEl = document.getElementById('email');
+  const pwdEl   = document.getElementById('pwd');
+  const btn     = document.getElementById('btn');
+
+  // Lire les valeurs SANS trim sur le password
+  const email = emailEl.value.trim().toLowerCase();
+  const pwd   = pwdEl.value; // ← pas de trim ici !
+
+  hideErr();
+
+  if (!email || !pwd) {
+    showErr('Veuillez remplir tous les champs');
+    return;
+  }
+
+  // Feedback visuel
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Connexion…';
+
+  try {
+    const r = await fetch('https://backend-cleanit-erp.vercel.app/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pwd })
     });
-    const d = await r.json();
-    if(d.token){
-      localStorage.setItem('token',d.token);
-      localStorage.setItem('user',JSON.stringify(d.user));
-      localStorage.setItem('cit_mobile_user',JSON.stringify(d.user));
-      location.href='/mobile';
-    } else { showErr(d.message||'Identifiants incorrects'); }
-  } catch(e){ showErr('Erreur réseau'); }
+
+    let d;
+    try { d = await r.json(); }
+    catch(e) { throw new Error('Réponse serveur invalide'); }
+
+    if (d.token) {
+      localStorage.setItem('token', d.token);
+      localStorage.setItem('user', JSON.stringify(d.user));
+      localStorage.setItem('cit_mobile_user', JSON.stringify(d.user));
+      location.replace('/mobile');
+    } else {
+      showErr(d.message || 'Identifiants incorrects');
+      // Vider le champ password pour re-saisie propre
+      pwdEl.value = '';
+      pwdEl.focus();
+    }
+  } catch(e) {
+    showErr('Erreur réseau — vérifiez votre connexion');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Se connecter →';
+  }
 }
-function showErr(m){const e=document.getElementById('err');e.textContent=m;e.style.display='block';}
-document.getElementById('pwd').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+function showErr(m) {
+  const e = document.getElementById('err');
+  e.textContent = m;
+  e.style.display = 'block';
+}
+function hideErr() {
+  document.getElementById('err').style.display = 'none';
+}
+
+// Enter sur password → login
+document.getElementById('pwd').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+// Débug silencieux : log token existant (utile pour tester)
+if (localStorage.getItem('token')) {
+  console.log('[CleanIT] Token existant détecté — redirigez vers /mobile si nécessaire');
+}
 </script>
 </body>
 </html>

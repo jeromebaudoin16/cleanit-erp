@@ -1,23 +1,6 @@
-import { useState, useEffect, useRef, Component } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AuthAPI, FeedAPI, MissionsAPI } from '../services/api.mobile.js';
 import { useNavigate, useLocation } from 'react-router-dom';
-
-class ErrorBoundary extends Component {
-  constructor(props) { super(props); this.state = { error: null }; }
-  static getDerivedStateFromError(e) { return { error: e }; }
-  componentDidCatch(e, i) { console.error('Crash:', e, i); }
-  render() {
-    if (this.state.error) return (
-      <div style={{padding:24,fontFamily:'monospace',background:'#fff',minHeight:'100vh',color:'#111'}}>
-        <h2 style={{color:'#DC2626',fontSize:16}}>Erreur: {this.state.error?.message||String(this.state.error)}</h2>
-        <pre style={{fontSize:10,overflow:'auto',whiteSpace:'pre-wrap'}}>{this.state.error?.stack?.slice(0,800)}</pre>
-        <button onClick={()=>{localStorage.clear();location.href='/mlogin.html';}} style={{marginTop:16,padding:'10px 20px',background:'#1B4F8A',color:'white',border:'none',borderRadius:8,fontSize:14,cursor:'pointer'}}>Retour login</button>
-      </div>
-    );
-    return this.props.children;
-  }
-}
-
 
 // ─── DESIGN SYSTEM ───────────────────────────────────────────
 const THEMES = {
@@ -2594,7 +2577,7 @@ export default function MobileApp() {
   const isCamera = loc.includes('/camera');
 
   return (
-    <ErrorBoundary><div style={{minHeight:'100vh',background:C.bg,fontFamily:FONT,
+    <div style={{minHeight:'100vh',background:C.bg,fontFamily:FONT,
       maxWidth:430,margin:'0 auto',display:'flex',flexDirection:'column',
       position:'relative'}}>
       <style>{`
@@ -2609,6 +2592,6 @@ export default function MobileApp() {
       `}</style>
       {getPage()}
       {!isCamera && <BottomNav user={user} navigate={navigate} active={activePage}/>}
-    </div></ErrorBoundary>
+    </div>
   );
 }

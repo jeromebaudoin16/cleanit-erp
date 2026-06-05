@@ -5,6 +5,41 @@ import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Cart
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { getPL, getBilan, getBalance, getInvoices, getBills, getJobs, getCustomers, getVendors, getPayments } from '../services/cleanitbooks.api';
 
+// ═══ DESIGN SYSTEM QUICKBOOKS ONLINE 2025 ═══════════════════
+const QB = {
+  // Couleurs principales QB
+  green:      '#2CA01C',  // Bouton primaire QB
+  greenHover: '#1A8A0C',
+  greenLight: '#EBF5E9',
+  blue:       '#0077C5',  // Liens QB
+  blueLight:  '#E6F1FB',
+  blueDark:   '#004F8B',
+  
+  // Neutrals QB
+  bg:         '#F4F5F7',  // Fond page QB
+  white:      '#FFFFFF',
+  gray1:      '#393A3D',  // Texte principal QB
+  gray2:      '#6B6C72',  // Texte secondaire QB
+  gray3:      '#9FA1A6',  // Placeholders QB
+  gray4:      '#D4D6D8',  // Bordures QB
+  gray5:      '#F4F5F7',  // Fond cartes QB
+  
+  // États QB
+  orange:     '#FF8C00',
+  orangeLight:'#FFF4E6',
+  red:        '#D52B1E',
+  redLight:   '#FEECEC',
+  
+  // Ombres QB
+  shadow:     '0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)',
+  shadowMd:   '0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06)',
+  
+  // Radius QB
+  radius:     4,
+  radiusMd:   8,
+};
+
+
 
 // ── PDF FACTURE ──────────────────────────────────────────────────
 const exportInvoicePDF = async (invoice, customer) => {
@@ -471,7 +506,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
         animation:"fadeUp .25s ease",
       }}>
         {/* Header */}
-        <div style={{padding:"16px 24px",borderBottom:"1px solid "+C.border,background:C.bg,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+        <div style={{padding:"16px 24px",borderBottom:"1px solid "+C.border,background:'#F4F5F7',display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
           <div>
             <div style={{fontSize:11,color:C.text3,textTransform:"uppercase",letterSpacing:.5,marginBottom:2}}>CleanITBooks · Job Center</div>
             <div style={{fontSize:18,fontWeight:700,color:C.text}}>{isEdit?"Modifier le job":"Creer un nouveau job"}</div>
@@ -599,7 +634,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
                     {l:"Contrat CleanIT",v:fN(+contractAmt)+" "+currency,c:C.blue},
                     {l:"Marge brute",v:fN(+budgetHW-+contractAmt)+" "+currency,c:+budgetHW>+contractAmt?C.green:C.red},
                   ].map((s,i)=>(
-                    <div key={i} style={{padding:"12px 16px",background:C.bg,borderRadius:6,border:"1px solid "+C.border,borderTop:"3px solid "+s.c}}>
+                    <div key={i} style={{padding:"12px 16px",background:'#F4F5F7',borderRadius:6,border:"1px solid "+C.border,borderTop:"3px solid "+s.c}}>
                       <div style={{fontSize:11,color:C.text3,textTransform:"uppercase",letterSpacing:.4,marginBottom:4}}>{s.l}</div>
                       <div style={{fontSize:17,fontWeight:700,color:s.c}}>{s.v}</div>
                     </div>
@@ -616,7 +651,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
                 <div style={{border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
                   <table style={{width:"100%",borderCollapse:"collapse"}}>
                     <thead>
-                      <tr style={{background:C.bg,borderBottom:"2px solid "+C.border}}>
+                      <tr style={{background:'#F4F5F7',borderBottom:"2px solid "+C.border}}>
                         {["Description","Qte","Prix unitaire ("+currency+")","Total",""].map((h,i)=>(
                           <th key={i} style={{padding:"9px 12px",textAlign:i>=1&&i<=3?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.3}}>{h}</th>
                         ))}
@@ -649,7 +684,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr style={{borderTop:"2px solid "+C.border,background:C.bg}}>
+                      <tr style={{borderTop:"2px solid "+C.border,background:'#F4F5F7'}}>
                         <td colSpan={3} style={{padding:"10px 12px",fontWeight:700,color:C.text}}>TOTAL BC CLIENT</td>
                         <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:C.orange,fontSize:15}}>{fN(totalBC)} {currency}</td>
                         <td/>
@@ -702,7 +737,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
               </div>
 
               {/* Recap */}
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,padding:"16px",background:C.bg,borderRadius:6,border:"1px solid "+C.border}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,padding:"16px",background:'#F4F5F7',borderRadius:6,border:"1px solid "+C.border}}>
                 {[
                   {l:"Budget total estime",v:fN(totalEst)+" "+currency,c:C.blue},
                   {l:"Contrat CleanIT",v:fN(+contractAmt||0)+" "+currency,c:C.green},
@@ -741,7 +776,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
                     border:"1px solid "+C.border,borderRadius:6,overflow:"hidden",
                     borderLeft:"4px solid "+(ph.statut==="invoiced"?C.green:C.blue),
                   }}>
-                    <div style={{padding:"12px 16px",background:C.bg,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div style={{padding:"12px 16px",background:'#F4F5F7',display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <div style={{width:26,height:26,borderRadius:"50%",background:ph.statut==="invoiced"?C.green:C.blue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"white"}}>{i+1}</div>
                         <Inp value={ph.name} onChange={v=>updPhase(i,"name",v)} placeholder={"Phase "+(i+1)} small/>
@@ -778,7 +813,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
 
               {/* Recap phases */}
               {+contractAmt>0&&(
-                <div style={{marginTop:16,padding:"14px 16px",background:C.bg,borderRadius:6,border:"1px solid "+C.border}}>
+                <div style={{marginTop:16,padding:"14px 16px",background:'#F4F5F7',borderRadius:6,border:"1px solid "+C.border}}>
                   <div style={{fontSize:12,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4,marginBottom:10}}>Recap phases</div>
                   <ProgBar value={totalPhases} max={+contractAmt} color={C.green} height={8}/>
                   <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}>
@@ -800,7 +835,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
                 </Field>
 
                 {/* Recap complet */}
-                <div style={{padding:"16px",background:C.bg,borderRadius:6,border:"1px solid "+C.border}}>
+                <div style={{padding:"16px",background:'#F4F5F7',borderRadius:6,border:"1px solid "+C.border}}>
                   <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:12}}>Recap du job avant creation</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                     {[
@@ -830,7 +865,7 @@ const FormJob = ({initial,customers,onSave,onClose}) => {
         </div>
 
         {/* Footer navigation */}
-        <div style={{padding:"14px 24px",borderTop:"1px solid "+C.border,background:C.bg,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+        <div style={{padding:"14px 24px",borderTop:"1px solid "+C.border,background:'#F4F5F7',display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
           <div style={{display:"flex",gap:8}}>
             {step>1&&<Btn label="Precedent" onClick={()=>setStep(s=>s-1)} variant="default"/>}
           </div>
@@ -944,7 +979,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
         {tab==="overview"&&(
           <div>
             {/* Description */}
-            <div style={{padding:"12px 16px",background:C.bg,borderRadius:6,border:"1px solid "+C.border2,marginBottom:16,fontSize:13,color:C.text2,lineHeight:1.7}}>
+            <div style={{padding:"12px 16px",background:'#F4F5F7',borderRadius:6,border:"1px solid "+C.border2,marginBottom:16,fontSize:13,color:C.text2,lineHeight:1.7}}>
               {job.description}
             </div>
 
@@ -1046,7 +1081,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
                   border:"1px solid "+C.border,borderRadius:6,overflow:"hidden",
                   borderLeft:"4px solid "+(ph.statut==="invoiced"?C.green:C.blue),
                 }}>
-                  <div style={{padding:"12px 16px",background:C.bg,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{padding:"12px 16px",background:'#F4F5F7',display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div style={{display:"flex",alignItems:"center",gap:10}}>
                       <div style={{
                         width:28,height:28,borderRadius:"50%",
@@ -1101,7 +1136,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
               <Btn label="Nouvelle facture" variant="primary" sm icon="invoice" onClick={()=>navigate('/cleanitbooks/invoices/new')}/>
             </div>
             {job.invoices.length===0?(
-              <div style={{textAlign:"center",padding:"40px",color:C.text4,fontSize:14,background:C.bg,borderRadius:6,border:"1px dashed "+C.border}}>
+              <div style={{textAlign:"center",padding:"40px",color:C.text4,fontSize:14,background:'#F4F5F7',borderRadius:6,border:"1px dashed "+C.border}}>
                 Aucune facture pour ce job.<br/>
                 <span style={{fontSize:12}}>Utilisez "Facturer une phase" pour creer votre premiere facture.</span>
               </div>
@@ -1109,7 +1144,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
               <div style={{border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
                 <table style={{width:"100%",borderCollapse:"collapse"}}>
                   <thead>
-                    <tr style={{background:C.bg,borderBottom:"2px solid "+C.border}}>
+                    <tr style={{background:'#F4F5F7',borderBottom:"2px solid "+C.border}}>
                       {["N Facture","Date","Montant","Solde","Statut","Actions"].map((h,i)=>(
                         <th key={i} style={{padding:"9px 14px",textAlign:i>=2&&i<=3?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.3}}>{h}</th>
                       ))}
@@ -1128,7 +1163,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr style={{background:C.bg,borderTop:"2px solid "+C.border}}>
+                    <tr style={{background:'#F4F5F7',borderTop:"2px solid "+C.border}}>
                       <td colSpan={2} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>Total facture</td>
                       <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.green,fontSize:15}}>{fN(totalInvoiced)} {job.currency}</td>
                       <td colSpan={3}/>
@@ -1148,14 +1183,14 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
               <Btn label="Saisir une depense" variant="primary" sm icon="bill"/>
             </div>
             {job.bills.length===0?(
-              <div style={{textAlign:"center",padding:"40px",color:C.text4,fontSize:14,background:C.bg,borderRadius:6,border:"1px dashed "+C.border}}>
+              <div style={{textAlign:"center",padding:"40px",color:C.text4,fontSize:14,background:'#F4F5F7',borderRadius:6,border:"1px dashed "+C.border}}>
                 Aucune depense enregistree pour ce job.
               </div>
             ):(
               <div style={{border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
                 <table style={{width:"100%",borderCollapse:"collapse"}}>
                   <thead>
-                    <tr style={{background:C.bg,borderBottom:"2px solid "+C.border}}>
+                    <tr style={{background:'#F4F5F7',borderBottom:"2px solid "+C.border}}>
                       {["N Bill","Fournisseur","Date","Montant","Statut","Actions"].map((h,i)=>(
                         <th key={i} style={{padding:"9px 14px",textAlign:i===3?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.3}}>{h}</th>
                       ))}
@@ -1174,7 +1209,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr style={{background:C.bg,borderTop:"2px solid "+C.border}}>
+                    <tr style={{background:'#F4F5F7',borderTop:"2px solid "+C.border}}>
                       <td colSpan={3} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>Total depenses</td>
                       <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.red,fontSize:15}}>{fN(totalBills)} F</td>
                       <td colSpan={2}/>
@@ -1194,14 +1229,14 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
               <Btn label="Saisir des heures" variant="primary" sm icon="time"/>
             </div>
             {job.timeEntries.length===0?(
-              <div style={{textAlign:"center",padding:"40px",color:C.text4,fontSize:14,background:C.bg,borderRadius:6,border:"1px dashed "+C.border}}>
+              <div style={{textAlign:"center",padding:"40px",color:C.text4,fontSize:14,background:'#F4F5F7',borderRadius:6,border:"1px dashed "+C.border}}>
                 Aucune heure enregistree pour ce job.
               </div>
             ):(
               <div style={{border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
                 <table style={{width:"100%",borderCollapse:"collapse"}}>
                   <thead>
-                    <tr style={{background:C.bg,borderBottom:"2px solid "+C.border}}>
+                    <tr style={{background:'#F4F5F7',borderBottom:"2px solid "+C.border}}>
                       {["Employe","Date","Service","Heures","Taux/h","Montant","Facturable"].map((h,i)=>(
                         <th key={i} style={{padding:"9px 14px",textAlign:i>=3&&i<=5?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.3}}>{h}</th>
                       ))}
@@ -1226,7 +1261,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr style={{background:C.bg,borderTop:"2px solid "+C.border}}>
+                    <tr style={{background:'#F4F5F7',borderTop:"2px solid "+C.border}}>
                       <td colSpan={3} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>Total heures</td>
                       <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.blue}}>{job.timeEntries.reduce((s,t)=>s+t.hours,0)}h</td>
                       <td/>
@@ -1267,7 +1302,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
             <div style={{border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
               <table style={{width:"100%",borderCollapse:"collapse"}}>
                 <thead>
-                  <tr style={{background:C.bg,borderBottom:"2px solid "+C.border}}>
+                  <tr style={{background:'#F4F5F7',borderBottom:"2px solid "+C.border}}>
                     {["Description","Quantite","Prix unitaire","Total"].map((h,i)=>(
                       <th key={i} style={{padding:"9px 14px",textAlign:i>=1?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.3}}>{h}</th>
                     ))}
@@ -1284,7 +1319,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr style={{background:C.bg,borderTop:"2px solid "+C.border}}>
+                  <tr style={{background:'#F4F5F7',borderTop:"2px solid "+C.border}}>
                     <td colSpan={3} style={{padding:"12px 14px",fontWeight:700,color:C.text,fontSize:13}}>TOTAL BC CLIENT</td>
                     <td style={{padding:"12px 14px",textAlign:"right",fontWeight:800,color:C.orange,fontSize:16}}>{fN(job.lignesBC.reduce((s,l)=>s+l.total,0))} {job.currency}</td>
                   </tr>
@@ -1299,7 +1334,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
           <div>
             <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:12}}>Notes internes</div>
             <Txt value={job.notes||""} onChange={()=>{}} placeholder="Ajouter des notes..." rows={6}/>
-            <div style={{marginTop:16,padding:"12px 16px",background:C.bg,borderRadius:6,border:"1px solid "+C.border2}}>
+            <div style={{marginTop:16,padding:"12px 16px",background:'#F4F5F7',borderRadius:6,border:"1px solid "+C.border2}}>
               <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
                 {[
                   {l:"Date creation",v:fD(job.dateCreation)},
@@ -1361,7 +1396,7 @@ const CIBTopBar = ({title,icon,color,children}) => {
         <span style={{fontSize:12,color:C.text3,padding:"0 12px"}}>{title}</span>
         <div style={{flex:1}}/>
         <button onClick={()=>navigate("/cleanitcomm")}
-          style={{display:"flex",alignItems:"center",gap:5,padding:"5px 11px",borderRadius:7,border:"1px solid "+C.border,background:C.bg,cursor:"pointer",fontSize:12,color:C.text3,fontFamily:"inherit",marginRight:8}}>
+          style={{display:"flex",alignItems:"center",gap:5,padding:"5px 11px",borderRadius:7,border:"1px solid "+C.border,background:'#F4F5F7',cursor:"pointer",fontSize:12,color:C.text3,fontFamily:"inherit",marginRight:8}}>
           💬 Comm
         </button>
         {children}
@@ -1412,7 +1447,7 @@ const PageVendorList = ({vendors,setVendors,jobs}) => {
   const totalBills = filtered.reduce((s,v)=>s+v.bills.length,0);
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
 
       {/* TOPBAR */}
@@ -1427,13 +1462,13 @@ const PageVendorList = ({vendors,setVendors,jobs}) => {
           </div>
           <div style={{flex:1}}/>
           <div style={{display:"flex",gap:8}}>
-            <div style={{display:"flex",alignItems:"center",gap:7,background:C.bg,border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:7,background:'#F4F5F7',border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
               <Ico n="search" s={13} c={C.text4}/>
               <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher fournisseur..."
                 style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:180,fontFamily:"inherit"}}/>
             </div>
             <Btn label="Nouveau fournisseur" variant="primary" sm icon="plus" onClick={()=>navigate('/cleanitbooks/vendors/new')}/>
-            <button onClick={()=>navigate("/cleanitbooks")} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:4,border:"1px solid "+C.border,background:C.bg,cursor:"pointer",fontFamily:"inherit",fontSize:12,color:C.text3}}>
+            <button onClick={()=>navigate("/cleanitbooks")} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:4,border:"1px solid "+C.border,background:'#F4F5F7',cursor:"pointer",fontFamily:"inherit",fontSize:12,color:C.text3}}>
               <Ico n="job" s={12} c={C.text3}/>Accueil
             </button>
           </div>
@@ -1560,7 +1595,7 @@ const PageVendorDetail = ({vendors,jobs}) => {
   const vendor = vendors.find(v=>v.id===vendorId);
 
   if(!vendor) return(
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:C.bg}}>
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:'#F4F5F7'}}>
       <div style={{fontSize:18,color:C.text4}}>Fournisseur introuvable</div>
       <Btn label="Retour fournisseurs" variant="primary" onClick={()=>navigate("/cleanitbooks/vendors")}/>
     </div>
@@ -1579,7 +1614,7 @@ const PageVendorDetail = ({vendors,jobs}) => {
   ];
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
 
       {/* TOPBAR */}
@@ -1864,7 +1899,7 @@ const PageCustomerList = ({customers,setCustomers,invoices,jobs}) => {
   );
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
 
       {/* TOPBAR */}
@@ -1881,14 +1916,14 @@ const PageCustomerList = ({customers,setCustomers,invoices,jobs}) => {
           </div>
           <div style={{flex:1}}/>
           <div style={{display:"flex",gap:8}}>
-            <div style={{display:"flex",alignItems:"center",gap:7,background:C.bg,border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:7,background:'#F4F5F7',border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
               <Ico n="search" s={13} c={C.text4}/>
               <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher client..."
                 style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:180,fontFamily:"inherit"}}/>
             </div>
             <Btn label="Nouveau client" variant="primary" sm icon="plus" onClick={()=>navigate('/cleanitbooks/customers/new')}/>
             <button onClick={()=>navigate("/cleanitbooks")}
-              style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:4,border:"1px solid "+C.border,background:C.bg,cursor:"pointer",fontFamily:"inherit",fontSize:12,color:C.text3}}>
+              style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:4,border:"1px solid "+C.border,background:'#F4F5F7',cursor:"pointer",fontFamily:"inherit",fontSize:12,color:C.text3}}>
               <Ico n="job" s={12} c={C.text3}/>
               Job Center
             </button>
@@ -2076,7 +2111,7 @@ const PageCustomerDetail = ({customers,invoices,jobs}) => {
   const custJobs = jobs.filter(j=>j.customerId===custId);
 
   if(!cust) return(
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:C.bg}}>
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:'#F4F5F7'}}>
       <div style={{fontSize:18,color:C.text4}}>Client introuvable</div>
       <Btn label="Retour clients" variant="primary" onClick={()=>navigate("/cleanitbooks/customers")}/>
     </div>
@@ -2097,7 +2132,7 @@ const PageCustomerDetail = ({customers,invoices,jobs}) => {
   ];
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
 
       {/* TOPBAR */}
@@ -2377,7 +2412,7 @@ const PageCustomerDetail = ({customers,invoices,jobs}) => {
                       </div>
                       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:10}}>
                         {[{l:"Facture",v:fM(totalInv)+" F",c:C.green},{l:"Couts reels",v:fM(totalCR)+" F",c:C.red},{l:"Marge",v:fM(totalInv-totalCR)+" F",c:totalInv>=totalCR?C.green:C.red},{l:"Chef",v:j.chefProjet||"—",c:C.text3}].map((s,i)=>(
-                          <div key={i} style={{background:C.bg,borderRadius:4,padding:"7px 10px"}}>
+                          <div key={i} style={{background:'#F4F5F7',borderRadius:4,padding:"7px 10px"}}>
                             <div style={{fontSize:10,color:C.text4,marginBottom:2}}>{s.l}</div>
                             <div style={{fontSize:12,fontWeight:600,color:s.c}}>{s.v}</div>
                           </div>
@@ -2412,7 +2447,7 @@ const PageCustomerDetail = ({customers,invoices,jobs}) => {
                 {l:"Site web",     v:cust.website||"—",icon:"info"},
               ].map((it,i)=>(
                 <div key={it.l} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderBottom:i<10?"1px solid "+C.border2:"none"}}>
-                  <div style={{width:30,height:30,borderRadius:5,background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <div style={{width:30,height:30,borderRadius:5,background:'#F4F5F7',display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                     <Ico n={it.icon} s={14} c={C.text4}/>
                   </div>
                   <div style={{flex:1}}>
@@ -2500,7 +2535,7 @@ const PageCustomerForm = ({customers,setCustomers,onCancel}) => {
   };
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}`}</style>
 
       {/* TOPBAR */}
@@ -2717,7 +2752,7 @@ const PageJobList = ({jobs,setJobs,customers}) => {
   const totalCA      = jobs.reduce((s,j)=>s+j.invoices.reduce((si,i)=>si+i.amount,0),0);
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
 
       {/* TOPBAR */}
@@ -2742,14 +2777,14 @@ const PageJobList = ({jobs,setJobs,customers}) => {
           </div>
           <div style={{flex:1}}/>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            <div style={{display:"flex",alignItems:"center",gap:7,background:C.bg,border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:7,background:'#F4F5F7',border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
               <Ico n="search" s={13} c={C.text4}/>
               <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher un job..."
                 style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:170,fontFamily:"inherit"}}/>
             </div>
             <Btn label="Nouveau job" variant="primary" sm icon="plus" onClick={()=>navigate('/cleanitbooks/jobs/new')}/>
             <button onClick={()=>navigate("/terrain")}
-              style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:4,border:"1px solid "+C.border,background:C.bg,cursor:"pointer",fontFamily:"inherit",fontSize:12,color:C.text3}}
+              style={{display:"flex",alignItems:"center",gap:6,padding:"5px 12px",borderRadius:4,border:"1px solid "+C.border,background:'#F4F5F7',cursor:"pointer",fontFamily:"inherit",fontSize:12,color:C.text3}}
               onMouseEnter={e=>{e.currentTarget.style.background=C.green_l;e.currentTarget.style.color=C.green;}}
               onMouseLeave={e=>{e.currentTarget.style.background=C.bg;e.currentTarget.style.color=C.text3;}}>
               <Ico n="terrain" s={12} c="currentColor"/>
@@ -3130,7 +3165,7 @@ const PageJobDetail = ({jobs,setJobs,customers}) => {
   const cust = customers.find(c=>c.id===job?.customerId);
 
   if(!job) return(
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:C.bg}}>
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:'#F4F5F7'}}>
       <div style={{fontSize:18,color:C.text4}}>Job introuvable : {jobId}</div>
       <Btn label="Retour aux jobs" variant="primary" onClick={()=>navigate("/cleanitbooks/jobs")}/>
     </div>
@@ -3154,7 +3189,7 @@ const PageJobDetail = ({jobs,setJobs,customers}) => {
   ];
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
 
       {/* TOPBAR */}
@@ -3304,7 +3339,7 @@ const PageJobDetail = ({jobs,setJobs,customers}) => {
                     </div>
                   ))}
                 </div>
-                <div style={{padding:"12px 16px",borderTop:"1px solid "+C.border,background:C.bg}}>
+                <div style={{padding:"12px 16px",borderTop:"1px solid "+C.border,background:'#F4F5F7'}}>
                   <div style={{fontSize:11,color:C.text4,marginBottom:4}}>Progression facturation</div>
                   <ProgBar value={totalInvoiced} max={job.contractAmount||1} color={C.green} height={7}/>
                   <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
@@ -3346,7 +3381,7 @@ const PageJobDetail = ({jobs,setJobs,customers}) => {
                       <StatutBadge statut={ph.statut}/>
                     </div>
                   </div>
-                  <div style={{padding:"12px 18px",display:"flex",gap:24,alignItems:"center",background:C.bg}}>
+                  <div style={{padding:"12px 18px",display:"flex",gap:24,alignItems:"center",background:'#F4F5F7'}}>
                     {[{l:"Date prevue",v:fD(ph.datePrevue)||"—"},{l:"Date paiement",v:fD(ph.datePaiement)||"En attente"},{l:"Facture ref",v:ph.invoiceRef||"—"}].map(it=>(
                       <div key={it.l}>
                         <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",letterSpacing:.4,marginBottom:2}}>{it.l}</div>
@@ -3615,7 +3650,7 @@ const PageJobNew = ({initial,customers,onSave,onCancel}) => {
   ];
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:'"Segoe UI",Arial,sans-serif'}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:'"Segoe UI",Arial,sans-serif'}}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
 
       {/* TOPBAR */}
@@ -3735,7 +3770,7 @@ const PageJobNew = ({initial,customers,onSave,onCancel}) => {
                   {l:"Contrat CleanIT",v:fN(+contractAmt)+" "+currency,           c:C.blue},
                   {l:"Marge brute",   v:fN(+budgetHW-+contractAmt)+" "+currency,  c:+budgetHW>+contractAmt?C.green:C.red},
                 ].map((s,i)=>(
-                  <div key={i} style={{padding:"14px 16px",background:C.bg,borderRadius:6,borderTop:"3px solid "+s.c,textAlign:"center"}}>
+                  <div key={i} style={{padding:"14px 16px",background:'#F4F5F7',borderRadius:6,borderTop:"3px solid "+s.c,textAlign:"center"}}>
                     <div style={{fontSize:11,color:C.text3,textTransform:"uppercase",letterSpacing:.4,marginBottom:4}}>{s.l}</div>
                     <div style={{fontSize:18,fontWeight:700,color:s.c}}>{s.v}</div>
                   </div>
@@ -3749,7 +3784,7 @@ const PageJobNew = ({initial,customers,onSave,onCancel}) => {
             <div style={{border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
               <table style={{width:"100%",borderCollapse:"collapse"}}>
                 <thead>
-                  <tr style={{background:C.bg,borderBottom:"2px solid "+C.border}}>
+                  <tr style={{background:'#F4F5F7',borderBottom:"2px solid "+C.border}}>
                     {["Description","Qte","Prix unitaire ("+currency+")","Total",""].map((h,i)=>(
                       <th key={i} style={{padding:"10px 12px",textAlign:i>=1&&i<=3?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.3}}>{h}</th>
                     ))}
@@ -3769,7 +3804,7 @@ const PageJobNew = ({initial,customers,onSave,onCancel}) => {
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr style={{borderTop:"2px solid "+C.border,background:C.bg}}>
+                  <tr style={{borderTop:"2px solid "+C.border,background:'#F4F5F7'}}>
                     <td colSpan={3} style={{padding:"10px 12px",fontWeight:700,color:C.text}}>TOTAL BC CLIENT</td>
                     <td style={{padding:"10px 12px",textAlign:"right",fontWeight:800,color:C.orange,fontSize:15}}>{fN(totalBC)} {currency}</td>
                     <td/>
@@ -3787,7 +3822,7 @@ const PageJobNew = ({initial,customers,onSave,onCancel}) => {
             <div style={{fontSize:13,color:C.text3,marginBottom:24}}>Definissez votre budget previsionnel. Il sera compare aux couts reels en temps reel.</div>
             <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:24}}>
               {COST_CATS.map(cat=>(
-                <div key={cat.key} style={{display:"grid",gridTemplateColumns:"240px 1fr 160px",gap:16,alignItems:"center",padding:"16px 20px",background:C.bg,borderRadius:6,border:"1px solid "+C.border,borderLeft:"4px solid "+cat.color}}>
+                <div key={cat.key} style={{display:"grid",gridTemplateColumns:"240px 1fr 160px",gap:16,alignItems:"center",padding:"16px 20px",background:'#F4F5F7',borderRadius:6,border:"1px solid "+C.border,borderLeft:"4px solid "+cat.color}}>
                   <div style={{display:"flex",alignItems:"center",gap:10}}>
                     <div style={{width:36,height:36,borderRadius:6,background:cat.color+"15",display:"flex",alignItems:"center",justifyContent:"center"}}>
                       <Ico n={cat.icon} s={17} c={cat.color}/>
@@ -3805,7 +3840,7 @@ const PageJobNew = ({initial,customers,onSave,onCancel}) => {
                 </div>
               ))}
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,padding:"16px",background:C.bg,borderRadius:6,border:"1px solid "+C.border}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,padding:"16px",background:'#F4F5F7',borderRadius:6,border:"1px solid "+C.border}}>
               {[
                 {l:"Budget total estime",   v:fN(totalEst)+" "+currency,              c:C.blue},
                 {l:"Contrat CleanIT",       v:fN(+contractAmt||0)+" "+currency,       c:C.green},
@@ -3834,7 +3869,7 @@ const PageJobNew = ({initial,customers,onSave,onCancel}) => {
             <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:16}}>
               {phases.map((ph,i)=>(
                 <div key={i} style={{border:"1px solid "+C.border,borderRadius:6,overflow:"hidden",borderLeft:"4px solid "+(ph.statut==="invoiced"?C.green:C.blue)}}>
-                  <div style={{padding:"12px 16px",background:C.bg,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{padding:"12px 16px",background:'#F4F5F7',display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div style={{display:"flex",alignItems:"center",gap:8}}>
                       <div style={{width:26,height:26,borderRadius:"50%",background:ph.statut==="invoiced"?C.green:C.blue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:"white"}}>{i+1}</div>
                       <Inp value={ph.name} onChange={v=>updPhase(i,"name",v)} placeholder={"Phase "+(i+1)} small/>
@@ -3862,7 +3897,7 @@ const PageJobNew = ({initial,customers,onSave,onCancel}) => {
             </div>
             <Btn label="+ Ajouter une phase" variant="light" icon="plus" onClick={()=>setPhases(p=>[...p,{id:"PH"+(p.length+1),name:"Phase "+(p.length+1),pct:0,amount:0,statut:"pending",invoiceRef:null,datePrevue:"",datePaiement:null}])}/>
             {+contractAmt>0&&(
-              <div style={{marginTop:16,padding:"14px 16px",background:C.bg,borderRadius:6,border:"1px solid "+C.border}}>
+              <div style={{marginTop:16,padding:"14px 16px",background:'#F4F5F7',borderRadius:6,border:"1px solid "+C.border}}>
                 <ProgBar value={totalPhases} max={+contractAmt} color={C.green} height={8}/>
                 <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}>
                   <span style={{fontSize:12,color:C.text3}}>Total phases: {fN(totalPhases)} {currency}</span>
@@ -3949,11 +3984,11 @@ const PageInvoiceList = ({invoices,customers,jobs}) => {
   const totalBalance=filtered.reduce((s,i)=>s+i.balance,0);
   const totalOverdue=filtered.filter(i=>i.status==="Overdue").reduce((s,i)=>s+i.balance,0);
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
       <CIBTopBar title="Facturation AR" icon="invoice" color={C.green}>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <div style={{display:"flex",alignItems:"center",gap:7,background:C.bg,border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:7,background:'#F4F5F7',border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
             <Ico n="search" s={13} c={C.text4}/>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher..."
               style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:150,fontFamily:"inherit"}}/>
@@ -4047,14 +4082,14 @@ const PageInvoiceDetail = ({invoices,customers,jobs}) => {
   const cust = inv?customers.find(c=>c.id===inv.customerId):null;
   const job  = inv?jobs.find(j=>j.id===inv.jobId):null;
   if(!inv) return(
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:C.bg}}>
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:'#F4F5F7'}}>
       <div style={{fontSize:18,color:C.text4}}>Facture introuvable</div>
       <Btn label="Retour" variant="primary" onClick={()=>navigate("/cleanitbooks/invoices")}/>
     </div>
   );
   const sc = STATUS_INV[inv.status]||{c:C.text3,bg:C.border2,l:inv.status};
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
       <CIBTopBar title={"Facture "+inv.id} icon="invoice" color={C.green}>
         <div style={{display:"flex",gap:8}}>
@@ -4185,7 +4220,7 @@ const PageVendorNew = ({vendors,setVendors}) => {
   };
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`*{box-sizing:border-box}`}</style>
       <CIBTopBar title="Nouveau fournisseur" icon="vendor" color={C.orange}>
         <div style={{display:"flex",gap:8}}>
@@ -4284,7 +4319,7 @@ const PageInvoiceNew = ({invoices,setInvoices,customers,jobs}) => {
   };
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`*{box-sizing:border-box}`}</style>
       <CIBTopBar title="Nouvelle facture" icon="invoice" color={C.green}>
         <div style={{display:"flex",gap:8}}>
@@ -4316,7 +4351,7 @@ const PageInvoiceNew = ({invoices,setInvoices,customers,jobs}) => {
           <div style={{border:"1px solid "+C.border,borderRadius:4,overflow:"hidden",marginBottom:16}}>
             <table style={{width:"100%",borderCollapse:"collapse"}}>
               <thead>
-                <tr style={{background:C.bg,borderBottom:"2px solid "+C.border}}>
+                <tr style={{background:'#F4F5F7',borderBottom:"2px solid "+C.border}}>
                   {["Description","Qte","Prix unitaire","TVA","Montant",""].map((h,i)=>(
                     <th key={i} style={{padding:"9px 12px",textAlign:i>=1&&i<=4?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>{h}</th>
                   ))}
@@ -4339,13 +4374,13 @@ const PageInvoiceNew = ({invoices,setInvoices,customers,jobs}) => {
                 ))}
               </tbody>
             </table>
-            <div style={{padding:"8px 10px",borderTop:"1px solid "+C.border2,background:C.bg}}>
+            <div style={{padding:"8px 10px",borderTop:"1px solid "+C.border2,background:'#F4F5F7'}}>
               <Btn label="+ Ajouter une ligne" variant="light" sm onClick={()=>setLines(p=>[...p,{desc:"",qty:1,rate:0,amount:0,taxable:true}])}/>
             </div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 280px",gap:16}}>
             <Field label="Memo"><Txt value={memo} onChange={setMemo} placeholder="Message ou note pour la facture..."/></Field>
-            <div style={{background:C.bg,borderRadius:4,border:"1px solid "+C.border,padding:"14px 16px"}}>
+            <div style={{background:'#F4F5F7',borderRadius:4,border:"1px solid "+C.border,padding:"14px 16px"}}>
               {[{l:"Sous-total HT",v:fN(subtotal)+" "+currency,c:C.text,big:false},{l:"TVA 19.25%",v:taxAmt>0?fN(Math.round(taxAmt))+" "+currency:"Exonere",c:C.red,big:false},{l:"TOTAL TTC",v:fN(Math.round(total))+" "+currency,c:C.blue,big:true}].map((t,i)=>(
                 <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:t.big?"none":"1px solid "+C.border2}}>
                   <span style={{fontSize:t.big?13:12,color:C.text3,fontWeight:t.big?600:400}}>{t.l}</span>
@@ -4389,11 +4424,11 @@ const PageBillList = ({bills,vendors,jobs}) => {
   const overdue     = filtered.filter(b=>b.balance>0&&b.dueDate&&new Date(b.dueDate)<new Date());
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
       <CIBTopBar title="Depenses AP — Bills fournisseurs" icon="bill" color={C.orange}>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <div style={{display:"flex",alignItems:"center",gap:7,background:C.bg,border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:7,background:'#F4F5F7',border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
             <Ico n="search" s={13} c={C.text4}/>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher bill..."
               style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:150,fontFamily:"inherit"}}/>
@@ -4516,7 +4551,7 @@ const PageBillDetail = ({bills,vendors,jobs}) => {
   const job    = bill?jobs.find(j=>j.id===bill.jobId):null;
 
   if(!bill) return(
-    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:C.bg}}>
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,background:'#F4F5F7'}}>
       <div style={{fontSize:18,color:C.text4}}>Bill introuvable</div>
       <Btn label="Retour" variant="primary" onClick={()=>navigate("/cleanitbooks/bills")}/>
     </div>
@@ -4525,7 +4560,7 @@ const PageBillDetail = ({bills,vendors,jobs}) => {
   const sc = STATUS_BILL[bill.status]||{c:C.text3,bg:C.border2,l:bill.status};
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
       <CIBTopBar title={"Bill "+bill.id} icon="bill" color={C.orange}>
         <div style={{display:"flex",gap:8}}>
@@ -4562,7 +4597,7 @@ const PageBillDetail = ({bills,vendors,jobs}) => {
               {job&&(
                 <div>
                   <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",letterSpacing:.4,marginBottom:8,fontWeight:600}}>Job lie</div>
-                  <div style={{padding:"10px 12px",background:C.bg,borderRadius:4,border:"1px solid "+C.border2,cursor:"pointer"}}
+                  <div style={{padding:"10px 12px",background:'#F4F5F7',borderRadius:4,border:"1px solid "+C.border2,cursor:"pointer"}}
                     onClick={()=>navigate("/cleanitbooks/jobs/"+job.id)}>
                     <div style={{fontSize:12,fontWeight:700,color:C.blue}}>{job.name}</div>
                     <div style={{fontSize:11,color:C.text4}}>{job.id}</div>
@@ -4598,7 +4633,7 @@ const PageBillDetail = ({bills,vendors,jobs}) => {
             </div>
             {bill.amountPaid>0&&(
               <div style={{display:"flex",justifyContent:"flex-end"}}>
-                <div style={{width:280,background:C.bg,borderRadius:4,border:"1px solid "+C.border,padding:"12px 16px"}}>
+                <div style={{width:280,background:'#F4F5F7',borderRadius:4,border:"1px solid "+C.border,padding:"12px 16px"}}>
                   {[{l:"Total du",v:fN(bill.total)+" "+bill.currency,c:C.orange,big:false},{l:"Paye",v:"-"+fN(bill.amountPaid)+" "+bill.currency,c:C.green,big:false},{l:"SOLDE",v:fN(bill.balance)+" "+bill.currency,c:bill.balance>0?C.red:C.green,big:true}].map((t,i)=>(
                     <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:t.big?"none":"1px solid "+C.border2}}>
                       <span style={{fontSize:t.big?13:12,color:C.text3,fontWeight:t.big?700:400}}>{t.l}</span>
@@ -4608,7 +4643,7 @@ const PageBillDetail = ({bills,vendors,jobs}) => {
                 </div>
               </div>
             )}
-            {bill.memo&&<div style={{marginTop:16,padding:"10px 14px",background:C.bg,borderRadius:4,border:"1px solid "+C.border2,fontSize:12,color:C.text3}}><strong style={{color:C.text}}>Memo : </strong>{bill.memo}</div>}
+            {bill.memo&&<div style={{marginTop:16,padding:"10px 14px",background:'#F4F5F7',borderRadius:4,border:"1px solid "+C.border2,fontSize:12,color:C.text3}}><strong style={{color:C.text}}>Memo : </strong>{bill.memo}</div>}
           </div>
         </div>
         {bill.payments&&bill.payments.length>0&&(
@@ -4653,7 +4688,7 @@ const PageBillNew = ({vendors,jobs}) => {
   const ACCTS = ["604 — Achats matieres","624 — Transport","626 — Telecommunications","641 — Salaires","625 — Per diem terrain","628 — Autres charges"];
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`*{box-sizing:border-box}`}</style>
       <CIBTopBar title="Saisir un bill fournisseur" icon="bill" color={C.orange}>
         <div style={{display:"flex",gap:8}}>
@@ -4678,7 +4713,7 @@ const PageBillNew = ({vendors,jobs}) => {
           <div style={{border:"1px solid "+C.border,borderRadius:4,overflow:"hidden",marginBottom:16}}>
             <table style={{width:"100%",borderCollapse:"collapse"}}>
               <thead>
-                <tr style={{background:C.bg,borderBottom:"2px solid "+C.border}}>
+                <tr style={{background:'#F4F5F7',borderBottom:"2px solid "+C.border}}>
                   {["Compte","Description","Montant (FCFA)",""].map((h,i)=>(
                     <th key={i} style={{padding:"9px 12px",textAlign:i===2?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase"}}>{h}</th>
                   ))}
@@ -4703,7 +4738,7 @@ const PageBillNew = ({vendors,jobs}) => {
                 ))}
               </tbody>
             </table>
-            <div style={{padding:"8px 10px",borderTop:"1px solid "+C.border2,background:C.bg,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{padding:"8px 10px",borderTop:"1px solid "+C.border2,background:'#F4F5F7',display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <Btn label="+ Ajouter une ligne" variant="light" sm onClick={()=>setLines(p=>[...p,{account:"604",desc:"",amount:0}])}/>
               <div style={{fontSize:15,fontWeight:700,color:C.orange}}>Total: {fN(total)} FCFA</div>
             </div>
@@ -4722,248 +4757,170 @@ const INIT_BANKS = []; // Données depuis CleanITBooks API
 const INIT_TRANSACTIONS = []; // Données depuis CleanITBooks API
 
 const PageBanking = () => {
-  const navigate  = useNavigate();
-  const [selBank, setSelBank] = useState("B001");
-  const [mode,    setMode]    = useState("feed");
-  const [search,  setSearch]  = useState("");
+  const [banks, setBanks] = useState([
+    {id:'BICEC',name:'BICEC Compte principal',num:'****4521',balance:0,type:'Compte courant',color:'#0077C5'},
+    {id:'SGC',name:'SGC Compte secondaire',num:'****8834',balance:0,type:'Compte courant',color:'#2CA01C'},
+    {id:'CAISSE',name:'Caisse DLA-001',num:'Espèces',balance:0,type:'Caisse',color:'#E27000'},
+  ]);
+  const [transactions, setTransactions] = useState([]);
+  const [selBank, setSelBank] = useState('BICEC');
+  const [mode, setMode] = useState('feed');
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const token = localStorage.getItem('token');
 
-  const selAcc   = INIT_BANKS.find(b=>b.id===selBank);
-  const txns     = INIT_TRANSACTIONS.filter(t=>t.bankId===selBank&&(!search||(t.desc+t.ref).toLowerCase().includes(search.toLowerCase())));
-  const totalBanks = INIT_BANKS.reduce((s,b)=>s+b.balance,0);
-  const unmatched  = INIT_TRANSACTIONS.filter(t=>t.status==="unmatched").length;
+  useEffect(() => {
+    fetch('https://backend-cleanit-erp.vercel.app/journal',
+      {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json())
+      .then(data => {
+        if(Array.isArray(data)) {
+          setTransactions(data.map(t=>({
+            id:t.id, date:t.date, desc:t.description||t.label,
+            ref:t.reference||'', debit:t.debit||0, credit:t.credit||0,
+            status:t.reconciled?'matched':'unmatched', bankId:'BICEC',
+            category:t.account||'—'
+          })));
+          const total = data.reduce((s,t)=>(s+(t.credit||0)-(t.debit||0)),0);
+          setBanks(p=>p.map((b,i)=>i===0?{...b,balance:total}:b));
+        }
+        setLoading(false);
+      }).catch(()=>setLoading(false));
+  }, []);
+
+  const totalBanks = banks.reduce((s,b)=>s+b.balance,0);
+  const fmtF = n => new Intl.NumberFormat('fr-FR').format(Math.round(Math.abs(n||0)));
+  const txns = transactions.filter(t=>t.bankId===selBank&&
+    (!search||(t.desc+t.ref).toLowerCase().includes(search.toLowerCase())));
+  const moneyIn = txns.reduce((s,t)=>s+(t.credit||0),0);
+  const moneyOut = txns.reduce((s,t)=>s+(t.debit||0),0);
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
-      <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
-
-      <CIBTopBar title="Banking et Tresorerie" icon="bank" color={C.blue}>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <div style={{display:"flex",alignItems:"center",gap:7,background:C.bg,border:"1px solid "+C.border,borderRadius:4,padding:"6px 12px"}}>
-            <Ico n="search" s={13} c={C.text4}/>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher transaction..."
-              style={{border:"none",outline:"none",fontSize:12,color:C.text,background:"transparent",width:160,fontFamily:"inherit"}}/>
-          </div>
-          <Btn label="Synchroniser" variant="light" sm icon="refresh"/>
-          <Btn label="Rapprocher" variant="primary" sm icon="recon" onClick={()=>setMode("reconcile")}/>
+    <div style={{minHeight:'100vh',background:'#F4F5F7',fontFamily:"'Avenir Next','Helvetica Neue',Arial,sans-serif"}}>
+      <CIBTopBar title="Banking et Trésorerie" icon="bank" color={C.blue}>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <button onClick={()=>{}} style={{background:C.blue,color:'#fff',border:'none',borderRadius:4,padding:'7px 16px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Synchroniser</button>
+          <button onClick={()=>{}} style={{background:C.green,color:'#fff',border:'none',borderRadius:4,padding:'7px 16px',fontSize:13,fontWeight:600,cursor:'pointer'}}>Rapprocher</button>
         </div>
       </CIBTopBar>
 
-      <div style={{padding:"24px",animation:"fadeUp .3s ease"}}>
-
-        {/* Comptes bancaires */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:20}}>
-          {INIT_BANKS.map(b=>(
-            <div key={b.id} onClick={()=>setSelBank(b.id)}
-              style={{background:C.white,border:"2px solid "+(selBank===b.id?C.blue:C.border),borderRadius:6,padding:"16px 20px",cursor:"pointer",transition:"all .15s",borderTop:"3px solid "+(b.type==="Cash"?C.orange:C.green)}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                <div>
-                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{b.name}</div>
-                  <div style={{fontSize:11,color:C.text4}}>{b.accountNum} · {b.bank}</div>
-                  <div style={{fontSize:10,color:C.text4,marginTop:2}}>Sync: {fD2(b.lastSync)}</div>
-                </div>
-                <div style={{width:36,height:36,borderRadius:6,background:(b.type==="Cash"?C.orange:C.green)+"15",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  <Ico n={b.type==="Cash"?"money":"bank"} s={18} c={b.type==="Cash"?C.orange:C.green}/>
-                </div>
+      <div style={{padding:'24px'}}>
+        {/* COMPTES BANCAIRES QB STYLE */}
+        <div style={{display:'flex',gap:16,marginBottom:24,overflowX:'auto',paddingBottom:4}}>
+          {banks.map(b=>(
+            <div key={b.id} onClick={()=>setSelBank(b.id)} style={{
+              background:'#fff',borderRadius:8,padding:'16px 20px',
+              border:`2px solid ${selBank===b.id?b.color:C.border}`,
+              cursor:'pointer',minWidth:220,flex:'0 0 auto',
+              boxShadow:selBank===b.id?`0 0 0 1px ${b.color}20`:'0 1px 3px rgba(0,0,0,0.08)',
+              transition:'all 0.15s'
+            }}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+                <span style={{fontSize:13,fontWeight:700,color:C.text}}>{b.name}</span>
+                <span style={{fontSize:11,color:C.text3,background:C.gray_l,padding:'2px 8px',borderRadius:10}}>{b.type}</span>
               </div>
-              <div style={{fontSize:24,fontWeight:800,color:b.balance>0?C.green:C.red}}>{fN(b.balance)} F</div>
-              <div style={{fontSize:11,color:C.text4,marginTop:4}}>{b.type==="Cash"?"Especes":"Compte courant"}</div>
+              <div style={{fontSize:11,color:C.text3,marginBottom:6}}>{b.num}</div>
+              <div style={{fontSize:22,fontWeight:700,color:b.balance>=0?C.green:C.red}}>
+                {b.balance>=0?'+':'-'}{fmtF(b.balance)} FCFA
+              </div>
+              <div style={{fontSize:11,color:C.text3,marginTop:4}}>Sync: aujourd hui</div>
             </div>
           ))}
-        </div>
-
-        {/* Total tresorerie */}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 20px",background:C.green_l,border:"1px solid "+C.green+"30",borderRadius:6,marginBottom:20}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <Ico n="bank" s={20} c={C.green}/>
-            <span style={{fontSize:14,fontWeight:700,color:C.text}}>Tresorerie totale</span>
-          </div>
-          <span style={{fontSize:26,fontWeight:800,color:C.green}}>{fN(totalBanks)} FCFA</span>
-        </div>
-
-        {unmatched>0&&(
-          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 18px",background:"#FEF3C7",border:"1px solid "+C.orange+"40",borderRadius:6,marginBottom:16}}>
-            <Ico n="alert" s={16} c={C.orange}/>
-            <span style={{fontSize:13,color:C.text2,flex:1}}><strong style={{color:C.orange}}>{unmatched} transaction(s)</strong> non rapprochees — action requise</span>
-            <Btn label="Rapprocher maintenant" variant="ghost" sm onClick={()=>setMode("reconcile")}/>
-          </div>
-        )}
-
-        {/* Tabs mode */}
-        <div style={{display:"flex",gap:8,marginBottom:16}}>
-          {[{id:"feed",l:"Bank Feed"},{id:"reconcile",l:"Rapprochement"},{id:"transfers",l:"Virements internes"}].map(m=>(
-            <button key={m.id} onClick={()=>setMode(m.id)}
-              style={{padding:"8px 16px",borderRadius:4,border:"1px solid "+(mode===m.id?C.blue:C.border),background:mode===m.id?C.blue_l:C.white,color:mode===m.id?C.blue:C.text3,fontSize:12,fontWeight:mode===m.id?700:400,cursor:"pointer",fontFamily:"inherit"}}>
-              {m.l}
-            </button>
-          ))}
-          <div style={{marginLeft:"auto"}}>
-            <Btn label="Exporter" variant="light" sm icon="download"/>
+          {/* Ajouter compte */}
+          <div style={{background:'#fff',borderRadius:8,padding:'16px 20px',border:`2px dashed ${C.border}`,cursor:'pointer',minWidth:180,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8}}>
+            <span style={{fontSize:28,color:C.text3}}>+</span>
+            <span style={{fontSize:13,color:C.blue,fontWeight:600}}>Ajouter un compte</span>
           </div>
         </div>
 
-        {/* BANK FEED */}
-        {mode==="feed"&&(
-          <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,overflow:"hidden"}}>
-            <div style={{padding:"12px 16px",borderBottom:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center",background:C.bg}}>
-              <span style={{fontSize:13,fontWeight:700,color:C.text}}>{selAcc?selAcc.name:"—"} — Transactions</span>
-              <span style={{fontSize:12,color:C.text3}}>Solde: <strong style={{color:C.green}}>{selAcc?fN(selAcc.balance)+" F":"—"}</strong></span>
+        {/* MONEY IN / MONEY OUT QB STYLE */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:20}}>
+          <div style={{background:'#fff',borderRadius:8,padding:'16px 20px',border:'1px solid '+C.border,boxShadow:'0 1px 3px rgba(0,0,0,0.08)'}}>
+            <div style={{fontSize:12,fontWeight:700,color:C.text3,textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>💰 Argent entrant</div>
+            <div style={{fontSize:24,fontWeight:700,color:C.green}}>{fmtF(moneyIn)} F</div>
+          </div>
+          <div style={{background:'#fff',borderRadius:8,padding:'16px 20px',border:'1px solid '+C.border,boxShadow:'0 1px 3px rgba(0,0,0,0.08)'}}>
+            <div style={{fontSize:12,fontWeight:700,color:C.text3,textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>💸 Argent sortant</div>
+            <div style={{fontSize:24,fontWeight:700,color:C.red}}>{fmtF(moneyOut)} F</div>
+          </div>
+        </div>
+
+        {/* TABS QB STYLE */}
+        <div style={{background:'#fff',borderRadius:8,border:'1px solid '+C.border,boxShadow:'0 1px 3px rgba(0,0,0,0.08)'}}>
+          <div style={{display:'flex',borderBottom:'1px solid '+C.border,padding:'0 16px'}}>
+            {[{id:'feed',l:'Bank Feed'},{id:'rapprochement',l:'Rapprochement'},{id:'virements',l:'Virements internes'}].map(t=>(
+              <button key={t.id} onClick={()=>setMode(t.id)} style={{
+                padding:'14px 20px',border:'none',background:'none',cursor:'pointer',
+                fontSize:14,fontWeight:mode===t.id?700:400,
+                color:mode===t.id?C.green:C.text3,
+                borderBottom:mode===t.id?'3px solid '+C.green:'3px solid transparent',
+                marginBottom:-1
+              }}>{t.l}</button>
+            ))}
+            <div style={{flex:1}}/>
+            <div style={{display:'flex',alignItems:'center',gap:8,padding:'8px 0'}}>
+              <div style={{display:'flex',alignItems:'center',gap:6,background:'#F4F5F7',border:'1px solid '+C.border,borderRadius:4,padding:'6px 12px'}}>
+                <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher..." style={{border:'none',outline:'none',fontSize:13,color:C.text,background:'transparent',width:140}}/>
+              </div>
+              <button style={{background:C.white,border:'1px solid '+C.border,borderRadius:4,padding:'6px 14px',fontSize:13,cursor:'pointer',color:C.text2}}>Exporter</button>
             </div>
-            <table style={{width:"100%",borderCollapse:"collapse"}}>
-              <thead>
-                <tr style={{background:"#F9FAFB",borderBottom:"2px solid "+C.border}}>
-                  {["Date","Description","Reference","Debit","Credit","Statut","Actions"].map((h,i)=>(
-                    <th key={i} style={{padding:"10px 14px",textAlign:i>=3&&i<=4?"right":"left",fontSize:11,fontWeight:700,color:C.text3,textTransform:"uppercase",letterSpacing:.4}}>{h}</th>
+          </div>
+
+          {mode==='feed'&&(
+            <div>
+              <div style={{padding:'12px 16px',background:'#F4F5F7',fontSize:13,fontWeight:600,color:C.text2,display:'flex',justifyContent:'space-between'}}>
+                <span>Transactions — {banks.find(b=>b.id===selBank)?.name}</span>
+                <span style={{color:C.text3}}>Solde: {fmtF(banks.find(b=>b.id===selBank)?.balance||0)} F</span>
+              </div>
+              <table style={{width:'100%',borderCollapse:'collapse'}}>
+                <thead><tr style={{background:'#F4F5F7'}}>
+                  {['DATE','DESCRIPTION','RÉFÉRENCE','DÉBIT','CRÉDIT','STATUT','ACTIONS'].map(h=>(
+                    <th key={h} style={{padding:'10px 14px',textAlign:'left',fontSize:12,fontWeight:700,color:C.text3,textTransform:'uppercase',letterSpacing:'0.5px'}}>{h}</th>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {txns.length===0&&<tr><td colSpan={7} style={{padding:"48px",textAlign:"center",color:C.text4}}>Aucune transaction</td></tr>}
-                {txns.map((t,i)=>(
-                  <tr key={t.id} style={{borderBottom:"1px solid "+C.border2,background:i%2===1?"#FAFAFA":C.white}}>
-                    <td style={{padding:"12px 14px",color:C.text3,fontSize:12}}>{fD2(t.date)}</td>
-                    <td style={{padding:"12px 14px",fontSize:12,fontWeight:500,color:C.text}}>{t.desc}</td>
-                    <td style={{padding:"12px 14px",fontSize:11,color:C.text4}}>{t.ref||"—"}</td>
-                    <td style={{padding:"12px 14px",textAlign:"right",fontWeight:600,color:C.red}}>{t.amount<0?fN(Math.abs(t.amount))+" F":"—"}</td>
-                    <td style={{padding:"12px 14px",textAlign:"right",fontWeight:600,color:C.green}}>{t.amount>0?fN(t.amount)+" F":"—"}</td>
-                    <td style={{padding:"12px 14px"}}>
-                      <span style={{fontSize:11,padding:"3px 9px",borderRadius:10,fontWeight:600,background:t.status==="matched"?C.green_l:C.orange_l,color:t.status==="matched"?C.green:C.orange}}>
-                        {t.status==="matched"?"Rapproche":"A rapprocher"}
-                      </span>
-                    </td>
-                    <td style={{padding:"12px 14px"}}>
-                      {t.status==="unmatched"?<Btn label="Rapprocher" variant="primary" sm/>:<Btn label="Voir" variant="light" sm/>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr style={{background:"#F9FAFB",borderTop:"2px solid "+C.border}}>
-                  <td colSpan={3} style={{padding:"10px 14px",fontWeight:700,color:C.text}}>{txns.length} transaction(s)</td>
-                  <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.red}}>{fN(Math.abs(txns.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0)))} F</td>
-                  <td style={{padding:"10px 14px",textAlign:"right",fontWeight:800,color:C.green}}>{fN(txns.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0))} F</td>
-                  <td colSpan={2}/>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-
-        {/* RAPPROCHEMENT */}
-        {mode==="reconcile"&&(
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
-            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"20px"}}>
-              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>Demarrer le rapprochement</div>
-              <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                <Field label="Compte a rapprocher">
-                  <Sel value={selBank} onChange={setSelBank} options={INIT_BANKS.map(b=>({v:b.id,l:b.name}))}/>
-                </Field>
-                <Field label="Date du releve bancaire">
-                  <Inp type="date" value={TODAY} onChange={()=>{}}/>
-                </Field>
-                <Field label="Solde du releve bancaire" hint="Solde selon votre releve papier ou en ligne">
-                  <Inp type="number" value="" onChange={()=>{}} prefix="FCFA" placeholder="Solde releve"/>
-                </Field>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginTop:16,padding:"14px",background:C.bg,borderRadius:4,border:"1px solid "+C.border2}}>
-                {[{l:"Solde CleanITBooks",v:fN(selAcc?selAcc.balance:0)+" F"},{l:"Solde releve",v:"—"},{l:"Ecart",v:"—"}].map((s,i)=>(
-                  <div key={i} style={{textAlign:"center"}}>
-                    <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",marginBottom:3}}>{s.l}</div>
-                    <div style={{fontSize:16,fontWeight:700,color:C.text}}>{s.v}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{marginTop:16}}>
-                <Btn label="Demarrer le rapprochement" variant="primary" icon="recon" full/>
-              </div>
+                </tr></thead>
+                <tbody>
+                  {loading&&<tr><td colSpan={7} style={{padding:32,textAlign:'center',color:C.text3}}>Chargement...</td></tr>}
+                  {!loading&&txns.length===0&&<tr><td colSpan={7} style={{padding:48,textAlign:'center',color:C.text3}}>
+                    <div style={{fontSize:40,marginBottom:12}}>🏦</div>
+                    <p style={{margin:0,fontWeight:600}}>Aucune transaction</p>
+                    <p style={{margin:'4px 0 0',fontSize:13}}>Importez un relevé CSV ou synchronisez votre banque</p>
+                  </td></tr>}
+                  {txns.map((t,i)=>(
+                    <tr key={i} style={{borderBottom:'1px solid '+C.border2}} onMouseOver={e=>e.currentTarget.style.background='#F9FAFB'} onMouseOut={e=>e.currentTarget.style.background='#fff'}>
+                      <td style={{padding:'10px 14px',fontSize:13,color:C.text2}}>{t.date}</td>
+                      <td style={{padding:'10px 14px',fontSize:13,color:C.text,fontWeight:500}}>{t.desc}</td>
+                      <td style={{padding:'10px 14px',fontSize:12,color:C.text3}}>{t.ref}</td>
+                      <td style={{padding:'10px 14px',fontSize:13,color:C.red,fontWeight:500}}>{t.debit>0?fmtF(t.debit)+' F':'—'}</td>
+                      <td style={{padding:'10px 14px',fontSize:13,color:C.green,fontWeight:500}}>{t.credit>0?fmtF(t.credit)+' F':'—'}</td>
+                      <td style={{padding:'10px 14px'}}>
+                        <span style={{background:t.status==='matched'?C.green_l:C.orange_l,color:t.status==='matched'?C.green:C.orange,padding:'3px 10px',borderRadius:12,fontSize:12,fontWeight:600}}>
+                          {t.status==='matched'?'✓ Rapproché':'En attente'}
+                        </span>
+                      </td>
+                      <td style={{padding:'10px 14px'}}>
+                        {t.status!=='matched'&&<button style={{background:C.blue,color:'#fff',border:'none',borderRadius:4,padding:'4px 12px',fontSize:12,cursor:'pointer'}}>Rapprocher</button>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!loading&&<div style={{padding:'12px 16px',borderTop:'1px solid '+C.border,display:'flex',justifyContent:'space-between',fontSize:13,color:C.text2}}>
+                <span><strong>{txns.length}</strong> transaction(s)</span>
+                <span>Débit: <strong style={{color:C.red}}>{fmtF(moneyOut)} F</strong> · Crédit: <strong style={{color:C.green}}>{fmtF(moneyIn)} F</strong></span>
+              </div>}
             </div>
-            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"20px"}}>
-              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>Historique rapprochements</div>
-              {[{date:"2024-02-29",compte:"BICEC Principal",solde:"38500000",ecart:"0",statut:"OK"},{date:"2024-01-31",compte:"BICEC Principal",solde:"25200000",ecart:"0",statut:"OK"},{date:"2024-02-29",compte:"SGC Operationnel",solde:"8500000",ecart:"0",statut:"OK"}].map((h,i)=>(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<2?"1px solid "+C.border2:"none"}}>
-                  <div>
-                    <div style={{fontSize:12,fontWeight:600,color:C.text}}>{h.compte}</div>
-                    <div style={{fontSize:11,color:C.text4}}>{fD(h.date)}</div>
-                  </div>
-                  <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:12,fontWeight:600,color:C.green}}>{fN(+h.solde)} F</div>
-                    <span style={{fontSize:10,padding:"1px 7px",borderRadius:10,background:C.green_l,color:C.green,fontWeight:600}}>{h.statut}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* VIREMENTS */}
-        {mode==="transfers"&&(
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
-            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"20px"}}>
-              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>Nouveau virement interne</div>
-              <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                <Field label="Compte source">
-                  <Sel value="" onChange={()=>{}} placeholder="Selectionner..." options={INIT_BANKS.map(b=>({v:b.id,l:b.name+" — "+fN(b.balance)+" F"}))}/>
-                </Field>
-                <Field label="Compte destination">
-                  <Sel value="" onChange={()=>{}} placeholder="Selectionner..." options={INIT_BANKS.map(b=>({v:b.id,l:b.name+" — "+fN(b.balance)+" F"}))}/>
-                </Field>
-                <Field label="Montant (FCFA)">
-                  <Inp type="number" value="" onChange={()=>{}} prefix="FCFA" placeholder="0"/>
-                </Field>
-                <Field label="Date">
-                  <Inp type="date" value={TODAY} onChange={()=>{}}/>
-                </Field>
-                <Field label="Memo">
-                  <Inp value="" onChange={()=>{}} placeholder="Description du virement"/>
-                </Field>
-                <Btn label="Effectuer le virement" variant="primary" icon="bank" full/>
-              </div>
-            </div>
-            <div style={{background:C.white,border:"1px solid "+C.border,borderRadius:6,padding:"20px"}}>
-              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>Derniers virements</div>
-              {INIT_TRANSACTIONS.filter(t=>t.ref&&t.ref.startsWith("INT")).map((t,i)=>(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid "+C.border2}}>
-                  <div>
-                    <div style={{fontSize:12,fontWeight:600}}>{t.desc}</div>
-                    <div style={{fontSize:11,color:C.text4}}>{fD(t.date)} · {t.ref}</div>
-                  </div>
-                  <span style={{fontSize:13,fontWeight:700,color:C.green}}>{fN(t.amount)} F</span>
-                </div>
-              ))}
-              {INIT_TRANSACTIONS.filter(t=>t.ref&&t.ref.startsWith("INT")).length===0&&(
-                <div style={{textAlign:"center",color:C.text4,fontSize:13,padding:"20px"}}>Aucun virement recent</div>
-              )}
-            </div>
-          </div>
-        )}
+          )}
+          {mode!=='feed'&&<div style={{padding:48,textAlign:'center',color:C.text3}}>
+            <div style={{fontSize:40,marginBottom:12}}>{mode==='rapprochement'?'🔄':'🔀'}</div>
+            <p style={{fontWeight:600,margin:0}}>{mode==='rapprochement'?'Rapprochement bancaire':'Virements internes'}</p>
+            <p style={{fontSize:13,margin:'8px 0 0'}}>Importez un relevé pour commencer</p>
+          </div>}
+        </div>
       </div>
     </div>
   );
 };
 
-// ================================================================
-//  PAIE RH — Payroll SYSCOHADA Cameroun
-// ================================================================
-const INIT_EMPLOYEES = []; // Données depuis CleanITBooks API
-
-const calcPayroll = (grossSalary) => {
-  const cnpsEmp   = Math.round(grossSalary * 0.084);
-  const cnpsEmp2  = Math.round(grossSalary * 0.014);
-  const cnpsTotal = cnpsEmp + cnpsEmp2;
-  const taxable   = grossSalary - cnpsEmp;
-  let irpp = 0;
-  if(taxable <= 166667) irpp = 0;
-  else if(taxable <= 291667) irpp = Math.round((taxable - 166667) * 0.10);
-  else if(taxable <= 458333) irpp = 12500 + Math.round((taxable - 291667) * 0.15);
-  else if(taxable <= 666667) irpp = 37500 + Math.round((taxable - 458333) * 0.25);
-  else irpp = 89583 + Math.round((taxable - 666667) * 0.35);
-  const cac  = Math.round(irpp * 0.10);
-  const totalDeductions = cnpsEmp + irpp + cac;
-  const netSalary = grossSalary - totalDeductions;
-  const cnpsPatronal = Math.round(grossSalary * 0.1175);
-  return {cnpsEmp, cnpsEmp2, cnpsTotal, irpp, cac, totalDeductions, netSalary, cnpsPatronal};
-};
-
-const INIT_PAYROLL_HISTORY = []; // Données depuis CleanITBooks API
 
 const PagePayroll = () => {
   const navigate   = useNavigate();
@@ -4978,7 +4935,7 @@ const PagePayroll = () => {
   const totalPatronal = INIT_EMPLOYEES.reduce((s,e)=>s+calcPayroll(e.grossSalary).cnpsPatronal,0);
 
   return(
-    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
 
       <CIBTopBar title="Paie et Ressources Humaines" icon="payroll" color={C.purple}>
@@ -5192,7 +5149,7 @@ const PagePayroll = () => {
                   const p = calcPayroll(showBulletin.grossSalary);
                   return(
                     <div>
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20,padding:"12px",background:C.bg,borderRadius:4}}>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20,padding:"12px",background:'#F4F5F7',borderRadius:4}}>
                         {[{l:"Matricule",v:showBulletin.id},{l:"Periode",v:selPeriod},{l:"Poste",v:showBulletin.title},{l:"Departement",v:showBulletin.dept},{l:"N CNPS",v:showBulletin.cnps},{l:"Date embauche",v:fD2(showBulletin.hireDate)}].map(it=>(
                           <div key={it.l}>
                             <div style={{fontSize:10,color:C.text4,textTransform:"uppercase",letterSpacing:.4,marginBottom:1}}>{it.l}</div>
@@ -5226,7 +5183,7 @@ const PagePayroll = () => {
                           <span style={{fontSize:14,fontWeight:800,color:C.red}}>{fN(p.totalDeductions)} F</span>
                         </div>
                       </div>
-                      <div style={{padding:"14px 16px",background:C.green_l,borderRadius:6,border:"1px solid "+C.green+"30",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div style={{padding:"14px 16px",background:C.green_l,borderRadius:4,border:"1px solid "+C.green+"30",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                         <span style={{fontSize:15,fontWeight:700,color:C.text}}>NET A PAYER</span>
                         <span style={{fontSize:22,fontWeight:800,color:C.green}}>{fN(p.netSalary)} FCFA</span>
                       </div>
@@ -5364,7 +5321,7 @@ const PageReports = () => {
   };
 
   const KPICard = ({label,value,color}) => (
-    <div style={{padding:'14px 16px',background:C.white,border:'1px solid '+C.border,borderRadius:6,borderTop:'3px solid '+color,textAlign:'center'}}>
+    <div style={{padding:'14px 16px',background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)',borderTop:'3px solid '+color,textAlign:'center'}}>
       <div style={{fontSize:11,color:C.text3,textTransform:'uppercase',letterSpacing:.4,marginBottom:4}}>{label}</div>
       <div style={{fontSize:20,fontWeight:700,color}}>{value}</div>
     </div>
@@ -5383,7 +5340,7 @@ const PageReports = () => {
           <KPICard label="Résultat Net"   value={(d.resultat>=0?'+':'')+fN(d.resultat)+' F'} color={d.resultat>=0?C.green:C.red}/>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
-          <div style={{background:C.white,border:'1px solid '+C.border,borderRadius:6,overflow:'hidden'}}>
+          <div style={{background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)',overflow:'hidden'}}>
             <div style={{padding:'10px 14px',background:C.green+'15',borderBottom:'2px solid '+C.green,fontWeight:700,fontSize:12,color:C.green}}>PRODUITS — Classe 7</div>
             {d.produits.filter(p=>p.montant>0).map((p,i)=>(
               <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'8px 14px',borderBottom:'1px solid '+C.border2}}>
@@ -5397,7 +5354,7 @@ const PageReports = () => {
               <span style={{fontWeight:800,fontSize:14,color:C.green}}>{fN(d.totalProduits)} F</span>
             </div>
           </div>
-          <div style={{background:C.white,border:'1px solid '+C.border,borderRadius:6,overflow:'hidden'}}>
+          <div style={{background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)',overflow:'hidden'}}>
             <div style={{padding:'10px 14px',background:C.red+'15',borderBottom:'2px solid '+C.red,fontWeight:700,fontSize:12,color:C.red}}>CHARGES — Classe 6</div>
             {d.charges.filter(c=>c.montant>0).map((c,i)=>(
               <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'8px 14px',borderBottom:'1px solid '+C.border2}}>
@@ -5430,7 +5387,7 @@ const PageReports = () => {
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
           {[{title:'ACTIF',items:d.actif,color:C.blue,total:d.totalActif},{title:'PASSIF',items:d.passif,color:C.orange,total:d.totalPassif}].map(({title,items,color,total})=>(
-            <div key={title} style={{background:C.white,border:'1px solid '+C.border,borderRadius:6,overflow:'hidden'}}>
+            <div key={title} style={{background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)',overflow:'hidden'}}>
               <div style={{padding:'10px 14px',background:color+'15',borderBottom:'2px solid '+color,fontWeight:700,fontSize:12,color}}>{title}</div>
               {(items||[]).filter(a=>a.solde>0).map((a,i)=>(
                 <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'8px 14px',borderBottom:'1px solid '+C.border2}}>
@@ -5466,16 +5423,16 @@ const PageReports = () => {
       <div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:8,marginBottom:16}}>
           {Object.entries(buckets).map(([k,arr])=>(
-            <div key={k} style={{padding:'12px',background:C.white,border:'1px solid '+C.border,borderRadius:6,borderTop:'3px solid '+(bColors[k]),textAlign:'center'}}>
+            <div key={k} style={{padding:'12px',background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)',borderTop:'3px solid '+(bColors[k]),textAlign:'center'}}>
               <div style={{fontSize:11,color:C.text3,marginBottom:4}}>{k}</div>
               <div style={{fontSize:16,fontWeight:700,color:bColors[k]}}>{fN(arr.reduce((s,i)=>s+Number(i.balance||0),0))} F</div>
               <div style={{fontSize:11,color:C.text4}}>{arr.length} fact.</div>
             </div>
           ))}
         </div>
-        <div style={{background:C.white,border:'1px solid '+C.border,borderRadius:6,overflow:'hidden'}}>
+        <div style={{background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)',overflow:'hidden'}}>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
-            <thead><tr style={{background:'#F9FAFB',borderBottom:'2px solid '+C.border}}>
+            <thead><tr style={{background:QB.bg,borderBottom:'2px solid '+C.border}}>
               <Th>Facture</Th><Th>Client</Th><Th>Date</Th><Th>Échéance</Th><Th right>Total</Th><Th right>Solde</Th><Th right>Tranche</Th>
             </tr></thead>
             <tbody>
@@ -5498,7 +5455,7 @@ const PageReports = () => {
               })}
               {open.length===0&&<tr><td colSpan={7} style={{padding:40,textAlign:'center',color:C.text4}}>✅ Aucune facture en attente</td></tr>}
             </tbody>
-            <tfoot><tr style={{background:'#F9FAFB',borderTop:'2px solid '+C.border}}>
+            <tfoot><tr style={{background:QB.bg,borderTop:'2px solid '+C.border}}>
               <td colSpan={4} style={{padding:'10px 12px',fontWeight:700}}>TOTAL ENCOURS</td>
               <td style={{padding:'10px 12px',textAlign:'right',fontWeight:800}}>{fN(invoices.reduce((s,i)=>s+Number(i.total||0),0))} F</td>
               <td style={{padding:'10px 12px',textAlign:'right',fontWeight:800,color:C.orange}}>{fN(open.reduce((s,i)=>s+Number(i.balance||0),0))} F</td>
@@ -5523,9 +5480,9 @@ const PageReports = () => {
     const rows = Object.entries(byC).sort((a,b)=>b[1].total-a[1].total);
     const grand = rows.reduce((s,[,v])=>s+v.total,0);
     return(
-      <div style={{background:C.white,border:'1px solid '+C.border,borderRadius:6,overflow:'hidden'}}>
+      <div style={{background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)',overflow:'hidden'}}>
         <table style={{width:'100%',borderCollapse:'collapse'}}>
-          <thead><tr style={{background:'#F9FAFB',borderBottom:'2px solid '+C.border}}>
+          <thead><tr style={{background:QB.bg,borderBottom:'2px solid '+C.border}}>
             <Th>Client</Th><Th right>Factures</Th><Th right>CA Facturé</Th><Th right>Encaissé</Th><Th right>Solde</Th><Th right>Part %</Th>
           </tr></thead>
           <tbody>
@@ -5543,7 +5500,7 @@ const PageReports = () => {
             ))}
             {rows.length===0&&<tr><td colSpan={6} style={{padding:40,textAlign:'center',color:C.text4}}>Aucune facture</td></tr>}
           </tbody>
-          <tfoot><tr style={{background:'#F9FAFB',borderTop:'2px solid '+C.border}}>
+          <tfoot><tr style={{background:QB.bg,borderTop:'2px solid '+C.border}}>
             <td style={{padding:'10px 12px',fontWeight:700}}>TOTAL</td>
             <td style={{padding:'10px 12px',textAlign:'right',fontWeight:700}}>{invoices.length}</td>
             <td style={{padding:'10px 12px',textAlign:'right',fontWeight:800,color:C.blue}}>{fN(grand)} F</td>
@@ -5555,9 +5512,9 @@ const PageReports = () => {
   };
 
   const renderProfitability = () => (
-    <div style={{background:C.white,border:'1px solid '+C.border,borderRadius:6,overflow:'hidden'}}>
+    <div style={{background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)',overflow:'hidden'}}>
       <table style={{width:'100%',borderCollapse:'collapse'}}>
-        <thead><tr style={{background:'#F9FAFB',borderBottom:'2px solid '+C.border}}>
+        <thead><tr style={{background:QB.bg,borderBottom:'2px solid '+C.border}}>
           <Th>Job</Th><Th>Client</Th><Th right>Contrat</Th><Th right>Facturé</Th><Th right>Coûts</Th><Th right>Marge F</Th><Th right>Marge %</Th>
         </tr></thead>
         <tbody>
@@ -5604,7 +5561,7 @@ const PageReports = () => {
           <KPICard label="TVA Déductible (445)" value={fN(ded)+' F'} color={C.green}/>
           <KPICard label="TVA Nette Due" value={fN(due)+' F'} color={C.orange}/>
         </div>
-        <div style={{background:C.white,border:'1px solid '+C.border,borderRadius:6,padding:20}}>
+        <div style={{background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)',padding:20}}>
           <div style={{fontWeight:700,marginBottom:12,fontSize:14}}>Déclaration TVA — {new Date().toLocaleDateString('fr-FR',{month:'long',year:'numeric'})}</div>
           {[['CA19 — TVA collectée sur ventes (19.25%)',fN(coll)+' F'],
             ['CA20 — TVA déductible sur achats',fN(ded)+' F'],
@@ -5625,11 +5582,11 @@ const PageReports = () => {
     const total = tresoRows.reduce((s,r)=>s+Number(r.debit)-Number(r.credit),0);
     return(
       <div>
-        <div style={{padding:'14px',background:C.white,border:'1px solid '+C.border,borderRadius:6,borderTop:'3px solid '+C.green,textAlign:'center',marginBottom:20}}>
+        <div style={{padding:'14px',background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)',borderTop:'3px solid '+C.green,textAlign:'center',marginBottom:20}}>
           <div style={{fontSize:11,color:C.text3,textTransform:'uppercase',marginBottom:4}}>Position Trésorerie Totale</div>
           <div style={{fontSize:28,fontWeight:800,color:total>=0?C.green:C.red}}>{fN(total)} F CFA</div>
         </div>
-        <div style={{background:C.white,border:'1px solid '+C.border,borderRadius:6,overflow:'hidden'}}>
+        <div style={{background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)',overflow:'hidden'}}>
           {tresoRows.map((r,i)=>(
             <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'14px 16px',borderBottom:'1px solid '+C.border2}}>
               <div>
@@ -5648,9 +5605,9 @@ const PageReports = () => {
   const renderAPaging = () => {
     const open = bills.filter(b=>b.status!=='Paid');
     return(
-      <div style={{background:C.white,border:'1px solid '+C.border,borderRadius:6,overflow:'hidden'}}>
+      <div style={{background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)',overflow:'hidden'}}>
         <table style={{width:'100%',borderCollapse:'collapse'}}>
-          <thead><tr style={{background:'#F9FAFB',borderBottom:'2px solid '+C.border}}>
+          <thead><tr style={{background:QB.bg,borderBottom:'2px solid '+C.border}}>
             <Th>Bill</Th><Th>Fournisseur</Th><Th>Date</Th><Th right>Total</Th><Th right>Solde</Th><Th right>Statut</Th>
           </tr></thead>
           <tbody>
@@ -5671,7 +5628,7 @@ const PageReports = () => {
             })}
             {open.length===0&&<tr><td colSpan={6} style={{padding:40,textAlign:'center',color:C.text4}}>✅ Aucun bill en attente</td></tr>}
           </tbody>
-          <tfoot><tr style={{background:'#F9FAFB',borderTop:'2px solid '+C.border}}>
+          <tfoot><tr style={{background:QB.bg,borderTop:'2px solid '+C.border}}>
             <td colSpan={3} style={{padding:'10px 12px',fontWeight:700}}>TOTAL DÛ FOURNISSEURS</td>
             <td style={{padding:'10px 12px',textAlign:'right',fontWeight:800}}>{fN(bills.reduce((s,b)=>s+Number(b.total||0),0))} F</td>
             <td style={{padding:'10px 12px',textAlign:'right',fontWeight:800,color:C.red}}>{fN(open.reduce((s,b)=>s+Number(b.balance||0),0))} F</td>
@@ -5684,7 +5641,7 @@ const PageReports = () => {
 
   const renderReportView = (report) => {
     if(loading) return(
-      <div style={{textAlign:'center',padding:'80px',background:C.white,border:'1px solid '+C.border,borderRadius:6}}>
+      <div style={{textAlign:'center',padding:'80px',background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)'}}>
         <div style={{fontSize:14,color:C.text3,marginBottom:8}}>⏳ Chargement des données réelles...</div>
         <div style={{fontSize:12,color:C.text4}}>Connexion base de données en cours</div>
       </div>
@@ -5710,7 +5667,7 @@ const PageReports = () => {
   };
 
   return(
-    <div style={{minHeight:'100vh',background:C.bg,fontFamily:'"Segoe UI",Arial,sans-serif'}}>
+    <div style={{minHeight:'100vh',background:'#F4F5F7',fontFamily:'"Segoe UI",Arial,sans-serif'}}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}*{box-sizing:border-box}::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#D1D5DB;border-radius:3px}`}</style>
       <CIBTopBar title="Rapports et Analyses" icon="report" color={C.text}>
         <div style={{display:'flex',gap:8}}>
@@ -5738,7 +5695,7 @@ const PageReports = () => {
             </div>
             {REPORT_GROUPS.filter(g=>!activeGroup||g.id===activeGroup).map(group=>(
               <div key={group.id} style={{marginBottom:24}}>
-                <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 16px',background:C.white,border:'1px solid '+C.border,borderRadius:6,marginBottom:10,borderLeft:'4px solid '+group.color}}>
+                <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 16px',background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)',marginBottom:10,borderLeft:'4px solid '+group.color}}>
                   <div style={{width:30,height:30,borderRadius:5,background:group.color+'15',display:'flex',alignItems:'center',justifyContent:'center'}}><Ico n={group.icon} s={15} c={group.color}/></div>
                   <span style={{fontSize:13,fontWeight:700,color:C.text}}>{group.name}</span>
                   <span style={{fontSize:11,color:C.text4,marginLeft:4}}>({group.reports.length} rapports)</span>
@@ -5746,7 +5703,7 @@ const PageReports = () => {
                 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:8}}>
                   {group.reports.map(report=>(
                     <div key={report.id}
-                      style={{padding:'14px 16px',background:C.white,border:'1px solid '+C.border2,borderRadius:6,cursor:'pointer',transition:'all .15s'}}
+                      style={{padding:'14px 16px',background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,cursor:'pointer',transition:'all .15s'}}
                       onMouseEnter={e=>{e.currentTarget.style.borderColor=group.color;e.currentTarget.style.background=group.color+'08';e.currentTarget.style.transform='translateY(-1px)';}}
                       onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border2;e.currentTarget.style.background=C.white;e.currentTarget.style.transform='none';}}
                       onClick={()=>setSelReport(report)}>
@@ -5766,7 +5723,7 @@ const PageReports = () => {
         )}
         {selReport&&(
           <div>
-            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20,padding:'12px 16px',background:C.white,border:'1px solid '+C.border,borderRadius:6}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20,padding:'12px 16px',background:'#FFFFFF',border:'1px solid #E5E7EB',boxShadow:'0 1px 2px rgba(0,0,0,0.06)',borderRadius:6,boxShadow:'0 1px 3px rgba(0,0,0,0.08)'}}>
               <Ico n="chart" s={18} c={C.blue}/>
               <div>
                 <div style={{fontWeight:700,fontSize:14,color:C.text}}>{selReport.name}</div>
@@ -6017,7 +5974,7 @@ const PageJournal = () => {
               <div style={{borderTop:`1px solid ${C.border}`,padding:'0 18px 14px'}}>
                 <table style={{width:'100%',borderCollapse:'collapse',marginTop:10}}>
                   <thead>
-                    <tr style={{background:'#f8fafc'}}>
+                    <tr style={{background:QB.bg}}>
                       {['Compte','Libellé','Tiers','Débit','Crédit','Lettrage'].map(h=>(
                         <th key={h} style={{padding:'8px 10px',textAlign:'left',fontSize:10,fontWeight:800,color:C.text3,textTransform:'uppercase',letterSpacing:.4}}>{h}</th>
                       ))}
@@ -6036,7 +5993,7 @@ const PageJournal = () => {
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr style={{background:'#f8fafc',borderTop:`2px solid ${C.border}`}}>
+                    <tr style={{background:QB.bg,borderTop:`2px solid ${C.border}`}}>
                       <td colSpan={3} style={{padding:'8px 10px',fontSize:11,fontWeight:700,color:C.text3}}>TOTAL</td>
                       <td style={{padding:'8px 10px',fontSize:13,fontWeight:800,color:C.green,textAlign:'right'}}>{fN(e.totalDebit)}</td>
                       <td style={{padding:'8px 10px',fontSize:13,fontWeight:800,color:C.red,textAlign:'right'}}>{fN(e.totalCredit)}</td>
@@ -6114,7 +6071,7 @@ const PagePlanComptable = () => {
         </div>
 
         <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
-          <div style={{display:'grid',gridTemplateColumns:'120px 1fr 80px 80px 130px 130px',gap:0,padding:'10px 16px',background:'#f8fafc',borderBottom:`2px solid ${C.border}`,fontSize:10,fontWeight:800,color:C.text3,textTransform:'uppercase',letterSpacing:.4}}>
+          <div style={{display:'grid',gridTemplateColumns:'120px 1fr 80px 80px 130px 130px',gap:0,padding:'10px 16px',background:QB.bg,borderBottom:`2px solid ${C.border}`,fontSize:10,fontWeight:800,color:C.text3,textTransform:'uppercase',letterSpacing:.4}}>
             <span>Code</span><span>Intitulé</span><span>Classe</span><span>Type</span><span>Solde Débit</span><span>Solde Crédit</span>
           </div>
           {filtered.length===0&&<div style={{padding:'40px',textAlign:'center',color:C.text4}}>
@@ -6130,7 +6087,7 @@ const PagePlanComptable = () => {
               <span style={{fontSize:12,fontWeight:700,color:Number(a.soldeCredit)>0?C.red:C.text4,textAlign:'right'}}>{Number(a.soldeCredit)>0?fN(a.soldeCredit):'—'}</span>
             </div>
           ))}
-          <div style={{padding:'10px 16px',background:'#f8fafc',borderTop:`2px solid ${C.border}`,fontSize:11,color:C.text3}}>
+          <div style={{padding:'10px 16px',background:QB.bg,borderTop:`2px solid ${C.border}`,fontSize:11,color:C.text3}}>
             {filtered.length} comptes · Plan comptable SYSCOHADA révisé
           </div>
         </div>
@@ -6181,7 +6138,7 @@ const PageBalance = () => {
         </div>
 
         <div style={{background:C.white,borderRadius:12,border:`1px solid ${C.border}`,overflow:'hidden',boxShadow:"0 1px 3px rgba(0,0,0,0.08)"}}>
-          <div style={{display:'grid',gridTemplateColumns:'100px 1fr 80px 130px 130px 130px',padding:'10px 16px',background:'#f8fafc',borderBottom:`2px solid ${C.border}`,fontSize:10,fontWeight:800,color:C.text3,textTransform:'uppercase',letterSpacing:.4}}>
+          <div style={{display:'grid',gridTemplateColumns:'100px 1fr 80px 130px 130px 130px',padding:'10px 16px',background:QB.bg,borderBottom:`2px solid ${C.border}`,fontSize:10,fontWeight:800,color:C.text3,textTransform:'uppercase',letterSpacing:.4}}>
             <span>Code</span><span>Intitulé</span><span>Classe</span><span>Débit</span><span>Crédit</span><span>Solde</span>
           </div>
           {nonZero.length===0&&<div style={{padding:'40px',textAlign:'center',color:C.text4}}>Aucune écriture enregistrée</div>}
@@ -6351,14 +6308,14 @@ const PageAnalytics = ({invoices=[],bills=[],customers=[],jobs=[]}) => {
 
   const CustomTooltip=({active,payload,label})=>{
     if(!active||!payload?.length) return null;
-    return <div style={{background:'#fff',border:'1px solid '+C.border,borderRadius:8,padding:'10px 14px',boxShadow:"0 1px 3px rgba(0,0,0,0.08)",fontSize:11}}>
+    return <div style={{background:'#fff',border:'1px solid '+C.border,borderRadius:8,boxShadow:'0 1px 3px rgba(0,0,0,0.08)',padding:'10px 14px',boxShadow:"0 1px 3px rgba(0,0,0,0.08)",fontSize:11}}>
       <div style={{fontWeight:700,color:C.text,marginBottom:4}}>{label}</div>
       {payload.map((p,i)=><div key={i} style={{display:'flex',gap:6,alignItems:'center',marginBottom:2}}><div style={{width:7,height:7,borderRadius:'50%',background:p.color}}/><span style={{color:C.text3}}>{p.name}:</span><span style={{fontWeight:700}}>{fN(p.value)} F</span></div>)}
     </div>;
   };
 
   return (
-    <div style={{padding:'24px',background:C.bg,minHeight:'100vh'}}>
+    <div style={{padding:'24px',background:'#F4F5F7',minHeight:'100vh'}}>
       <CIBTopBar title="Analytics — Analyse financière" icon="📊" color={C.blue}/>
 
       {/* KPIs */}
@@ -6427,7 +6384,7 @@ const PageAnalytics = ({invoices=[],bills=[],customers=[],jobs=[]}) => {
                   <span style={{fontWeight:700,color:C.text}}>{d.name}</span>
                   <span style={{color:COLORS[i%COLORS.length],fontWeight:700}}>{d.pct}%</span>
                 </div>
-                <div style={{height:5,borderRadius:3,background:'#F3F4F6',overflow:'hidden'}}>
+                <div style={{height:5,borderRadius:3,background:'#F4F5F7',overflow:'hidden'}}>
                   <div style={{width:d.pct+'%',height:'100%',background:COLORS[i%COLORS.length],borderRadius:3}}/>
                 </div>
               </div>
@@ -6447,7 +6404,7 @@ const PageAnalytics = ({invoices=[],bills=[],customers=[],jobs=[]}) => {
             {l:'Top client',v:clientData[0]?.pct+'%',note:clientData[0]?.name||'—',c:clientData[0]?.pct>60?C.orange:C.green},
             {l:'Jobs actifs',v:String((jobs||[]).filter(j=>j.statut==='En cours').length||4),note:'En cours',c:"#00626E"||'#0f766e'},
           ].map((r,i)=>(
-            <div key={i} style={{background:C.bg,borderRadius:8,padding:'14px',textAlign:'center',border:'1px solid '+C.border2}}>
+            <div key={i} style={{background:'#F4F5F7',borderRadius:8,padding:'14px',textAlign:'center',border:'1px solid '+C.border2}}>
               <div style={{fontSize:20,fontWeight:800,color:r.c,marginBottom:3}}>{r.v}</div>
               <div style={{fontSize:11,fontWeight:600,color:C.text2,marginBottom:2}}>{r.l}</div>
               <div style={{fontSize:10,color:C.text3}}>{r.note}</div>
@@ -6554,7 +6511,7 @@ const PageAvoir = ({invoices=[], customers=[], setInvoices}) => {
         ) : (
           <table style={{width:'100%',borderCollapse:'collapse'}}>
             <thead>
-              <tr style={{background:C.bg,borderBottom:`2px solid ${C.border}`}}>
+              <tr style={{background:'#F4F5F7',borderBottom:`2px solid ${C.border}`}}>
                 {['Référence','Facture originale','Date','Montant','Motif','Statut'].map(h=>(
                   <th key={h} style={{padding:'10px 12px',textAlign:'left',fontSize:11,fontWeight:700,color:C.text3,textTransform:'uppercase',letterSpacing:.5}}>{h}</th>
                 ))}
@@ -6633,7 +6590,7 @@ const PageReconciliation = ({invoices=[], bills=[]}) => {
           </div>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
             <thead>
-              <tr style={{background:C.bg}}>
+              <tr style={{background:'#F4F5F7'}}>
                 {['Date','Description','Montant','Statut','Action'].map(h=>(
                   <th key={h} style={{padding:'10px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:C.text3,textTransform:'uppercase',letterSpacing:.5}}>{h}</th>
                 ))}
@@ -6731,7 +6688,7 @@ const PageImportCSV = () => {
                 {done&&<span style={{color:C.green,fontWeight:700,fontSize:13}}>✓ Import réussi</span>}
               </div>
               <table style={{width:'100%',borderCollapse:'collapse'}}>
-                <thead><tr style={{background:C.bg}}>
+                <thead><tr style={{background:'#F4F5F7'}}>
                   {['Date','Description','Crédit','Débit'].map(h=><th key={h} style={{padding:'9px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:C.text3,textTransform:'uppercase'}}>{h}</th>)}
                 </tr></thead>
                 <tbody>
@@ -6915,7 +6872,7 @@ const PageBudget = ({invoices=[], bills=[]}) => {
         <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,overflow:'hidden'}}>
           <table style={{width:'100%',borderCollapse:'collapse'}}>
             <thead>
-              <tr style={{background:C.bg}}>
+              <tr style={{background:'#F4F5F7'}}>
                 {['Catégorie','Compte','Budget prévu','Réel','Écart','% réalisé',''].map(h=>(
                   <th key={h} style={{padding:'11px 14px',textAlign:'left',fontSize:11,fontWeight:700,color:C.text3,textTransform:'uppercase',letterSpacing:.5}}>{h}</th>
                 ))}
@@ -6994,7 +6951,7 @@ const EmailInvoiceModal = ({invoice, customer, onClose}) => {
           <textarea value={msg} onChange={e=>setMsg(e.target.value)} rows={3}
             style={{width:'100%',padding:'9px 12px',borderRadius:6,border:`1px solid ${C.border}`,fontSize:13,outline:'none',boxSizing:'border-box',resize:'vertical'}}/>
         </div>
-        <div style={{background:C.bg,borderRadius:8,padding:'10px 14px',marginBottom:16,fontSize:12,color:C.text3}}>
+        <div style={{background:'#F4F5F7',borderRadius:8,padding:'10px 14px',marginBottom:16,fontSize:12,color:C.text3}}>
           <strong>Facture:</strong> {invoice?.ref||invoice?.id} · <strong>Montant:</strong> {fN(invoice?.total||0)} FCFA
         </div>
         {sent&&<div style={{color:C.green,fontWeight:600,fontSize:13,marginBottom:12}}>✓ Client de messagerie ouvert</div>}
