@@ -382,10 +382,15 @@ app.post('/missions', auth, async (req, res) => {
   try {
     const { code, site, siteName, client, type, techId, deadline, bcNumber, checklist } = req.body;
     if (!code || !site || !client) return res.status(400).json({ message: 'Code, site et client requis' });
+    let siteLat=null, siteLng=null;
+    if(site) {
+      const siteQ = await pool.query('SELECT latitude,longitude FROM sites WHERE code=$1 LIMIT 1',[site]);
+      if(siteQ.rows[0]) { siteLat=siteQ.rows[0].latitude; siteLng=siteQ.rows[0].longitude; }
+    }
     const result = await pool.query(`
-      INSERT INTO missions (code, site, site_name, client, type, tech_id, deadline, bc_number, checklist)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
-    `, [code, site, siteName||'', client, type||'', techId||null, deadline||null, bcNumber||null, JSON.stringify(checklist||[])]);
+      INSERT INTO missions (code, site, site_name, client, type, tech_id, deadline, bc_number, checklist, site_lat, site_lng, site_rayon)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *
+    `, [code, site, siteName||'', client, type||'', techId||null, deadline||null, bcNumber||null, JSON.stringify(checklist||[]), siteLat, siteLng, 500]);
     res.status(201).json(result.rows[0]);
   } catch (e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
 });
@@ -604,16 +609,69 @@ pool.query(`CREATE TABLE IF NOT EXISTS pointages (
   created_at TIMESTAMP DEFAULT NOW()
 )`).catch(console.error);
 
+// ─── GEOFENCING ──────────────────────────────────────────────
+const ZONES_BUREAU = [
+  {code:'HUA-DLA',nom:'Huawei Douala Bonapriso',lat:4.021841,lng:9.698572,rayon:150},
+  {code:'COL-DLA',nom:'Ancien Collège des Nations Bonapriso',lat:4.024400,lng:9.705468,rayon:150},
+];
+
+function distGPS(lat1,lng1,lat2,lng2){
+  const R=6371000;
+  const dLat=(lat2-lat1)*Math.PI/180;
+  const dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a)));
+}
+
+function checkGeofencingBureau(lat,lng){
+  if(!lat||!lng) return {valide:true,distance:null,zone:null,horsZone:false};
+  const latN=parseFloat(lat);const lngN=parseFloat(lng);
+  for(const zone of ZONES_BUREAU){
+    const dist=distGPS(latN,lngN,zone.lat,zone.lng);
+    if(dist<=zone.rayon) return {valide:true,distance:dist,zone:zone.nom,horsZone:false};
+  }
+  const dists=ZONES_BUREAU.map(z=>({z,d:distGPS(latN,lngN,z.lat,z.lng)}));
+  const nearest=dists.sort((a,b)=>a.d-b.d)[0];
+  return {valide:false,distance:nearest.d,zone:nearest.z.nom,horsZone:true};
+}
+
+async function checkGeofencingTerrain(userId,lat,lng){
+  if(!lat||!lng) return {valide:true,distance:null,zone:null,horsZone:false};
+  const latN=parseFloat(lat);const lngN=parseFloat(lng);
+  const mission=await pool.query(
+    "SELECT * FROM missions WHERE tech_id=$1 AND status='in_progress' AND site_lat IS NOT NULL LIMIT 1",
+    [userId]
+  );
+  if(!mission.rows[0]) return {valide:true,distance:null,zone:null,horsZone:false};
+  const m=mission.rows[0];
+  const rayon=m.site_rayon||500;
+  const dist=distGPS(latN,lngN,parseFloat(m.site_lat),parseFloat(m.site_lng));
+  if(dist<=rayon) return {valide:true,distance:dist,zone:m.site_name||m.site,horsZone:false};
+  return {valide:false,distance:dist,zone:m.site_name||m.site,horsZone:true};
+}
+
 app.post('/pointages', auth, async (req, res) => {
   try {
     const { siteCode, siteName, type, gpsLat, gpsLng } = req.body;
-    const user = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1',[req.user.sub]);
-    const u = user.rows[0];
+    const userQ = await pool.query('SELECT "firstName","lastName",role FROM users WHERE id=$1',[req.user.sub]);
+    const u = userQ.rows[0];
+    const isTerrain = ['technician','terrain'].includes(u.role);
+    
+    let geo;
+    if(isTerrain){
+      geo = await checkGeofencingTerrain(req.user.sub, gpsLat, gpsLng);
+    } else {
+      geo = checkGeofencingBureau(gpsLat, gpsLng);
+    }
+
     const result = await pool.query(
-      'INSERT INTO pointages (user_id,user_name,site_code,site_name,type,gps_lat,gps_lng) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-      [req.user.sub, u.firstName+' '+u.lastName, siteCode||'', siteName||'', type||'arrivee', gpsLat||null, gpsLng||null]
+      'INSERT INTO pointages (user_id,user_name,site_code,site_name,type,gps_lat,gps_lng,valide,distance_m,hors_zone,zone_nom) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *',
+      [req.user.sub, u.firstName+' '+u.lastName,
+       siteCode||geo.zone||'', siteName||geo.zone||'',
+       type||'arrivee', gpsLat||null, gpsLng||null,
+       geo.valide, geo.distance, geo.horsZone, geo.zone]
     );
-    res.status(201).json(result.rows[0]);
+    res.status(201).json({...result.rows[0], geofencing: geo});
   } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
 });
 
@@ -789,6 +847,62 @@ app.get('/notifications', auth, async (req, res) => {
   } catch(e) { res.json([]); }
 });
 
+// ─── CONVERSATIONS & MESSAGES ─────────────────────────────────
+app.get('/conversations', auth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT c.*,
+        u1.id as p1_id, u1."firstName" as p1_first, u1."lastName" as p1_last,
+        u2.id as p2_id, u2."firstName" as p2_first, u2."lastName" as p2_last,
+        (SELECT COUNT(*) FROM messages m WHERE m.conversation_id=c.id AND m.read=false AND m.from_id!=$1) as unread
+      FROM conversations c
+      JOIN users u1 ON u1.id = c.participant_1
+      JOIN users u2 ON u2.id = c.participant_2
+      WHERE c.participant_1=$1 OR c.participant_2=$1
+      ORDER BY c.last_message_at DESC
+    `, [req.user.sub]);
+    res.json(result.rows);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
+app.post('/conversations', auth, async (req, res) => {
+  try {
+    const { participantId } = req.body;
+    const me = req.user.sub;
+    const p1 = Math.min(me, participantId);
+    const p2 = Math.max(me, participantId);
+    const existing = await pool.query('SELECT * FROM conversations WHERE participant_1=$1 AND participant_2=$2',[p1,p2]);
+    if (existing.rows[0]) return res.json(existing.rows[0]);
+    const result = await pool.query('INSERT INTO conversations (participant_1, participant_2) VALUES ($1,$2) RETURNING *',[p1,p2]);
+    res.status(201).json(result.rows[0]);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
+app.get('/messages/:convId', auth, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM messages WHERE conversation_id=$1 ORDER BY created_at ASC LIMIT 100',[req.params.convId]);
+    await pool.query('UPDATE messages SET read=true WHERE conversation_id=$1 AND from_id!=$2',[req.params.convId, req.user.sub]);
+    res.json(result.rows);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
+app.post('/messages', auth, async (req, res) => {
+  try {
+    const { conversationId, text, photoUrl } = req.body;
+    if (!text && !photoUrl) return res.status(400).json({ message: 'Message vide' });
+    const user = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1',[req.user.sub]);
+    const u = user.rows[0];
+    const result = await pool.query(
+      'INSERT INTO messages (conversation_id, from_id, from_name, text, photo_url) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [conversationId, req.user.sub, u.firstName+' '+u.lastName, text||null, photoUrl||null]
+    );
+    await pool.query('UPDATE conversations SET last_message=$1, last_message_at=NOW() WHERE id=$2',[text||'Photo', conversationId]);
+    res.status(201).json(result.rows[0]);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
+
+
 // 404
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 
@@ -814,3 +928,4 @@ app.get('/metrics', auth, isAdmin, async (req, res) => {
     res.status(503).json({ status: 'degraded', error: e.message });
   }
 });
+

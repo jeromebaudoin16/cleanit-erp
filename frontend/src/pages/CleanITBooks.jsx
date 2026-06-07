@@ -1432,6 +1432,80 @@ const VENDOR_TYPES  = ["Equipementier","Services","Telecom","Transport","Sous-tr
 // ================================================================
 //  PAGE LISTE VENDORS
 // ================================================================
+
+// ═══ QB MONEY BAR — Barre financière QuickBooks style ═══════
+const QBMoneyBar = ({items, actions}) => (
+  <div style={{background:'#fff',borderBottom:'1px solid #E5E7EB',padding:'0 24px'}}>
+    <div style={{display:'flex',alignItems:'stretch',gap:0}}>
+      {items.map((item,i)=>(
+        <div key={i} style={{
+          padding:'16px 32px 16px 0', marginRight:32,
+          borderRight:i<items.length-1?'1px solid #E5E7EB':'none',
+          cursor:item.onClick?'pointer':'default'
+        }} onClick={item.onClick}>
+          <div style={{fontSize:11,fontWeight:700,color:'#6B6C72',textTransform:'uppercase',letterSpacing:'0.8px',marginBottom:6}}>{item.label}</div>
+          <div style={{fontSize:22,fontWeight:700,color:item.color||'#393A3D'}}>{item.value}</div>
+          {item.sub&&<div style={{fontSize:12,color:'#9FA1A6',marginTop:2}}>{item.sub}</div>}
+        </div>
+      ))}
+      <div style={{flex:1}}/>
+      <div style={{display:'flex',alignItems:'center',gap:8}}>
+        {actions&&actions.map((a,i)=>(
+          <button key={i} onClick={a.onClick} style={{
+            background:a.primary?'#2CA01C':'#fff',
+            color:a.primary?'#fff':'#393A3D',
+            border:a.primary?'none':'1px solid #D4D6D8',
+            borderRadius:4, padding:'8px 18px',
+            fontSize:13, fontWeight:600, cursor:'pointer'
+          }}>{a.label}</button>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+// ═══ QB TABLE HEADER — En-tête tableau QuickBooks style ══════
+const QBTableHead = ({cols}) => (
+  <thead>
+    <tr style={{background:'#F4F5F7'}}>
+      {cols.map((col,i)=>(
+        <th key={i} style={{
+          padding:'10px 14px', textAlign:col.right?'right':'left',
+          fontSize:12, fontWeight:700, color:'#6B6C72',
+          textTransform:'uppercase', letterSpacing:'0.5px',
+          borderBottom:'2px solid #E5E7EB', whiteSpace:'nowrap',
+          width:col.w||'auto'
+        }}>{col.l}</th>
+      ))}
+    </tr>
+  </thead>
+);
+
+// ═══ QB EMPTY STATE — État vide QuickBooks style ═════════════
+const QBEmpty = ({icon,title,sub,action,onAction}) => (
+  <tr><td colSpan={20} style={{padding:'64px 24px',textAlign:'center'}}>
+    <div style={{fontSize:56,marginBottom:16}}>{icon||'📋'}</div>
+    <p style={{fontSize:16,fontWeight:700,color:'#393A3D',margin:'0 0 8px'}}>{title}</p>
+    <p style={{fontSize:14,color:'#6B6C72',margin:'0 0 20px'}}>{sub||''}</p>
+    {action&&<button onClick={onAction} style={{background:'#2CA01C',color:'#fff',border:'none',borderRadius:4,padding:'10px 24px',fontSize:14,fontWeight:600,cursor:'pointer'}}>{action}</button>}
+  </td></tr>
+);
+
+// ═══ QB ACTION CELL — Cellule actions QuickBooks style ═══════
+const QBActions = ({items}) => (
+  <td style={{padding:'8px 14px',whiteSpace:'nowrap'}}>
+    <div style={{display:'flex',gap:6,alignItems:'center'}}>
+      {items.map((item,i)=>(
+        <button key={i} onClick={item.onClick} style={{
+          background:item.primary?'#2CA01C':item.danger?'#FEF3E2':'#F4F5F7',
+          color:item.primary?'#fff':item.danger?'#E27000':'#393A3D',
+          border:'none', borderRadius:4,
+          padding:'5px 12px', fontSize:12, fontWeight:600, cursor:'pointer'
+        }}>{item.label}</button>
+      ))}
+    </div>
+  </td>
+);
 const PageVendorList = ({vendors,setVendors,jobs}) => {
   const navigate = useNavigate();
   const [search,     setSearch]     = useState("");

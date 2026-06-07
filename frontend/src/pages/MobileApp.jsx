@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Component } from 'react';
+import jsQR from 'jsqr';
 import { AuthAPI, FeedAPI, MissionsAPI } from '../services/api.mobile.js';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -151,54 +152,18 @@ const t = (k) => TR[getLang()]?.[k] || TR.fr[k] || k;
 const getTheme = () => localStorage.getItem('cit_theme') || 'light';
 
 // ─── DATA ─────────────────────────────────────────────────────
-const USERS = [
-  {id:'EI-001',name:'Marie Kamga',role:'bureau',post:'Chef Projet',av:'MK',color:'#0066CC',region:'Douala'},
-  {id:'EI-002',name:'Jean Fouda',role:'pm',post:'Project Manager',av:'JF',color:'#7C3AED',region:'Yaounde'},
-  {id:'EI-003',name:'Alice Finance',role:'rh',post:'RH',av:'AF',color:'#059669',region:'Douala'},
-  {id:'EI-004',name:'Jerome Admin',role:'admin',post:'Administrateur',av:'JA',color:'#DC2626',region:'Douala'},
-  {id:'DG-001',name:'Directeur General',role:'dg',post:'DG',av:'DG',color:'#0F172A',region:'Douala'},
-  {id:'EX-001',name:'Thomas Ngono',role:'terrain',post:'Tech 5G/4G',av:'TN',color:'#EA580C',region:'Douala',certs:['HCNP-5G','HCIP']},
-  {id:'EX-002',name:'Samuel Djomo',role:'terrain',post:'Tech 3G/4G',av:'SD',color:'#16A34A',region:'Bafoussam',certs:['HCNP-4G']},
-  {id:'EX-003',name:'Jean Mbarga',role:'terrain',post:'Tech RF',av:'JM',color:'#0891B2',region:'Yaounde',certs:['HCNA-5G']},
-  {id:'EX-004',name:'Ali Moussa',role:'terrain',post:'HSE',av:'AM',color:'#DC2626',region:'Garoua',certs:['HSE-L3']},
-  {id:'EX-005',name:'Pierre Etoga',role:'terrain',post:'Tech 5G/Fibre',av:'PE',color:'#7C3AED',region:'Douala',certs:['HCIP-5G','HCNP-4G']},
-];
+// Utilisateurs chargés depuis l'API — voir ScreenFil useEffect
+const USERS = [];
 
-const MISSIONS = [
-  {id:'M001',site:'DLA-001',siteName:'Tour MTN Bassa',client:'MTN',type:'Installation 5G NR',
-   techId:'EX-001',status:'in_progress',pct:65,deadline:'30 mai',bc:'416121376123-2',
-   checklist:[{l:'Securite site verifiee',ok:true},{l:'Photos arrivee envoyees',ok:true},{l:'Cablage RRU secteur Sud',ok:false},{l:'Tests signal 5G NR',ok:false}],
-   team:['EX-001','EX-002'],
-   reports:[{date:'20 mai',text:'Cables poses secteur Nord. Secteur Sud prevu demain.',by:'Thomas Ngono'}]},
-  {id:'M002',site:'KRI-001',siteName:'Station CAMTEL Kribi',client:'CAMTEL',type:'Swap 4G vers 5G',
-   techId:'EX-005',status:'in_progress',pct:80,deadline:'22 mai',bc:'4161HG3336731-43',
-   checklist:[{l:'Inspection structure',ok:true},{l:'Demontage ancien equipement',ok:true},{l:'Installation BBU 5900',ok:true},{l:'Tests finaux',ok:false}],
-   team:['EX-005'],reports:[]},
-  {id:'M003',site:'YDE-001',siteName:'Site Yaounde Centre',client:'Orange',type:'Maintenance 4G',
-   techId:'EX-003',status:'pending',pct:0,deadline:'05 juin',bc:'416121016354-58',
-   checklist:[{l:'Preparation materiel',ok:false},{l:'Autorisation acces site',ok:false}],
-   team:['EX-003'],reports:[]},
-];
+// Missions chargées depuis l'API — voir MissionsAPI
+const MISSIONS = [];
 
 const loadFeedPosts = () => {
   try {
     const saved = JSON.parse(localStorage.getItem('cit_feed_posts')||'null');
     if(saved && saved.length > 0) return saved;
   } catch {}
-  return [
-  {id:1,userId:'EX-001',userName:'thomas_ngono',site:'DLA-001',siteName:'MTN Bassa',
-   text:'Cablage RRU secteur Nord termine. Passage secteur Sud demain matin.',
-   time:'12 min',reactions:{like:5,fire:2,clap:3},comments:3,type:'photo'},
-  {id:2,userId:'chacha',userName:'chacha_ia',type:'alert',
-   alertType:'warning',title:'Alerte meteo — GAR-001',
-   text:'Pluies prevues demain 14h. Terminez les travaux exterieurs avant 13h.',time:'30 min'},
-  {id:3,userId:'company',userName:'cleanit_cameroun',type:'announcement',
-   text:'Felicitations equipe KRI-001 — Mission Swap 4G vers 5G terminee avec succes. Excellent travail.',
-   time:'hier',reactions:{like:12,clap:8,fire:6},comments:4},
-  {id:4,userId:'EX-005',userName:'pierre_etoga',site:'KRI-001',siteName:'CAMTEL Kribi',
-   text:'Installation BBU 5900 complete. Tests finaux demain matin 8h.',
-   time:'2h',reactions:{like:4,fire:3,clap:2},comments:1,type:'photo'},
-];
+  return [];
 };
 let FEED_POSTS = loadFeedPosts();
 const compressPhoto = (dataUrl, maxWidth=400, quality=0.5) => {
@@ -229,25 +194,7 @@ const saveFeedPosts = async () => {
   } catch(e) { console.warn('Feed save error:', e); }
 };
 
-const CONVOS = [
-  {id:1,type:'project',code:'DLA-001',client:'MTN Bassa',color:'#E6F1FB',textColor:'#0C447C',
-   last:'Thomas: Cablage secteur Nord termine',time:'09:15',unread:3,
-   waGroup:'https://chat.whatsapp.com/LIEN_GROUPE_MTN'},
-  {id:2,type:'project',code:'KRI-001',client:'CAMTEL',color:'#EAF3DE',textColor:'#27500A',
-   last:'Pierre: Tests finaux demain matin',time:'Hier',unread:0,
-   waGroup:'https://chat.whatsapp.com/LIEN_GROUPE_CAMTEL'},
-  {id:3,type:'whatsapp',name:'MTN — Ing. Mbarga',av:'MTN',color:'#FFCC00',
-   phone:'237XXXXXXXXX',
-   last:'Le test est prevu demain 8h ?',time:'10:30',unread:1},
-  {id:4,type:'whatsapp',name:'Orange — Mme Ekani',av:'ORA',color:'#F97316',
-   phone:'237XXXXXXXXX',
-   last:'Rapport de la semaine recu merci',time:'Hier',unread:0},
-  {id:5,type:'whatsapp',name:'CAMTEL — M. Biya',av:'CAM',color:'#0066CC',
-   phone:'237XXXXXXXXX',
-   last:'Intervention confirmee pour lundi',time:'Hier',unread:2},
-  {id:6,type:'dm',userId:'EI-002',name:'Jean Fouda',av:'JF',color:'#7C3AED',
-   last:'Rapport de la semaine recu',time:'Lun',unread:0},
-];
+// Conversations chargées depuis l'API
 
 const APPROVALS = [
   {id:1,userId:'EX-001',name:'Thomas Ngono',av:'TN',color:'#EA580C',
@@ -1265,16 +1212,47 @@ const ScreenCamera = ({user, gps, now}) => {
 const ScreenMessages = () => {
   const [openConv, setOpenConv] = useState(null);
   const [msg, setMsg] = useState('');
-  const [chatMsgs, setChatMsgs] = useState([
-    {id:1,from:'other',text:'Bonjour, ou en est la mission ?',time:'09:10'},
-    {id:2,from:'me',text:'On a termine le cablage secteur Nord.',time:'09:12'},
-    {id:3,from:'other',text:'Parfait, le secteur Sud pour quand ?',time:'09:15'},
-  ]);
+  const [chatMsgs, setChatMsgs] = useState([]);
+  const [convos, setConvos] = useState([]);
+  const [convId, setConvId] = useState(null);
+  const pollRef = useRef(null);
+  const meId = JSON.parse(localStorage.getItem('user')||'{}').id;
+  const token = localStorage.getItem('token');
+  const BASE = 'https://backend-cleanit-erp.vercel.app';
+
+  useEffect(()=>{
+    fetch(BASE+'/conversations',{headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(d=>{ if(Array.isArray(d)) setConvos(d); }).catch(()=>{});
+  },[]);
+
+  const openConvFn = async(conv) => {
+    setOpenConv(conv);
+    try {
+      const r = await fetch(BASE+'/conversations',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body: JSON.stringify({participantId: conv.otherId})
+      }).then(r=>r.json());
+      setConvId(r.id);
+      loadMsgs(r.id);
+      if(pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = setInterval(()=>loadMsgs(r.id), 3000);
+    } catch(e){}
+  };
+
+  const loadMsgs = async(cid) => {
+    try {
+      const d = await fetch(BASE+'/messages/'+cid,{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json());
+      if(Array.isArray(d)) setChatMsgs(d);
+    } catch(e){}
+  };
+
+  useEffect(()=>()=>{ if(pollRef.current) clearInterval(pollRef.current); },[]);
 
   const C2 = getC();
 
   if(openConv) return (
-    <div style={{flex:1,display:'flex',flexDirection:'column',background:C2.bg,paddingBottom:0}}>
+    <div style={{position:'fixed',inset:0,display:'flex',flexDirection:'column',background:C2.bg,zIndex:200,maxWidth:430,margin:'0 auto'}}>
       <div style={{background:C2.bg,borderBottom:'1px solid '+C2.border,
         padding:'10px 14px',display:'flex',alignItems:'center',gap:10}}>
         <button onClick={()=>setOpenConv(null)}
@@ -1317,25 +1295,29 @@ const ScreenMessages = () => {
 
       <div style={{flex:1,overflowY:'auto',padding:'12px 14px',
         display:'flex',flexDirection:'column',gap:8,paddingBottom:80}}>
-        {chatMsgs.map(m=>(
-          <div key={m.id} style={{display:'flex',
-            justifyContent:m.from==='me'?'flex-end':'flex-start'}}>
+        {chatMsgs.map((m,i)=>{
+          const meId = JSON.parse(localStorage.getItem('user')||'{}').id;
+          const isMe = m.from_id ? Number(m.from_id)===Number(meId) : m.from==='me';
+          const timeStr = m.created_at
+            ? new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
+            : (m.time||'');
+          return (
+          <div key={m.id||i} style={{display:'flex',
+            justifyContent:isMe?'flex-end':'flex-start'}}>
             <div style={{maxWidth:'75%',padding:'9px 12px',
-              borderRadius:m.from==='me'?'16px 16px 4px 16px':'16px 16px 16px 4px',
-              background:m.from==='me'?C2.primary:C2.bg2,
-              color:m.from==='me'?'#fff':C2.text}}>
+              borderRadius:isMe?'16px 16px 4px 16px':'16px 16px 16px 4px',
+              background:isMe?C2.primary:C2.bg2,
+              color:isMe?'#fff':C2.text}}>
+              {!isMe&&<div style={{fontSize:10,fontWeight:700,color:C2.primary,marginBottom:3}}>{m.from_name||''}</div>}
               <div style={{fontSize:13,lineHeight:1.4}}>{m.text}</div>
               <div style={{fontSize:9,marginTop:4,textAlign:'right',
-                color:m.from==='me'?'rgba(255,255,255,.7)':C2.text3,
-                display:'flex',alignItems:'center',justifyContent:'flex-end',gap:3}}>
-                {m.time}
-                {m.from==='me' && openConv.type==='whatsapp' && (
-                  <span style={{color:'rgba(255,255,255,.7)'}}>✓✓</span>
-                )}
+                color:isMe?'rgba(255,255,255,.7)':C2.text3}}>
+                {timeStr}
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div style={{position:'fixed',bottom:0,left:0,right:0,maxWidth:430,margin:'0 auto',
@@ -1344,9 +1326,7 @@ const ScreenMessages = () => {
         <input value={msg} onChange={e=>setMsg(e.target.value)}
           placeholder="Ecrivez un message..."
           onKeyDown={e=>{if(e.key==='Enter'&&msg.trim()){
-            setChatMsgs(p=>[...p,{id:Date.now(),from:'me',text:msg,
-              time:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}]);
-            setMsg('');
+            document.querySelector('[data-send-btn]')?.click();
           }}}
           style={{flex:1,padding:'10px 14px',border:'0.5px solid '+C2.border,
             borderRadius:24,fontSize:13,fontFamily:FONT,
@@ -1368,8 +1348,18 @@ const ScreenMessages = () => {
                 body: JSON.stringify({to: openConv.phone, message: msgText})
               });
             } catch(e) { console.log('WhatsApp send error:', e); }
+          } else if(convId) {
+            try {
+              const tkn = localStorage.getItem('token');
+              const saved = await fetch('https://backend-cleanit-erp.vercel.app/messages',{
+                method:'POST',
+                headers:{'Content-Type':'application/json','Authorization':'Bearer '+tkn},
+                body: JSON.stringify({conversationId: convId, text: msgText})
+              }).then(r=>r.json());
+              if(saved.id) setChatMsgs(p=>[...p, saved]);
+            } catch(e) { console.log('Message send error:', e); }
           }
-        }} style={{width:42,height:42,borderRadius:21,background:C2.primary,
+        }} data-send-btn style={{width:42,height:42,borderRadius:21,background:C2.primary,
           border:'none',cursor:'pointer',display:'flex',alignItems:'center',
           justifyContent:'center',flexShrink:0}}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -1395,9 +1385,21 @@ const ScreenMessages = () => {
         </div>
       }/>
       {[
-        {label:'Projets en cours',items:CONVOS.filter(cv=>cv.type==='project')},
-        {label:'Clients WhatsApp',items:CONVOS.filter(cv=>cv.type==='whatsapp')},
-        {label:'Messages directs',items:CONVOS.filter(cv=>cv.type==='dm')},
+        {label:'Messages directs',items:convos.filter(c=>{
+          const isP1 = c.p1_id===meId;
+          const otherId = isP1 ? c.p2_id : c.p1_id;
+          return Number(otherId) !== Number(meId);
+        }).map(c=>{
+          const isP1 = c.p1_id===meId;
+          const otherId = isP1 ? c.p2_id : c.p1_id;
+          const otherFirst = isP1 ? c.p2_first : c.p1_first;
+          const otherLast = isP1 ? c.p2_last : c.p1_last;
+          const av = ((otherFirst||'')[0]+(otherLast||'')[0]).toUpperCase();
+          return {id:c.id,type:'dm',otherId,name:(otherFirst||'')+' '+(otherLast||''),
+            av,color:'#1B4F8A',last:c.last_message||'Nouvelle conversation',
+            time:c.last_message_at?new Date(c.last_message_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'',
+            unread:parseInt(c.unread)||0};
+        })},
       ].map(sec=>(
         <div key={sec.label}>
           <div style={{padding:'8px 14px 4px',background:C2b.bg2,
@@ -1406,40 +1408,23 @@ const ScreenMessages = () => {
               textTransform:'uppercase',letterSpacing:.5}}>{sec.label}</span>
           </div>
           {sec.items.map(conv=>(
-            <div key={conv.id} onClick={()=>setOpenConv(conv)}
+            <div key={conv.id} onClick={()=>openConvFn(conv)}
               style={{display:'flex',alignItems:'center',gap:10,
                 padding:'12px 14px',borderBottom:'0.5px solid '+C2b.border,
                 cursor:'pointer',background:C2b.bg}}>
               <div style={{position:'relative',flexShrink:0}}>
-                {conv.type==='project' ? (
-                  <div style={{width:44,height:44,borderRadius:10,
-                    background:conv.color,border:'1px solid '+C2b.border,
-                    display:'flex',alignItems:'center',justifyContent:'center',
-                    fontSize:11,fontWeight:700,color:conv.textColor}}>
-                    {conv.code.split('-')[0]}
-                  </div>
-                ) : (
-                  <div style={{width:44,height:44,borderRadius:'50%',
-                    background:(conv.color||C2b.primary)+'22',
-                    border:'1.5px solid '+(conv.color||C2b.primary),
-                    display:'flex',alignItems:'center',justifyContent:'center',
-                    fontSize:12,fontWeight:700,color:conv.color||C2b.primary}}>
-                    {conv.av||conv.name?.slice(0,2)}
-                  </div>
-                )}
-                {conv.type==='whatsapp'&&(
-                  <div style={{position:'absolute',bottom:-1,right:-1,
-                    width:14,height:14,background:'#25D366',borderRadius:'50%',
-                    border:'2px solid white',display:'flex',alignItems:'center',
-                    justifyContent:'center',fontSize:8,color:'white',fontWeight:700}}>
-                    W
-                  </div>
-                )}
+                <div style={{width:44,height:44,borderRadius:'50%',
+                  background:(conv.color||C2b.primary)+'22',
+                  border:'1.5px solid '+(conv.color||C2b.primary),
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  fontSize:12,fontWeight:700,color:conv.color||C2b.primary}}>
+                  {conv.av||conv.name?.slice(0,2)||'?'}
+                </div>
               </div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}>
                   <span style={{fontSize:13,fontWeight:conv.unread?700:500,color:C2b.text}}>
-                    {conv.type==='project'?conv.code+' · '+conv.client:conv.name}
+                    {conv.name}
                   </span>
                   <span style={{fontSize:10,color:C2b.text3}}>{conv.time}</span>
                 </div>
@@ -1479,11 +1464,6 @@ const ScreenPointer = ({user, gps}) => {
     const token = localStorage.getItem('token');
     fetch('https://backend-cleanit-erp.vercel.app/pointages',{headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(d=>{if(Array.isArray(d))setHistory(d);}).catch(()=>{});
-    if(!window.jsQR){
-      const s=document.createElement('script');
-      s.src='https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js';
-      document.head.appendChild(s);
-    }
     return()=>stopScan();
   },[]);
 
@@ -1501,8 +1481,8 @@ const ScreenPointer = ({user, gps}) => {
       cv.width=v.videoWidth; cv.height=v.videoHeight;
       ctx.drawImage(v,0,0,cv.width,cv.height);
       const img=ctx.getImageData(0,0,cv.width,cv.height);
-      if(window.jsQR){
-        const code=window.jsQR(img.data,img.width,img.height);
+      if(jsQR){
+        const code=jsQR(img.data,img.width,img.height);
         if(code){handleQRCode(code.data);return;}
       }
     }

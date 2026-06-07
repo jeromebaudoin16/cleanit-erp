@@ -100,13 +100,7 @@ const Icon = ({name, size=20, color='currentColor', active=false}) => {
 const ME = (()=>{ const u=JSON.parse(localStorage.getItem('user')||'{}'); return {id:String(u.id||'me'),nom:(u.firstName||'')+(u.lastName?' '+u.lastName:''),avatar:(u.firstName?.[0]||'?')+(u.lastName?.[0]||''),couleur:'#1B4F8A',poste:u.role==='admin'?'Administrateur':u.role==='project_manager'?'Project Manager':u.role==='hr'?'RH':'Technicien',email:u.email||''}; })();
 
 const CONTACTS = [
-  {id:'u2',nom:'Jean Fouda',    poste:'Project Manager',  dept:'Operations',avatar:'JF',couleur:'#8b5cf6',status:'online', photo:'https://i.pravatar.cc/150?img=12'},
-  {id:'u3',nom:'Alice Finance', poste:'Dir. Financière',  dept:'Finance',   avatar:'AF',couleur:'#ec4899',status:'busy',   photo:'https://i.pravatar.cc/150?img=9'},
-  {id:'u4',nom:'Bob Comptable', poste:'Chef Comptable',   dept:'Finance',   avatar:'BC',couleur:'#0891b2',status:'offline',photo:'https://i.pravatar.cc/150?img=11'},
-  {id:'u5',nom:'Pierre Etoga', poste:'Ingénieur Réseau', dept:'Technique', avatar:'PE',couleur:'#d97706',status:'online', photo:'https://i.pravatar.cc/150?img=15'},
-  {id:'u6',nom:'Aline Biya',   poste:'Responsable RH',   dept:'RH',        avatar:'AB',couleur:'#dc2626',status:'online', photo:'https://i.pravatar.cc/150?img=5'},
-  {id:'u7',nom:'David Mballa', poste:'Analyste BI',       dept:'Finance',   avatar:'DM',couleur:'#059669',status:'away',   photo:'https://i.pravatar.cc/150?img=22'},
-  {id:'u8',nom:'Thomas Ngono', poste:'Technicien',        dept:'Terrain',   avatar:'TN',couleur:'#ea580c',status:'online', photo:'https://i.pravatar.cc/150?img=33'},
+  // Utilisateurs chargés depuis l'API
 ];
 
 const CHANNELS = []; // Canaux depuis API
@@ -122,7 +116,7 @@ const CROSS_NOTIFS = [
 
 const NOW = Date.now();
 const MSGS = {
-  ch1:[
+  ch1_old:[
     {id:'m1',uid:'u2',text:'Bonjour équipe ! Réunion de suivi DLA-001 à 10h ce matin.',ts:NOW-7200000,files:[]},
     {id:'m2',uid:'u5',text:'Les équipements 5G sont arrivés sur site. On commence l\'installation ce matin.',ts:NOW-7100000,files:[]},
     {id:'m3',uid:'u1',text:'Parfait Pierre. N\'oubliez pas le rapport photo pour le client Huawei.',ts:NOW-7000000,files:[]},
@@ -279,26 +273,56 @@ const SectionChat = ({navigate}) => {
       .then(r=>r.json()).then(u=>{ if(Array.isArray(u)) setRealUsers(u); }).catch(()=>{});
   }, []);
 
-  const sendDM = () => {
-    if(!dmInput.trim() || !activeDM) return;
-    const msg = {
-      id: Date.now(), content: dmInput,
-      fromId: JSON.parse(localStorage.getItem('user')||'{}').id,
-      from: JSON.parse(localStorage.getItem('user')||'{}').firstName || 'Moi',
-      to: activeDM.firstName,
-      toId: activeDM.id,
-      time: new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
-    };
-    setDMMessages(p=>[...p, msg]);
-    setDMInput('');
-    fetch('https://backend-cleanit-erp.vercel.app'+'/feed', {method:'POST',
-      headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body: JSON.stringify({content:dmInput, type:'dm',
-        recipient_id: activeDM.id,
-        recipient_name: activeDM.firstName+' '+activeDM.lastName})
-    }).catch(()=>{});
+  const [convId, setConvId] = useState(null);
+  const pollRef = useRef(null);
+
+  const openDM = async (user) => {
+    setActiveDM(user);
+    setShowDMModal(false);
+    setIsDM(true);
+    setSelId(String(user.id));
+    setDMMessages([]);
+    const token = localStorage.getItem('token');
+    try {
+      const conv = await fetch('https://backend-cleanit-erp.vercel.app/conversations', {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body: JSON.stringify({participantId: user.id})
+      }).then(r=>r.json());
+      setConvId(conv.id);
+      loadMessages(conv.id);
+      if(pollRef.current) clearInterval(pollRef.current);
+      if(conv.id) { pollRef.current = setInterval(()=>loadMessages(conv.id), 3000); }
+    } catch(e) { console.error(e); }
   };
-  const [selId,     setSelId]     = useState('ch1');
+
+  const loadMessages = async (cid) => {
+    const token = localStorage.getItem('token');
+    try {
+      const msgs = await fetch('https://backend-cleanit-erp.vercel.app/messages/'+cid, {
+        headers:{'Authorization':'Bearer '+token}
+      }).then(r=>r.json());
+      if(Array.isArray(msgs)) setDMMessages(msgs);
+    } catch(e) {}
+  };
+
+  useEffect(()=>{ return ()=>{ if(pollRef.current) clearInterval(pollRef.current); }; },[]);
+
+  const sendDM = async () => {
+    if(!dmInput.trim() || !convId) return;
+    const token = localStorage.getItem('token');
+    const text = dmInput;
+    setDMInput('');
+    try {
+      const msg = await fetch('https://backend-cleanit-erp.vercel.app/messages', {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+        body: JSON.stringify({conversationId: convId, text})
+      }).then(r=>r.json());
+      setDMMessages(p=>[...p, msg]);
+    } catch(e) { console.error(e); }
+  };
+  const [selId,     setSelId]     = useState('');
   const [isDM,      setIsDM]      = useState(false);
   const [messages,  setMessages]  = useState(MSGS);
   const [input,     setInput]     = useState('');
@@ -309,19 +333,33 @@ const SectionChat = ({navigate}) => {
   const inputRef = useRef(null);
 
   const key = isDM ? 'dm_'+selId : selId;
-  const msgs = messages[key]||[];
+  const msgs = isDM ? dmMessages : (messages[key]||[]);
   const channel = !isDM ? CHANNELS.find(c=>c.id===selId) : null;
-  const dmUser  = isDM  ? getUser(selId) : null;
+  const dmUser  = activeDM;
   const files   = DRIVE_FILES[selId]||[];
   const totalUnread = CHANNELS.reduce((s,c)=>s+c.unread,0);
 
   useEffect(()=>{ msgEnd.current?.scrollIntoView({behavior:'smooth'}); },[msgs.length, selId]);
 
-  const send = () => {
+  const send = async () => {
     if(!input.trim()) return;
-    const msg = {id:'m'+Date.now(), uid:'u1', text:input.trim(), ts:Date.now(), files:[]};
-    setMessages(p=>({...p,[key]:[...(p[key]||[]),msg]}));
-    setInput('');
+    if(isDM && convId) {
+      const token = localStorage.getItem('token');
+      const text = input.trim();
+      setInput('');
+      try {
+        const msg = await fetch('https://backend-cleanit-erp.vercel.app/messages', {
+          method:'POST',
+          headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+          body: JSON.stringify({conversationId: convId, text})
+        }).then(r=>r.json());
+        if(msg.id) setDMMessages(p=>[...p, msg]);
+      } catch(e) { console.error(e); }
+    } else {
+      const msg = {id:'m'+Date.now(), uid:'u1', text:input.trim(), ts:Date.now(), files:[]};
+      setMessages(p=>({...p,[key]:[...(p[key]||[]),msg]}));
+      setInput('');
+    }
     inputRef.current?.focus();
   };
 
@@ -405,7 +443,7 @@ const SectionChat = ({navigate}) => {
           {filtContacts.map(u=>{
             const isAct = isDM&&selId===u.id;
             return(
-              <div key={u.id} onClick={()=>{setSelId(u.id);setIsDM(true);}}
+              <div key={u.id} onClick={()=>openDM(u)}
                 style={{display:'flex',alignItems:'center',gap:10,padding:'7px 12px',cursor:'pointer',
                   background:isAct?P.listAct:'transparent',borderLeft:isAct?`3px solid ${P.blue}`:'3px solid transparent',
                   transition:'all .1s'}}
@@ -433,8 +471,8 @@ const SectionChat = ({navigate}) => {
             <>
               <Av user={dmUser} size={34} showStatus={true}/>
               <div>
-                <div style={{fontSize:14,fontWeight:700,color:P.text}}>{dmUser?.nom}</div>
-                <div style={{fontSize:11,color:statusDot(dmUser?.status)}}>{dmUser?.status==='online'?'En ligne':dmUser?.status==='busy'?'Occupé':'Hors ligne'}</div>
+                <div style={{fontSize:14,fontWeight:700,color:P.text}}>{activeDM?.firstName} {activeDM?.lastName}</div>
+                <div style={{fontSize:11,color:P.green}}>En ligne</div>
               </div>
             </>
           ):(
@@ -472,18 +510,21 @@ const SectionChat = ({navigate}) => {
             </div>
           )}
           {msgs.map((msg,i)=>{
-            const isMe = msg.uid==='u1';
+            const meId = JSON.parse(localStorage.getItem('user')||'{}').id;
+            const isMe = isDM ? msg.from_id===meId : msg.uid==='u1';
             const isSys = msg.uid==='system';
-            const user = getUser(msg.uid);
+            const user = isDM ? {nom:msg.from_name||'?',av:(msg.from_name||'?')[0],couleur:P.blue} : getUser(msg.uid);
             const prev = msgs[i-1];
-            const grouped = prev&&prev.uid===msg.uid&&msg.ts-prev.ts<300000;
+            const msgTs = msg.created_at ? new Date(msg.created_at).getTime() : msg.ts;
+            const prevTs = prev ? (prev.created_at ? new Date(prev.created_at).getTime() : prev.ts) : 0;
+            const grouped = prev&&(prev.from_id||prev.uid)===(msg.from_id||msg.uid)&&msgTs-prevTs<300000;
             const alertSt = ALERT_STYLE[msg.alertType]||{};
 
             if(isSys) return(
               <div key={msg.id} style={{display:'flex',justifyContent:'center',marginBottom:6}}>
                 <div style={{padding:'6px 14px',borderRadius:20,fontSize:12,fontWeight:600,background:alertSt.bg||'#f3f4f6',color:alertSt.color||P.gray,border:`1px solid ${alertSt.border||'#e5e7eb'}`,maxWidth:'80%',textAlign:'center'}}>
                   {msg.text}
-                  <span style={{fontSize:9,marginLeft:8,opacity:.6}}>{fmtFull(msg.ts)}</span>
+                  <span style={{fontSize:9,marginLeft:8,opacity:.6}}>{fmtFull(msgTs)}</span>
                 </div>
               </div>
             );
@@ -515,7 +556,7 @@ const SectionChat = ({navigate}) => {
                       <Icon name="download" size={14} color={P.blue}/>
                     </div>
                   ))}
-                  {!grouped&&<div style={{fontSize:9,color:P.text4,marginTop:3,paddingLeft:2}}>{fmtFull(msg.ts)}</div>}
+                  {!grouped&&<div style={{fontSize:9,color:P.text4,marginTop:3,paddingLeft:2}}>{fmtFull(msgTs||msg.ts||Date.now())}</div>}
                 </div>
               </div>
             );
@@ -558,7 +599,7 @@ const SectionChat = ({navigate}) => {
                 <Av user={dmUser} size={52} showStatus={true}/>
                 <div style={{fontSize:14,fontWeight:800,color:P.text,marginTop:10}}>{dmUser?.nom}</div>
                 <div style={{fontSize:12,color:P.text3,marginBottom:4}}>{dmUser?.poste}</div>
-                <div style={{fontSize:11,color:statusDot(dmUser?.status),fontWeight:600}}>{dmUser?.status==='online'?'● En ligne':dmUser?.status==='busy'?'● Occupé':'● Hors ligne'}</div>
+                <div style={{fontSize:11,color:P.green,fontWeight:600}}>{'● En ligne'}</div>
                 <div style={{display:'flex',gap:8,marginTop:12,justifyContent:'center'}}>
                   <button style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:'8px 12px',borderRadius:9,border:`1px solid ${P.border}`,background:'#f9fafb',cursor:'pointer'}}>
                     <Icon name="phone" size={16} color={P.blue}/>
@@ -1053,12 +1094,12 @@ const SectionDrive = () => {
 //  SECTION CONTACTS
 // ═══════════════════════════════════════════════════════════════════
 const SectionContacts = ({navigate}) => {
-  const [contacts, setContacts] = React.useState([]);
-  const [search, setSearch] = React.useState('');
+  const [contacts, setContacts] = useState([]);
+  const [search, setSearch] = useState('');
   const token = localStorage.getItem('token');
   const meId = JSON.parse(localStorage.getItem('user')||'{}').id;
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetch('https://backend-cleanit-erp.vercel.app/users', 
       {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json())
@@ -1251,23 +1292,18 @@ export default function CleanITComm() {
   };
 
   const sendDM = async () => {
-    if(!dmInput.trim() || !activeDM) return;
-    const msg = {
-      id: Date.now(), content: dmInput,
-      from: JSON.parse(localStorage.getItem('user')||'{}').firstName || 'Moi',
-      fromId: JSON.parse(localStorage.getItem('user')||'{}').id, toId: activeDM.id,
-      to: activeDM.firstName, time: new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
-    };
-    setDMMessages(p=>[...p, msg]);
+    if(!dmInput.trim() || !convId) return;
+    const tkn = localStorage.getItem('token');
+    const text = dmInput;
     setDMInput('');
     try {
-      await fetch('https://backend-cleanit-erp.vercel.app'+'/feed', {method:'POST',
-        headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-        body: JSON.stringify({content:dmInput, type:'dm',
-          recipient_id: activeDM.id,
-          recipient_name: activeDM.firstName+' '+activeDM.lastName})
-      });
-    } catch(e) {}
+      const msg = await fetch('https://backend-cleanit-erp.vercel.app/messages', {
+        method:'POST',
+        headers:{'Authorization':'Bearer '+tkn,'Content-Type':'application/json'},
+        body: JSON.stringify({conversationId: convId, text})
+      }).then(r=>r.json());
+      setDMMessages(p=>[...p, msg]);
+    } catch(e) { console.error(e); }
   };
 
   const [waMessages, setWaMessages] = useState([]);

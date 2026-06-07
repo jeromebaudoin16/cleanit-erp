@@ -1586,6 +1586,31 @@ export default function RH() {
         }));
         setRealApprovals(formatted);
       }
+      if(Array.isArray(users) && users.length > 0) {
+        const roleColor = r => r==='admin'?'#DC2626':r==='project_manager'?'#7C3AED':r==='hr'?'#059669':'#EA580C';
+        const internal = users.filter(u=>!['technician','terrain'].includes(u.role)).map(u=>({
+          id: u.id, first: u.firstName||'', last: u.lastName||'',
+          email: u.email||'', phone: u.phone||'',
+          role: u.role==='admin'?'Administrateur':u.role==='project_manager'?'Chef de Projet':u.role==='hr'?'RH Manager':'Employé',
+          department: u.role==='admin'?'Direction Générale':u.role==='project_manager'?'Gestion de Projets':u.role==='hr'?'Ressources Humaines':'Technique',
+          hireDate: u.createdAt||'', status: u.isActive?'actif':'inactif',
+          gender: 'M', city: 'Douala', contract: 'CDI',
+          salary: 0, matricule: 'CLN-'+String(u.id).padStart(3,'0'),
+          docs:[], history:[], bank:'', rib:'',
+          color: roleColor(u.role)
+        }));
+        const external = users.filter(u=>['technician','terrain'].includes(u.role)).map(u=>({
+          id: u.id, first: u.firstName||'', last: u.lastName||'',
+          phone: u.phone||'', role: 'Technicien',
+          speciality: '5G/4G', status: u.isActive?'actif':'inactif',
+          matricule: 'CLN-EXT-'+String(u.id).padStart(3,'0'),
+          bank:'', rib:'', city:'Douala', cin:'',
+          totalEarned:0, dailyRate:0, contract:'Freelance',
+          rating:0, projectCount:0, projects:[]
+        }));
+        if(internal.length > 0) setEmployees(internal);
+        if(external.length > 0) setExternals(external);
+      }
     }).finally(() => setLoadingRH(false));
   }, []);
 

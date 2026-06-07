@@ -249,6 +249,59 @@ export default function MapPage() {
 
   const [loaded, setLoaded] = useState(false);
   const [techniciens, setTechniciens] = useState(TECHNICIENS_INIT);
+  const [realSites, setRealSites] = useState(SITES);
+
+  // Charger vrais sites et techniciens depuis API
+  useEffect(()=>{
+    const token = localStorage.getItem('token');
+    const h = {'Authorization':'Bearer '+token};
+    const base = 'https://backend-cleanit-erp.vercel.app';
+    Promise.all([
+      fetch(base+'/sites',{headers:h}).then(r=>r.json()).catch(()=>[]),
+      fetch(base+'/users',{headers:h}).then(r=>r.json()).catch(()=>[]),
+      fetch(base+'/missions',{headers:h}).then(r=>r.json()).catch(()=>[]),
+    ]).then(([sites, users, missions])=>{
+      if(Array.isArray(sites) && sites.length > 0){
+        const formatted = sites.map(s=>({
+          code: s.code, name: s.name,
+          lat: parseFloat(s.latitude)||0, lng: parseFloat(s.longitude)||0,
+          status: s.status==='active'?'en_cours':s.status==='completed'?'termine':'planifie',
+          type: s.technology||'4G LTE',
+          progression: s.progression||0,
+          client: s.projectManager||'—',
+          budget: s.budgetEstime||0,
+          techId: null
+        }));
+        setRealSites(formatted);
+      }
+      if(Array.isArray(users) && users.length > 0){
+        const techs = users.filter(u=>['technician','terrain'].includes(u.role));
+        if(techs.length > 0){
+          const colors = ['#1a73e8','#7c3aed','#0f9d58','#f29900','#db2777','#ea4335'];
+          const formatted = techs.map((u,i)=>{
+            const mission = Array.isArray(missions) ? missions.find(m=>m.tech_id===u.id&&m.status==='in_progress') : null;
+            const av = ((u.firstName||'')[0]+(u.lastName||'')[0]).toUpperCase();
+            return {
+              id: String(u.id), nom: (u.firstName||'')+' '+(u.lastName||''),
+              lat: mission ? (parseFloat(mission.site_lat)||4.0511) : 4.0511,
+              lng: mission ? (parseFloat(mission.site_lng)||9.7085) : 9.7085,
+              status: mission ? 'en_mission' : 'disponible',
+              site: mission ? mission.site : '—',
+              siteLat: mission ? parseFloat(mission.site_lat) : null,
+              siteLng: mission ? parseFloat(mission.site_lng) : null,
+              phone: u.phone||'', avatar: av,
+              color: colors[i%colors.length],
+              matricule: 'CLN-EXT-'+String(u.id).padStart(3,'0'),
+              specialite: '5G/4G', battery: 80, signal: 4,
+              lastUpdate: 'En ligne', taches: mission ? 1 : 0,
+              rapport: '', heureDebut: '—', trajectory:[]
+            };
+          });
+          setTechniciens(formatted);
+        }
+      }
+    }).catch(console.error);
+  },[]);
   const [activeLayer, setActiveLayer] = useState("hybrid");
   const [liveMode, setLiveMode] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
@@ -373,7 +426,7 @@ Réponds UNIQUEMENT en JSON valide:
   const predictFaults = async () => {
     setLoadingIA(true);
     try {
-      const sitesData = SITES.map(s => ({
+      const sitesData = realSites.map(s => ({
         code: s.code,
         name: s.name,
         type: s.type,
@@ -463,7 +516,7 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
   useEffect(()=>{
     const alerts=[];
     const disponibles=techniciens.filter(t=>t.status==="disponible");
-    const sitesRetard=SITES.filter(s=>s.status==="en_retard"&&!s.techId);
+    const sitesRetard=realSites.filter(s=>s.status==="en_retard"&&!s.techId);
     disponibles.forEach(tech=>{
       sitesRetard.forEach(site=>{
         const dist=haversine(tech.lat,tech.lng,site.lat,site.lng);
@@ -754,7 +807,7 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
       heatLayerRef.current=null;
     }
     if(showHeatmap){
-      const heatPoints=SITES.map(s=>[s.lat,s.lng,s.progression/100]);
+      const heatPoints=realSites.map(s=>[s.lat,s.lng,s.progression/100]);
       heatLayerRef.current=window.L.heatLayer(heatPoints,{
         radius:50,blur:30,maxZoom:10,
         gradient:{0.3:"#0f9d58",0.6:"#f29900",1.0:"#ea4335"}
@@ -910,13 +963,13 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
 
   const doDispatch=()=>{
     if(!dispatchTech||!dispatchSite) return;
-    const site=SITES.find(s=>s.code===dispatchSite.code);
+    const site=realSites.find(s=>s.code===dispatchSite.code);
     setTechniciens(prev=>prev.map(t=>t.id===dispatchTech.id?{...t,status:"en_deplacement",site:dispatchSite.code,siteLat:site?.lat,siteLng:site?.lng}:t));
     if(mapInstanceRef.current&&site) calculateRoute(mapInstanceRef.current,dispatchTech.lat,dispatchTech.lng,site.lat,site.lng);
     setShowDispatch(false);setDispatchTech(null);setDispatchSite(null);
   };
 
-  const filteredSites=SITES.filter(s=>{
+  const filteredSites=realSites.filter(s=>{
     const mf=filter==="tous"||s.status===filter;
     const mq=!searchQ||s.code.toLowerCase().includes(searchQ.toLowerCase())||s.name.toLowerCase().includes(searchQ.toLowerCase());
     return mf&&mq;
@@ -1147,7 +1200,7 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
                     {techniciens.filter(t=>t.status==="en_mission"||t.status==="en_deplacement").length} missions actives
                   </div>
                   {techniciens.filter(t=>t.status==="en_mission"||t.status==="en_deplacement").map(tech=>{
-                    const site=SITES.find(s=>s.code===tech.site);
+                    const site=realSites.find(s=>s.code===tech.site);
                     const st=STATUS_TECH[tech.status];
                     return(
                       <div key={tech.id} style={{padding:"10px 12px",borderBottom:"1px solid #f1f3f4"}}>
@@ -1213,7 +1266,7 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
                           <div style={{fontSize:9,color:"#5f6368",marginBottom:4}}>Distance: {a.dist} km · {a.siteName}</div>
                           <button onClick={()=>{
                             const tech=techniciens.find(t=>t.id===a.techId);
-                            const site=SITES.find(s=>s.code===a.siteCode);
+                            const site=realSites.find(s=>s.code===a.siteCode);
                             if(tech&&site){setDispatchTech(tech);setDispatchSite(site);setShowDispatch(true);}
                           }} style={{width:"100%",padding:"4px",borderRadius:5,border:"none",background:"#0f9d58",color:"white",fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                             ➤ Dispatcher maintenant
@@ -1622,7 +1675,7 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
               {/* TECHNICIEN */}
               {selectedTech&&!selected&&(()=>{
                 const st=STATUS_TECH[selectedTech.status]||STATUS_TECH.disponible;
-                const siteTech=SITES.find(s=>s.code===selectedTech.site);
+                const siteTech=realSites.find(s=>s.code===selectedTech.site);
                 return(<>
                   <div style={{padding:"14px",background:`linear-gradient(135deg,${selectedTech.color}08,${selectedTech.color}18)`,borderBottom:"1px solid #e8eaed",flexShrink:0}}>
                     <div style={{display:"flex",gap:12,alignItems:"center"}}>
@@ -1718,7 +1771,7 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
               {/* IA: choisir le site en premier pour avoir les recommandations */}
               <div style={{marginBottom:14}}>
                 <div style={{fontSize:10,fontWeight:700,color:"#5f6368",marginBottom:8,textTransform:"uppercase",letterSpacing:".5px"}}>1. Site de destination</div>
-                {SITES.filter(s=>!["termine","livre"].includes(s.status)).map(s=>{
+                {realSites.filter(s=>!["termine","livre"].includes(s.status)).map(s=>{
                   const cfg=STATUS_SITES[s.status];
                   return(
                     <div key={s.code} onClick={()=>{
