@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 const C = {
   green:'#2CA01C', green2:'#1a7a0e', green_bg:'#f0faf0',
@@ -615,21 +615,55 @@ const DetailBC = ({bc, onClose, onUpdate}) => {
 
 // ===== COMPOSANT PRINCIPAL =====
 export default function BonsCommande() {
-  const [bcs, setBcs] = useState(SEED_BCS);
+  const [bcs, setBcs] = useState([]);
   const [selected, setSelected] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('tous');
+  const [loading, setLoading] = useState(true);
 
-  const handleImport = (bc, creerProjet, planPaiement) => {
-    setBcs(p=>[bc,...p]);
-    // Notification projet créé
-    if (creerProjet) {
-      setTimeout(()=>alert(`✅ BC importé avec succès!\n\nProjet ${bc.projetCree} créé automatiquement dans Finance & Projets.\nPlan de paiement: ${planPaiement}`),100);
+  const BASE = 'https://backend-cleanit-erp.vercel.app';
+  const token = localStorage.getItem('token');
+
+  useEffect(()=>{
+    fetch(BASE+'/bons-commande',{headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(d=>{if(Array.isArray(d)) setBcs(d);}).catch(()=>{})
+      .finally(()=>setLoading(false));
+  },[]);
+
+  const handleImport = async (bc, creerProjet, planPaiement) => {
+    try {
+      const r = await fetch(BASE+'/bons-commande/import',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body: JSON.stringify({
+          numero: bc.numero, client: bc.client,
+          siteCode: bc.site, duid: bc.duid||bc.site,
+          poNumber: bc.poNumber||bc.numero,
+          devise: bc.devise, lignes: bc.lignes,
+          description: bc.description||'',
+        })
+      });
+      const data = await r.json();
+      if(data.bc) {
+        setBcs(p=>[data.bc,...p]);
+        alert('BC importé avec succès — Site mis à jour automatiquement');
+      } else {
+        alert('Erreur: '+(data.message||'Import échoué'));
+      }
+    } catch(e) {
+      alert('Erreur réseau lors de l\'import');
     }
   };
 
-  const updateBC = (updated) => {
+  const updateBC = async (updated) => {
+    try {
+      await fetch(BASE+'/bons-commande/'+updated.id,{
+        method:'PUT',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body: JSON.stringify({status:updated.status,notes:updated.notes,lignes:updated.lignes})
+      });
+    } catch(e){}
     setBcs(p=>p.map(bc=>bc.id===updated.id?updated:bc));
     setSelected(updated);
   };

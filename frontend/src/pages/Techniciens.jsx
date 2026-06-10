@@ -175,7 +175,7 @@ function SiteSheet({ site, tech, onBack }) {
   );
 }
 
-function DetailPage({ tech, onBack }) {
+function DetailPage({ tech, onBack, showAddCert=false, setShowAddCert=()=>{}, newCert={n:'',org:'',date:'',expire:'',s:'ok'}, setNewCert=()=>{}, addCertToTech=()=>{}, removeCert=()=>{}, saving=false }) {
   const [tab, setTab] = useState('activite');
   const [openSite, setOpenSite] = useState(null);
   const [showLoc, setShowLoc] = useState(false);
@@ -321,9 +321,42 @@ function DetailPage({ tech, onBack }) {
           </div>
         )}
 
-        {tab==='certs' && (
+        {tab==='certs' && newCert && setShowAddCert && (
           <div style={{background:C.white}}>
-            <div style={{padding:'12px 20px 4px',fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,color:C.text3}}>Certifications & habilitations</div>
+            <div style={{padding:'12px 20px 4px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,color:C.text3}}>Certifications & habilitations</span>
+              <div style={{display:'flex',gap:6}}>
+                <button onClick={()=>setShowAddCert(true)} style={{fontSize:11,padding:'4px 10px',background:C.blue_l,color:C.blue_d,border:'none',borderRadius:6,cursor:'pointer',fontWeight:600}}>+ Ajouter</button>
+                <label style={{fontSize:11,padding:'4px 10px',background:C.green_l,color:C.green,border:'none',borderRadius:6,cursor:'pointer',fontWeight:600}}>
+                  + Importer PDF
+                  <input type="file" accept=".pdf" style={{display:'none'}} onChange={async e=>{
+                    const file=e.target.files[0]; if(!file) return;
+                    const certName=file.name.replace('.pdf','');
+                    const certs=[...(tech.certs||[]),{id:'cert-'+Date.now(),n:certName,org:'Document importé',date:new Date().toISOString().split('T')[0],expire:'',s:'ok',pdf:certName}];
+                    await saveCert(tech.id,certs);
+                    alert('Certification importée: '+certName);
+                    e.target.value='';
+                  }}/>
+                </label>
+              </div>
+            </div>
+            {showAddCert&&(
+              <div style={{margin:'0 20px 12px',padding:12,background:C.bg,borderRadius:8,border:'1px solid '+C.border}}>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
+                  <div><label style={{fontSize:10,color:C.text3,display:'block',marginBottom:2}}>Nom *</label><input value={newCert.n} onChange={e=>setNewCert(p=>({...p,n:e.target.value}))} placeholder="Ex: HCNP-5G" style={{width:'100%',padding:'6px',border:'1px solid '+C.border,borderRadius:4,fontSize:12,boxSizing:'border-box'}}/></div>
+                  <div><label style={{fontSize:10,color:C.text3,display:'block',marginBottom:2}}>Organisme</label><input value={newCert.org} onChange={e=>setNewCert(p=>({...p,org:e.target.value}))} placeholder="Ex: Huawei" style={{width:'100%',padding:'6px',border:'1px solid '+C.border,borderRadius:4,fontSize:12,boxSizing:'border-box'}}/></div>
+                  <div><label style={{fontSize:10,color:C.text3,display:'block',marginBottom:2}}>Date obtention</label><input type="date" value={newCert.date} onChange={e=>setNewCert(p=>({...p,date:e.target.value}))} style={{width:'100%',padding:'6px',border:'1px solid '+C.border,borderRadius:4,fontSize:12,boxSizing:'border-box'}}/></div>
+                  <div><label style={{fontSize:10,color:C.text3,display:'block',marginBottom:2}}>Expiration</label><input type="date" value={newCert.expire} onChange={e=>setNewCert(p=>({...p,expire:e.target.value}))} style={{width:'100%',padding:'6px',border:'1px solid '+C.border,borderRadius:4,fontSize:12,boxSizing:'border-box'}}/></div>
+                </div>
+                <div style={{display:'flex',gap:6}}>
+                  <select value={newCert.s} onChange={e=>setNewCert(p=>({...p,s:e.target.value}))} style={{padding:'6px',border:'1px solid '+C.border,borderRadius:4,fontSize:12,flex:1}}>
+                    <option value="ok">Valide</option><option value="expire_soon">Expire bientôt</option><option value="expire">Expirée</option>
+                  </select>
+                  <button onClick={()=>addCertToTech(tech)} disabled={saving||!newCert.n} style={{padding:'6px 14px',background:C.blue,color:'#fff',border:'none',borderRadius:4,cursor:'pointer',fontSize:12,fontWeight:600}}>{saving?'...':'Ajouter'}</button>
+                  <button onClick={()=>setShowAddCert(false)} style={{padding:'6px 10px',background:'#fff',border:'1px solid '+C.border,borderRadius:4,cursor:'pointer',fontSize:12}}>×</button>
+                </div>
+              </div>
+            )}
             {(tech.certs||[]).map((cert,i)=>{
               const [bg,col,label] = CS[cert.s]||CS.ok;
               return (
@@ -431,13 +464,43 @@ export default function Techniciens() {
   const [techs, setTechs] = useState(SEED);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [showAddCert, setShowAddCert] = useState(false);
+  const [newCert, setNewCert] = useState({n:'',org:'',date:'',expire:'',s:'ok'});
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     api.get('/technicians').then(res => {
-      if(res.data && res.data.length > 0) setTechs(res.data);
+      if(Array.isArray(res.data) && res.data.length > 0) setTechs(res.data);
     }).catch(() => {});
   }, []);
 
-  if (selected) return <DetailPage tech={selected} onBack={() => setSelected(null)} />;
+  const saveCert = async (techId, certs) => {
+    setSaving(true);
+    try {
+      await api.put('/technicians/'+techId+'/certifications', {certifications: certs});
+      setTechs(p=>p.map(t=>t.id===techId?{...t,certs}:t));
+      if(selected?.id===techId) setSelected(s=>({...s,certs}));
+    } catch(e){}
+    setSaving(false);
+  };
+
+  const addCertToTech = async (tech) => {
+    if(!newCert.n.trim()) return;
+    const certs = [...(tech.certs||[]), {...newCert, id:'cert-'+Date.now()}];
+    await saveCert(tech.id, certs);
+    setNewCert({n:'',org:'',date:'',expire:'',s:'ok'});
+    setShowAddCert(false);
+  };
+
+  const removeCert = async (tech, certId) => {
+    const certs = (tech.certs||[]).filter(c=>c.id!==certId);
+    await saveCert(tech.id, certs);
+  };
+
+  if (selected) return <DetailPage tech={selected} onBack={() => setSelected(null)}
+    showAddCert={showAddCert} setShowAddCert={setShowAddCert}
+    newCert={newCert} setNewCert={setNewCert}
+    addCertToTech={addCertToTech} removeCert={removeCert} saving={saving}/>;
 
   const expiredCerts = techs.flatMap(t =>
     (t.certs||[]).filter(c => c.s === 'expire' || c.s === 'expire_soon')

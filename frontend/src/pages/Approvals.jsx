@@ -191,21 +191,17 @@ const TEMPLATES = [
   {type:"leave_request",    title:"Congé annuel",            amount:0,   justification:"Demande congé annuel selon planning RH.",               icon:"leave"},
 ];
 
-const SEED = [
-  {id:"APV-2025-001",reference:"APV-2025-001",type:"payment_request",title:"Paiement sous-traitant Thomas Ngono — DLA-001 Phase 2",amount:18000000,currency:"FCFA",status:"pending",priority:"haute",submittedBy:"Marie Kamga",submittedAt:"2025-05-12T09:00:00",lastActionAt:"2025-05-13T10:00:00",beneficiaryName:"Thomas Ngono",beneficiaryBank:"BICEC",beneficiaryAccount:"CM21 1001 2345 6789",justification:"Paiement phase 2 projet DLA-001 (40%). Travaux validés chef de projet.",site:"DLA-001",project:"PROJ-2025-001",approvedBy:["manager","finance1"],attachments:[],history:[{action:"Soumis",by:"Marie Kamga",at:"2025-05-12T09:00:00",comment:""},{action:"Approuvé — Responsable direct",by:"Alice Finance",at:"2025-05-12T14:00:00",comment:"Budget OK"},{action:"Approuvé — Finance N1",by:"Bob Finance",at:"2025-05-13T10:00:00",comment:"Conforme au contrat"}]},
-  {id:"APV-2025-002",reference:"APV-2025-002",type:"purchase_request",title:"Achat câbles fibre optique — Site YDE-001",amount:3500000,currency:"FCFA",status:"pending",priority:"normale",submittedBy:"Pierre Etoga",submittedAt:"2025-05-13T11:00:00",lastActionAt:"2025-05-13T11:00:00",beneficiaryName:"Tech Africa SARL",beneficiaryBank:"SGC",beneficiaryAccount:"CM21 2001 9876 5432",justification:"Câbles requis finalisation réseau fibre YDE-001.",site:"YDE-001",project:"PROJ-2025-002",approvedBy:["manager"],attachments:[],history:[{action:"Soumis",by:"Pierre Etoga",at:"2025-05-13T11:00:00",comment:""},{action:"Approuvé — Responsable direct",by:"Marie Kamga",at:"2025-05-13T14:00:00",comment:""}]},
-  {id:"APV-2025-003",reference:"APV-2025-003",type:"expense_report",title:"Note de frais mission Garoua — Ali Moussa",amount:285000,currency:"FCFA",status:"paid",priority:"basse",submittedBy:"Ali Moussa",submittedAt:"2025-05-10T08:00:00",lastActionAt:"2025-05-11T15:00:00",beneficiaryName:"Ali Moussa",beneficiaryBank:"Afriland First Bank",beneficiaryAccount:"CM21 3001 1111 2222",justification:"Per diem 3 jours + transport Douala-Garoua.",site:"",project:"",approvedBy:["manager","finance1"],attachments:[],history:[{action:"Soumis",by:"Ali Moussa",at:"2025-05-10T08:00:00",comment:""},{action:"Approuvé — Responsable direct",by:"Marie Kamga",at:"2025-05-10T14:00:00",comment:""},{action:"Approuvé — Finance N1",by:"Alice Finance",at:"2025-05-11T09:00:00",comment:""},{action:"Paiement effectué",by:"Alice Finance",at:"2025-05-11T15:00:00",comment:"Virement BICEC effectué"}]},
-  {id:"APV-2025-004",reference:"APV-2025-004",type:"leave_request",title:"Congé annuel — Samuel Djomo — 15 jours",amount:0,currency:"FCFA",status:"pending",priority:"normale",submittedBy:"Samuel Djomo",submittedAt:"2025-05-14T10:00:00",lastActionAt:"2025-05-14T10:00:00",justification:"Congé annuel du 01/06/2025 au 15/06/2025.",site:"",project:"",approvedBy:[],attachments:[],history:[{action:"Soumis",by:"Samuel Djomo",at:"2025-05-14T10:00:00",comment:""}]},
-  {id:"APV-2025-005",reference:"APV-2025-005",type:"mission_request",title:"Ordre de mission — Kribi Port — Thomas Ngono",amount:420000,currency:"FCFA",status:"approved",priority:"haute",submittedBy:"Marie Kamga",submittedAt:"2025-05-08T08:00:00",lastActionAt:"2025-05-10T08:00:00",beneficiaryName:"Thomas Ngono",beneficiaryBank:"MTN Mobile Money",beneficiaryAccount:"677000001",justification:"Mission technique KRI-001. Transport + hébergement 5 jours.",site:"KRI-001",project:"PROJ-2025-001",approvedBy:["manager","finance1","dg"],attachments:[],history:[{action:"Soumis",by:"Marie Kamga",at:"2025-05-08T08:00:00",comment:""},{action:"Approuvé — Responsable direct",by:"Alice Finance",at:"2025-05-08T14:00:00",comment:""},{action:"Approuvé — Finance N1",by:"Bob Finance",at:"2025-05-09T10:00:00",comment:""},{action:"Approuvé — Directeur Général",by:"Jérôme Bell",at:"2025-05-10T08:00:00",comment:"Mission validée"}]},
-  {id:"APV-2025-006",reference:"APV-2025-006",type:"advance_request",title:"Avance sur salaire — Jean Mbarga — Mai 2025",amount:150000,currency:"FCFA",status:"draft",priority:"haute",submittedBy:"Jean Mbarga",submittedAt:"2025-05-14T09:00:00",lastActionAt:"2025-05-14T09:00:00",beneficiaryName:"Jean Mbarga",beneficiaryBank:"BICEC",beneficiaryAccount:"CM21 1001 8888 7777",justification:"Avance 50% salaire pour urgence médicale.",site:"",project:"",approvedBy:[],attachments:[],history:[]},
-];
+const SEED = [];
+
 
 // ── DESIGN ────────────────────────────────────────────────────
 const C = {
-  white:"#fff", bg:"#F5F6FA", bg2:"#ECEEF3",
-  border:"#E2E5EC", border2:"#ECF0F7",
+  white:"#fff", bg:"#F0F2F5", bg2:"#E8EBF0",
+  border:"#D4D7DC", border2:"#E8EBF0",
   text:"#1A1D23", text2:"#3D4458", text3:"#6B7280", text4:"#9CA3AF",
-  blue:"#0066CC", green:"#0E7A0D", red:"#C50F1F", orange:"#D04A00", purple:"#5C2D91",
+  blue:"#0A2D6E", blueL:"#E6EDF8", green:"#0E7A0D", greenL:"#E8F5E9",
+  red:"#C50F1F", redL:"#FEECEC", orange:"#D04A00", orangeL:"#FEF3E8",
+  purple:"#5C2D91", navy:"#0A2D6E",
   shadow:"0 1px 3px rgba(0,0,0,0.07),0 0 0 1px rgba(0,0,0,0.03)",
 };
 
@@ -1216,6 +1212,10 @@ const ListPage = ({items,onAdd,settings,setSettings,matrix,setMatrix}) => {
   const nav=useNavigate();
   const [tab,setTab]=useState("all"),[view,setView]=useState("list");
   const [search,setSearch]=useState(""),[ft,setFt]=useState(""),[showNew,setShowNew]=useState(false);
+  const [amtMin,setAmtMin]=useState("");
+  const [amtMax,setAmtMax]=useState("");
+  const [dateFrom,setDateFrom]=useState("");
+  const [dateTo,setDateTo]=useState("");
 
   const pending=items.filter(i=>i.status==="pending"&&!getWF(i,matrix).done);
   const approved=items.filter(i=>i.status==="approved"||getWF(i,matrix).done);
@@ -1225,6 +1225,7 @@ const ListPage = ({items,onAdd,settings,setSettings,matrix,setMatrix}) => {
     {id:"pending",label:"En attente",n:pending.length},
     {id:"approved",label:"Approuvées",n:approved.length},
     {id:"escalated",label:"Escalade",n:escalated.length},
+    {id:"cancelled",label:"Annulées",n:items.filter(i=>i.status==="cancelled").length},
     {id:"reports",label:"Rapports",n:null},
     {id:"audit",label:"Audit Trail",n:null},
     {id:"matrix",label:"Matrice",n:null},
@@ -1234,7 +1235,11 @@ const ListPage = ({items,onAdd,settings,setSettings,matrix,setMatrix}) => {
   const filtered=isSpecial?[]:items.filter(i=>{
     const ms=!search||i.title.toLowerCase().includes(search.toLowerCase())||i.reference.toLowerCase().includes(search.toLowerCase())||i.submittedBy.toLowerCase().includes(search.toLowerCase());
     const mf=!ft||i.type===ft;
-    const mt=tab==="pending"?pending.includes(i):tab==="approved"?approved.includes(i):tab==="escalated"?escalated.includes(i):true;
+    const ma=!amtMin||i.amount>=parseFloat(String(amtMin).replace(/\s/g,""))||0;
+    const mb=!amtMax||i.amount<=parseFloat(String(amtMax).replace(/\s/g,""))||Infinity;
+    const md=!dateFrom||new Date(i.submittedAt)>=new Date(dateFrom);
+    const me=!dateTo||new Date(i.submittedAt)<=new Date(dateTo+"T23:59:59");
+    const mt=tab==="pending"?pending.includes(i):tab==="approved"?approved.includes(i):tab==="escalated"?escalated.includes(i):tab==="cancelled"?i.status==="cancelled":true;
     return ms&&mf&&mt;
   });
 
@@ -1316,15 +1321,27 @@ const ListPage = ({items,onAdd,settings,setSettings,matrix,setMatrix}) => {
                 <Btn label="Voir" onClick={()=>setTab("escalated")} ghost color={C.red} sm/>
               </div>
             )}
-            <div style={{display:"flex",gap:8,marginBottom:14}}>
-              <div style={{flex:1,display:"flex",alignItems:"center",gap:8,background:C.white,borderRadius:6,padding:"8px 12px",border:`1px solid ${C.border}`}}>
-                <Ic d={I.search} size={14} color={C.text4}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher..." style={{flex:1,border:"none",outline:"none",fontSize:13,fontFamily:"inherit",color:C.text,background:"transparent"}}/>
+            <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+              <div style={{flex:2,minWidth:180,display:"flex",alignItems:"center",gap:8,background:C.white,borderRadius:6,padding:"7px 12px",border:`1px solid ${C.border}`}}>
+                <Ic d={I.search} size={14} color={C.text4}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher par titre, référence, demandeur..." style={{flex:1,border:"none",outline:"none",fontSize:12,fontFamily:"inherit",color:C.text,background:"transparent"}}/>
               </div>
-              <div style={{display:"flex",alignItems:"center",gap:6,background:C.white,borderRadius:6,padding:"8px 12px",border:`1px solid ${C.border}`}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,background:C.white,borderRadius:6,padding:"7px 12px",border:`1px solid ${C.border}`}}>
                 <Ic d={I.filter} size={13} color={C.text3}/>
                 <select value={ft} onChange={e=>setFt(e.target.value)} style={{border:"none",outline:"none",fontSize:12,fontFamily:"inherit",color:C.text,background:"transparent",cursor:"pointer"}}>
                   <option value="">Tous types</option>{TYPES.map(t=><option key={t.id} value={t.id}>{t.label}</option>)}
                 </select>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:4,background:C.white,borderRadius:6,padding:"7px 10px",border:`1px solid ${C.border}`}}>
+                <span style={{fontSize:10,color:C.text3,whiteSpace:"nowrap"}}>Montant:</span>
+                <input value={amtMin} onChange={e=>setAmtMin(e.target.value)} placeholder="Min" style={{width:60,border:"none",outline:"none",fontSize:11,fontFamily:"inherit",color:C.text,background:"transparent"}}/>
+                <span style={{color:C.text4}}>—</span>
+                <input value={amtMax} onChange={e=>setAmtMax(e.target.value)} placeholder="Max" style={{width:60,border:"none",outline:"none",fontSize:11,fontFamily:"inherit",color:C.text,background:"transparent"}}/>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:4,background:C.white,borderRadius:6,padding:"7px 10px",border:`1px solid ${C.border}`}}>
+                <span style={{fontSize:10,color:C.text3,whiteSpace:"nowrap"}}>Du:</span>
+                <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{border:"none",outline:"none",fontSize:11,fontFamily:"inherit",color:C.text,background:"transparent"}}/>
+                <span style={{color:C.text4}}>Au:</span>
+                <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={{border:"none",outline:"none",fontSize:11,fontFamily:"inherit",color:C.text,background:"transparent"}}/>
               </div>
               <Btn label="Export" ghost color={C.text3} sm icon="download"/>
             </div>

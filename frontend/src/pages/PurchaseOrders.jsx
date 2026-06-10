@@ -152,7 +152,7 @@ export default function PurchaseOrders(){
       refreshAudit();
       loadBCs();
     }catch{
-      setImportMsg({type:'error', msg:'Import échoué — le backend traite le fichier. Les données seed sont affichées.'});
+      setImportMsg({type:'error', msg:'Import échoué — '+(e?.message||'Vérifiez le format du fichier et réessayez.')});
       addAudit({
         type:'import', user:`${user?.firstName} ${user?.lastName} (${user?.role})`,
         title:'Tentative import BC Excel',

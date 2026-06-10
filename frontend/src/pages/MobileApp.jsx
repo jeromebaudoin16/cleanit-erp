@@ -605,7 +605,7 @@ const ScreenFil = ({user,navigate}) => {
             userName: p.user_name?.toLowerCase().replace(' ','_') || 'user',
             name: p.user_name,
             site: p.site,
-            siteName: p.site_name,
+            siteName: (()=>{const s=p.site_name||'';try{return s.startsWith('{')?JSON.parse(s).siteName||s:s;}catch{return s;}})(),
             text: p.text,
             photoUrl: p.photo_url,
             gpsLat: p.gps_lat,
@@ -643,7 +643,7 @@ const ScreenFil = ({user,navigate}) => {
           const formatted = data.map(p => ({
             id: p.id, userId: String(p.user_id),
             userName: p.user_name?.toLowerCase().replace(' ','_')||'user',
-            name: p.user_name, site: p.site, siteName: p.site_name,
+            name: p.user_name, site: p.site, siteName: (()=>{const s=p.site_name||'';try{return s.startsWith('{')?JSON.parse(s).siteName||s:s;}catch{return s;}})(),
             text: p.text, photoUrl: p.photo_url,
             gpsLat: p.gps_lat, gpsLng: p.gps_lng, what3words: p.what3words,
             type: p.photo_url?'photo':'text',
@@ -1502,7 +1502,14 @@ const ScreenPointer = ({user, gps}) => {
   const handleQRCode = async(data) => {
     stopScan();
     let site={code:data,name:data};
-    try{const p=JSON.parse(data);site={code:p.code||data,name:p.name||data};}catch(e){}
+    try{
+      const p=JSON.parse(data);
+      if(p.type==='CLEANIT_POINTAGE'){
+        site={code:p.code||data, name:p.siteName||'Bureau CleanIT Douala', userId:p.userId, userName:p.userName};
+      } else {
+        site={code:p.code||data, name:p.siteName||p.name||data};
+      }
+    }catch(e){}
     setScanned(site); setLoading(true);
     try {
       const token=localStorage.getItem('token');
@@ -1511,8 +1518,8 @@ const ScreenPointer = ({user, gps}) => {
         body:JSON.stringify({siteCode:site.code,siteName:site.name,type:'arrivee',gpsLat:gps?.lat,gpsLng:gps?.lng})
       });
       const d=await r.json();
-      toast('Pointage: '+site.name,'success');
-      setHistory(h=>[{...d,site_name:site.name,created_at:new Date().toISOString()},...h]);
+      toast('Pointage enregistré — '+site.name,'success');
+      setHistory(h=>[{...d,site_name:site.name||d.site_name,created_at:new Date().toISOString()},...h]);
     } catch(e){toast('Erreur','error');}
     setLoading(false);
   };
@@ -1570,7 +1577,7 @@ const ScreenPointer = ({user, gps}) => {
             <div style={{background:C2.successL,borderRadius:12,padding:16,width:'100%',textAlign:'center',border:'1px solid '+C2.success}}>
               <div style={{fontSize:24,marginBottom:8}}>✅</div>
               <div style={{fontSize:14,fontWeight:700,color:C2.success}}>Pointage enregistré</div>
-              <div style={{fontSize:12,color:C2.text,marginTop:6}}>{scanned.name}</div>
+              <div style={{fontSize:12,color:C2.text,marginTop:6}}>{(()=>{const n=scanned?.name||'';try{return n.startsWith('{')?JSON.parse(n).siteName||'Bureau CleanIT Douala':n;}catch{return n;}})()}</div>
               <div style={{fontSize:10,color:C2.text3,marginTop:4}}>{new Date().toLocaleString('fr-FR')}</div>
               <button onClick={()=>{setScanned(null);}} style={{marginTop:12,background:C2.primary,border:'none',
                 borderRadius:8,padding:'8px 20px',color:'white',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:FONT}}>
@@ -1587,7 +1594,9 @@ const ScreenPointer = ({user, gps}) => {
             <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderBottom:'0.5px solid '+C2.border}}>
               <div style={{width:36,height:36,borderRadius:'50%',background:C2.successL,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>📍</div>
               <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:600,color:C2.text}}>{h.site_name||h.site_code}</div>
+                <div style={{fontSize:13,fontWeight:600,color:C2.text}}>
+                  {(()=>{const s=h.site_name||h.site_code||'';try{return s.startsWith('{')?JSON.parse(s).siteName||s:s;}catch{return s;}})()}
+                </div>
                 <div style={{fontSize:10,color:C2.text3}}>{new Date(h.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
               </div>
               <div style={{background:C2.successL,color:C2.success,padding:'3px 8px',borderRadius:8,fontSize:10,fontWeight:700}}>✓</div>

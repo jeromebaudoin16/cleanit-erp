@@ -1,4 +1,7 @@
 const express = require('express');
+const multer = require('multer');
+const ExcelJS = require('exceljs');
+const upload = multer({storage: multer.memoryStorage(), limits:{fileSize:10*1024*1024}});
 const webpush = require('web-push');
 
 // Configurer VAPID
@@ -142,22 +145,41 @@ app.post('/users', auth, isAdmin, async (req, res) => {
   } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
-app.put('/users/:id', auth, isAdmin, async (req, res) => {
+app.put('/users/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
     if (isNaN(id)) return res.status(400).json({ message: 'ID invalide' });
+    // Vérifier que c'est admin ou l'utilisateur lui-même
+    const uQ = await pool.query('SELECT role FROM users WHERE id=$1',[req.user.sub]);
+    const isAdm = ['admin','hr'].includes(uQ.rows[0]?.role);
+    if(!isAdm && String(req.user.sub)!==String(id)) return res.status(403).json({message:'Non autorisé'});
     const updates = [];
     const values = [];
     let idx = 1;
-    if (req.body.isActive !== undefined) { updates.push(`"isActive" = $${idx++}`); values.push(req.body.isActive); }
-    if (req.body.role) { updates.push(`role = $${idx++}`); values.push(req.body.role); }
-    if (req.body.firstName) { updates.push(`"firstName" = $${idx++}`); values.push(sanitize(req.body.firstName)); }
-    if (req.body.password) { updates.push(`password = $${idx++}`); values.push(await bcrypt.hash(req.body.password, 12)); }
-    if (!updates.length) return res.status(400).json({ message: 'Aucune modification' });
+    const fields = ['isActive','role','firstName','lastName','phone','department','salary',
+      'contract','city','address','bank','rib','matricule','education','gender',
+      'birthDate','birthPlace','nationality','cin','emergencyName','emergencyPhone',
+      'emergencyLink','speciality','dailyRate','certifications','hireDate'];
+    const quoted = ['isActive','firstName','lastName'];
+    for(const f of fields){
+      if(req.body[f]!==undefined){
+        const col = quoted.includes(f)?`"${f}"`:f;
+        updates.push(`${col} = $${idx++}`);
+        values.push(req.body[f]);
+      }
+    }
+    if(req.body.password && isAdm){
+      updates.push(`password = $${idx++}`);
+      values.push(await bcrypt.hash(req.body.password, 12));
+    }
+    if(!updates.length) return res.status(400).json({message:'Aucune modification'});
     values.push(id);
-    const result = await pool.query(`UPDATE users SET ${updates.join(',')} WHERE id = $${idx} RETURNING id, email, "firstName", "lastName", role, "isActive"`, values);
+    const result = await pool.query(
+      `UPDATE users SET ${updates.join(',')} WHERE id = $${idx} RETURNING id,email,"firstName","lastName",role,"isActive",phone,department,salary,contract,city,address,bank,rib,matricule,education,gender,certifications,speciality,"dailyRate"`,
+      values
+    );
     res.json(result.rows[0]);
-  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
+  } catch(e) { res.status(500).json({message:'Erreur serveur',error:e.message}); }
 });
 
 // ─── HEALTH + DRP ─────────────────────────────────────────────
@@ -483,37 +505,117 @@ pool.query(`CREATE TABLE IF NOT EXISTS approvals (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),
   user_name VARCHAR(100),
-  type VARCHAR(50),
-  label VARCHAR(50),
+  type VARCHAR(80),
+  label VARCHAR(200),
   detail TEXT,
-  status VARCHAR(20) DEFAULT 'pending',
+  status VARCHAR(20) DEFAULT 'draft',
+  priority VARCHAR(20) DEFAULT 'normale',
+  amount NUMERIC(15,2) DEFAULT 0,
+  currency VARCHAR(10) DEFAULT 'FCFA',
+  justification TEXT,
+  beneficiary_name VARCHAR(200),
+  beneficiary_bank VARCHAR(100),
+  beneficiary_account VARCHAR(100),
+  beneficiary_mobile VARCHAR(50),
+  site_code VARCHAR(50),
+  project_code VARCHAR(50),
+  submitted_by VARCHAR(100),
+  submitted_at TIMESTAMP,
   n1_done BOOLEAN DEFAULT false,
+  n1_by VARCHAR(100),
+  n1_at TIMESTAMP,
+  n1_comment TEXT,
+  n1_decision VARCHAR(20),
   n2_done BOOLEAN DEFAULT false,
+  n2_by VARCHAR(100),
+  n2_at TIMESTAMP,
+  n2_comment TEXT,
+  n2_decision VARCHAR(20),
   dg_done BOOLEAN DEFAULT false,
-  comment TEXT,
+  dg_by VARCHAR(100),
+  dg_at TIMESTAMP,
+  dg_comment TEXT,
+  dg_decision VARCHAR(20),
+  auto_approved BOOLEAN DEFAULT false,
+  history JSONB DEFAULT '[]',
+  attachments JSONB DEFAULT '[]',
+  payment_ref VARCHAR(100),
+  payment_method VARCHAR(100),
+  paid_at TIMESTAMP,
+  cib_entry_id INTEGER,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 )`).catch(console.error);
 
+// Migration colonnes manquantes
+const migrateApprovals = async () => {
+  const cols = [
+    ['amount','NUMERIC(15,2) DEFAULT 0'],
+    ['currency',"VARCHAR(10) DEFAULT 'FCFA'"],
+    ['priority',"VARCHAR(20) DEFAULT 'normale'"],
+    ['justification','TEXT'],
+    ['beneficiary_name','VARCHAR(200)'],
+    ['beneficiary_bank','VARCHAR(100)'],
+    ['beneficiary_account','VARCHAR(100)'],
+    ['beneficiary_mobile','VARCHAR(50)'],
+    ['site_code','VARCHAR(50)'],
+    ['project_code','VARCHAR(50)'],
+    ['submitted_by','VARCHAR(100)'],
+    ['submitted_at','TIMESTAMP'],
+    ['n1_by','VARCHAR(100)'],['n1_at','TIMESTAMP'],['n1_comment','TEXT'],['n1_decision','VARCHAR(20)'],
+    ['n2_by','VARCHAR(100)'],['n2_at','TIMESTAMP'],['n2_comment','TEXT'],['n2_decision','VARCHAR(20)'],
+    ['dg_by','VARCHAR(100)'],['dg_at','TIMESTAMP'],['dg_comment','TEXT'],['dg_decision','VARCHAR(20)'],
+    ['auto_approved','BOOLEAN DEFAULT false'],
+    ['history',"JSONB DEFAULT '[]'"],
+    ['attachments',"JSONB DEFAULT '[]'"],
+    ['payment_ref','VARCHAR(100)'],
+    ['payment_method','VARCHAR(100)'],
+    ['paid_at','TIMESTAMP'],
+    ['cib_entry_id','INTEGER'],
+  ];
+  for(const [col,def] of cols){
+    await pool.query(`ALTER TABLE approvals ADD COLUMN IF NOT EXISTS ${col} ${def}`).catch(()=>{});
+  }
+};
+migrateApprovals();
+
 // ─── APPROVALS ROUTES ─────────────────────────────────────────
 app.get('/approvals', auth, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM approvals ORDER BY created_at DESC');
+    const uQ = await pool.query('SELECT role FROM users WHERE id=$1',[req.user.sub]);
+    const role = uQ.rows[0]?.role||'';
+    const isAdmin = ['admin','dg','project_manager','hr'].includes(role);
+    const result = isAdmin
+      ? await pool.query('SELECT * FROM approvals ORDER BY "createdAt" DESC')
+      : await pool.query('SELECT * FROM approvals WHERE user_id=$1 OR "submittedBy"=$2 ORDER BY "createdAt" DESC',[req.user.sub, uQ.rows[0]?.email||'']);
     res.json(result.rows);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
 });
 
 app.post('/approvals', auth, async (req, res) => {
   try {
-    const { type, label, detail } = req.body;
-    const user = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1',[req.user.sub]);
-    const u = user.rows[0];
+    const { type, label, detail, amount, currency, justification,
+            beneficiaryName, beneficiaryBank, beneficiaryAccount, beneficiaryMobile,
+            siteCode, projectCode, priority } = req.body;
+    const userQ = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1',[req.user.sub]);
+    const u = userQ.rows[0];
+    const userName = ((u?.firstName||'')+' '+(u?.lastName||'')).trim();
+    const hist = JSON.stringify([{action:'Créé',by:userName,at:new Date().toISOString(),comment:''}]);
     const result = await pool.query(
-      'INSERT INTO approvals (user_id,user_name,type,label,detail) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-      [req.user.sub, u.firstName+' '+u.lastName, type, label, detail]
+      `INSERT INTO approvals
+       (reference,user_id,user_name,type,label,detail,amount,currency,justification,
+        "beneficiaryName","beneficiaryBank","beneficiaryAccount","beneficiaryMobile",
+        "siteCode","projectCode",priority,"submittedBy",status,history,duid,request_type,n1_done,n2_done,dg_done)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,'pending',$18,$19,$20,false,false,false) RETURNING *`,
+      ['APV-'+Date.now().toString().slice(-8),
+       req.user.sub, userName, type, label||type, detail||justification||'',
+       Number(amount)||0, currency||'FCFA', justification||detail||'',
+       beneficiaryName||'', beneficiaryBank||'', beneficiaryAccount||'', beneficiaryMobile||'',
+       siteCode||'', projectCode||'', priority||'normale', userName, hist,
+       req.body.duid||'', req.body.request_type||type]
     );
     res.status(201).json(result.rows[0]);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur' }); }
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
 });
 
 app.put('/approvals/:id', auth, async (req, res) => {
@@ -902,6 +1004,502 @@ app.post('/messages', auth, async (req, res) => {
 });
 
 
+
+
+// ─── APPROVALS DUID & PROJECT AUDIT ──────────────────────────
+// Migration colonne duid dans sites
+pool.query('ALTER TABLE sites ADD COLUMN IF NOT EXISTS duid VARCHAR(100)').catch(()=>{});
+pool.query('ALTER TABLE approvals ADD COLUMN IF NOT EXISTS duid VARCHAR(100)').catch(()=>{});
+pool.query('ALTER TABLE approvals ADD COLUMN IF NOT EXISTS request_type VARCHAR(80)').catch(()=>{});
+pool.query('ALTER TABLE approvals ADD COLUMN IF NOT EXISTS priority VARCHAR(20) DEFAULT \'normale\'').catch(()=>{});
+pool.query('ALTER TABLE approvals ADD COLUMN IF NOT EXISTS label VARCHAR(200)').catch(()=>{});
+pool.query('ALTER TABLE approvals ADD COLUMN IF NOT EXISTS detail TEXT').catch(()=>{});
+pool.query('ALTER TABLE approvals ADD COLUMN IF NOT EXISTS n1_done BOOLEAN DEFAULT false').catch(()=>{});
+pool.query('ALTER TABLE approvals ADD COLUMN IF NOT EXISTS n2_done BOOLEAN DEFAULT false').catch(()=>{});
+pool.query('ALTER TABLE approvals ADD COLUMN IF NOT EXISTS dg_done BOOLEAN DEFAULT false').catch(()=>{});
+pool.query('ALTER TABLE approvals ADD COLUMN IF NOT EXISTS user_id INTEGER').catch(()=>{});
+pool.query('ALTER TABLE approvals ADD COLUMN IF NOT EXISTS user_name VARCHAR(100)').catch(()=>{});
+
+// GET /projects/for-approvals — projets actifs avec DUIDs
+app.get('/projects/for-approvals', auth, async (req, res) => {
+  try {
+    const sites = await pool.query(
+      'SELECT id,code,name,duid,"poNumber",region,ville,status FROM sites WHERE status NOT IN (\'completed\',\'cancelled\') ORDER BY name'
+    );
+    // Grouper par poNumber (projet)
+    const projects = {};
+    for(const s of sites.rows){
+      const key = s.poNumber||s.code;
+      if(!projects[key]) projects[key]={poNumber:s.poNumber||s.code,sites:[]};
+      projects[key].sites.push({id:s.id,code:s.code,name:s.name,duid:s.duid||s.code,region:s.region,ville:s.ville,status:s.status});
+    }
+    res.json(Object.values(projects));
+  } catch(e){ res.status(500).json({message:'Erreur serveur',error:e.message}); }
+});
+
+// GET /projects/duid/:duid — infos d'un site par DUID sans budget
+app.get('/projects/duid/:duid', auth, async (req, res) => {
+  try {
+    const {duid} = req.params;
+    // Chercher par duid ou par code
+    const r = await pool.query(
+      'SELECT id,code,name,duid,"poNumber",region,ville,technology,status,"typeTravauxEnum" FROM sites WHERE duid=$1 OR code=$1 LIMIT 1',
+      [duid]
+    );
+    if(!r.rows[0]) return res.status(404).json({message:'DUID non trouvé'});
+    const site = r.rows[0];
+    // Récupérer les demandes liées sans montants confidentiels
+    const approvals = await pool.query(
+      'SELECT id,type,label,description,status,submitted_by,user_name,"createdAt",amount,request_type FROM approvals WHERE "siteCode"=$1 OR duid=$1 ORDER BY "createdAt" DESC',
+      [site.code]
+    );
+    res.json({
+      site: {
+        id:site.id, code:site.code, name:site.name,
+        duid:site.duid||site.code, poNumber:site.poNumber,
+        region:site.region, ville:site.ville,
+        technology:site.technology, status:site.status,
+        typeTravauxEnum:site.typeTravauxEnum,
+      },
+      approvals_count: approvals.rows.length,
+      approvals_pending: approvals.rows.filter(a=>a.status==='pending').length,
+    });
+  } catch(e){ res.status(500).json({message:'Erreur serveur',error:e.message}); }
+});
+
+// GET /approvals/audit/duid/:duid — audit complet par DUID
+app.get('/approvals/audit/duid/:duid', auth, async (req, res) => {
+  try {
+    const {duid} = req.params;
+    const site = await pool.query('SELECT code,name,duid,"poNumber" FROM sites WHERE duid=$1 OR code=$1 LIMIT 1',[duid]);
+    const siteCode = site.rows[0]?.code||duid;
+    const r = await pool.query(
+      `SELECT a.id,a.type,a.label,a.description,a.status,a.amount,a.currency,
+        a.submitted_by,a.user_name,a."createdAt",a."updatedAt",
+        a.request_type,a.justification,a."beneficiaryName",a."paymentMethod",
+        a.n1_done,a.n2_done,a.dg_done,a.history
+       FROM approvals a
+       WHERE a."siteCode"=$1 OR a.duid=$1
+       ORDER BY a."createdAt" DESC`,
+      [siteCode]
+    );
+    const rows = r.rows;
+    const total_engage = rows.filter(a=>['approved','paid'].includes(a.status)).reduce((s,a)=>s+Number(a.amount||0),0);
+    const total_pending = rows.filter(a=>a.status==='pending').reduce((s,a)=>s+Number(a.amount||0),0);
+    res.json({
+      duid, site: site.rows[0]||null,
+      summary:{total:rows.length, approved:rows.filter(a=>a.status==='approved'||a.status==='paid').length, pending:rows.filter(a=>a.status==='pending').length, rejected:rows.filter(a=>a.status==='rejected').length, total_engage, total_pending},
+      approvals: rows
+    });
+  } catch(e){ res.status(500).json({message:'Erreur serveur',error:e.message}); }
+});
+
+// GET /approvals/audit/project/:poNumber — audit complet par projet
+app.get('/approvals/audit/project/:poNumber', auth, async (req, res) => {
+  try {
+    const {poNumber} = req.params;
+    // Tous les sites du projet
+    const sites = await pool.query('SELECT code,name,duid FROM sites WHERE "poNumber"=$1',[poNumber]);
+    const siteCodes = sites.rows.map(s=>s.code);
+    if(siteCodes.length===0) return res.json({poNumber,sites:[],summary:{total:0},approvals:[]});
+    const r = await pool.query(
+      `SELECT a.*,s.name as site_name,s.duid as site_duid
+       FROM approvals a
+       LEFT JOIN sites s ON s.code=a."siteCode"
+       WHERE a."siteCode"=ANY($1)
+       ORDER BY a."createdAt" DESC`,
+      [siteCodes]
+    );
+    const rows = r.rows;
+    // Grouper par site
+    const bySite = {};
+    for(const s of sites.rows) bySite[s.code]={site:s,approvals:[],total_engage:0,total_pending:0};
+    for(const a of rows){
+      if(bySite[a.siteCode]){
+        bySite[a.siteCode].approvals.push(a);
+        if(['approved','paid'].includes(a.status)) bySite[a.siteCode].total_engage+=Number(a.amount||0);
+        if(a.status==='pending') bySite[a.siteCode].total_pending+=Number(a.amount||0);
+      }
+    }
+    const total_engage = rows.filter(a=>['approved','paid'].includes(a.status)).reduce((s,a)=>s+Number(a.amount||0),0);
+    res.json({
+      poNumber, sites_count:sites.rows.length,
+      summary:{total:rows.length, approved:rows.filter(a=>['approved','paid'].includes(a.status)).length, pending:rows.filter(a=>a.status==='pending').length, total_engage},
+      by_site: Object.values(bySite),
+      approvals: rows
+    });
+  } catch(e){ res.status(500).json({message:'Erreur serveur',error:e.message}); }
+});
+
+
+
+// ─── BONS DE COMMANDE ────────────────────────────────────────
+pool.query(`CREATE TABLE IF NOT EXISTS bons_commande (
+  id SERIAL PRIMARY KEY,
+  numero VARCHAR(100) NOT NULL,
+  client VARCHAR(200),
+  site_code VARCHAR(50),
+  duid VARCHAR(100),
+  po_number VARCHAR(100),
+  devise VARCHAR(10) DEFAULT 'FCFA',
+  description TEXT,
+  notes TEXT,
+  status VARCHAR(30) DEFAULT 'en_cours',
+  lignes JSONB DEFAULT '[]',
+  montant_total NUMERIC(15,2) DEFAULT 0,
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+
+// Colonne last_seen pour statut en ligne
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP').catch(()=>{});
+
+// Middleware last_seen
+app.use((req,res,next)=>{
+  if(req.user?.sub){
+    pool.query('UPDATE users SET last_seen=NOW() WHERE id=$1',[req.user.sub]).catch(()=>{});
+  }
+  next();
+});
+
+app.get('/bons-commande', auth, async (req,res)=>{
+  try{
+    const r = await pool.query('SELECT * FROM bons_commande ORDER BY created_at DESC');
+    res.json(r.rows);
+  }catch(e){res.status(500).json({message:'Erreur serveur',error:e.message});}
+});
+
+app.post('/bons-commande', auth, async (req,res)=>{
+  try{
+    const {numero,client,siteCode,duid,poNumber,devise,description,notes,lignes,montantTotal,status} = req.body;
+    if(!numero||!client) return res.status(400).json({message:'Numéro et client requis'});
+    // Mettre à jour le DUID du site si fourni
+    if(siteCode&&duid){
+      await pool.query('UPDATE sites SET duid=$1 WHERE code=$2',[duid,siteCode]).catch(()=>{});
+    }
+    const r = await pool.query(
+      `INSERT INTO bons_commande (numero,client,site_code,duid,po_number,devise,description,notes,lignes,montant_total,status,created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [numero,client,siteCode||'',duid||'',poNumber||'',devise||'FCFA',description||'',notes||'',
+       JSON.stringify(lignes||[]),montantTotal||0,status||'en_cours',req.user.sub]
+    );
+    res.status(201).json(r.rows[0]);
+  }catch(e){res.status(500).json({message:'Erreur serveur',error:e.message});}
+});
+
+app.put('/bons-commande/:id', auth, async (req,res)=>{
+  try{
+    const {status,notes,lignes,montantTotal} = req.body;
+    const sets=[]; const vals=[];
+    if(status!==undefined){sets.push(`status=$${vals.length+1}`);vals.push(status);}
+    if(notes!==undefined){sets.push(`notes=$${vals.length+1}`);vals.push(notes);}
+    if(lignes!==undefined){sets.push(`lignes=$${vals.length+1}`);vals.push(JSON.stringify(lignes));}
+    if(montantTotal!==undefined){sets.push(`montant_total=$${vals.length+1}`);vals.push(montantTotal);}
+    if(!sets.length) return res.status(400).json({message:'Rien à mettre à jour'});
+    sets.push(`updated_at=NOW()`);
+    vals.push(req.params.id);
+    const r = await pool.query(`UPDATE bons_commande SET ${sets.join(',')} WHERE id=$${vals.length} RETURNING *`,vals);
+    res.json(r.rows[0]);
+  }catch(e){res.status(500).json({message:'Erreur serveur',error:e.message});}
+});
+
+// Import BC depuis ChaCha — met à jour sites avec DUID
+app.post('/bons-commande/import', auth, async (req,res)=>{
+  try{
+    const {numero,client,siteCode,duid,poNumber,devise,lignes,description} = req.body;
+    // Créer ou mettre à jour le site avec DUID
+    if(siteCode){
+      const existing = await pool.query('SELECT id FROM sites WHERE code=$1',[siteCode]);
+      if(existing.rows[0]){
+        await pool.query('UPDATE sites SET duid=$1,"poNumber"=$2 WHERE code=$3',[duid||siteCode,poNumber||'',siteCode]);
+      } else {
+        await pool.query(
+          `INSERT INTO sites (code,name,duid,"poNumber",status) VALUES ($1,$2,$3,$4,'en_cours')`,
+          [siteCode,siteCode,duid||siteCode,poNumber||'']
+        ).catch(()=>{});
+      }
+    }
+    const montantTotal = (lignes||[]).reduce((s,l)=>s+((l.qte||0)*(l.puBC||l.pu||0)),0);
+    const r = await pool.query(
+      `INSERT INTO bons_commande (numero,client,site_code,duid,po_number,devise,description,lignes,montant_total,status,created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'en_cours',$10) RETURNING *`,
+      [numero||'BC-'+Date.now(),client||'',siteCode||'',duid||siteCode||'',poNumber||'',
+       devise||'FCFA',description||'',JSON.stringify(lignes||[]),montantTotal,req.user.sub]
+    );
+    res.status(201).json({bc:r.rows[0],message:'BC importé et site mis à jour'});
+  }catch(e){res.status(500).json({message:'Erreur import',error:e.message});}
+});
+
+// GET /users/online — statut réel basé sur last_seen
+app.get('/users/online', auth, async (req,res)=>{
+  try{
+    const r = await pool.query(`
+      SELECT id, "firstName", "lastName", role, email, last_seen,
+        CASE WHEN last_seen > NOW()-INTERVAL '5 minutes' THEN 'online'
+             WHEN last_seen > NOW()-INTERVAL '30 minutes' THEN 'away'
+             ELSE 'offline' END as status
+      FROM users WHERE "isActive"=true OR "isActive" IS NULL
+      ORDER BY last_seen DESC NULLS LAST
+    `);
+    res.json(r.rows);
+  }catch(e){res.status(500).json({message:'Erreur serveur',error:e.message});}
+});
+
+// POST /approvals/:id/approve-final — approbation finale → écriture CleanITBooks
+app.post('/approvals/:id/approve-final', auth, async (req,res)=>{
+  try{
+    const {comment} = req.body;
+    const appr = await pool.query('SELECT * FROM approvals WHERE id=$1',[req.params.id]);
+    if(!appr.rows[0]) return res.status(404).json({message:'Introuvable'});
+    const a = appr.rows[0];
+    const uQ = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1',[req.user.sub]);
+    const u = uQ.rows[0];
+    const by = ((u?.firstName||'')+' '+(u?.lastName||'')).trim();
+    const hist = JSON.parse(a.history||'[]');
+    hist.push({action:'Approuvé — Direction Générale',by,at:new Date().toISOString(),comment:comment||''});
+    // Mettre à jour approval
+    await pool.query(
+      `UPDATE approvals SET status='approved',dg_done=true,dg_by=$1,dg_at=NOW(),dg_comment=$2,
+       history=$3,"approvedBy"=$4,"approvedAt"=NOW(),"updatedAt"=NOW() WHERE id=$5`,
+      [by,comment||'',JSON.stringify(hist),by,req.params.id]
+    );
+    // Créer écriture comptable dans CleanITBooks si montant > 0
+    if(Number(a.amount)>0){
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS cib_entries (
+          id SERIAL PRIMARY KEY, approval_id INTEGER, type VARCHAR(50),
+          label VARCHAR(200), amount NUMERIC(15,2), currency VARCHAR(10),
+          site_code VARCHAR(50), project_code VARCHAR(50),
+          beneficiary VARCHAR(200), status VARCHAR(20) DEFAULT 'pending_payment',
+          created_at TIMESTAMP DEFAULT NOW()
+        )`).catch(()=>{});
+      await pool.query(
+        `INSERT INTO cib_entries (approval_id,type,label,amount,currency,site_code,project_code,beneficiary)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [a.id, a.type||a.request_type||'expense', a.label||a.description||'Dépense approuvée',
+         Number(a.amount), a.currency||'FCFA', (a.siteCode||a.site_code||''),
+         (a.projectCode||a.project_code||''), (a.beneficiaryName||a.beneficiary_name||'')]
+      ).catch(()=>{});
+    }
+    const updated = await pool.query('SELECT * FROM approvals WHERE id=$1',[req.params.id]);
+    res.json(updated.rows[0]);
+  }catch(e){res.status(500).json({message:'Erreur serveur',error:e.message});}
+});
+
+
+// ─── PURCHASE ORDERS (BonsCommande PurchaseOrders) ───────────
+app.get('/purchase-orders', auth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM bons_commande ORDER BY created_at DESC');
+    res.json(r.rows);
+  } catch(e) { res.status(500).json({message:'Erreur serveur',error:e.message}); }
+});
+
+app.post('/purchase-orders', auth, async (req, res) => {
+  try {
+    const {numero,client,siteCode,duid,poNumber,devise,description,notes,lignes,montantTotal,status} = req.body;
+    if(!numero||!client) return res.status(400).json({message:'Numéro et client requis'});
+    if(siteCode&&duid){
+      await pool.query('UPDATE sites SET duid=$1 WHERE code=$2',[duid,siteCode]).catch(()=>{});
+    }
+    const r = await pool.query(
+      `INSERT INTO bons_commande (numero,client,site_code,duid,po_number,devise,description,notes,lignes,montant_total,status,created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [numero,client,siteCode||'',duid||'',poNumber||'',devise||'FCFA',
+       description||'',notes||'',JSON.stringify(lignes||[]),montantTotal||0,
+       status||'en_cours',req.user.sub]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur serveur',error:e.message}); }
+});
+
+app.post('/purchase-orders/import', auth, upload.single('file'), async (req, res) => {
+  try {
+    const uQ = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1',[req.user.sub]);
+    const u = uQ.rows[0];
+    const userName = ((u?.firstName||'')+' '+(u?.lastName||'')).trim();
+    let rows = [];
+
+    if(req.file) {
+      // Parser le fichier Excel
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(req.file.buffer);
+      const ws = wb.worksheets[0];
+      if(!ws) return res.status(400).json({message:'Feuille Excel vide'});
+      
+      // Lire les headers (ligne 1)
+      const headers = [];
+      ws.getRow(1).eachCell((cell,col)=>{ headers[col] = String(cell.value||'').toLowerCase().trim(); });
+      
+      // Lire les données
+      ws.eachRow((row, rowNum) => {
+        if(rowNum === 1) return;
+        const obj = {};
+        row.eachCell((cell, col) => { obj[headers[col]] = cell.value; });
+        if(Object.keys(obj).length > 0) rows.push(obj);
+      });
+    } else if(req.body && typeof req.body === 'object') {
+      // Import JSON direct
+      const b = req.body;
+      rows = [{
+        po: b.poNumber||b.po||b.numero,
+        site_code: b.siteCode||b.site_code||b.duid,
+        site_name: b.siteName||b.site_name||b.siteCode,
+        project_code: b.projectCode||b.project_code,
+        project_name: b.projectName||b.project_name,
+        description: b.description,
+        requested: b.requested||1,
+        billed: b.billed||0,
+      }];
+    }
+
+    if(rows.length === 0) return res.status(400).json({message:'Aucune donnée trouvée dans le fichier'});
+
+    const imported = [];
+    for(const row of rows) {
+      // Normaliser les champs — site_code = DUID
+      const po = String(row.po||row['po number']||row['bon de commande']||'').trim();
+      const siteCode = String(row.site_code||row['site code']||row['duid']||row['site id']||'').trim();
+      const siteName = String(row.site_name||row['site name']||row['nom site']||siteCode).trim();
+      const projectCode = String(row.project_code||row['project code']||row['code projet']||'').trim();
+      const projectName = String(row.project_name||row['project name']||row['nom projet']||'').trim();
+      const description = String(row.description||row['scope']||row['description']||'').trim();
+      const requested = Number(row.requested||row['qty requested']||row['quantite']||1);
+      const billed = Number(row.billed||row['qty billed']||0);
+      const region = String(row.region||'').trim();
+      const siteId = String(row.site_id||row['site id']||siteCode).trim();
+
+      if(!po && !siteCode) continue;
+
+      // Créer ou mettre à jour le site (site_code = DUID)
+      if(siteCode) {
+        const existing = await pool.query('SELECT id FROM sites WHERE code=$1',[siteCode]);
+        if(existing.rows[0]) {
+          await pool.query(
+            'UPDATE sites SET name=$1,"poNumber"=$2,region=$3,duid=$4 WHERE code=$5',
+            [siteName||siteCode, po, region, siteCode, siteCode]
+          ).catch(()=>{});
+        } else {
+          await pool.query(
+            `INSERT INTO sites (code,name,"poNumber",region,duid,status,latitude,longitude,technology)
+             VALUES ($1,$2,$3,$4,$5,'en_cours',0,0,'4G/5G')`,
+            [siteCode, siteName||siteCode, po, region, siteCode]
+          ).catch(()=>{});
+        }
+      }
+
+      // Enregistrer le BC
+      const ref = po||('BC-'+Date.now().toString().slice(-6));
+      const r = await pool.query(
+        `INSERT INTO bons_commande 
+         (numero,client,site_code,duid,po_number,description,lignes,montant_total,status,created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,0,'en_cours',$8) 
+         ON CONFLICT DO NOTHING RETURNING *`,
+        [ref, projectName||'MTN Cameroun', siteCode, siteCode, po, description,
+         JSON.stringify([{description,requested,billed,due:requested-billed}]),
+         req.user.sub]
+      ).catch(()=>({rows:[]}));
+
+      if(r.rows[0]) imported.push(r.rows[0]);
+    }
+
+    res.status(201).json({
+      success: true,
+      imported: imported.length,
+      total: rows.length,
+      message: `${imported.length} site(s) importés sur ${rows.length} lignes — Sites mis à jour automatiquement`
+    });
+  } catch(e) { 
+    console.error('Import error:', e);
+    res.status(500).json({message:'Erreur import', error:e.message}); 
+  }
+});
+
+app.put('/purchase-orders/:id', auth, async (req, res) => {
+  try {
+    const {status,notes,lignes,montantTotal} = req.body;
+    const sets=[]; const vals=[];
+    if(status!==undefined){sets.push(`status=$${vals.length+1}`);vals.push(status);}
+    if(notes!==undefined){sets.push(`notes=$${vals.length+1}`);vals.push(notes);}
+    if(lignes!==undefined){sets.push(`lignes=$${vals.length+1}`);vals.push(JSON.stringify(lignes));}
+    if(montantTotal!==undefined){sets.push(`montant_total=$${vals.length+1}`);vals.push(montantTotal);}
+    if(!sets.length) return res.status(400).json({message:'Rien à mettre à jour'});
+    sets.push('updated_at=NOW()');
+    vals.push(req.params.id);
+    const r = await pool.query(
+      `UPDATE bons_commande SET ${sets.join(',')} WHERE id=$${vals.length} RETURNING *`, vals
+    );
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur serveur',error:e.message}); }
+});
+
+
+// Migration colonnes RH dans users
+const migrateUsers = async () => {
+  const cols = [
+    ['phone','VARCHAR(30)'],['department','VARCHAR(100)'],
+    ['salary','NUMERIC(12,2)'],['contract','VARCHAR(20)'],
+    ['city','VARCHAR(50)'],['address','TEXT'],
+    ['bank','VARCHAR(100)'],['rib','VARCHAR(100)'],
+    ['matricule','VARCHAR(50)'],['education','VARCHAR(100)'],
+    ['gender','VARCHAR(10)'],['birth_date','DATE'],
+    ['birth_place','VARCHAR(100)'],['nationality','VARCHAR(50)'],
+    ['cin','VARCHAR(50)'],['emergency_name','VARCHAR(100)'],
+    ['emergency_phone','VARCHAR(30)'],['emergency_link','VARCHAR(50)'],
+    ['speciality','VARCHAR(200)'],['daily_rate','NUMERIC(12,2)'],
+    ['certifications',"JSONB DEFAULT '[]'"],['hire_date','DATE'],
+  ];
+  for(const [col,def] of cols){
+    await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS ${col} ${def}`).catch(()=>{});
+  }
+};
+migrateUsers();
+
+
+// ─── TECHNICIENS ─────────────────────────────────────────────
+app.get('/technicians', auth, async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT id, "firstName", "lastName", email, phone, role,
+        department, speciality, daily_rate, certifications,
+        city, bank, rib, matricule, "isActive", last_seen,
+        CASE WHEN last_seen > NOW()-INTERVAL '5 minutes' THEN 'online'
+             WHEN last_seen > NOW()-INTERVAL '30 minutes' THEN 'away'
+             ELSE 'offline' END as status
+      FROM users
+      WHERE role IN ('technician','terrain')
+      ORDER BY "firstName" ASC
+    `);
+    const techs = r.rows.map(u=>({
+      id: u.id,
+      name: (u.firstName||'')+(u.lastName?' '+u.lastName:''),
+      initials: ((u.firstName||'')[0]||'')+(((u.lastName||'')[0])||''),
+      role: u.speciality||'Technicien',
+      region: u.city||'Douala',
+      phone: u.phone||'',
+      email: u.email||'',
+      bank: u.bank||'',
+      rib: u.rib||'',
+      matricule: u.matricule||'',
+      dailyRate: u.daily_rate||0,
+      statut: u.status==='online'?'En mission':'Disponible',
+      isActive: u.isActive,
+      certs: Array.isArray(u.certifications)?u.certifications:
+             (typeof u.certifications==='string'&&u.certifications?JSON.parse(u.certifications):[]),
+    }));
+    res.json(techs);
+  } catch(e) { res.status(500).json({message:'Erreur serveur',error:e.message}); }
+});
+
+app.put('/technicians/:id/certifications', auth, async (req, res) => {
+  try {
+    const {certifications} = req.body;
+    await pool.query('UPDATE users SET certifications=$1 WHERE id=$2',
+      [JSON.stringify(certifications||[]), req.params.id]);
+    res.json({success:true});
+  } catch(e) { res.status(500).json({message:'Erreur serveur',error:e.message}); }
+});
 
 // 404
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));

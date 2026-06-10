@@ -385,7 +385,7 @@ const PAI_EXT = [
 ];
 
 // ===== PROFIL EMPLOYÉ — COMPLET AVEC PHOTOS =====
-const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast}) => {
+const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast,setEditEmp=()=>{}}) => {
   const [tab,setTab] = useState("info");
   const [photoError,setPhotoError] = useState(false);
   const ac = getAC(employee.first+employee.last);
@@ -734,7 +734,7 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast}) => {
           <div style={{display:"flex",gap:"8px"}}>
             {!isExt&&<Btn label="Générer bulletin" icon="doc" variant="secondary"/>}
             <Btn label="Télécharger dossier" icon="dl" variant="secondary"/>
-            <Btn label="Modifier le profil" icon="edit" variant="primary"/>
+            <Btn label="Modifier le profil" icon="edit" variant="primary" onClick={()=>setEditEmp(employee)}/>
           </div>
         </div>
       </div>
@@ -1633,6 +1633,59 @@ export default function RH() {
   const [tab,setTab] = useState("dashboard");
   const [employees,setEmployees] = useState(EMPLOYES);
   const [externals,setExternals] = useState(EXTERNES);
+  const [editEmp, setEditEmp] = useState(null);
+  const [editForm, setEditForm] = useState({});
+  const [editSaving, setEditSaving] = useState(false);
+  const BASE = 'https://backend-cleanit-erp.vercel.app';
+  const token = localStorage.getItem('token');
+
+  const saveEmployee = async (emp) => {
+    try {
+      const r = await fetch(BASE+'/users/'+emp.id, {
+        method:'PUT',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body: JSON.stringify({
+          firstName: emp.first||emp.firstName,
+          lastName: emp.last||emp.lastName,
+          phone: emp.phone,
+          department: emp.department,
+          salary: Number(emp.salary)||0,
+          contract: emp.contract,
+          city: emp.city,
+          address: emp.address,
+          bank: emp.bank,
+          rib: emp.rib,
+          matricule: emp.matricule,
+          education: emp.education,
+          gender: emp.gender,
+          role: emp.role,
+        })
+      });
+      const data = await r.json();
+      if(data.id) {
+        setEmployees(p=>p.map(e=>e.id===emp.id?{...e,...emp}:e));
+        return true;
+      }
+      return false;
+    } catch(e) { return false; }
+  };
+
+  const saveTechnicien = async (tech) => {
+    try {
+      const r = await fetch(BASE+'/users/'+tech.id, {
+        method:'PUT',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body: JSON.stringify({
+          phone: tech.phone, speciality: tech.speciality,
+          dailyRate: tech.dailyRate, bank: tech.bank, rib: tech.rib,
+          certifications: JSON.stringify(tech.certs||[]),
+        })
+      });
+      const data = await r.json();
+      if(data.id) { setExternals(p=>p.map(e=>e.id===tech.id?{...e,...tech}:e)); return true; }
+      return false;
+    } catch(e) { return false; }
+  };
   const [bulletins,setBulletins] = useState(BULLETINS);
   const [payExt,setPayExt] = useState(PAI_EXT);
   const [selEmp,setSelEmp] = useState(null);
@@ -1645,7 +1698,35 @@ export default function RH() {
   const pendingP = payExt.filter(p=>p.status==="en_attente").length;
   const onToast = (msg,type="success") => setToast({msg,type});
 
-  return (
+  return (<>
+    {editEmp&&(
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center'}}>
+        <div style={{background:'#fff',borderRadius:12,padding:24,width:'90%',maxWidth:560,maxHeight:'80vh',overflowY:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+            <span style={{fontSize:16,fontWeight:700,color:'#0A2D6E'}}>Modifier — {editEmp.first} {editEmp.last}</span>
+            <button onClick={()=>setEditEmp(null)} style={{border:'none',background:'none',fontSize:22,cursor:'pointer',color:'#6B7280'}}>×</button>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
+            {[['Prénom','first'],['Nom','last'],['Téléphone','phone'],['Email','email'],['Département','department'],['Ville','city'],['Banque','bank'],['RIB/Compte','rib'],['Matricule','matricule'],['Salaire (FCFA)','salary']].map(([lbl,key])=>(
+              <div key={key}>
+                <label style={{fontSize:11,color:'#6B7280',display:'block',marginBottom:3,fontWeight:600}}>{lbl}</label>
+                <input
+                  value={editForm[key]!==undefined?editForm[key]:(editEmp?.[key]??'')}
+                  onChange={e=>setEditForm(p=>({...p,[key]:e.target.value}))}
+                  style={{width:'100%',padding:'7px 10px',border:'1px solid #D1D5DB',borderRadius:6,fontSize:13,boxSizing:'border-box',outline:'none',background:'#fff'}}/>
+              </div>
+            ))}
+          </div>
+          <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+            <button onClick={()=>setEditEmp(null)} style={{padding:'8px 16px',border:'1px solid #D1D5DB',borderRadius:6,cursor:'pointer',background:'#fff',fontSize:13}}>Annuler</button>
+            <button onClick={async()=>{setEditSaving(true);const ok=await saveEmployee({...editEmp,...editForm});if(ok){alert('Profil mis à jour!');setEditEmp(null);}else{alert('Erreur sauvegarde');}setEditSaving(false);}} disabled={editSaving}
+              style={{padding:'8px 20px',background:'#0A2D6E',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:600,fontSize:13}}>
+              {editSaving?'Enregistrement...':'Enregistrer'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <div className="rh-app" style={{minHeight:"100vh",display:"flex",flexDirection:"column"}}>
 
       {/* SHELL BAR */}
@@ -1743,6 +1824,7 @@ export default function RH() {
           bulletins={bulletins}
           onClose={()=>setSelEmp(null)}
           onToast={onToast}
+          setEditEmp={setEditEmp}
         />
       )}
 
@@ -1753,5 +1835,5 @@ export default function RH() {
       {/* TOAST */}
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
     </div>
-  );
+  </>);
 }

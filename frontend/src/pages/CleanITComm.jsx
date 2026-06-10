@@ -269,7 +269,7 @@ const SectionChat = ({navigate}) => {
   const [realUsers, setRealUsers] = useState([]);
 
   useEffect(() => {
-    fetch('https://backend-cleanit-erp.vercel.app'+'/users', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
+    fetch('https://backend-cleanit-erp.vercel.app'+'/users/online', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
       .then(r=>r.json()).then(u=>{ if(Array.isArray(u)) setRealUsers(u); }).catch(()=>{});
   }, []);
 
@@ -370,15 +370,18 @@ const SectionChat = ({navigate}) => {
   };
 
   const filtChannels = CHANNELS.filter(c=>!search||c.nom.includes(search.toLowerCase()));
-  const filtContacts = (realUsers.length > 0 ? realUsers.map(u=>({
-    id: u.id,
-    nom: (u.firstName||'')+(u.lastName?' '+u.lastName:''),
-    poste: u.role==='admin'?'Administrateur':u.role==='project_manager'?'Project Manager':u.role==='hr'?'Ressources Humaines':'Technicien',
-    dept: 'CleanIT',
-    avatar: (u.firstName?.[0]||'?')+(u.lastName?.[0]||''),
-    couleur: u.role==='admin'?'#1B4F8A':u.role==='project_manager'?'#5B4FE9':u.role==='hr'?'#2E7D32':'#E97D05',
-    status: 'online', email: u.email
-  })) : CONTACTS).filter(u=>!search||u.nom.toLowerCase().includes(search.toLowerCase()) || (u.poste||'').toLowerCase().includes(search.toLowerCase()))
+  const myId = JSON.parse(localStorage.getItem('user')||'{}').id;
+  const filtContacts = (realUsers.length > 0 ? realUsers
+    .filter(u=>String(u.id)!==String(myId))
+    .map(u=>({
+      id: u.id,
+      nom: (u.firstName||'')+(u.lastName?' '+u.lastName:''),
+      poste: u.role==='admin'?'Administrateur':u.role==='project_manager'?'Project Manager':u.role==='hr'?'Ressources Humaines':'Technicien',
+      dept: 'CleanIT',
+      avatar: (u.firstName?.[0]||'?')+(u.lastName?.[0]||''),
+      couleur: u.role==='admin'?'#1B4F8A':u.role==='project_manager'?'#5B4FE9':u.role==='hr'?'#2E7D32':'#E97D05',
+      status: u.status||'offline', email: u.email
+    })) : CONTACTS).filter(u=>!search||u.nom.toLowerCase().includes(search.toLowerCase()) || (u.poste||'').toLowerCase().includes(search.toLowerCase()))
 
   return(
     <div style={{flex:1,display:'flex',overflow:'hidden'}}>
@@ -472,7 +475,7 @@ const SectionChat = ({navigate}) => {
               <Av user={dmUser} size={34} showStatus={true}/>
               <div>
                 <div style={{fontSize:14,fontWeight:700,color:P.text}}>{activeDM?.firstName} {activeDM?.lastName}</div>
-                <div style={{fontSize:11,color:P.green}}>En ligne</div>
+                <div style={{fontSize:11,color:dmUser?.status==='online'?P.green:dmUser?.status==='away'?P.orange:P.text4}}>{dmUser?.status==='online'?'En ligne':dmUser?.status==='away'?'Absent':'Hors ligne'}</div>
               </div>
             </>
           ):(
@@ -489,7 +492,7 @@ const SectionChat = ({navigate}) => {
           <div style={{marginLeft:'auto',display:'flex',gap:6}}>
             <button onClick={()=>navigate('/cleanitcomm/reunions')}
               style={{display:'flex',alignItems:'center',gap:5,padding:'6px 12px',borderRadius:8,border:'none',background:P.blue,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer'}}>
-              <Icon name="video" size={14} color="#fff"/> Appel vidéo
+              <Icon name="video" size={14} color="#fff"/> Appel vidéo (bientôt)
             </button>
             <button style={{width:34,height:34,borderRadius:8,border:`1px solid ${P.border}`,background:P.white,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
               <Icon name="phone" size={16} color={P.text3}/>
@@ -599,7 +602,8 @@ const SectionChat = ({navigate}) => {
                 <Av user={dmUser} size={52} showStatus={true}/>
                 <div style={{fontSize:14,fontWeight:800,color:P.text,marginTop:10}}>{dmUser?.nom}</div>
                 <div style={{fontSize:12,color:P.text3,marginBottom:4}}>{dmUser?.poste}</div>
-                <div style={{fontSize:11,color:P.green,fontWeight:600}}>{'● En ligne'}</div>
+                <div style={{fontSize:11,color:dmUser?.status==='online'?P.green:dmUser?.status==='away'?P.orange:P.text4,fontWeight:600}}>{dmUser?.status==='online'?'● En ligne':dmUser?.status==='away'?'● Absent':'● Hors ligne'}</div>
+                {dmUser?.last_seen&&dmUser?.status!=='online'&&<div style={{fontSize:10,color:P.text4,marginTop:2}}>Vu le {new Date(dmUser.last_seen).toLocaleDateString('fr-FR')} à {new Date(dmUser.last_seen).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div>}
                 <div style={{display:'flex',gap:8,marginTop:12,justifyContent:'center'}}>
                   <button style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:'8px 12px',borderRadius:9,border:`1px solid ${P.border}`,background:'#f9fafb',cursor:'pointer'}}>
                     <Icon name="phone" size={16} color={P.blue}/>
@@ -1100,8 +1104,7 @@ const SectionContacts = ({navigate}) => {
   const meId = JSON.parse(localStorage.getItem('user')||'{}').id;
 
   useEffect(() => {
-    fetch('https://backend-cleanit-erp.vercel.app/users', 
-      {headers:{'Authorization':'Bearer '+token}})
+    fetch('https://backend-cleanit-erp.vercel.app/users/online',{headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json())
       .then(users => {
         if(Array.isArray(users)) {
@@ -1114,7 +1117,7 @@ const SectionContacts = ({navigate}) => {
               email: u.email,
               avatar: (u.firstName?.[0]||'?')+(u.lastName?.[0]||''),
               couleur: u.role==='admin'?'#1B4F8A':u.role==='project_manager'?'#5B4FE9':u.role==='hr'?'#2E7D32':'#E97D05',
-              status: 'online', dept: 'CleanIT'
+              status: u.last_seen ? (new Date()-new Date(u.last_seen)<300000?'online':new Date()-new Date(u.last_seen)<1800000?'away':'offline') : 'offline', dept: 'CleanIT'
             }))
           );
         }
@@ -1271,7 +1274,7 @@ export default function CleanITComm() {
 
   useEffect(() => {
     // Charger tous les utilisateurs pour DMs
-    fetch('https://backend-cleanit-erp.vercel.app'+'/users', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
+    fetch('https://backend-cleanit-erp.vercel.app'+'/users/online', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
       .then(r=>r.json()).then(u=>{ if(Array.isArray(u)) setRealUsers(u); }).catch(()=>{});
     // Charger les messages du feed pour les canaux
     fetch('https://backend-cleanit-erp.vercel.app'+'/feed', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
