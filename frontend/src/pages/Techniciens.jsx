@@ -327,21 +327,12 @@ function DetailPage({ tech, onBack, showAddCert=false, setShowAddCert=()=>{}, ne
               <span style={{fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,color:C.text3}}>Certifications & habilitations</span>
               <div style={{display:'flex',gap:6}}>
                 <button onClick={()=>setShowAddCert(true)} style={{fontSize:11,padding:'4px 10px',background:C.blue_l,color:C.blue_d,border:'none',borderRadius:6,cursor:'pointer',fontWeight:600}}>+ Ajouter</button>
-                <label style={{fontSize:11,padding:'4px 10px',background:C.green_l,color:C.green,border:'none',borderRadius:6,cursor:'pointer',fontWeight:600}}>
-                  + Importer PDF
-                  <input type="file" accept=".pdf" style={{display:'none'}} onChange={async e=>{
-                    const file=e.target.files[0]; if(!file) return;
-                    const certName=file.name.replace('.pdf','');
-                    const certs=[...(tech.certs||[]),{id:'cert-'+Date.now(),n:certName,org:'Document importé',date:new Date().toISOString().split('T')[0],expire:'',s:'ok',pdf:certName}];
-                    await saveCert(tech.id,certs);
-                    alert('Certification importée: '+certName);
-                    e.target.value='';
-                  }}/>
-                </label>
+
               </div>
             </div>
             {showAddCert&&(
               <div style={{margin:'0 20px 12px',padding:12,background:C.bg,borderRadius:8,border:'1px solid '+C.border}}>
+                <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:8}}>{showAddCert===true?'Nouvelle certification':'Modifier la certification'}</div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:8}}>
                   <div><label style={{fontSize:10,color:C.text3,display:'block',marginBottom:2}}>Nom *</label><input value={newCert.n} onChange={e=>setNewCert(p=>({...p,n:e.target.value}))} placeholder="Ex: HCNP-5G" style={{width:'100%',padding:'6px',border:'1px solid '+C.border,borderRadius:4,fontSize:12,boxSizing:'border-box'}}/></div>
                   <div><label style={{fontSize:10,color:C.text3,display:'block',marginBottom:2}}>Organisme</label><input value={newCert.org} onChange={e=>setNewCert(p=>({...p,org:e.target.value}))} placeholder="Ex: Huawei" style={{width:'100%',padding:'6px',border:'1px solid '+C.border,borderRadius:4,fontSize:12,boxSizing:'border-box'}}/></div>
@@ -352,20 +343,42 @@ function DetailPage({ tech, onBack, showAddCert=false, setShowAddCert=()=>{}, ne
                   <select value={newCert.s} onChange={e=>setNewCert(p=>({...p,s:e.target.value}))} style={{padding:'6px',border:'1px solid '+C.border,borderRadius:4,fontSize:12,flex:1}}>
                     <option value="ok">Valide</option><option value="expire_soon">Expire bientôt</option><option value="expire">Expirée</option>
                   </select>
+                  <label style={{fontSize:11,padding:'6px 10px',background:C.bg,border:'1px solid '+C.border,borderRadius:4,cursor:'pointer',whiteSpace:'nowrap'}}>
+                    📎 PDF
+                    <input type="file" accept=".pdf,image/*" style={{display:'none'}} onChange={e=>{
+                      const f=e.target.files[0]; if(!f) return;
+                      setNewCert(p=>({...p,pdfName:f.name}));
+                    }}/>
+                  </label>
                   <button onClick={()=>addCertToTech(tech)} disabled={saving||!newCert.n} style={{padding:'6px 14px',background:C.blue,color:'#fff',border:'none',borderRadius:4,cursor:'pointer',fontSize:12,fontWeight:600}}>{saving?'...':'Ajouter'}</button>
                   <button onClick={()=>setShowAddCert(false)} style={{padding:'6px 10px',background:'#fff',border:'1px solid '+C.border,borderRadius:4,cursor:'pointer',fontSize:12}}>×</button>
                 </div>
               </div>
             )}
             {(tech.certs||[]).map((cert,i)=>{
-              const [bg,col,label] = CS[cert.s]||CS.ok;
+              // Calculer statut réel selon date expiration
+              const certStatus = (() => {
+                if(!cert.expire) return cert.s||'ok';
+                const exp = new Date(cert.expire);
+                const now = new Date();
+                const diff = (exp-now)/(1000*3600*24);
+                if(diff < 0) return 'expire';
+                if(diff < 90) return 'expire_soon';
+                return 'ok';
+              })();
+              const [bg,col,label] = CS[certStatus]||CS.ok;
               return (
-                <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 20px',borderBottom:`1px solid ${C.border2}`}}>
+                <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'11px 20px',borderBottom:`1px solid ${C.border2}`,cursor:'pointer'}}
+                  onClick={()=>setShowAddCert(cert)}>
                   <div>
                     <div style={{fontSize:13,fontWeight:600,color:C.text}}>{cert.n}</div>
                     <div style={{fontSize:11,color:C.text3}}>Expire le {cert.e}</div>
                   </div>
-                  <span style={{fontSize:11,padding:'3px 10px',borderRadius:20,background:bg,color:col,fontWeight:700}}>{label}</span>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <span style={{fontSize:11,padding:'3px 10px',borderRadius:20,background:bg,color:col,fontWeight:700}}>{label}</span>
+                    <button onClick={e=>{e.stopPropagation();if(window.confirm('Supprimer?'))removeCert(tech,cert.id);}}
+                      style={{padding:'2px 7px',background:C.red_l,color:C.red,border:'none',borderRadius:4,fontSize:11,cursor:'pointer'}}>×</button>
+                  </div>
                 </div>
               );
             })}
@@ -466,6 +479,15 @@ export default function Techniciens() {
   const [selected, setSelected] = useState(null);
   const [showAddCert, setShowAddCert] = useState(false);
   const [newCert, setNewCert] = useState({n:'',org:'',date:'',expire:'',s:'ok'});
+
+  // Quand on clique sur une cert existante → pré-remplir le formulaire
+  React.useEffect(()=>{
+    if(showAddCert&&typeof showAddCert==='object'){
+      setNewCert({n:showAddCert.n||'',org:showAddCert.org||'',date:showAddCert.date||'',expire:showAddCert.expire||'',s:showAddCert.s||'ok'});
+    } else if(showAddCert===true){
+      setNewCert({n:'',org:'',date:'',expire:'',s:'ok'});
+    }
+  },[showAddCert]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -486,7 +508,14 @@ export default function Techniciens() {
 
   const addCertToTech = async (tech) => {
     if(!newCert.n.trim()) return;
-    const certs = [...(tech.certs||[]), {...newCert, id:'cert-'+Date.now()}];
+    let certs;
+    if(showAddCert&&typeof showAddCert==='object'){
+      // Mode modification
+      certs = (tech.certs||[]).map(c=>c.id===showAddCert.id?{...c,...newCert}:c);
+    } else {
+      // Mode ajout
+      certs = [...(tech.certs||[]), {...newCert, id:'cert-'+Date.now()}];
+    }
     await saveCert(tech.id, certs);
     setNewCert({n:'',org:'',date:'',expire:'',s:'ok'});
     setShowAddCert(false);

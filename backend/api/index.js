@@ -156,14 +156,27 @@ app.put('/users/:id', auth, async (req, res) => {
     const updates = [];
     const values = [];
     let idx = 1;
-    const fields = ['isActive','role','firstName','lastName','phone','department','salary',
-      'contract','city','address','bank','rib','matricule','education','gender',
-      'birthDate','birthPlace','nationality','cin','emergencyName','emergencyPhone',
-      'emergencyLink','speciality','dailyRate','certifications','hireDate'];
-    const quoted = ['isActive','firstName','lastName'];
-    for(const f of fields){
+    // Mapping camelCase → colonne DB (snake_case ou quoted camelCase)
+    const fieldMap = {
+      isActive: '"isActive"', role: 'role',
+      firstName: '"firstName"', lastName: '"lastName"',
+      phone: 'phone', department: 'department',
+      salary: 'salary', contract: 'contract',
+      city: 'city', address: 'address',
+      bank: 'bank', rib: 'rib',
+      matricule: 'matricule', education: 'education',
+      gender: 'gender', birthDate: 'birth_date',
+      birthPlace: 'birth_place', nationality: 'nationality',
+      cin: 'cin', emergencyName: 'emergency_name',
+      emergencyPhone: 'emergency_phone', emergencyLink: 'emergency_link',
+      emergencyAddress: 'emergency_address',
+      speciality: 'speciality', dailyRate: 'daily_rate',
+      certifications: 'certifications', hireDate: 'hire_date',
+      contractEnd: 'contract_end', cnps: 'cnps',
+      numContribuable: 'num_contribuable', status: 'status',
+    };
+    for(const [f,col] of Object.entries(fieldMap)){
       if(req.body[f]!==undefined){
-        const col = quoted.includes(f)?`"${f}"`:f;
         updates.push(`${col} = $${idx++}`);
         values.push(req.body[f]);
       }
@@ -175,7 +188,7 @@ app.put('/users/:id', auth, async (req, res) => {
     if(!updates.length) return res.status(400).json({message:'Aucune modification'});
     values.push(id);
     const result = await pool.query(
-      `UPDATE users SET ${updates.join(',')} WHERE id = $${idx} RETURNING id,email,"firstName","lastName",role,"isActive",phone,department,salary,contract,city,address,bank,rib,matricule,education,gender,certifications,speciality,"dailyRate"`,
+      `UPDATE users SET ${updates.join(',')} WHERE id = $${idx} RETURNING id,email,"firstName","lastName",role,"isActive",phone,department,salary,contract,city,address,bank,rib,matricule,education,gender,certifications,speciality,daily_rate`,
       values
     );
     res.json(result.rows[0]);

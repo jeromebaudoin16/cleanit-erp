@@ -1224,6 +1224,24 @@ const ScreenMessages = () => {
     fetch(BASE+'/conversations',{headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(d=>{ if(Array.isArray(d)) setConvos(d); }).catch(()=>{});
   },[]);
+  const [msgTab, setMsgTab] = useState('messages');
+  const [contacts, setContacts] = useState([]);
+  const [contactSearch, setContactSearch] = useState('');
+
+  useEffect(()=>{
+    const tk = localStorage.getItem('token');
+    const me = JSON.parse(localStorage.getItem('user')||'{}');
+    fetch('https://backend-cleanit-erp.vercel.app/users/online',{headers:{'Authorization':'Bearer '+tk}})
+      .then(r=>r.json()).then(users=>{
+        if(!Array.isArray(users)) return;
+        setContacts(users.filter(u=>u.id!==me.id).map(u=>({
+          id:u.id, name:(u.firstName||'')+(u.lastName?' '+u.lastName:''),
+          role:u.role==='project_manager'?'Project Manager':u.role==='hr'?'RH Manager':u.role==='admin'?'Administrateur':'Technicien',
+          status:u.status||'offline', avatar:((u.firstName||'')[0]||'?')+((u.lastName||'')[0]||''),
+        })));
+      }).catch(()=>{});
+  },[]);
+
 
   const openConvFn = async(conv) => {
     setOpenConv(conv);
@@ -1372,80 +1390,78 @@ const ScreenMessages = () => {
     </div>
   );
 
-  const C2b = getC();
   return (
-    <div style={{flex:1,overflowY:'auto',background:C2b.bg,paddingBottom:80}}>
+    <div style={{flex:1,overflowY:'auto',background:C2.bg,paddingBottom:80}}>
       <Header title="Messages" right={
         <div style={{display:'flex',gap:14}}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-            stroke={C2b.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-            style={{cursor:'pointer'}}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C2.text} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}>
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
         </div>
       }/>
-      {[
-        {label:'Messages directs',items:convos.filter(c=>{
-          const isP1 = c.p1_id===meId;
-          const otherId = isP1 ? c.p2_id : c.p1_id;
-          return Number(otherId) !== Number(meId);
-        }).map(c=>{
-          const isP1 = c.p1_id===meId;
-          const otherId = isP1 ? c.p2_id : c.p1_id;
-          const otherFirst = isP1 ? c.p2_first : c.p1_first;
-          const otherLast = isP1 ? c.p2_last : c.p1_last;
-          const av = ((otherFirst||'')[0]+(otherLast||'')[0]).toUpperCase();
-          return {id:c.id,type:'dm',otherId,name:(otherFirst||'')+' '+(otherLast||''),
-            av,color:'#1B4F8A',last:c.last_message||'Nouvelle conversation',
-            time:c.last_message_at?new Date(c.last_message_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'',
-            unread:parseInt(c.unread)||0};
-        })},
-      ].map(sec=>(
-        <div key={sec.label}>
-          <div style={{padding:'8px 14px 4px',background:C2b.bg2,
-            borderBottom:'0.5px solid '+C2b.border}}>
-            <span style={{fontSize:10,fontWeight:700,color:C2b.text3,
-              textTransform:'uppercase',letterSpacing:.5}}>{sec.label}</span>
-          </div>
-          {sec.items.map(conv=>(
-            <div key={conv.id} onClick={()=>openConvFn(conv)}
-              style={{display:'flex',alignItems:'center',gap:10,
-                padding:'12px 14px',borderBottom:'0.5px solid '+C2b.border,
-                cursor:'pointer',background:C2b.bg}}>
-              <div style={{position:'relative',flexShrink:0}}>
-                <div style={{width:44,height:44,borderRadius:'50%',
-                  background:(conv.color||C2b.primary)+'22',
-                  border:'1.5px solid '+(conv.color||C2b.primary),
-                  display:'flex',alignItems:'center',justifyContent:'center',
-                  fontSize:12,fontWeight:700,color:conv.color||C2b.primary}}>
-                  {conv.av||conv.name?.slice(0,2)||'?'}
-                </div>
+      <div style={{display:'flex',padding:'8px 14px',gap:6,borderBottom:'1px solid '+C2.border}}>
+        {[['messages','Conversations'],['contacts','Contacts']].map(([id,lbl])=>(
+          <button key={id} onClick={()=>setMsgTab(id)}
+            style={{flex:1,padding:'7px',border:'none',borderRadius:8,background:msgTab===id?'#1B4F8A':'transparent',color:msgTab===id?'white':C2.text3,fontWeight:msgTab===id?600:400,fontSize:12,cursor:'pointer',fontFamily:FONT}}>
+            {lbl}
+          </button>
+        ))}
+      </div>
+      {msgTab==='contacts'&&(
+        <div style={{padding:'10px 14px'}}>
+          <input value={contactSearch} onChange={e=>setContactSearch(e.target.value)} placeholder="Rechercher..."
+            style={{width:'100%',padding:'9px 12px',border:'1px solid '+C2.border,borderRadius:8,fontSize:13,marginBottom:8,boxSizing:'border-box',outline:'none',fontFamily:FONT}}/>
+          {contacts.filter(c=>!contactSearch||c.name.toLowerCase().includes(contactSearch.toLowerCase())).map((c,i)=>(
+            <div key={i} onClick={async()=>{
+              const tk2=localStorage.getItem('token');
+              const r=await fetch('https://backend-cleanit-erp.vercel.app/conversations',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk2},body:JSON.stringify({participantId:c.id})}).then(r=>r.json()).catch(()=>null);
+              if(r?.id) setMsgTab('messages');
+            }} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 6px',borderRadius:8,cursor:'pointer',marginBottom:3}}>
+              <div style={{width:42,height:42,borderRadius:'50%',background:'#1B4F8A22',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,color:'#1B4F8A',flexShrink:0,position:'relative'}}>
+                {c.avatar}
+                <div style={{position:'absolute',bottom:1,right:1,width:10,height:10,borderRadius:'50%',background:c.status==='online'?'#22c55e':'#9ca3af',border:'2px solid white'}}/>
               </div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}>
-                  <span style={{fontSize:13,fontWeight:conv.unread?700:500,color:C2b.text}}>
-                    {conv.name}
-                  </span>
-                  <span style={{fontSize:10,color:C2b.text3}}>{conv.time}</span>
-                </div>
-                <div style={{fontSize:11,color:C2b.text3,overflow:'hidden',
-                  textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{conv.last}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:600,color:C2.text}}>{c.name}</div>
+                <div style={{fontSize:11,color:C2.text3}}>{c.role}</div>
               </div>
-              {conv.unread>0&&(
-                <div style={{width:20,height:20,borderRadius:10,
-                  background:C2b.pink||'#E86C6C',color:'white',fontSize:10,fontWeight:700,
-                  display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                  {conv.unread}
-                </div>
-              )}
+              <span style={{fontSize:10,color:c.status==='online'?'#22c55e':'#9ca3af'}}>{c.status==='online'?'En ligne':'Hors ligne'}</span>
             </div>
           ))}
+          {contacts.length===0&&<div style={{textAlign:'center',padding:24,color:C2.text3,fontSize:13}}>Chargement...</div>}
         </div>
-      ))}
+      )}
+      {msgTab==='messages'&&(
+        <div>
+          {convos.filter(c=>{const isP1=c.p1_id===meId;const otherId=isP1?c.p2_id:c.p1_id;return Number(otherId)!==Number(meId);}).map(c=>{
+            const isP1=c.p1_id===meId;
+            const otherFirst=isP1?c.p2_first:c.p1_first;
+            const otherLast=isP1?c.p2_last:c.p1_last;
+            const otherId=isP1?c.p2_id:c.p1_id;
+            const av=((otherFirst||'')[0]+(otherLast||'')[0]).toUpperCase();
+            const conv={id:c.id,type:'dm',otherId,name:(otherFirst||'')+' '+(otherLast||''),av,color:'#1B4F8A',last:c.last_message||'Nouvelle conversation',time:c.last_message_at?new Date(c.last_message_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'',unread:parseInt(c.unread)||0};
+            return (
+              <div key={conv.id} onClick={()=>openConvFn(conv)} style={{display:'flex',alignItems:'center',gap:10,padding:'12px 14px',borderBottom:'0.5px solid '+C2.border,cursor:'pointer',background:C2.bg}}>
+                <div style={{width:44,height:44,borderRadius:'50%',background:'#1B4F8A22',border:'1.5px solid #1B4F8A',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700,color:'#1B4F8A'}}>
+                  {conv.av}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}>
+                    <span style={{fontSize:13,fontWeight:conv.unread?700:500,color:C2.text}}>{conv.name}</span>
+                    <span style={{fontSize:10,color:C2.text3}}>{conv.time}</span>
+                  </div>
+                  <div style={{fontSize:11,color:C2.text3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{conv.last}</div>
+                </div>
+                {conv.unread>0&&<div style={{width:20,height:20,borderRadius:10,background:'#E86C6C',color:'white',fontSize:10,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{conv.unread}</div>}
+              </div>
+            );
+          })}
+          {convos.length===0&&<div style={{textAlign:'center',padding:32,color:C2.text3,fontSize:13}}>Aucune conversation — allez dans Contacts</div>}
+        </div>
+      )}
     </div>
   );
 };
-
 // ─── SCREEN: POINTER ──────────────────────────────────────────
 const ScreenPointer = ({user, gps}) => {
   const [mode, setMode] = useState('badge');

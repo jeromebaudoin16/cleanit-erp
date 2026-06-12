@@ -734,7 +734,7 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast,setEditEmp=()
           <div style={{display:"flex",gap:"8px"}}>
             {!isExt&&<Btn label="Générer bulletin" icon="doc" variant="secondary"/>}
             <Btn label="Télécharger dossier" icon="dl" variant="secondary"/>
-            <Btn label="Modifier le profil" icon="edit" variant="primary" onClick={()=>setEditEmp(employee)}/>
+            <Btn label="Modifier le profil" icon="edit" variant="primary" onClick={()=>{setEditEmp(employee);setEditForm({});} }/>
           </div>
         </div>
       </div>
@@ -1634,6 +1634,42 @@ export default function RH() {
   const [employees,setEmployees] = useState(EMPLOYES);
   const [externals,setExternals] = useState(EXTERNES);
   const [editEmp, setEditEmp] = useState(null);
+
+  // Charger les vrais employés depuis API
+  useEffect(()=>{
+    fetch('https://backend-cleanit-erp.vercel.app/users',{headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(users=>{
+        if(!Array.isArray(users)) return;
+        const emps = users.filter(u=>!['technician','terrain'].includes(u.role)).map(u=>({
+          id: u.id, first: u.firstName||'', last: u.lastName||'',
+          email: u.email||'', phone: u.phone||'', role: u.role||'',
+          department: u.department||'', hireDate: u.hire_date||u.hireDate||'',
+          birthDate: u.birth_date||u.birthDate||'', birthPlace: u.birth_place||u.birthPlace||'',
+          nationality: u.nationality||'', cin: u.cin||'',
+          salary: u.salary||0, contract: u.contract||'CDI',
+          status: u.isActive?'actif':'inactif', gender: u.gender||'',
+          city: u.city||'Douala', address: u.address||'',
+          bank: u.bank||'', rib: u.rib||'',
+          matricule: u.matricule||'CLN-'+String(u.id).padStart(3,'0'),
+          education: u.education||'', emergencyName: u.emergency_name||'',
+          emergencyPhone: u.emergency_phone||'', emergencyLink: u.emergency_link||'',
+          speciality: u.speciality||'', dailyRate: u.daily_rate||0,
+          docs: [], history: [],
+        }));
+        if(emps.length>0) setEmployees(emps);
+        const techs = users.filter(u=>['technician','terrain'].includes(u.role)).map(u=>({
+          id: u.id, first: u.firstName||'', last: u.lastName||'',
+          phone: u.phone||'', role: u.speciality||u.role||'Technicien',
+          speciality: u.speciality||'', status: 'actif',
+          matricule: u.matricule||'CLN-EXT-'+String(u.id).padStart(3,'0'),
+          bank: u.bank||'', rib: u.rib||'', city: u.city||'Douala',
+          cin: u.cin||'', birthDate: u.birth_date||'',
+          dailyRate: u.daily_rate||0, contract: 'Freelance',
+          rating: 4.5, projectCount: 0, totalEarned: 0, projects: [],
+        }));
+        if(techs.length>0) setExternals(techs);
+      }).catch(()=>{});
+  },[]);
   const [editForm, setEditForm] = useState({});
   const [editSaving, setEditSaving] = useState(false);
   const BASE = 'https://backend-cleanit-erp.vercel.app';
@@ -1645,29 +1681,41 @@ export default function RH() {
         method:'PUT',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
         body: JSON.stringify({
-          firstName: emp.first||emp.firstName,
-          lastName: emp.last||emp.lastName,
-          phone: emp.phone,
-          department: emp.department,
+          firstName: emp.first||emp.firstName||'',
+          lastName: emp.last||emp.lastName||'',
+          phone: emp.phone||'',
+          department: emp.department||'',
           salary: Number(emp.salary)||0,
-          contract: emp.contract,
-          city: emp.city,
-          address: emp.address,
-          bank: emp.bank,
-          rib: emp.rib,
-          matricule: emp.matricule,
-          education: emp.education,
-          gender: emp.gender,
-          role: emp.role,
+          contract: emp.contract||'',
+          city: emp.city||'',
+          address: emp.address||'',
+          bank: emp.bank||'',
+          rib: emp.rib||'',
+          matricule: emp.matricule||'',
+          education: emp.education||'',
+          gender: emp.gender||'',
+          role: ({'Administrateur':'admin','Project Manager':'project_manager','RH Manager':'hr','Technicien':'technician','Finance':'finance','Viewer':'viewer','admin':'admin','project_manager':'project_manager','hr':'hr','technician':'technician','finance':'finance','terrain':'terrain'}[emp.role]||emp.role||undefined),
+          birthDate: emp.birthDate||emp.birth_date||'',
+          birthPlace: emp.birthPlace||emp.birth_place||'',
+          nationality: emp.nationality||'',
+          cin: emp.cin||'',
+          emergencyName: emp.emergencyName||emp.emergency_name||'',
+          emergencyPhone: emp.emergencyPhone||emp.emergency_phone||'',
+          emergencyLink: emp.emergencyLink||emp.emergency_link||'',
+          speciality: emp.speciality||'',
+          dailyRate: Number(emp.dailyRate||emp.daily_rate)||0,
+          hireDate: emp.hireDate||emp.hire_date||'',
         })
       });
       const data = await r.json();
-      if(data.id) {
+      if(r.ok && (data.id || data.message==='OK')) {
         setEmployees(p=>p.map(e=>e.id===emp.id?{...e,...emp}:e));
         return true;
       }
+      console.error('Save error:', data);
+      alert('Erreur: '+(data.error||data.message||'Vérifiez les données'));
       return false;
-    } catch(e) { return false; }
+    } catch(e) { console.error(e); return false; }
   };
 
   const saveTechnicien = async (tech) => {
@@ -1699,34 +1747,114 @@ export default function RH() {
   const onToast = (msg,type="success") => setToast({msg,type});
 
   return (<>
-    {editEmp&&(
-      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center'}}>
-        <div style={{background:'#fff',borderRadius:12,padding:24,width:'90%',maxWidth:560,maxHeight:'80vh',overflowY:'auto',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-            <span style={{fontSize:16,fontWeight:700,color:'#0A2D6E'}}>Modifier — {editEmp.first} {editEmp.last}</span>
-            <button onClick={()=>setEditEmp(null)} style={{border:'none',background:'none',fontSize:22,cursor:'pointer',color:'#6B7280'}}>×</button>
+    {editEmp&&(()=>{
+      const ef = k => editForm[k]!==undefined?editForm[k]:(editEmp?.[k]??'');
+      const sf = (k,v) => setEditForm(p=>({...p,[k]:v}));
+      const fi = (lbl,key,type='text') => (
+        <div key={key}>
+          <label style={{fontSize:11,color:'#6B7280',display:'block',marginBottom:3,fontWeight:600,textTransform:'uppercase',letterSpacing:.3}}>{lbl}</label>
+          <input type={type} value={ef(key)} onChange={e=>sf(key,e.target.value)}
+            style={{width:'100%',padding:'8px 10px',border:'1px solid #D1D5DB',borderRadius:6,fontSize:13,boxSizing:'border-box',outline:'none',background:'#fff',fontFamily:'inherit'}}/>
+        </div>
+      );
+      const fs = (lbl,key,opts) => (
+        <div key={key}>
+          <label style={{fontSize:11,color:'#6B7280',display:'block',marginBottom:3,fontWeight:600,textTransform:'uppercase',letterSpacing:.3}}>{lbl}</label>
+          <select value={ef(key)} onChange={e=>sf(key,e.target.value)}
+            style={{width:'100%',padding:'8px 10px',border:'1px solid #D1D5DB',borderRadius:6,fontSize:13,boxSizing:'border-box',outline:'none',background:'#fff',fontFamily:'inherit'}}>
+            <option value="">Sélectionner...</option>
+            {opts.map(o=><option key={o} value={o}>{o}</option>)}
+          </select>
+        </div>
+      );
+      return (
+      <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',backdropFilter:'blur(4px)'}}>
+        <div style={{background:'#fff',borderRadius:12,width:'90%',maxWidth:700,maxHeight:'88vh',display:'flex',flexDirection:'column',boxShadow:'0 24px 80px rgba(0,0,0,0.35)'}}>
+          {/* Header */}
+          <div style={{padding:'16px 24px',borderBottom:'1px solid #E5E7EB',display:'flex',justifyContent:'space-between',alignItems:'center',background:'#0A2D6E',borderRadius:'12px 12px 0 0'}}>
+            <span style={{fontSize:15,fontWeight:700,color:'#fff'}}>Modifier le profil — {editEmp.first} {editEmp.last}</span>
+            <button onClick={()=>{setEditEmp(null);setEditForm({});}} style={{border:'none',background:'rgba(255,255,255,0.15)',color:'#fff',fontSize:18,cursor:'pointer',borderRadius:6,width:28,height:28,display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
-            {[['Prénom','first'],['Nom','last'],['Téléphone','phone'],['Email','email'],['Département','department'],['Ville','city'],['Banque','bank'],['RIB/Compte','rib'],['Matricule','matricule'],['Salaire (FCFA)','salary']].map(([lbl,key])=>(
-              <div key={key}>
-                <label style={{fontSize:11,color:'#6B7280',display:'block',marginBottom:3,fontWeight:600}}>{lbl}</label>
-                <input
-                  value={editForm[key]!==undefined?editForm[key]:(editEmp?.[key]??'')}
-                  onChange={e=>setEditForm(p=>({...p,[key]:e.target.value}))}
-                  style={{width:'100%',padding:'7px 10px',border:'1px solid #D1D5DB',borderRadius:6,fontSize:13,boxSizing:'border-box',outline:'none',background:'#fff'}}/>
-              </div>
-            ))}
-          </div>
-          <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-            <button onClick={()=>setEditEmp(null)} style={{padding:'8px 16px',border:'1px solid #D1D5DB',borderRadius:6,cursor:'pointer',background:'#fff',fontSize:13}}>Annuler</button>
-            <button onClick={async()=>{setEditSaving(true);const ok=await saveEmployee({...editEmp,...editForm});if(ok){alert('Profil mis à jour!');setEditEmp(null);}else{alert('Erreur sauvegarde');}setEditSaving(false);}} disabled={editSaving}
-              style={{padding:'8px 20px',background:'#0A2D6E',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:600,fontSize:13}}>
-              {editSaving?'Enregistrement...':'Enregistrer'}
+          {/* Onglets */}
+          {(()=>{
+            const [editTab,setEditTab] = [editForm._tab||'perso', v=>setEditForm(p=>({...p,_tab:v}))];
+            return (<>
+            <div style={{display:'flex',borderBottom:'1px solid #E5E7EB',background:'#F9FAFB'}}>
+              {[['perso','Informations personnelles'],['job','Emploi & Contrat'],['finance','Paie & Banque'],['urgence','Contact urgence']].map(([id,lbl])=>(
+                <button key={id} onClick={()=>setEditForm(p=>({...p,_tab:id}))}
+                  style={{padding:'10px 16px',border:'none',borderBottom:editTab===id?'2px solid #0A2D6E':'2px solid transparent',background:'transparent',color:editTab===id?'#0A2D6E':'#6B7280',fontWeight:editTab===id?600:400,fontSize:12,cursor:'pointer',fontFamily:'inherit'}}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+            <div style={{padding:24,overflowY:'auto',flex:1}}>
+              {editTab==='perso'&&(
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                  {fi('Prénom','first')}
+                  {fi('Nom de famille','last')}
+                  {fi('Téléphone','phone')}
+                  {fi('Email professionnel','email','email')}
+                  {fs('Genre','gender',['Masculin','Féminin'])}
+                  {fi('Date de naissance','birthDate','date')}
+                  {fi('Lieu de naissance','birthPlace')}
+                  {fi('Nationalité','nationality')}
+                  {fi('N° CIN / Passeport','cin')}
+                  {fs('Ville','city',['Douala','Yaoundé','Bafoussam','Garoua','Bamenda','Kribi','Limbé','Buea'])}
+                  <div style={{gridColumn:'span 2'}}>{fi('Adresse complète','address')}</div>
+                  {fs('Niveau études','education',['BEP/CAP','Bac','BTS/DUT','Licence','Master/Ingénieur','Doctorat'])}
+                </div>
+              )}
+              {editTab==='job'&&(
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                  {fi('Matricule','matricule')}
+                  {fs('Rôle système','role',['admin','project_manager','hr','finance','technician','viewer'])}
+                  {fs('Département','department',['Direction','Gestion de Projets','QHSE','Technique','Finance','RH','Commercial'])}
+                  {fs('Type de contrat','contract',['CDI','CDD','Stage','Freelance','Consultant'])}
+                  {fi('Date embauche','hireDate','date')}
+                  {fi('Date fin contrat','contractEnd','date')}
+                  {fi('Spécialité','speciality')}
+                  {fs('Statut','status',['Actif','Congé','Suspendu','Démissionné'])}
+                </div>
+              )}
+              {editTab==='finance'&&(
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                  {fi('Salaire brut (FCFA)','salary','number')}
+                  {fi('Taux journalier (FCFA)','dailyRate','number')}
+                  {fs('Banque','bank',['BICEC','Afriland First Bank','SCB Cameroun','UBA','Ecobank','BGFI Bank','SGC','CCA Bank','MTN MoMo','Orange Money'])}
+                  {fi('N° Compte / RIB','rib')}
+                  {fi('N° CNPS','cnps')}
+                  {fi('N° Contribuable','numContribuable')}
+                </div>
+              )}
+              {editTab==='urgence'&&(
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                  {fi('Nom contact urgence','emergencyName')}
+                  {fi('Téléphone urgence','emergencyPhone')}
+                  {fs('Lien de parenté','emergencyLink',['Époux/Épouse','Père','Mère','Frère/Sœur','Ami(e)','Autre'])}
+                  {fi('Adresse contact urgence','emergencyAddress')}
+                </div>
+              )}
+            </div>
+            </>);
+          })()}
+          {/* Footer */}
+          <div style={{padding:'12px 24px',borderTop:'1px solid #E5E7EB',display:'flex',gap:8,justifyContent:'flex-end',background:'#F9FAFB',borderRadius:'0 0 12px 12px'}}>
+            <button onClick={()=>{setEditEmp(null);setEditForm({});}} style={{padding:'8px 16px',border:'1px solid #D1D5DB',borderRadius:6,cursor:'pointer',background:'#fff',fontSize:13,fontFamily:'inherit'}}>Annuler</button>
+            <button onClick={async()=>{
+              setEditSaving(true);
+              const ok=await saveEmployee({...editEmp,...editForm});
+              if(ok){onToast&&onToast('Profil mis à jour avec succès','success');setEditEmp(null);setEditForm({});}
+              else{alert('Erreur lors de la sauvegarde — vérifiez les données');}
+              setEditSaving(false);
+            }} disabled={editSaving}
+              style={{padding:'8px 20px',background:'#0A2D6E',color:'#fff',border:'none',borderRadius:6,cursor:'pointer',fontWeight:600,fontSize:13,fontFamily:'inherit'}}>
+              {editSaving?'Enregistrement...':'Enregistrer les modifications'}
             </button>
           </div>
         </div>
       </div>
-    )}
+      );
+    })()}
     <div className="rh-app" style={{minHeight:"100vh",display:"flex",flexDirection:"column"}}>
 
       {/* SHELL BAR */}
