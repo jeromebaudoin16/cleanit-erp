@@ -23,9 +23,10 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  if(req.method==='OPTIONS'){ res.status(200).end(); return; }
   if (req.method === 'OPTIONS') return res.status(200).end();
   next();
 });
@@ -1515,6 +1516,199 @@ app.put('/technicians/:id/certifications', auth, async (req, res) => {
 });
 
 // 404
+// ═══════════════════════════════════════════════════════════════
+// CLEANITBOOKS ROUTES — /api/cleanitbooks/*
+// ═══════════════════════════════════════════════════════════════
+
+// Migration tables CleanITBooks
+async function migrateCIB() {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS cib_jobs (
+      id SERIAL PRIMARY KEY, name TEXT, customer_id INT, job_type TEXT,
+      statut TEXT DEFAULT 'Pending', site TEXT, chef_projet TEXT,
+      start_date DATE, end_date DATE, currency TEXT DEFAULT 'FCFA',
+      description TEXT, notes TEXT, budget_client NUMERIC(15,2) DEFAULT 0,
+      contract_amount NUMERIC(15,2) DEFAULT 0, bc_ref TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS cib_customers (
+      id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT, phone TEXT,
+      address TEXT, city TEXT, country TEXT DEFAULT 'Cameroun',
+      currency TEXT DEFAULT 'FCFA', notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS cib_vendors (
+      id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT, phone TEXT,
+      address TEXT, city TEXT, type TEXT, currency TEXT DEFAULT 'FCFA',
+      bank TEXT, rib TEXT, notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS cib_invoices (
+      id SERIAL PRIMARY KEY, number TEXT, customer_id INT, job_id INT,
+      date DATE, due_date DATE, currency TEXT DEFAULT 'FCFA',
+      status TEXT DEFAULT 'draft', subtotal NUMERIC(15,2) DEFAULT 0,
+      tax NUMERIC(15,2) DEFAULT 0, total NUMERIC(15,2) DEFAULT 0,
+      lines JSONB DEFAULT '[]', notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS cib_bills (
+      id SERIAL PRIMARY KEY, number TEXT, vendor_id INT, job_id INT,
+      date DATE, due_date DATE, currency TEXT DEFAULT 'FCFA',
+      status TEXT DEFAULT 'draft', total NUMERIC(15,2) DEFAULT 0,
+      lines JSONB DEFAULT '[]', notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`);
+  } catch(e) { console.error('CIB migrate error:', e.message); }
+}
+migrateCIB();
+
+// ── JOBS ──
+app.get('/api/cleanitbooks/jobs', auth, async (req,res)=>{
+  try { const r=await pool.query('SELECT * FROM cib_jobs ORDER BY "createdAt" DESC'); res.json(r.rows); }
+  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.post('/api/cleanitbooks/jobs', auth, async (req,res)=>{
+  try {
+    const {name,customerId,jobType,statut,site,chefProjet,startDate,endDate,currency,description,notes,budgetClient,contractAmount,bcRef}=req.body;
+    const r=await pool.query(`INSERT INTO cib_jobs(name,"customerId","jobType",statut,site,"chefProjet","startDate","endDate",currency,description,notes,"budgetHuawei","contractAmount","bcRef","createdAt","updatedAt")
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),NOW()) RETURNING *`,
+      [name,customerId,jobType,statut||'Pending',site,chefProjet,startDate,endDate,currency||'FCFA',description,notes,budgetClient||0,contractAmount||0,bcRef]);
+    res.json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.put('/api/cleanitbooks/jobs/:id', auth, async (req,res)=>{
+  try {
+    const {name,statut,site,chefProjet,startDate,endDate,description,notes,budgetClient,contractAmount}=req.body;
+    const r=await pool.query(`UPDATE cib_jobs SET name=$1,statut=$2,site=$3,"chefProjet"=$4,"startDate"=$5,"endDate"=$6,description=$7,notes=$8,"budgetHuawei"=$9,"contractAmount"=$10,"updatedAt"=NOW() WHERE id=$11 RETURNING *`,
+      [name,statut,site,chefProjet,startDate,endDate,description,notes,budgetClient||0,contractAmount||0,req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.delete('/api/cleanitbooks/jobs/:id', auth, async (req,res)=>{
+  try { await pool.query('DELETE FROM cib_jobs WHERE id=$1',[req.params.id]); res.json({ok:true}); }
+  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// ── CUSTOMERS ──
+app.get('/api/cleanitbooks/customers', auth, async (req,res)=>{
+  try {
+    const r=await pool.query('SELECT *,company as name FROM cib_customers ORDER BY company');
+    res.json(r.rows.map(c=>({...c,name:c.company||c.name||''})));
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.post('/api/cleanitbooks/customers', auth, async (req,res)=>{
+  try {
+    const {name,email,phone,address,city,currency,notes}=req.body;
+    const r=await pool.query(`INSERT INTO cib_customers(company,email,phone,address,city,currency,notes,"createdAt","updatedAt") VALUES($1,$2,$3,$4,$5,$6,$7,NOW(),NOW()) RETURNING *`,
+      [name,email,phone,address,city,currency||'FCFA',notes]);
+    res.json({...r.rows[0],name:r.rows[0].company});
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.put('/api/cleanitbooks/customers/:id', auth, async (req,res)=>{
+  try {
+    const {name,email,phone,address,city,currency,notes}=req.body;
+    const r=await pool.query(`UPDATE cib_customers SET company=$1,email=$2,phone=$3,address=$4,city=$5,currency=$6,notes=$7,"updatedAt"=NOW() WHERE id=$8 RETURNING *`,
+      [name,email,phone,address,city,currency||'FCFA',notes,req.params.id]);
+    res.json({...r.rows[0],name:r.rows[0].company});
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// ── VENDORS ──
+app.get('/api/cleanitbooks/vendors', auth, async (req,res)=>{
+  try {
+    const r=await pool.query('SELECT *,company as name FROM cib_vendors ORDER BY company');
+    res.json(r.rows.map(v=>({...v,name:v.company||''})));
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.post('/api/cleanitbooks/vendors', auth, async (req,res)=>{
+  try {
+    const {name,email,phone,address,city,type,currency,notes}=req.body;
+    const r=await pool.query(`INSERT INTO cib_vendors(company,email,phone,address,city,type,currency,notes,"createdAt","updatedAt") VALUES($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW()) RETURNING *`,
+      [name,email,phone,address,city,type,currency||'FCFA',notes]);
+    res.json({...r.rows[0],name:r.rows[0].company});
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.put('/api/cleanitbooks/vendors/:id', auth, async (req,res)=>{
+  try {
+    const {name,email,phone,address,city,type,currency,notes}=req.body;
+    const r=await pool.query(`UPDATE cib_vendors SET company=$1,email=$2,phone=$3,address=$4,city=$5,type=$6,currency=$7,notes=$8,"updatedAt"=NOW() WHERE id=$9 RETURNING *`,
+      [name,email,phone,address,city,type,currency||'FCFA',notes,req.params.id]);
+    res.json({...r.rows[0],name:r.rows[0].company});
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// ── INVOICES ──
+app.get('/api/cleanitbooks/invoices', auth, async (req,res)=>{
+  try { const r=await pool.query('SELECT * FROM cib_invoices ORDER BY "createdAt" DESC'); res.json(r.rows); }
+  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.post('/api/cleanitbooks/invoices', auth, async (req,res)=>{
+  try {
+    const {customerId,jobId,date,dueDate,currency,lines,subtotal,taxAmount,total,memo,poNumber}=req.body;
+    const r=await pool.query(`INSERT INTO cib_invoices("customerId","jobId",date,"dueDate",currency,lines,subtotal,"taxAmount",total,memo,"poNumber",status,"createdAt","updatedAt")
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'draft',NOW(),NOW()) RETURNING *`,
+      [customerId,jobId,date,dueDate,currency||'FCFA',JSON.stringify(lines||[]),subtotal||0,taxAmount||0,total||0,memo,poNumber]);
+    res.json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.put('/api/cleanitbooks/invoices/:id', auth, async (req,res)=>{
+  try {
+    const {status,total,lines,memo}=req.body;
+    const r=await pool.query(`UPDATE cib_invoices SET status=$1,total=$2,lines=$3,memo=$4,"updatedAt"=NOW() WHERE id=$5 RETURNING *`,
+      [status,total||0,JSON.stringify(lines||[]),memo,req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// ── BILLS ──
+app.get('/api/cleanitbooks/bills', auth, async (req,res)=>{
+  try { const r=await pool.query('SELECT * FROM cib_bills ORDER BY "createdAt" DESC'); res.json(r.rows); }
+  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.post('/api/cleanitbooks/bills', auth, async (req,res)=>{
+  try {
+    const {vendorId,jobId,date,dueDate,currency,lines,total,memo,refNum}=req.body;
+    const r=await pool.query(`INSERT INTO cib_bills("vendorId","jobId",date,"dueDate",currency,lines,total,memo,"refNum",status,"createdAt","updatedAt")
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',NOW(),NOW()) RETURNING *`,
+      [vendorId,jobId,date,dueDate,currency||'FCFA',JSON.stringify(lines||[]),total||0,memo,refNum]);
+    res.json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.put('/api/cleanitbooks/bills/:id', auth, async (req,res)=>{
+  try {
+    const {status,total,lines,memo}=req.body;
+    const r=await pool.query(`UPDATE cib_bills SET status=$1,total=$2,lines=$3,memo=$4,"updatedAt"=NOW() WHERE id=$5 RETURNING *`,
+      [status,total||0,JSON.stringify(lines||[]),memo,req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// ── JOURNAL (CIB ENTRIES) ──
+app.get('/api/cleanitbooks/journal', auth, async (req,res)=>{
+  try {
+    const r=await pool.query('SELECT * FROM cib_entries ORDER BY created_at DESC LIMIT 200');
+    res.json(r.rows);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// ── BALANCE / P&L / BILAN ──
+app.get('/api/cleanitbooks/balance', auth, async (req,res)=>{
+  try {
+    const inv=await pool.query("SELECT SUM(total) as total FROM cib_invoices WHERE status='paid'");
+    const bills=await pool.query("SELECT SUM(total) as total FROM cib_bills WHERE status='paid'");
+    res.json({revenues:parseFloat(inv.rows[0].total)||0, expenses:parseFloat(bills.rows[0].total)||0});
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.get('/api/cleanitbooks/pl', auth, async (req,res)=>{
+  try {
+    const inv=await pool.query('SELECT SUM(total) as total FROM cib_invoices');
+    const bills=await pool.query('SELECT SUM(total) as total FROM cib_bills');
+    const rev=parseFloat(inv.rows[0].total)||0;
+    const exp=parseFloat(bills.rows[0].total)||0;
+    res.json({revenues:rev,expenses:exp,net:rev-exp});
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 
 module.exports = app;

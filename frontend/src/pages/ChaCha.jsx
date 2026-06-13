@@ -329,10 +329,7 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
       .replace(/\n/g,'<br/>');
   };
 
-  // Cacher ChaCha sur mobile app
-  const isMobilePage = window.location.pathname.startsWith('/mobile');
-  if(isMobilePage) return null;
-
+  // Panel position and drag state (must be declared before any conditional return)
   const [panelPos, setPanelPos] = useState(()=>{
     try{const p=JSON.parse(localStorage.getItem('chacha_panel_pos'));return p||{right:24,bottom:88};}catch{return {right:24,bottom:88};}
   });
@@ -349,6 +346,9 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
     panelDragging.current = true;
     panelDragOffset.current = {x:e.touches[0].clientX, y:e.touches[0].clientY};
   };
+
+  // Cacher ChaCha sur mobile app
+  const isMobilePage = window.location.pathname.startsWith('/mobile');
 
   const [pos, setPos] = useState(()=>{
     try{const p=JSON.parse(localStorage.getItem('chacha_pos'));return p||{right:24,bottom:24};}catch{return {right:24,bottom:24};}
@@ -409,6 +409,8 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
       window.removeEventListener('touchend', stop);
     };
   },[]);
+
+  if(isMobilePage) return null;
 
   return(
     <>

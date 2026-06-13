@@ -588,29 +588,81 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast,setEditEmp=()
           )}
 
           {/* Documents */}
-          {tab==="docs"&&(
+          {tab==="docs"&&(()=>{
+            const [docs, setDocs] = useState(employee.docs||[]);
+            const [uploading, setUploading] = useState(false);
+            const fileRef = useRef(null);
+
+            // Upload local : le fichier est lu en base64 et stocké en mémoire
+            // (la route backend /users/:id/documents n'existe pas encore)
+            const handleUpload = (e) => {
+              const file = e.target.files?.[0];
+              if(!file) return;
+              if(file.size > 10*1024*1024){ alert("Fichier trop grand (max 10 Mo)"); return; }
+              setUploading(true);
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                const newDoc = {
+                  id: Date.now(),
+                  name: file.name,
+                  type: file.type.includes("pdf")?"PDF":file.type.includes("image")?"Image":"Autre",
+                  date: new Date().toISOString(),
+                  url: ev.target.result, // data URL = téléchargeable directement
+                  size: file.size,
+                };
+                setDocs(prev=>[...prev, newDoc]);
+                setUploading(false);
+              };
+              reader.onerror = () => { alert("Erreur lecture fichier"); setUploading(false); };
+              reader.readAsDataURL(file);
+              e.target.value = ""; // reset input
+            };
+
+            const handleDownload = (doc) => {
+              const a = document.createElement("a");
+              a.href = doc.url;
+              a.download = doc.name;
+              a.click();
+            };
+
+            return (
             <div style={{animation:"fadeUp 0.3s ease both"}}>
-              <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"16px"}}>
-                <Btn label="Ajouter document" icon="ul" variant="secondary" sm/>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+                <div style={{fontSize:"14px",fontWeight:600,color:"#1B3A52"}}>{docs.length} document(s)</div>
+                <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
+                  <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xls,.xlsx"
+                    onChange={handleUpload} style={{display:"none"}}/>
+                  <Btn label={uploading?"Lecture...":"Ajouter document"} icon="ul" variant="secondary" sm
+                    disabled={uploading} onClick={()=>fileRef.current?.click()}/>
+                </div>
               </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px"}}>
-                {(employee.docs||[]).map((doc,i)=>(
-                  <div key={i} className="rh-card" style={{display:"flex",alignItems:"center",gap:"14px",padding:"14px 16px",cursor:"pointer",transition:"all 0.18s"}}
-                    onMouseEnter={e=>{e.currentTarget.style.borderColor="#0070F2";e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 4px 16px rgba(0,112,242,0.12)"}}
-                    onMouseLeave={e=>{e.currentTarget.style.borderColor="#D9D9D9";e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none"}}>
-                    <div style={{width:"44px",height:"44px",borderRadius:"8px",background:"#E8F3FF",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                      <Ico n="doc" s={22} c="#0070F2"/>
+              {docs.length===0?(
+                <div style={{padding:"40px",textAlign:"center",background:"#FAFAFA",borderRadius:"8px",border:"1px dashed #D9D9D9"}}>
+                  <Ico n="doc" s={40} c="#D9D9D9"/>
+                  <div style={{fontSize:"14px",fontWeight:600,color:"#89898B",marginTop:"12px"}}>Aucun document</div>
+                  <div style={{fontSize:"12px",color:"#BDBDBD",marginTop:"4px"}}>Cliquez pour ajouter (stockage local)</div>
+                </div>
+              ):(
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px"}}>
+                  {docs.map((doc,i)=>(
+                    <div key={doc.id||i} className="rh-card" style={{display:"flex",alignItems:"center",gap:"14px",padding:"14px 16px",transition:"all 0.18s"}}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor="#0070F2";e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 4px 16px rgba(0,112,242,0.12)"}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor="#D9D9D9";e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none"}}>
+                      <div style={{width:"44px",height:"44px",borderRadius:"8px",background:doc.type==="PDF"?"#FFEAEA":"#E8F3FF",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                        <Ico n="doc" s={22} c={doc.type==="PDF"?"#BB0000":"#0070F2"}/>
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:"13px",fontWeight:600,color:"#32363A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</div>
+                        <div style={{fontSize:"11px",color:"#89898B",marginTop:"2px"}}>{doc.type} · {fmtD(doc.date)}</div>
+                      </div>
+                      <Btn icon="dl" variant="ghost" sm onClick={()=>handleDownload(doc)} tooltip="Télécharger"/>
                     </div>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:"13px",fontWeight:600,color:"#32363A"}}>{doc.name}</div>
-                      <div style={{fontSize:"11px",color:"#89898B",marginTop:"2px"}}>{doc.type} · {fmtD(doc.date)}</div>
-                    </div>
-                    <Btn icon="dl" variant="ghost" sm/>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Historique */}
           {tab==="history"&&(
@@ -988,8 +1040,76 @@ const BulletinModal = ({selB, onClose, onValidate}) => {
         {/* Actions */}
         <div style={{padding:"14px 28px",borderTop:"1px solid #EBEBEB",background:"white",display:"flex",gap:"8px",justifyContent:"flex-end",borderRadius:"0 0 12px 12px"}}>
           <Btn label="Fermer" onClick={onClose} variant="ghost"/>
-          <Btn label="Imprimer" icon="print" variant="secondary"/>
-          <Btn label="Télécharger PDF" icon="dl" variant="secondary"/>
+          <Btn label="Imprimer" icon="print" variant="secondary" onClick={()=>{
+            const paieData = calcPaie(selB.base, selB.bonus||0, selB.benefits||0);
+            const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>Bulletin de paie</title>
+<style>body{font-family:Arial,sans-serif;font-size:12px;margin:0;padding:20px;color:#1B3A52}
+.header{background:#0A2D6E;color:white;padding:16px 24px;border-radius:4px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.title{font-size:18px;font-weight:800;letter-spacing:1px}.subtitle{font-size:11px;opacity:.7;margin-top:3px}
+.section{background:#f8f9fa;border-radius:4px;padding:12px 16px;margin-bottom:12px;border-left:3px solid #0070F2}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.field{margin-bottom:6px}.field-label{font-size:10px;color:#89898B;text-transform:uppercase;letter-spacing:.5px}.field-value{font-weight:600;color:#1B3A52}
+table{width:100%;border-collapse:collapse;margin:12px 0}
+th{background:#0A2D6E;color:white;padding:8px 12px;text-align:left;font-size:11px}
+td{padding:8px 12px;border-bottom:1px solid #eee;font-size:12px}
+tr:nth-child(even){background:#f8f9fa}
+.net-row{background:#0070F2 !important;color:white;font-size:15px;font-weight:800}
+.net-row td{color:white;padding:12px}
+.sig{display:flex;justify-content:space-between;margin-top:30px;padding-top:20px;border-top:1px solid #eee}
+.sig-box{text-align:center;width:45%}.sig-box div{font-size:10px;color:#89898B;text-transform:uppercase;margin-bottom:30px}.sig-line{height:1px;background:#D9D9D9}
+@media print{body{padding:10px}}</style></head><body>
+<div class="header"><div><div class="title">CLEANIT SARL</div><div class="subtitle">Sous-traitant Huawei · Infrastructure Télécom · Douala, Cameroun</div></div>
+<div style="text-align:right"><div style="font-size:15px;font-weight:700">BULLETIN DE PAIE</div><div class="subtitle">${MOIS[(selB.month||1)-1]} ${selB.year||new Date().getFullYear()}</div></div></div>
+<div class="section"><div class="grid2">
+<div><div class="field-label">Employé</div><div class="field-value">${e?.first||""} ${e?.last||""}</div></div>
+<div><div class="field-label">Matricule</div><div class="field-value" style="font-family:monospace">${e?.matricule||"—"}</div></div>
+<div><div class="field-label">Poste</div><div class="field-value">${e?.role||"—"}</div></div>
+<div><div class="field-label">Département</div><div class="field-value">${e?.department||"—"}</div></div>
+<div><div class="field-label">Contrat</div><div class="field-value">${e?.contract||"CDI"}</div></div>
+<div><div class="field-label">Banque / Mode</div><div class="field-value">${selB.payMethod||e?.bank||"—"}</div></div>
+</div></div>
+<table><thead><tr><th>Libellé</th><th>Base</th><th>Taux</th><th style="text-align:right">Montant (FCFA)</th></tr></thead><tbody>
+<tr><td>Salaire de base</td><td>${fmtN(selB.base)}</td><td>—</td><td style="text-align:right;font-weight:600">${fmtN(selB.base)}</td></tr>
+${selB.bonus>0?`<tr><td>Primes &amp; bonus</td><td>—</td><td>—</td><td style="text-align:right;color:#107E3E;font-weight:600">+ ${fmtN(selB.bonus)}</td></tr>`:""}
+${selB.benefits>0?`<tr><td>Avantages en nature</td><td>—</td><td>—</td><td style="text-align:right;color:#6B00A4;font-weight:600">+ ${fmtN(selB.benefits)}</td></tr>`:""}
+<tr style="background:#EFF6FF"><td colspan="3" style="font-weight:700;color:#107E3E">SALAIRE BRUT</td><td style="text-align:right;font-weight:800;font-size:14px;color:#107E3E">${fmtN(paieData.brut)}</td></tr>
+<tr><td>CNPS vieillesse (employé 4,2%)</td><td>${fmtN(Math.min(paieData.brut,750000))}</td><td>4.2%</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.cnpsEmploye)}</td></tr>
+<tr><td>Base imposable</td><td colspan="2">Brut - CNPS employé</td><td style="text-align:right">${fmtN(paieData.imposable)}</td></tr>
+<tr><td>IRPP</td><td>${fmtN(paieData.imposable*12)}/an</td><td>Barème progressif</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.irpp)}</td></tr>
+<tr><td>CAC (10% de l'IRPP)</td><td>—</td><td>10%</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.cac)}</td></tr>
+<tr><td>RAV (Redevance audiovisuelle)</td><td>—</td><td>Forfait</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.rav)}</td></tr>
+<tr class="net-row"><td colspan="3">NET À PAYER</td><td style="text-align:right;font-size:18px">${fmtN(paieData.net)} FCFA</td></tr>
+</tbody></table>
+<div style="background:#F0F4FA;border-radius:6px;padding:10px 14px;font-size:11px;color:#0057B8;border:1px solid #C7D8F0">
+Part patronale CNPS (7%): ${fmtN(paieData.cnpsEmployeur)} FCFA — Charge employeur non déduite du salaire
+</div>
+<div class="sig"><div class="sig-box"><div>Signature employé</div><div class="sig-line"/></div><div class="sig-box"><div>Signature Direction / DRH</div><div class="sig-line"/></div></div>
+<div style="text-align:center;font-size:9px;color:#BDBDBD;margin-top:16px">Document généré par CleanIT ERP · ${new Date().toLocaleDateString("fr-FR")} · Confidentiel</div>
+</body></html>`;
+            const w=window.open("","_blank","width=800,height=900");w.document.write(html);w.document.close();setTimeout(()=>w.print(),500);
+          }}/>
+          <Btn label="Télécharger PDF" icon="dl" variant="secondary" onClick={()=>{
+            const paieData = calcPaie(selB.base, selB.bonus||0, selB.benefits||0);
+            const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>Bulletin</title>
+<style>body{font-family:Arial,sans-serif;font-size:12px;margin:0;padding:20px;color:#1B3A52}
+.header{background:#0A2D6E;color:white;padding:16px 24px;border-radius:4px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+table{width:100%;border-collapse:collapse}th{background:#0A2D6E;color:white;padding:8px 12px;font-size:11px}td{padding:8px 12px;border-bottom:1px solid #eee}
+.net{background:#0070F2 !important}.net td{color:white;font-weight:800;font-size:16px;padding:12px}</style></head><body>
+<div class="header"><div style="font-size:16px;font-weight:800">CleanIT SARL — BULLETIN DE PAIE</div><div>${MOIS[(selB.month||1)-1]} ${selB.year}</div></div>
+<p><strong>${e?.first||""} ${e?.last||""}</strong> · ${e?.matricule||""} · ${e?.role||""}</p>
+<table><tr><th>Libellé</th><th style="text-align:right">Montant FCFA</th></tr>
+<tr><td>Salaire brut</td><td style="text-align:right">${fmtN(paieData.brut)}</td></tr>
+<tr><td>CNPS employé (4.2%)</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.cnpsEmploye)}</td></tr>
+<tr><td>IRPP</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.irpp)}</td></tr>
+<tr><td>CAC (10% IRPP)</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.cac)}</td></tr>
+<tr><td>Redevance audiovisuelle</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.rav)}</td></tr>
+<tr class="net"><td>NET À PAYER</td><td style="text-align:right">${fmtN(paieData.net)} FCFA</td></tr>
+</table><p style="font-size:10px;color:#888;margin-top:20px">Généré par CleanIT ERP · ${new Date().toLocaleDateString("fr-FR")}</p>
+</body></html>`;
+            const blob=new Blob([html],{type:"text/html"});
+            const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+            a.download=`bulletin_${e?.matricule||"emp"}_${MOIS[(selB.month||1)-1]}_${selB.year}.html`;a.click();
+          }}/>
           {selB.status==="en_attente" && (
             <Btn label="Valider & Marquer payé" icon="chk" variant="success"
               onClick={()=>{onValidate(selB.id); onClose();}}/>
@@ -1249,86 +1369,204 @@ const EmployeeList = ({employees,type,onSelect,onAdd}) => {
 };
 
 // ===== POINTAGE =====
-const Attendance = ({employees}) => (
+// La table pointages stocke des EVENTS individuels:
+// user_id, user_name, site_code, site_name, type ('arrivee'|'depart'), created_at, gps_lat, gps_lng
+// On groupe par user_name pour afficher une ligne par personne par jour
+
+const Attendance = ({employees}) => {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split("T")[0]);
+
+  useEffect(()=>{
+    setLoading(true);
+    const token = localStorage.getItem("token");
+    const base = import.meta.env.VITE_API_URL||"https://backend-cleanit-erp.vercel.app";
+    // /pointages/all = tous les pointages (admin/RH), triés par created_at DESC
+    fetch(base+"/pointages/all", {headers:{"Authorization":"Bearer "+token}})
+      .then(r=>r.json())
+      .then(data=>{ if(Array.isArray(data)) setEvents(data); })
+      .catch(()=>{})
+      .finally(()=>setLoading(false));
+  },[]);
+
+  // Filtrer par date sélectionnée
+  const eventsForDate = dateFilter
+    ? events.filter(e=>e.created_at&&e.created_at.slice(0,10)===dateFilter)
+    : events;
+
+  // Grouper par user_id pour avoir arrivée/départ de la journée
+  const byUser = {};
+  eventsForDate.forEach(ev=>{
+    const uid = String(ev.user_id||ev.user_name);
+    if(!byUser[uid]) byUser[uid] = {user_name:ev.user_name, user_id:ev.user_id, events:[]};
+    byUser[uid].events.push(ev);
+  });
+
+  const rows = Object.values(byUser).map(u=>{
+    const arrivee = u.events.find(e=>e.type==="arrivee");
+    const depart = u.events.find(e=>e.type==="depart");
+    const emp = employees.find(e=>String(e.id)===String(u.user_id));
+    const ac = getAC(u.user_name||"");
+    const initials = (u.user_name||"?").split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
+    const hArrivee = arrivee ? new Date(arrivee.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) : null;
+    const hDepart = depart ? new Date(depart.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) : null;
+    const hStatus = !arrivee?"absent":"present";
+    return [
+      <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+        <div style={{width:"34px",height:"34px",borderRadius:"50%",background:ac.bg,color:ac.c,
+          display:"flex",alignItems:"center",justifyContent:"center",fontSize:"12px",fontWeight:700,
+          border:"2px solid white",boxShadow:"0 0 0 1px #D9D9D9",flexShrink:0}}>
+          {initials}
+        </div>
+        <div>
+          <div style={{fontSize:"13px",fontWeight:500}}>{u.user_name||"Utilisateur "+u.user_id}</div>
+          <div style={{fontSize:"11px",color:"#89898B"}}>{emp?.matricule||"—"}</div>
+        </div>
+      </div>,
+      <span style={{fontSize:"12px",color:"#89898B"}}>{emp?.department||"—"}</span>,
+      <span style={{fontSize:"13px",fontWeight:600,color:hArrivee?"#107E3E":"#89898B"}}>{hArrivee||"—"}</span>,
+      <span style={{color:hDepart?"#515456":"#89898B"}}>{hDepart||"—"}</span>,
+      <span style={{fontSize:"12px",color:"#89898B"}}>{arrivee?.site_name||arrivee?.site_code||"—"}</span>,
+      <Badge s={hStatus}/>,
+      <span style={{fontSize:"11px",color:"#89898B"}}>{u.events.length} scan(s)</span>,
+    ];
+  });
+
+  const nbPresents = Object.values(byUser).filter(u=>u.events.some(e=>e.type==="arrivee")).length;
+  const nbAbsents = employees.length - nbPresents;
+  const dateLabel = dateFilter ? new Date(dateFilter+"T00:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"}) : "Aujourd'hui";
+
+  return (
   <div className="rh-page-enter">
-    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:"14px",marginBottom:"20px"}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"14px",marginBottom:"20px"}}>
       {[
-        {t:"Total",v:employees.length,c:"#32363A"},
-        {t:"Présents",v:POINTAGES.filter(p=>p.status==="present").length,c:"#107E3E"},
-        {t:"Retards",v:POINTAGES.filter(p=>p.status==="retard").length,c:"#E76500"},
-        {t:"Absents",v:POINTAGES.filter(p=>p.status==="absent").length,c:"#BB0000"},
-        {t:"Moy. heures",v:"8.2h",c:"#0070F2"},
+        {t:"Total employés",v:employees.length,c:"#32363A"},
+        {t:"Présents",v:nbPresents,c:"#107E3E"},
+        {t:"Absents",v:Math.max(0,nbAbsents),c:"#BB0000"},
+        {t:"Scans du jour",v:eventsForDate.length,c:"#0070F2"},
       ].map((k,i)=><KpiCard key={k.t} title={k.t} value={k.v} color={k.c} delay={i*0.06}/>)}
     </div>
     <div className="rh-card">
       <div className="rh-card-header">
-        <span className="rh-card-title">Pointage — 15 mars 2024</span>
-        <Btn label="Exporter" icon="dl" variant="ghost" sm/>
+        <span className="rh-card-title">Pointage — {dateLabel}</span>
+        <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
+          <input type="date" value={dateFilter} onChange={e=>setDateFilter(e.target.value)}
+            style={{padding:"5px 8px",borderRadius:"6px",border:"1px solid #D9D9D9",fontSize:"12px",fontFamily:"inherit",color:"#32363A"}}/>
+          <Btn label="Exporter" icon="dl" variant="ghost" sm onClick={()=>{
+            const csvRows=[["Nom","Département","Arrivée","Départ","Site","Scans"],...rows.map(r=>[
+              String(r[0]?.props?.children?.[1]?.props?.children?.[0]?.props?.children||""),
+              String(r[1]?.props?.children||""),
+              String(r[2]?.props?.children||""),
+              String(r[3]?.props?.children||""),
+              String(r[4]?.props?.children||""),
+              String(r[6]?.props?.children||""),
+            ])];
+            const csv=csvRows.map(r=>r.join(";")).join("\n");
+            const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=`pointage_${dateFilter}.csv`;a.click();
+          }}/>
+        </div>
       </div>
-      <Table
-        cols={["Employé","Département","Arrivée","Départ","Heures","Statut","Notes"]}
-        rows={POINTAGES.map(pt=>{
-          const e=employees.find(emp=>emp.id===pt.empId);
-          if(!e) return null;
-          const photo=PHOTOS[pt.empId];
-          const [pErr,setPErr]=useState(false);
-          const ac=getAC(e.first+e.last);
-          return [
-            <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
-              <div style={{width:"34px",height:"34px",borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid white",boxShadow:"0 0 0 1px #D9D9D9"}}>
-                {photo&&!pErr
-                  ?<img src={photo} onError={()=>setPErr(true)} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                  :<div style={{width:"100%",height:"100%",background:ac.bg,color:ac.c,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"12px",fontWeight:700}}>{getInit(e.first,e.last)}</div>
-                }
-              </div>
-              <div>
-                <div style={{fontSize:"13px",fontWeight:500}}>{e.first} {e.last}</div>
-                <div style={{fontSize:"11px",color:"#89898B"}}>{e.matricule}</div>
-              </div>
-            </div>,
-            <span style={{fontSize:"12px",color:"#89898B"}}>{e.department}</span>,
-            <span style={{fontSize:"13px",fontWeight:600,color:pt.arrival?"#107E3E":"#89898B"}}>{pt.arrival||"—"}</span>,
-            <span style={{color:pt.departure?"#515456":"#89898B"}}>{pt.departure||"—"}</span>,
-            <span style={{fontWeight:600,color:pt.hours>=8?"#107E3E":pt.hours>0?"#E76500":"#89898B"}}>{pt.hours?`${pt.hours}h`:"—"}</span>,
-            <Badge s={pt.status}/>,
-            <span style={{fontSize:"11px",color:"#89898B"}}>{pt.note||"—"}</span>,
-          ];
-        }).filter(Boolean)}
-      />
+      {loading ? (
+        <div style={{padding:"40px",textAlign:"center",color:"#89898B"}}>Chargement des pointages...</div>
+      ) : rows.length===0 ? (
+        <div style={{padding:"40px",textAlign:"center",color:"#89898B",fontSize:"13px"}}>
+          Aucun pointage pour le {dateLabel}.
+          {events.length===0&&<div style={{marginTop:8,fontSize:12,color:"#BDBDBD"}}>Les pointages sont enregistrés via le QR code de l'application mobile.</div>}
+        </div>
+      ) : (
+        <Table
+          cols={["Employé","Département","Arrivée","Départ","Site","Statut","Scans"]}
+          rows={rows}
+        />
+      )}
     </div>
   </div>
-);
+  );
+};
 
 // ===== CONGÉS =====
-const Leaves = () => (
+const Leaves = () => {
+  const [conges, setConges] = useState(CONGES);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(()=>{
+    const token = localStorage.getItem("token");
+    const base = import.meta.env.VITE_API_URL||"https://backend-cleanit-erp.vercel.app";
+    fetch(base+"/approvals?type=leave_request", {headers:{"Authorization":"Bearer "+token}})
+      .then(r=>r.json())
+      .then(data=>{
+        if(Array.isArray(data)&&data.length>0){
+          const mapped = data.map(a=>({
+            id:a.id, empName:a.user_name||"Inconnu",
+            type:a.label||"Congé", start:a.start_date||"",
+            end:a.end_date||"", days:a.days||0,
+            status:a.status==="approved"?"approuve":a.status==="rejected"?"refuse":"en_attente",
+            reason:a.detail||"", substitute:a.substitute||"", approvedBy:a.approver_name||""
+          }));
+          setConges(mapped);
+        } else { setConges(CONGES); }
+      })
+      .catch(()=>setConges(CONGES))
+      .finally(()=>setLoading(false));
+  },[]);
+
+  const pending = conges.filter(c=>c.status==="en_attente").length;
+  const approved = conges.filter(c=>c.status==="approuve").length;
+
+  const approveLeave = async (id, action) => {
+    const token = localStorage.getItem("token");
+    const base = import.meta.env.VITE_API_URL||"https://backend-cleanit-erp.vercel.app";
+    const r = await fetch(base+"/approvals/"+id, {
+      method:"PUT",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+      body:JSON.stringify({action})
+    }).then(r=>r.json()).catch(()=>null);
+    if(r?.id||r?.message) {
+      setConges(prev=>prev.map(c=>c.id===id?{...c,status:action==="approve"?"approuve":"refuse"}:c));
+    }
+  };
+
+  return (
   <div className="rh-page-enter">
     <div style={{display:"flex",gap:"14px",marginBottom:"20px",alignItems:"center",flexWrap:"wrap"}}>
-      {[{t:"En attente",v:CONGES.filter(c=>c.status==="en_attente").length,c:"#E76500"},{t:"Approuvés",v:CONGES.filter(c=>c.status==="approuve").length,c:"#107E3E"},{t:"Refusés",v:0,c:"#BB0000"}].map((k,i)=><KpiCard key={k.t} title={k.t} value={k.v} color={k.c} delay={i*0.06}/>)}
-      <div style={{marginLeft:"auto"}}><Btn label="Nouvelle demande" icon="add" variant="primary"/></div>
+      {[{t:"En attente",v:pending,c:"#E76500"},{t:"Approuvés",v:approved,c:"#107E3E"},{t:"Refusés",v:conges.filter(c=>c.status==="refuse").length,c:"#BB0000"}].map((k,i)=><KpiCard key={k.t} title={k.t} value={k.v} color={k.c} delay={i*0.06}/>)}
+      <div style={{marginLeft:"auto",display:"flex",gap:"8px"}}>
+        <Btn label="Nouvelle demande" icon="add" variant="primary" onClick={()=>{window.location.href="/approvals";}}/>
+      </div>
+    </div>
+    <div style={{background:"#EFF6FF",borderRadius:"8px",padding:"10px 14px",marginBottom:"16px",display:"flex",alignItems:"center",gap:"8px",fontSize:"12px",color:"#0057B8",border:"1px solid #BFDBFE"}}>
+      <Ico n="alert" s={14} c="#0070F2"/>
+      Pour soumettre une nouvelle demande de congé, utilisez le module <strong style={{margin:"0 4px"}}>Approvals → Type: Congé</strong>
+      <button onClick={()=>{window.location.href="/approvals";}} style={{marginLeft:"auto",background:"#0070F2",color:"white",border:"none",borderRadius:"5px",padding:"4px 10px",fontSize:"11px",fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Aller dans Approvals →</button>
     </div>
     <div className="rh-card">
-      <Table
-        cols={["Employé","Type","Début","Fin","Durée","Remplaçant","Statut","Actions"]}
-        rows={CONGES.map(c=>[
-          <strong>{c.empName}</strong>,
-          <span style={{fontSize:"12px"}}>{c.type}</span>,
-          <span style={{fontSize:"12px",color:"#89898B"}}>{fmtD(c.start)}</span>,
-          <span style={{fontSize:"12px",color:"#89898B"}}>{fmtD(c.end)}</span>,
-          <span style={{padding:"2px 8px",borderRadius:"20px",background:"#E8F3FF",color:"#0070F2",fontSize:"12px",fontWeight:600}}>{c.days}j</span>,
-          <span style={{fontSize:"12px",color:"#89898B"}}>{c.substitute||"—"}</span>,
-          <Badge s={c.status}/>,
-          <div style={{display:"flex",gap:"4px"}}>
-            {c.status==="en_attente"&&<>
-              <button className="rh-btn rh-btn-success rh-btn-sm" onClick={()=>alert("Congé approuvé — notification envoyée à l'employé")}>Approuver</button>
-              <button className="rh-btn rh-btn-danger rh-btn-sm" onClick={()=>alert("Congé refusé — l'employé sera notifié")}>Refuser</button>
-            </>}
-            {c.status!=="en_attente"&&<span style={{fontSize:"11px",color:"#89898B"}}>par {c.approvedBy}</span>}
-          </div>
-        ])}
-      />
+      {loading?<div style={{padding:"30px",textAlign:"center",color:"#89898B"}}>Chargement...</div>:(
+        <Table
+          cols={["Employé","Type","Début","Fin","Durée","Remplaçant","Statut","Actions"]}
+          rows={conges.map(c=>[
+            <strong>{c.empName}</strong>,
+            <span style={{fontSize:"12px"}}>{c.type}</span>,
+            <span style={{fontSize:"12px",color:"#89898B"}}>{fmtD(c.start)}</span>,
+            <span style={{fontSize:"12px",color:"#89898B"}}>{fmtD(c.end)}</span>,
+            <span style={{padding:"2px 8px",borderRadius:"20px",background:"#E8F3FF",color:"#0070F2",fontSize:"12px",fontWeight:600}}>{c.days||"—"}j</span>,
+            <span style={{fontSize:"12px",color:"#89898B"}}>{c.substitute||"—"}</span>,
+            <Badge s={c.status}/>,
+            <div style={{display:"flex",gap:"4px"}}>
+              {c.status==="en_attente"&&<>
+                <button className="rh-btn rh-btn-success rh-btn-sm" onClick={()=>approveLeave(c.id,"approve")}>Approuver</button>
+                <button className="rh-btn rh-btn-danger rh-btn-sm" onClick={()=>approveLeave(c.id,"reject")}>Refuser</button>
+              </>}
+              {c.status!=="en_attente"&&<span style={{fontSize:"11px",color:"#89898B"}}>par {c.approvedBy||"—"}</span>}
+            </div>
+          ])}
+          empty="Aucune demande de congé"
+        />
+      )}
     </div>
   </div>
-);
+  );
+};
 
 // ===== PAIE MENSUELLE =====
 const Payroll = ({employees,bulletins,setBulletins,onToast}) => {
