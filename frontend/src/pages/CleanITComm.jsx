@@ -261,16 +261,44 @@ const IconNav = ({active, navigate, badge}) => {
 // ═══════════════════════════════════════════════════════════════════
 //  SECTION CHAT
 // ═══════════════════════════════════════════════════════════════════
-const SectionChat = ({navigate}) => {
+const SectionChat = ({navigate, onUnreadChange}) => {
   const [showDMModal, setShowDMModal] = useState(false);
   const [activeDM, setActiveDM] = useState(null);
   const [dmMessages, setDMMessages] = useState([]);
   const [dmInput, setDMInput] = useState('');
   const [realUsers, setRealUsers] = useState([]);
+  const [conversations, setConversations] = useState([]);
+  const BASE = 'https://backend-cleanit-erp.vercel.app';
 
+  // Charger statuts en ligne toutes les 30s
   useEffect(() => {
-    fetch('https://backend-cleanit-erp.vercel.app'+'/users/online', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
-      .then(r=>r.json()).then(u=>{ if(Array.isArray(u)) setRealUsers(u); }).catch(()=>{});
+    const fetchOnline = () => {
+      const token = localStorage.getItem('token');
+      fetch(BASE+'/users/online', {headers:{'Authorization':'Bearer '+token}})
+        .then(r=>r.json()).then(u=>{ if(Array.isArray(u)) setRealUsers(u); }).catch(()=>{});
+    };
+    fetchOnline();
+    const interval = setInterval(fetchOnline, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Charger les conversations + compter non lus toutes les 5s
+  useEffect(() => {
+    const fetchConvs = async () => {
+      const token = localStorage.getItem('token');
+      const myId = JSON.parse(localStorage.getItem('user')||'{}').id;
+      try {
+        const data = await fetch(BASE+'/conversations/list', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[]);
+        if(Array.isArray(data)) {
+          setConversations(data);
+          const totalUnreadDM = data.reduce((s,c)=>s+(c.unread_count||0),0);
+          if(onUnreadChange) onUnreadChange(totalUnreadDM);
+        }
+      } catch(e){}
+    };
+    fetchConvs();
+    const iv = setInterval(fetchConvs, 5000);
+    return () => clearInterval(iv);
   }, []);
 
   const [convId, setConvId] = useState(null);
@@ -337,7 +365,7 @@ const SectionChat = ({navigate}) => {
   const channel = !isDM ? CHANNELS.find(c=>c.id===selId) : null;
   const dmUser  = activeDM;
   const files   = DRIVE_FILES[selId]||[];
-  const totalUnread = CHANNELS.reduce((s,c)=>s+c.unread,0);
+  const totalUnread = conversations.reduce((s,c)=>s+(c.unread_count||0),0);
 
   useEffect(()=>{ msgEnd.current?.scrollIntoView({behavior:'smooth'}); },[msgs.length, selId]);
 
@@ -1104,24 +1132,30 @@ const SectionContacts = ({navigate}) => {
   const meId = JSON.parse(localStorage.getItem('user')||'{}').id;
 
   useEffect(() => {
-    fetch('https://backend-cleanit-erp.vercel.app/users/online',{headers:{'Authorization':'Bearer '+token}})
-      .then(r=>r.json())
-      .then(users => {
-        if(Array.isArray(users)) {
-          setContacts(users
-            .filter(u => u.id !== meId && u.isActive !== false)
-            .map(u => ({
-              id: u.id,
-              nom: (u.firstName||'')+(u.lastName?' '+u.lastName:''),
-              poste: u.role==='admin'?'Administrateur':u.role==='project_manager'?'Project Manager':u.role==='hr'?'Ressources Humaines':'Technicien',
-              email: u.email,
-              avatar: (u.firstName?.[0]||'?')+(u.lastName?.[0]||''),
-              couleur: u.role==='admin'?'#1B4F8A':u.role==='project_manager'?'#5B4FE9':u.role==='hr'?'#2E7D32':'#E97D05',
-              status: u.last_seen ? (new Date()-new Date(u.last_seen)<300000?'online':new Date()-new Date(u.last_seen)<1800000?'away':'offline') : 'offline', dept: 'CleanIT'
-            }))
-          );
-        }
-      }).catch(()=>{});
+    const fetchContacts = () => {
+      fetch('https://backend-cleanit-erp.vercel.app/users/online',{headers:{'Authorization':'Bearer '+token}})
+        .then(r=>r.json())
+        .then(users => {
+          if(Array.isArray(users)) {
+            setContacts(users
+              .filter(u => u.id !== meId && u.isActive !== false)
+              .map(u => ({
+                id: u.id,
+                nom: (u.firstName||'')+(u.lastName?' '+u.lastName:''),
+                poste: u.role==='admin'?'Administrateur':u.role==='project_manager'?'Project Manager':u.role==='hr'?'Ressources Humaines':'Technicien',
+                email: u.email,
+                avatar: (u.firstName?.[0]||'?')+(u.lastName?.[0]||''),
+                couleur: u.role==='admin'?'#1B4F8A':u.role==='project_manager'?'#5B4FE9':u.role==='hr'?'#2E7D32':'#E97D05',
+                status: u.last_seen ? (new Date()-new Date(u.last_seen)<300000?'online':new Date()-new Date(u.last_seen)<1800000?'away':'offline') : 'offline',
+                dept: 'CleanIT'
+              }))
+            );
+          }
+        }).catch(()=>{});
+    };
+    fetchContacts();
+    const interval = setInterval(fetchContacts, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const filtered = contacts.filter(u => 
@@ -1392,7 +1426,7 @@ export default function CleanITComm() {
         button{font-family:inherit}
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
       `}</style>
-      <IconNav active={section} navigate={navigate} badge={unread}/>
+      <IconNav active={section} navigate={navigate} badge={totalUnread+unread}/>
       <div style={{flex:1,display:'flex',overflow:'hidden',animation:'fadeIn .2s ease'}}>
         {getSection()}
       </div>

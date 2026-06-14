@@ -103,57 +103,6 @@ const Av = ({first="",last="",size=40,status,onClick}) => {
   return (
     <div className="rh-avatar" onClick={onClick}
       style={{width:size,height:size,background:ac.bg,color:ac.c,fontSize:size*0.32,position:"relative"}}>
-
-      {/* Widget Approvals Réels */}
-      <div style={{background:'white',borderRadius:12,border:'1px solid #eee',padding:20,marginBottom:20}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-          <h3 style={{margin:0,fontSize:16,fontWeight:700,color:'#111'}}>Demandes en attente</h3>
-          <span style={{background:'#FEF3C7',color:'#D97706',borderRadius:20,padding:'3px 12px',fontSize:12,fontWeight:600}}>
-            {realApprovals.filter(a=>a.statut==='En attente').length} en attente
-          </span>
-        </div>
-        {loadingRH ? (
-          <div style={{textAlign:'center',padding:20,color:'#888'}}>Chargement...</div>
-        ) : realApprovals.length === 0 ? (
-          <div style={{textAlign:'center',padding:20,color:'#888',fontSize:13}}>Aucune demande</div>
-        ) : (
-          <div style={{display:'flex',flexDirection:'column',gap:8}}>
-            {realApprovals.map(a=>(
-              <div key={a.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',
-                background:'#F8FAFC',borderRadius:8,border:'1px solid #E2E8F0'}}>
-                <div style={{width:36,height:36,borderRadius:'50%',background:'#EDE9FE',
-                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:'#7C3AED',flexShrink:0}}>
-                  {(a.nom||'?').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,fontWeight:600,color:'#111'}}>{a.nom}</div>
-                  <div style={{fontSize:11,color:'#888'}}>{a.type} · {a.date}</div>
-                  {a.detail && <div style={{fontSize:11,color:'#555',marginTop:2}}>{a.detail}</div>}
-                </div>
-                <div style={{display:'flex',alignItems:'center',gap:6,flexShrink:0}}>
-                  <span style={{
-                    background: a.statut==='Approuvé'?'#DCFCE7':a.statut==='Rejeté'?'#FEE2E2':'#FEF3C7',
-                    color: a.statut==='Approuvé'?'#16A34A':a.statut==='Rejeté'?'#DC2626':'#D97706',
-                    borderRadius:20,padding:'3px 10px',fontSize:11,fontWeight:600}}>
-                    {a.statut}
-                  </span>
-                  {a.statut==='En attente' && (
-                    <>
-                      <button onClick={()=>approveRequest(a.id,'approve')}
-                        style={{background:'#DCFCE7',border:'none',borderRadius:6,padding:'4px 10px',
-                          color:'#16A34A',fontSize:11,fontWeight:600,cursor:'pointer'}}>✓</button>
-                      <button onClick={()=>approveRequest(a.id,'reject')}
-                        style={{background:'#FEE2E2',border:'none',borderRadius:6,padding:'4px 10px',
-                          color:'#DC2626',fontSize:11,fontWeight:600,cursor:'pointer'}}>✕</button>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
       {getInit(first,last)}
       {statusClass && <div className={`rh-status-dot ${statusClass}`}/>}
     </div>
@@ -385,7 +334,76 @@ const PAI_EXT = [
 ];
 
 // ===== PROFIL EMPLOYÉ — COMPLET AVEC PHOTOS =====
-const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast,setEditEmp=()=>{}}) => {
+// ===== DOCUMENTS TAB =====
+const DocTab = ({initialDocs=[]}) => {
+  const [docs, setDocs] = useState(initialDocs);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
+
+  const handleUpload = (e) => {
+    const file = e.target.files?.[0];
+    if(!file) return;
+    if(file.size > 10*1024*1024){ alert("Fichier trop grand (max 10 Mo)"); return; }
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setDocs(prev=>[...prev,{
+        id:Date.now(), name:file.name,
+        type:file.type.includes("pdf")?"PDF":file.type.includes("image")?"Image":"Autre",
+        date:new Date().toISOString(), url:ev.target.result,
+      }]);
+      setUploading(false);
+    };
+    reader.onerror = ()=>{ alert("Erreur lecture fichier"); setUploading(false); };
+    reader.readAsDataURL(file);
+    e.target.value="";
+  };
+
+  const handleDownload = (doc) => {
+    const a=document.createElement("a"); a.href=doc.url; a.download=doc.name; a.click();
+  };
+
+  return (
+    <div style={{animation:"fadeUp 0.3s ease both"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+        <div style={{fontSize:"14px",fontWeight:600,color:"#1B3A52"}}>{docs.length} document(s)</div>
+        <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
+          <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xls,.xlsx"
+            onChange={handleUpload} style={{display:"none"}}/>
+          <Btn label={uploading?"Lecture...":"Ajouter document"} icon="ul" variant="secondary" sm
+            disabled={uploading} onClick={()=>fileRef.current?.click()}/>
+        </div>
+      </div>
+      {docs.length===0?(
+        <div style={{padding:"40px",textAlign:"center",background:"#FAFAFA",borderRadius:"8px",border:"1px dashed #D9D9D9"}}>
+          <Ico n="doc" s={40} c="#D9D9D9"/>
+          <div style={{fontSize:"14px",fontWeight:600,color:"#89898B",marginTop:"12px"}}>Aucun document</div>
+          <div style={{fontSize:"12px",color:"#BDBDBD",marginTop:"4px"}}>Cliquez pour ajouter (stockage local)</div>
+        </div>
+      ):(
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px"}}>
+          {docs.map((doc,i)=>(
+            <div key={doc.id||i} className="rh-card"
+              style={{display:"flex",alignItems:"center",gap:"14px",padding:"14px 16px",transition:"all 0.18s"}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor="#0070F2";e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 4px 16px rgba(0,112,242,0.12)"}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor="#D9D9D9";e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none"}}>
+              <div style={{width:"44px",height:"44px",borderRadius:"8px",background:doc.type==="PDF"?"#FFEAEA":"#E8F3FF",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <Ico n="doc" s={22} c={doc.type==="PDF"?"#BB0000":"#0070F2"}/>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:"13px",fontWeight:600,color:"#32363A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</div>
+                <div style={{fontSize:"11px",color:"#89898B",marginTop:"2px"}}>{doc.type} · {fmtD(doc.date)}</div>
+              </div>
+              <Btn icon="dl" variant="ghost" sm onClick={()=>handleDownload(doc)} tooltip="Télécharger"/>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast,setEditEmp=()=>{},setEditForm=()=>{}}) => {
   const [tab,setTab] = useState("info");
   const [photoError,setPhotoError] = useState(false);
   const ac = getAC(employee.first+employee.last);
@@ -588,81 +606,7 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast,setEditEmp=()
           )}
 
           {/* Documents */}
-          {tab==="docs"&&(()=>{
-            const [docs, setDocs] = useState(employee.docs||[]);
-            const [uploading, setUploading] = useState(false);
-            const fileRef = useRef(null);
-
-            // Upload local : le fichier est lu en base64 et stocké en mémoire
-            // (la route backend /users/:id/documents n'existe pas encore)
-            const handleUpload = (e) => {
-              const file = e.target.files?.[0];
-              if(!file) return;
-              if(file.size > 10*1024*1024){ alert("Fichier trop grand (max 10 Mo)"); return; }
-              setUploading(true);
-              const reader = new FileReader();
-              reader.onload = (ev) => {
-                const newDoc = {
-                  id: Date.now(),
-                  name: file.name,
-                  type: file.type.includes("pdf")?"PDF":file.type.includes("image")?"Image":"Autre",
-                  date: new Date().toISOString(),
-                  url: ev.target.result, // data URL = téléchargeable directement
-                  size: file.size,
-                };
-                setDocs(prev=>[...prev, newDoc]);
-                setUploading(false);
-              };
-              reader.onerror = () => { alert("Erreur lecture fichier"); setUploading(false); };
-              reader.readAsDataURL(file);
-              e.target.value = ""; // reset input
-            };
-
-            const handleDownload = (doc) => {
-              const a = document.createElement("a");
-              a.href = doc.url;
-              a.download = doc.name;
-              a.click();
-            };
-
-            return (
-            <div style={{animation:"fadeUp 0.3s ease both"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
-                <div style={{fontSize:"14px",fontWeight:600,color:"#1B3A52"}}>{docs.length} document(s)</div>
-                <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
-                  <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.xls,.xlsx"
-                    onChange={handleUpload} style={{display:"none"}}/>
-                  <Btn label={uploading?"Lecture...":"Ajouter document"} icon="ul" variant="secondary" sm
-                    disabled={uploading} onClick={()=>fileRef.current?.click()}/>
-                </div>
-              </div>
-              {docs.length===0?(
-                <div style={{padding:"40px",textAlign:"center",background:"#FAFAFA",borderRadius:"8px",border:"1px dashed #D9D9D9"}}>
-                  <Ico n="doc" s={40} c="#D9D9D9"/>
-                  <div style={{fontSize:"14px",fontWeight:600,color:"#89898B",marginTop:"12px"}}>Aucun document</div>
-                  <div style={{fontSize:"12px",color:"#BDBDBD",marginTop:"4px"}}>Cliquez pour ajouter (stockage local)</div>
-                </div>
-              ):(
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px"}}>
-                  {docs.map((doc,i)=>(
-                    <div key={doc.id||i} className="rh-card" style={{display:"flex",alignItems:"center",gap:"14px",padding:"14px 16px",transition:"all 0.18s"}}
-                      onMouseEnter={e=>{e.currentTarget.style.borderColor="#0070F2";e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 4px 16px rgba(0,112,242,0.12)"}}
-                      onMouseLeave={e=>{e.currentTarget.style.borderColor="#D9D9D9";e.currentTarget.style.transform="none";e.currentTarget.style.boxShadow="none"}}>
-                      <div style={{width:"44px",height:"44px",borderRadius:"8px",background:doc.type==="PDF"?"#FFEAEA":"#E8F3FF",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                        <Ico n="doc" s={22} c={doc.type==="PDF"?"#BB0000":"#0070F2"}/>
-                      </div>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:"13px",fontWeight:600,color:"#32363A",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{doc.name}</div>
-                        <div style={{fontSize:"11px",color:"#89898B",marginTop:"2px"}}>{doc.type} · {fmtD(doc.date)}</div>
-                      </div>
-                      <Btn icon="dl" variant="ghost" sm onClick={()=>handleDownload(doc)} tooltip="Télécharger"/>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            );
-          })()}
+          {tab==="docs"&&<DocTab initialDocs={employee.docs||[]}/>}
 
           {/* Historique */}
           {tab==="history"&&(
@@ -1090,25 +1034,50 @@ Part patronale CNPS (7%): ${fmtN(paieData.cnpsEmployeur)} FCFA — Charge employ
           }}/>
           <Btn label="Télécharger PDF" icon="dl" variant="secondary" onClick={()=>{
             const paieData = calcPaie(selB.base, selB.bonus||0, selB.benefits||0);
-            const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>Bulletin</title>
-<style>body{font-family:Arial,sans-serif;font-size:12px;margin:0;padding:20px;color:#1B3A52}
-.header{background:#0A2D6E;color:white;padding:16px 24px;border-radius:4px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
-table{width:100%;border-collapse:collapse}th{background:#0A2D6E;color:white;padding:8px 12px;font-size:11px}td{padding:8px 12px;border-bottom:1px solid #eee}
-.net{background:#0070F2 !important}.net td{color:white;font-weight:800;font-size:16px;padding:12px}</style></head><body>
-<div class="header"><div style="font-size:16px;font-weight:800">CleanIT SARL — BULLETIN DE PAIE</div><div>${MOIS[(selB.month||1)-1]} ${selB.year}</div></div>
-<p><strong>${e?.first||""} ${e?.last||""}</strong> · ${e?.matricule||""} · ${e?.role||""}</p>
-<table><tr><th>Libellé</th><th style="text-align:right">Montant FCFA</th></tr>
-<tr><td>Salaire brut</td><td style="text-align:right">${fmtN(paieData.brut)}</td></tr>
-<tr><td>CNPS employé (4.2%)</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.cnpsEmploye)}</td></tr>
-<tr><td>IRPP</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.irpp)}</td></tr>
-<tr><td>CAC (10% IRPP)</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.cac)}</td></tr>
-<tr><td>Redevance audiovisuelle</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.rav)}</td></tr>
-<tr class="net"><td>NET À PAYER</td><td style="text-align:right">${fmtN(paieData.net)} FCFA</td></tr>
-</table><p style="font-size:10px;color:#888;margin-top:20px">Généré par CleanIT ERP · ${new Date().toLocaleDateString("fr-FR")}</p>
+            const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/><title>Bulletin_${e?.matricule||"emp"}_${MOIS[(selB.month||1)-1]}_${selB.year}</title>
+<style>
+@media print{@page{size:A4;margin:15mm}body{margin:0}}
+body{font-family:Arial,sans-serif;font-size:11px;color:#1B3A52;padding:15mm}
+.header{background:#0A2D6E;color:white;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;border-radius:4px}
+table{width:100%;border-collapse:collapse;margin:10px 0}
+th{background:#0A2D6E;color:white;padding:7px 10px;text-align:left;font-size:10px}
+td{padding:7px 10px;border-bottom:1px solid #eee;font-size:11px}
+.net td{background:#0070F2;color:white;font-weight:800;font-size:14px;padding:10px}
+.sig{display:flex;justify-content:space-between;margin-top:40px}
+.sig-box{text-align:center;width:44%}
+.sig-line{height:1px;background:#ccc;margin-top:40px}
+</style></head><body>
+<div class="header">
+  <div><div style="font-size:15px;font-weight:800;letter-spacing:1px">CLEANIT SARL</div><div style="font-size:9px;opacity:.7;margin-top:2px">Sous-traitant Huawei · Infrastructure Télécom · Douala, Cameroun</div></div>
+  <div style="text-align:right"><div style="font-weight:700">BULLETIN DE PAIE</div><div style="font-size:10px;opacity:.7">${MOIS[(selB.month||1)-1]} ${selB.year}</div></div>
+</div>
+<table style="margin-bottom:14px"><tr>
+  <td><b>Employé</b><br/>${e?.first||""} ${e?.last||""}</td>
+  <td><b>Matricule</b><br/><span style="font-family:monospace">${e?.matricule||"—"}</span></td>
+  <td><b>Poste</b><br/>${e?.role||"—"}</td>
+  <td><b>Contrat</b><br/>${e?.contract||"CDI"}</td>
+  <td><b>Banque</b><br/>${selB.payMethod||e?.bank||"—"}</td>
+</tr></table>
+<table><thead><tr><th>Libellé</th><th>Base calcul</th><th>Taux</th><th style="text-align:right">Montant (FCFA)</th></tr></thead><tbody>
+<tr><td>Salaire de base</td><td>${fmtN(selB.base)}</td><td>—</td><td style="text-align:right;font-weight:700">${fmtN(selB.base)}</td></tr>
+${selB.bonus>0?`<tr><td>Primes &amp; Bonus</td><td>—</td><td>—</td><td style="text-align:right;color:#107E3E;font-weight:700">+ ${fmtN(selB.bonus)}</td></tr>`:""}
+<tr style="background:#f0f6ff"><td colspan="3"><b>SALAIRE BRUT</b></td><td style="text-align:right;font-weight:800;color:#107E3E">${fmtN(paieData.brut)}</td></tr>
+<tr><td>CNPS vieillesse employé (4,2%)</td><td>${fmtN(Math.min(paieData.brut,750000))}</td><td>4.2%</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.cnpsEmploye)}</td></tr>
+<tr><td>IRPP (barème progressif)</td><td>${fmtN(paieData.imposable*12)}/an</td><td>Progressif</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.irpp)}</td></tr>
+<tr><td>CAC (10% IRPP)</td><td>—</td><td>10%</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.cac)}</td></tr>
+<tr><td>Redevance audiovisuelle</td><td>—</td><td>Forfait</td><td style="text-align:right;color:#BB0000">- ${fmtN(paieData.rav)}</td></tr>
+<tr class="net"><td colspan="3">NET À PAYER</td><td style="text-align:right">${fmtN(paieData.net)} FCFA</td></tr>
+</tbody></table>
+<p style="font-size:9px;color:#888;background:#f8f9fa;padding:6px 10px;border-radius:3px;margin-top:8px">Part patronale CNPS (7%): ${fmtN(paieData.cnpsEmployeur)} FCFA — charge employeur non déduite du salaire net</p>
+<div class="sig">
+  <div class="sig-box"><div style="font-size:9px;color:#888;text-transform:uppercase">Signature & cachet employé</div><div class="sig-line"></div></div>
+  <div class="sig-box"><div style="font-size:9px;color:#888;text-transform:uppercase">Signature Direction / DRH</div><div class="sig-line"></div></div>
+</div>
+<p style="text-align:center;font-size:8px;color:#ccc;margin-top:20px">CleanIT ERP · Généré le ${new Date().toLocaleDateString("fr-FR")} · Document confidentiel</p>
+<script>window.onload=function(){window.print();}</script>
 </body></html>`;
-            const blob=new Blob([html],{type:"text/html"});
-            const a=document.createElement("a");a.href=URL.createObjectURL(blob);
-            a.download=`bulletin_${e?.matricule||"emp"}_${MOIS[(selB.month||1)-1]}_${selB.year}.html`;a.click();
+            const w=window.open("","_blank","width=900,height=1100");
+            w.document.write(html);w.document.close();
           }}/>
           {selB.status==="en_attente" && (
             <Btn label="Valider & Marquer payé" icon="chk" variant="success"
@@ -1933,7 +1902,7 @@ export default function RH() {
           education: emp.education||'',
           gender: emp.gender||'',
           role: ({'Administrateur':'admin','Project Manager':'project_manager','RH Manager':'hr','Technicien':'technician','Finance':'finance','Viewer':'viewer','admin':'admin','project_manager':'project_manager','hr':'hr','technician':'technician','finance':'finance','terrain':'terrain'}[emp.role]||emp.role||undefined),
-          birthDate: emp.birthDate||emp.birth_date||'',
+          birthDate: emp.birthDate||emp.birth_date||null,
           birthPlace: emp.birthPlace||emp.birth_place||'',
           nationality: emp.nationality||'',
           cin: emp.cin||'',
@@ -1942,12 +1911,30 @@ export default function RH() {
           emergencyLink: emp.emergencyLink||emp.emergency_link||'',
           speciality: emp.speciality||'',
           dailyRate: Number(emp.dailyRate||emp.daily_rate)||0,
-          hireDate: emp.hireDate||emp.hire_date||'',
+          hireDate: emp.hireDate||emp.hire_date||null,
         })
       });
       const data = await r.json();
       if(r.ok && (data.id || data.message==='OK')) {
-        setEmployees(p=>p.map(e=>e.id===emp.id?{...e,...emp}:e));
+        // Mettre à jour le state local immédiatement
+        const updated = {
+          ...emp,
+          first: data.firstName||emp.first,
+          last: data.lastName||emp.last,
+          firstName: data.firstName||emp.first,
+          lastName: data.lastName||emp.last,
+          phone: data.phone||emp.phone,
+          department: data.department||emp.department,
+          salary: data.salary||emp.salary,
+          contract: data.contract||emp.contract,
+          city: data.city||emp.city,
+          bank: data.bank||emp.bank,
+          rib: data.rib||emp.rib,
+          matricule: data.matricule||emp.matricule,
+          education: data.education||emp.education,
+          gender: data.gender||emp.gender,
+        };
+        setEmployees(p=>p.map(e=>String(e.id)===String(emp.id)?updated:e));
         return true;
       }
       console.error('Save error:', data);
@@ -2117,18 +2104,24 @@ export default function RH() {
         </div>
 
         {/* Notif badge */}
-        <div style={{position:"relative",cursor:"pointer"}}>
-          <div style={{width:"34px",height:"34px",borderRadius:"50%",background:"rgba(255,255,255,0.08)",display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid rgba(255,255,255,0.15)",transition:"all 0.2s"}}
-            onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}
-            onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}>
-            <Ico n="bell" s={16} c="rgba(255,255,255,0.75)"/>
-          </div>
-          {(pendingB+pendingP)>0&&(
-            <div style={{position:"absolute",top:"-3px",right:"-3px",width:"18px",height:"18px",borderRadius:"50%",background:"#E76500",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"9px",fontWeight:700,color:"white",border:"2px solid #1B3A52",animation:"pulse 2s infinite"}}>
-              {pendingB+pendingP}
+        {(()=>{
+          const pendingApprovals = realApprovals.filter(a=>a.statut==='En attente').length;
+          const totalNotif = pendingB+pendingP+pendingApprovals;
+          return (
+          <div style={{position:"relative",cursor:"pointer"}} title={totalNotif>0?`${totalNotif} notification(s) en attente`:''}>
+            <div style={{width:"34px",height:"34px",borderRadius:"50%",background:"rgba(255,255,255,0.08)",display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid rgba(255,255,255,0.15)",transition:"all 0.2s"}}
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}
+              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}>
+              <Ico n="bell" s={16} c="rgba(255,255,255,0.75)"/>
             </div>
-          )}
-        </div>
+            {totalNotif>0&&(
+              <div style={{position:"absolute",top:"-3px",right:"-3px",width:"18px",height:"18px",borderRadius:"50%",background:"#E76500",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"9px",fontWeight:700,color:"white",border:"2px solid #1B3A52",animation:"pulse 2s infinite"}}>
+                {totalNotif}
+              </div>
+            )}
+          </div>
+          );
+        })()}
 
         {/* Settings */}
         <div style={{width:"34px",height:"34px",borderRadius:"50%",background:"rgba(255,255,255,0.08)",display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid rgba(255,255,255,0.15)",cursor:"pointer",transition:"all 0.2s"}}
@@ -2138,15 +2131,23 @@ export default function RH() {
         </div>
 
         {/* User */}
-        <div style={{display:"flex",alignItems:"center",gap:"8px",cursor:"pointer",padding:"4px 8px",borderRadius:"6px",transition:"background 0.15s"}}
-          onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}
-          onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-          <div style={{width:"32px",height:"32px",borderRadius:"50%",background:"#0070F2",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:700,color:"white",boxShadow:"0 2px 8px rgba(0,112,242,0.4)"}}>AB</div>
-          <div>
-            <div style={{fontSize:"11px",fontWeight:600,color:"rgba(255,255,255,0.9)",lineHeight:1.3}}>Aline Biya</div>
-            <div style={{fontSize:"9px",color:"rgba(255,255,255,0.45)",lineHeight:1.3}}>RH Manager</div>
+        {(()=>{
+          const u = JSON.parse(localStorage.getItem('cleanit_user')||'{}');
+          const name = u.firstName&&u.lastName?u.firstName+' '+u.lastName:u.email||'Utilisateur';
+          const initials = name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+          const roleLabel = {admin:'Administrateur',hr:'RH Manager',project_manager:'Chef de Projet',finance:'Finance',technician:'Technicien',viewer:'Viewer'}[u.role]||u.role||'';
+          return (
+          <div style={{display:"flex",alignItems:"center",gap:"8px",cursor:"pointer",padding:"4px 8px",borderRadius:"6px",transition:"background 0.15s"}}
+            onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}
+            onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+            <div style={{width:"32px",height:"32px",borderRadius:"50%",background:"#0070F2",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",fontWeight:700,color:"white",boxShadow:"0 2px 8px rgba(0,112,242,0.4)"}}>{initials}</div>
+            <div>
+              <div style={{fontSize:"11px",fontWeight:600,color:"rgba(255,255,255,0.9)",lineHeight:1.3}}>{name}</div>
+              <div style={{fontSize:"9px",color:"rgba(255,255,255,0.45)",lineHeight:1.3}}>{roleLabel}</div>
+            </div>
           </div>
-        </div>
+          );
+        })()}
       </div>
 
       {/* TAB BAR */}
@@ -2191,6 +2192,7 @@ export default function RH() {
           onClose={()=>setSelEmp(null)}
           onToast={onToast}
           setEditEmp={setEditEmp}
+          setEditForm={setEditForm}
         />
       )}
 

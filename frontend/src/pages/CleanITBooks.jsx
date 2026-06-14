@@ -2791,10 +2791,10 @@ const PageJobList = ({jobs,setJobs,customers}) => {
     return ms&&mf&&mt;
   });
 
-  const totalBudgetHW= jobs.reduce((s,j)=>s+j.budgetClient,0);
-  const totalContrats= jobs.reduce((s,j)=>s+j.contractAmount,0);
-  const totalCouts   = jobs.reduce((s,j)=>s+Object.values(j.coutsReels).reduce((sc,v)=>sc+v,0),0);
-  const totalCA      = jobs.reduce((s,j)=>s+j.invoices.reduce((si,i)=>si+i.amount,0),0);
+  const totalBudgetHW= jobs.reduce((s,j)=>s+(parseFloat(j.budgetClient||j.budgetHuawei)||0),0);
+  const totalContrats= jobs.reduce((s,j)=>s+(parseFloat(j.contractAmount||j.contractAmt)||0),0);
+  const totalCouts   = jobs.reduce((s,j)=>s+Object.values(j.coutsReels||{}).reduce((sc,v)=>sc+(v||0),0),0);
+  const totalCA      = jobs.reduce((s,j)=>s+(Array.isArray(j.invoices)?j.invoices.reduce((si,i)=>si+(i.amount||0),0):0),0);
 
   return(
     <div style={{minHeight:"100vh",background:'#F4F5F7',fontFamily:"\"Segoe UI\",Arial,sans-serif"}}>
@@ -5841,7 +5841,7 @@ const CIBNav = ({active, onTab, navigate}) => (
   </div>
 );
 
-const PageDashboard = ({invoices,bills,customers,jobs,navigate,onTab}) => {
+const PageDashboard = ({invoices=[],bills=[],customers=[],jobs=[],navigate=()=>{},onTab=()=>{}}) => {
   const kpis = [
     {label:'Solde bancaire',val:47200000,sub:'BICEC + MTN MoMo',color:CIB_C.navy},
     {label:'Factures en attente',val:invoices.filter(i=>['pending','sent','overdue'].includes(i.status||i.statut)).reduce((s,i)=>s+(i.total||i.amount||0),0)||12800000,sub:invoices.filter(i=>i.status==='pending').length+' factures',color:'#27AE60'},
@@ -5912,118 +5912,6 @@ const PageDashboard = ({invoices,bills,customers,jobs,navigate,onTab}) => {
   );
 };
 
-export default function CleanITBooks() {
-  const [jobs,      setJobs]      = useState(INIT_JOBS);
-  const [customers, setCustomers] = useState(INIT_CUSTOMERS);
-  const [vendors,   setVendors]   = useState(INIT_VENDORS);
-  const [invoices,  setInvoices]  = useState(INIT_INVOICES_AR);
-  const [bills,     setBills]     = useState(INIT_BILLS_AP);
-  const [loading,   setLoading]   = useState(true);
-  const [cibTab,    setCibTab]    = useState('dashboard');
-  const params   = useParams();
-  const navigate = useNavigate();
-  const loc      = window.location.pathname;
-
-  useEffect(()=>{
-    const load = async () => {
-      try {
-        const [j,c,v,i,b] = await Promise.all([
-          getJobs(), getCustomers(), getVendors(),
-          getInvoices(), getBills(),
-        ]);
-        if(Array.isArray(j)&&j.length>0) setJobs(j);
-        if(Array.isArray(c)&&c.length>0) setCustomers(c);
-        if(Array.isArray(v)&&v.length>0) setVendors(v);
-        if(Array.isArray(i)&&i.length>0) setInvoices(i);
-        if(Array.isArray(b)&&b.length>0) setBills(b);
-      } catch(e){ console.warn('CIB backend indisponible'); }
-      finally { setLoading(false); }
-    };
-    load();
-  },[]);
-
-  const getTabFromLoc = () => {
-    if(loc.includes('/banking')||loc.includes('/import-csv')||loc.includes('/reconciliation')) return 'banking';
-    if(loc.includes('/invoices')||loc.includes('/customers')||loc.includes('/avoirs')||loc.includes('/recurring')) return 'sales';
-    if(loc.includes('/bills')||loc.includes('/vendors')) return 'purchases';
-    if(loc.includes('/jobs')||loc.includes('/budget')) return 'projects';
-    if(loc.includes('/reports')||loc.includes('/analytics')||loc.includes('/payroll')) return 'reports';
-    if(loc.includes('/journal')||loc.includes('/balance')||loc.includes('/plan-comptable')) return 'journal';
-    return cibTab;
-  };
-
-  const handleTab = (tab) => {
-    setCibTab(tab);
-    const routes = {
-      dashboard:'/cleanitbooks', banking:'/cleanitbooks/banking',
-      sales:'/cleanitbooks/invoices', purchases:'/cleanitbooks/bills',
-      projects:'/cleanitbooks/jobs', reports:'/cleanitbooks/reports',
-      journal:'/cleanitbooks/journal',
-    };
-    navigate(routes[tab]||'/cleanitbooks');
-  };
-
-  const renderContent = () => {
-    if(loc.includes('/time')) return <PageTimeTracking/>;
-    if(loc.includes('/payroll')) return <PagePayroll/>;
-    if(loc.includes('/budget')) return <PageBudget invoices={invoices} bills={bills}/>;
-    if(loc.includes('/reconciliation')) return <PageReconciliation invoices={invoices} bills={bills}/>;
-    if(loc.includes('/import-csv')) return <PageImportCSV/>;
-    if(loc.includes('/recurring')) return <PageRecurring customers={customers} invoices={invoices} setInvoices={setInvoices}/>;
-    if(loc.includes('/banking')) return <PageBanking/>;
-    if(loc.includes('/analytics')) return <PageAnalytics invoices={invoices} bills={bills} customers={customers} jobs={jobs}/>;
-    if(loc.includes('/avoirs')) return <PageAvoir invoices={invoices} customers={customers} setInvoices={setInvoices}/>;
-    if(loc.includes('/bills')){
-      if(loc.endsWith('/new')) return <BillForm bill={null} vendors={vendors} onSave={()=>navigate('/cleanitbooks/bills')} onCancel={()=>navigate('/cleanitbooks/bills')}/>;
-      if(params.billId&&params.billId!=='new') return <PageBillDetail bills={bills} vendors={vendors} jobs={jobs}/>;
-      return <PageBillList bills={bills} vendors={vendors} jobs={jobs}/>;
-    }
-    if(loc.includes('/invoices')){
-      if(loc.endsWith('/new')) return <InvoiceForm invoice={null} customers={customers} onSave={()=>navigate('/cleanitbooks/invoices')} onCancel={()=>navigate('/cleanitbooks/invoices')}/>;
-      if(params.invoiceId&&params.invoiceId!=='new') return <PageInvoiceDetail invoices={invoices} customers={customers} jobs={jobs}/>;
-      return <PageInvoiceList invoices={invoices} customers={customers} jobs={jobs}/>;
-    }
-    if(loc.includes('/vendors')){
-      if(loc.endsWith('/new')) return <VendorForm vendor={null} onSave={()=>navigate('/cleanitbooks/vendors')} onCancel={()=>navigate('/cleanitbooks/vendors')}/>;
-      if(params.vendorId&&params.vendorId!=='new') return <PageVendorDetail vendors={vendors} jobs={jobs}/>;
-      return <PageVendorList vendors={vendors} setVendors={setVendors} jobs={jobs}/>;
-    }
-    if(loc.includes('/customers')){
-      if(loc.endsWith('/new')) return <CustomerForm customer={null} onSave={()=>navigate('/cleanitbooks/customers')} onCancel={()=>navigate('/cleanitbooks/customers')}/>;
-      if(params.custId&&loc.endsWith('/edit')) return <CustomerForm customer={null} onSave={()=>navigate('/cleanitbooks/customers')} onCancel={()=>navigate('/cleanitbooks/customers')}/>;
-      if(params.custId) return <CustomerDetail customer={customers.find(c=>c.id==params.custId)||customers[0]} onEdit={()=>{}} onBack={()=>navigate('/cleanitbooks/customers')} onNewInvoice={()=>navigate('/cleanitbooks/invoices/new')}/>;
-      return <PageCustomerList customers={customers} setCustomers={setCustomers} invoices={invoices} jobs={jobs}/>;
-    }
-    if(loc.includes('/reports')) return <PageReports/>;
-    if(loc.includes('/journal')) return <PageJournal/>;
-    if(loc.includes('/balance')) return <PageBalance/>;
-    if(loc.includes('/plan-comptable')) return <PagePlanComptable/>;
-    if(loc.endsWith('/new')&&loc.includes('/jobs')) return <PageJobNew customers={customers} onSave={(job)=>{setJobs(p=>[...p,job]);navigate('/cleanitbooks/jobs/'+job.id);}} onCancel={()=>navigate('/cleanitbooks/jobs')}/>;
-    if(loc.endsWith('/edit')&&params.jobId){
-      const job=jobs.find(j=>j.id===params.jobId);
-      return <PageJobNew initial={job} customers={customers} onSave={(u)=>{setJobs(p=>p.map(j=>j.id===u.id?u:j));navigate('/cleanitbooks/jobs/'+u.id);}} onCancel={()=>navigate('/cleanitbooks/jobs/'+params.jobId)}/>;
-    }
-    if(params.jobId) return <PageJobDetail jobs={jobs} setJobs={setJobs} customers={customers}/>;
-    if(loc.includes('/jobs')) return <PageJobList jobs={jobs} setJobs={setJobs} customers={customers}/>;
-    return <PageDashboard invoices={invoices} bills={bills} customers={customers} jobs={jobs} navigate={navigate} onTab={handleTab}/>;
-  };
-
-  if(loading) return (
-    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',flexDirection:'column',gap:12}}>
-      <div style={{width:32,height:32,border:'3px solid '+CIB_C.navy,borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
-      <span style={{fontSize:13,color:CIB_C.text3}}>Chargement CleanIT Books...</span>
-    </div>
-  );
-
-  return (
-    <div style={{display:'flex',flexDirection:'column',minHeight:'100%',background:CIB_C.bg}}>
-      <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
-      <CIBNav active={getTabFromLoc()} onTab={handleTab} navigate={navigate}/>
-      <div style={{flex:1}}>{renderContent()}</div>
-    </div>
-  );
-}
-
 const PageJournal = () => {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -6035,7 +5923,7 @@ const PageJournal = () => {
   },[]);
 
   const JOURNALS = ['VENTES','ACHATS','BANQUE','CAISSE','OD'];
-  const filtered = entries.filter(e=>!filter||e.journal===filter);
+  const filtered = entries.filter(e=>!filter||e.journal===filter||e.journalType===filter);
 
   const JOURNAL_COLORS = {VENTES:'#16a34a',ACHATS:'#ea580c',BANQUE:'#2563eb',CAISSE:'#7c3aed',OD:'#6b7280'};
 
@@ -7333,3 +7221,115 @@ const PageBilan = () => {
     </div>
   );
 };
+export default function CleanITBooks() {
+  const [jobs,      setJobs]      = useState(INIT_JOBS);
+  const [customers, setCustomers] = useState(INIT_CUSTOMERS);
+  const [vendors,   setVendors]   = useState(INIT_VENDORS);
+  const [invoices,  setInvoices]  = useState(INIT_INVOICES_AR);
+  const [bills,     setBills]     = useState(INIT_BILLS_AP);
+  const [loading,   setLoading]   = useState(true);
+  const [cibTab,    setCibTab]    = useState('dashboard');
+  const params   = useParams();
+  const navigate = useNavigate();
+  const loc      = window.location.pathname;
+
+  useEffect(()=>{
+    const load = async () => {
+      try {
+        const [j,c,v,i,b] = await Promise.all([
+          getJobs(), getCustomers(), getVendors(),
+          getInvoices(), getBills(),
+        ]);
+        if(Array.isArray(j)&&j.length>0) setJobs(j);
+        if(Array.isArray(c)&&c.length>0) setCustomers(c);
+        if(Array.isArray(v)&&v.length>0) setVendors(v);
+        if(Array.isArray(i)&&i.length>0) setInvoices(i);
+        if(Array.isArray(b)&&b.length>0) setBills(b);
+      } catch(e){ console.warn('CIB backend indisponible'); }
+      finally { setLoading(false); }
+    };
+    load();
+  },[]);
+
+  const getTabFromLoc = () => {
+    if(loc.includes('/banking')||loc.includes('/import-csv')||loc.includes('/reconciliation')) return 'banking';
+    if(loc.includes('/invoices')||loc.includes('/customers')||loc.includes('/avoirs')||loc.includes('/recurring')) return 'sales';
+    if(loc.includes('/bills')||loc.includes('/vendors')) return 'purchases';
+    if(loc.includes('/jobs')||loc.includes('/budget')) return 'projects';
+    if(loc.includes('/reports')||loc.includes('/analytics')||loc.includes('/payroll')) return 'reports';
+    if(loc.includes('/journal')||loc.includes('/balance')||loc.includes('/plan-comptable')) return 'journal';
+    return cibTab;
+  };
+
+  const handleTab = (tab) => {
+    setCibTab(tab);
+    const routes = {
+      dashboard:'/cleanitbooks', banking:'/cleanitbooks/banking',
+      sales:'/cleanitbooks/invoices', purchases:'/cleanitbooks/bills',
+      projects:'/cleanitbooks/jobs', reports:'/cleanitbooks/reports',
+      journal:'/cleanitbooks/journal',
+    };
+    navigate(routes[tab]||'/cleanitbooks');
+  };
+
+  const renderContent = () => {
+    if(loc.includes('/time')) return <PageTimeTracking/>;
+    if(loc.includes('/payroll')) return <PagePayroll/>;
+    if(loc.includes('/budget')) return <PageBudget invoices={invoices} bills={bills}/>;
+    if(loc.includes('/reconciliation')) return <PageReconciliation invoices={invoices} bills={bills}/>;
+    if(loc.includes('/import-csv')) return <PageImportCSV/>;
+    if(loc.includes('/recurring')) return <PageRecurring customers={customers} invoices={invoices} setInvoices={setInvoices}/>;
+    if(loc.includes('/banking')) return <PageBanking/>;
+    if(loc.includes('/analytics')) return <PageAnalytics invoices={invoices} bills={bills} customers={customers} jobs={jobs}/>;
+    if(loc.includes('/avoirs')) return <PageAvoir invoices={invoices} customers={customers} setInvoices={setInvoices}/>;
+    if(loc.includes('/bills')){
+      if(loc.endsWith('/new')) return <BillForm bill={null} vendors={vendors} onSave={()=>navigate('/cleanitbooks/bills')} onCancel={()=>navigate('/cleanitbooks/bills')}/>;
+      if(params.billId&&params.billId!=='new') return <PageBillDetail bills={bills} vendors={vendors} jobs={jobs}/>;
+      return <PageBillList bills={bills} vendors={vendors} jobs={jobs}/>;
+    }
+    if(loc.includes('/invoices')){
+      if(loc.endsWith('/new')) return <InvoiceForm invoice={null} customers={customers} onSave={()=>navigate('/cleanitbooks/invoices')} onCancel={()=>navigate('/cleanitbooks/invoices')}/>;
+      if(params.invoiceId&&params.invoiceId!=='new') return <PageInvoiceDetail invoices={invoices} customers={customers} jobs={jobs}/>;
+      return <PageInvoiceList invoices={invoices} customers={customers} jobs={jobs}/>;
+    }
+    if(loc.includes('/vendors')){
+      if(loc.endsWith('/new')) return <VendorForm vendor={null} onSave={()=>navigate('/cleanitbooks/vendors')} onCancel={()=>navigate('/cleanitbooks/vendors')}/>;
+      if(params.vendorId&&params.vendorId!=='new') return <PageVendorDetail vendors={vendors} jobs={jobs}/>;
+      return <PageVendorList vendors={vendors} setVendors={setVendors} jobs={jobs}/>;
+    }
+    if(loc.includes('/customers')){
+      if(loc.endsWith('/new')) return <CustomerForm customer={null} onSave={()=>navigate('/cleanitbooks/customers')} onCancel={()=>navigate('/cleanitbooks/customers')}/>;
+      if(params.custId&&loc.endsWith('/edit')) return <CustomerForm customer={null} onSave={()=>navigate('/cleanitbooks/customers')} onCancel={()=>navigate('/cleanitbooks/customers')}/>;
+      if(params.custId) return <CustomerDetail customer={customers.find(c=>c.id==params.custId)||customers[0]} onEdit={()=>{}} onBack={()=>navigate('/cleanitbooks/customers')} onNewInvoice={()=>navigate('/cleanitbooks/invoices/new')}/>;
+      return <PageCustomerList customers={customers} setCustomers={setCustomers} invoices={invoices} jobs={jobs}/>;
+    }
+    if(loc.includes('/reports')) return <PageReports/>;
+    if(loc.includes('/journal')) return <PageJournal/>;
+    if(loc.includes('/balance')) return <PageBalance/>;
+    if(loc.includes('/plan-comptable')) return <PagePlanComptable/>;
+    if(loc.endsWith('/new')&&loc.includes('/jobs')) return <PageJobNew customers={customers} onSave={(job)=>{setJobs(p=>[...p,job]);navigate('/cleanitbooks/jobs/'+job.id);}} onCancel={()=>navigate('/cleanitbooks/jobs')}/>;
+    if(loc.endsWith('/edit')&&params.jobId){
+      const job=jobs.find(j=>j.id===params.jobId);
+      return <PageJobNew initial={job} customers={customers} onSave={(u)=>{setJobs(p=>p.map(j=>j.id===u.id?u:j));navigate('/cleanitbooks/jobs/'+u.id);}} onCancel={()=>navigate('/cleanitbooks/jobs/'+params.jobId)}/>;
+    }
+    if(params.jobId) return <PageJobDetail jobs={jobs} setJobs={setJobs} customers={customers}/>;
+    if(loc.includes('/jobs')) return <PageJobList jobs={jobs} setJobs={setJobs} customers={customers}/>;
+    return <PageDashboard invoices={invoices} bills={bills} customers={customers} jobs={jobs} navigate={navigate} onTab={handleTab}/>;
+  };
+
+  if(loading) return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',flexDirection:'column',gap:12}}>
+      <div style={{width:32,height:32,border:'3px solid '+CIB_C.navy,borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
+      <span style={{fontSize:13,color:CIB_C.text3}}>Chargement CleanIT Books...</span>
+    </div>
+  );
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',minHeight:'100%',background:CIB_C.bg}}>
+      <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
+      <CIBNav active={getTabFromLoc()} onTab={handleTab} navigate={navigate}/>
+      <div style={{flex:1}}>{renderContent()}</div>
+    </div>
+  );
+}
+

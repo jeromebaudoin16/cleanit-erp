@@ -23,10 +23,9 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  if(req.method==='OPTIONS'){ res.status(200).end(); return; }
+  res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
   next();
 });
@@ -725,6 +724,14 @@ pool.query(`CREATE TABLE IF NOT EXISTS pointages (
   created_at TIMESTAMP DEFAULT NOW()
 )`).catch(console.error);
 
+// Route ping pour maintenir last_seen actif depuis l'app mobile
+app.post('/ping', auth, async (req, res) => {
+  try {
+    await pool.query('UPDATE users SET last_seen=NOW(), "lastSeen"=NOW() WHERE id=$1', [req.user.sub]);
+    res.json({ ok: true, ts: new Date().toISOString() });
+  } catch(e) { res.json({ ok: false }); }
+});
+
 // ─── GEOFENCING ──────────────────────────────────────────────
 const ZONES_BUREAU = [
   {code:'HUA-DLA',nom:'Huawei Douala Bonapriso',lat:4.021841,lng:9.698572,rayon:150},
@@ -848,19 +855,20 @@ pool.query(`CREATE TABLE IF NOT EXISTS push_subscriptions (
 )`).catch(console.error);
 
 // Sauvegarder subscription push
-app.post('/push/subscribe', async (req, res) => {
+app.post('/push/subscribe', auth, async (req, res) => {
   try {
     const { subscription } = req.body;
     if(!subscription) return res.status(400).json({ message: 'Subscription requise' });
-    // Supprimer ancienne subscription de cet user
-    const rawId = req.body.userId;
-    const userId = rawId && !isNaN(parseInt(rawId)) ? parseInt(rawId) : null;
-    if(userId) await pool.query('DELETE FROM push_subscriptions WHERE user_id=$1',[userId]).catch(()=>{});
+    // Utiliser l'userId depuis le token JWT (fiable) ou fallback sur le body
+    const userId = req.user?.sub || (req.body.userId && !isNaN(parseInt(req.body.userId)) ? parseInt(req.body.userId) : null);
+    if(!userId) return res.status(400).json({ message: 'Utilisateur non identifié' });
+    // Supprimer l'ancienne subscription de cet user
+    await pool.query('DELETE FROM push_subscriptions WHERE user_id=$1',[userId]).catch(()=>{});
     await pool.query(
       'INSERT INTO push_subscriptions (user_id,subscription) VALUES ($1,$2)',
       [userId, JSON.stringify(subscription)]
     );
-    res.json({ ok: true, message: 'Notification push activée' });
+    res.json({ ok: true, message: 'Notification push activée', userId });
   } catch(e) { res.status(500).json({ message: 'Erreur serveur', detail: e.message }); }
 });
 
@@ -981,6 +989,27 @@ app.get('/conversations', auth, async (req, res) => {
   } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
 });
 
+// GET /conversations/list — liste des conversations avec nb messages non lus
+app.get('/conversations/list', auth, async (req, res) => {
+  try {
+    const myId = req.user.sub;
+    const result = await pool.query(`
+      SELECT c.id, c.participant_1, c.participant_2, c.last_message, c.last_message_at,
+        u."firstName", u."lastName", u.email, u.role, u.last_seen,
+        CASE WHEN u.last_seen > NOW()-INTERVAL '5 minutes' THEN 'online'
+             WHEN u.last_seen > NOW()-INTERVAL '30 minutes' THEN 'away'
+             ELSE 'offline' END as status,
+        (SELECT COUNT(*) FROM messages m
+         WHERE m.conversation_id=c.id AND m.from_id!=$1 AND m.read=false) as unread_count
+      FROM conversations c
+      JOIN users u ON u.id = CASE WHEN c.participant_1=$1 THEN c.participant_2 ELSE c.participant_1 END
+      WHERE c.participant_1=$1 OR c.participant_2=$1
+      ORDER BY c.last_message_at DESC NULLS LAST
+    `, [myId]);
+    res.json(result.rows);
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
 app.post('/conversations', auth, async (req, res) => {
   try {
     const { participantId } = req.body;
@@ -1008,12 +1037,45 @@ app.post('/messages', auth, async (req, res) => {
     if (!text && !photoUrl) return res.status(400).json({ message: 'Message vide' });
     const user = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1',[req.user.sub]);
     const u = user.rows[0];
+    const senderName = (u.firstName||'')+(u.lastName?' '+u.lastName:'');
     const result = await pool.query(
       'INSERT INTO messages (conversation_id, from_id, from_name, text, photo_url) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-      [conversationId, req.user.sub, u.firstName+' '+u.lastName, text||null, photoUrl||null]
+      [conversationId, req.user.sub, senderName, text||null, photoUrl||null]
     );
     await pool.query('UPDATE conversations SET last_message=$1, last_message_at=NOW() WHERE id=$2',[text||'Photo', conversationId]);
     res.status(201).json(result.rows[0]);
+
+    // Envoyer notification push au destinataire (async, sans bloquer la réponse)
+    (async () => {
+      try {
+        // Trouver l'autre participant de la conversation
+        const conv = await pool.query('SELECT participant_1, participant_2 FROM conversations WHERE id=$1',[conversationId]);
+        if (!conv.rows[0]) return;
+        const { participant_1, participant_2 } = conv.rows[0];
+        const recipientId = String(participant_1) === String(req.user.sub) ? participant_2 : participant_1;
+        // Chercher sa subscription push
+        const subs = await pool.query('SELECT id, subscription FROM push_subscriptions WHERE user_id=$1',[recipientId]);
+        if (!subs.rows.length) return;
+        const payload = JSON.stringify({
+          title: '💬 ' + senderName,
+          body: text ? (text.length > 60 ? text.slice(0,60)+'…' : text) : '📷 Photo',
+          url: '/mobile',
+          icon: '/icons/icon-192.png',
+          badge: '/icons/icon-72.png',
+          tag: 'msg-conv-'+conversationId,
+          renotify: true,
+        });
+        for (const row of subs.rows) {
+          try {
+            await webpush.sendNotification(JSON.parse(row.subscription), payload);
+          } catch(e) {
+            if (e.statusCode === 410 || e.statusCode === 404) {
+              await pool.query('DELETE FROM push_subscriptions WHERE id=$1',[row.id]).catch(()=>{});
+            }
+          }
+        }
+      } catch(e) { console.error('Push message error:', e.message); }
+    })();
   } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
 });
 
@@ -1172,7 +1234,7 @@ pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP').cat
 // Middleware last_seen
 app.use((req,res,next)=>{
   if(req.user?.sub){
-    pool.query('UPDATE users SET last_seen=NOW() WHERE id=$1',[req.user.sub]).catch(()=>{});
+    pool.query('UPDATE users SET last_seen=NOW(), "lastSeen"=NOW() WHERE id=$1',[req.user.sub]).catch(()=>{});
   }
   next();
 });
@@ -1516,196 +1578,44 @@ app.put('/technicians/:id/certifications', auth, async (req, res) => {
 });
 
 // 404
-// ═══════════════════════════════════════════════════════════════
-// CLEANITBOOKS ROUTES — /api/cleanitbooks/*
-// ═══════════════════════════════════════════════════════════════
 
-// Migration tables CleanITBooks
-async function migrateCIB() {
-  try {
-    await pool.query(`CREATE TABLE IF NOT EXISTS cib_jobs (
-      id SERIAL PRIMARY KEY, name TEXT, customer_id INT, job_type TEXT,
-      statut TEXT DEFAULT 'Pending', site TEXT, chef_projet TEXT,
-      start_date DATE, end_date DATE, currency TEXT DEFAULT 'FCFA',
-      description TEXT, notes TEXT, budget_client NUMERIC(15,2) DEFAULT 0,
-      contract_amount NUMERIC(15,2) DEFAULT 0, bc_ref TEXT,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    )`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS cib_customers (
-      id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT, phone TEXT,
-      address TEXT, city TEXT, country TEXT DEFAULT 'Cameroun',
-      currency TEXT DEFAULT 'FCFA', notes TEXT,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    )`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS cib_vendors (
-      id SERIAL PRIMARY KEY, name TEXT NOT NULL, email TEXT, phone TEXT,
-      address TEXT, city TEXT, type TEXT, currency TEXT DEFAULT 'FCFA',
-      bank TEXT, rib TEXT, notes TEXT,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    )`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS cib_invoices (
-      id SERIAL PRIMARY KEY, number TEXT, customer_id INT, job_id INT,
-      date DATE, due_date DATE, currency TEXT DEFAULT 'FCFA',
-      status TEXT DEFAULT 'draft', subtotal NUMERIC(15,2) DEFAULT 0,
-      tax NUMERIC(15,2) DEFAULT 0, total NUMERIC(15,2) DEFAULT 0,
-      lines JSONB DEFAULT '[]', notes TEXT,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    )`);
-    await pool.query(`CREATE TABLE IF NOT EXISTS cib_bills (
-      id SERIAL PRIMARY KEY, number TEXT, vendor_id INT, job_id INT,
-      date DATE, due_date DATE, currency TEXT DEFAULT 'FCFA',
-      status TEXT DEFAULT 'draft', total NUMERIC(15,2) DEFAULT 0,
-      lines JSONB DEFAULT '[]', notes TEXT,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    )`);
-  } catch(e) { console.error('CIB migrate error:', e.message); }
-}
-migrateCIB();
-
-// ── JOBS ──
-app.get('/api/cleanitbooks/jobs', auth, async (req,res)=>{
-  try { const r=await pool.query('SELECT * FROM cib_jobs ORDER BY "createdAt" DESC'); res.json(r.rows); }
-  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-app.post('/api/cleanitbooks/jobs', auth, async (req,res)=>{
-  try {
-    const {name,customerId,jobType,statut,site,chefProjet,startDate,endDate,currency,description,notes,budgetClient,contractAmount,bcRef}=req.body;
-    const r=await pool.query(`INSERT INTO cib_jobs(name,"customerId","jobType",statut,site,"chefProjet","startDate","endDate",currency,description,notes,"budgetHuawei","contractAmount","bcRef","createdAt","updatedAt")
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),NOW()) RETURNING *`,
-      [name,customerId,jobType,statut||'Pending',site,chefProjet,startDate,endDate,currency||'FCFA',description,notes,budgetClient||0,contractAmount||0,bcRef]);
-    res.json(r.rows[0]);
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-app.put('/api/cleanitbooks/jobs/:id', auth, async (req,res)=>{
-  try {
-    const {name,statut,site,chefProjet,startDate,endDate,description,notes,budgetClient,contractAmount}=req.body;
-    const r=await pool.query(`UPDATE cib_jobs SET name=$1,statut=$2,site=$3,"chefProjet"=$4,"startDate"=$5,"endDate"=$6,description=$7,notes=$8,"budgetHuawei"=$9,"contractAmount"=$10,"updatedAt"=NOW() WHERE id=$11 RETURNING *`,
-      [name,statut,site,chefProjet,startDate,endDate,description,notes,budgetClient||0,contractAmount||0,req.params.id]);
-    res.json(r.rows[0]);
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-app.delete('/api/cleanitbooks/jobs/:id', auth, async (req,res)=>{
-  try { await pool.query('DELETE FROM cib_jobs WHERE id=$1',[req.params.id]); res.json({ok:true}); }
-  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-
-// ── CUSTOMERS ──
-app.get('/api/cleanitbooks/customers', auth, async (req,res)=>{
-  try {
-    const r=await pool.query('SELECT *,company as name FROM cib_customers ORDER BY company');
-    res.json(r.rows.map(c=>({...c,name:c.company||c.name||''})));
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-app.post('/api/cleanitbooks/customers', auth, async (req,res)=>{
-  try {
-    const {name,email,phone,address,city,currency,notes}=req.body;
-    const r=await pool.query(`INSERT INTO cib_customers(company,email,phone,address,city,currency,notes,"createdAt","updatedAt") VALUES($1,$2,$3,$4,$5,$6,$7,NOW(),NOW()) RETURNING *`,
-      [name,email,phone,address,city,currency||'FCFA',notes]);
-    res.json({...r.rows[0],name:r.rows[0].company});
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-app.put('/api/cleanitbooks/customers/:id', auth, async (req,res)=>{
-  try {
-    const {name,email,phone,address,city,currency,notes}=req.body;
-    const r=await pool.query(`UPDATE cib_customers SET company=$1,email=$2,phone=$3,address=$4,city=$5,currency=$6,notes=$7,"updatedAt"=NOW() WHERE id=$8 RETURNING *`,
-      [name,email,phone,address,city,currency||'FCFA',notes,req.params.id]);
-    res.json({...r.rows[0],name:r.rows[0].company});
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-
-// ── VENDORS ──
-app.get('/api/cleanitbooks/vendors', auth, async (req,res)=>{
-  try {
-    const r=await pool.query('SELECT *,company as name FROM cib_vendors ORDER BY company');
-    res.json(r.rows.map(v=>({...v,name:v.company||''})));
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-app.post('/api/cleanitbooks/vendors', auth, async (req,res)=>{
-  try {
-    const {name,email,phone,address,city,type,currency,notes}=req.body;
-    const r=await pool.query(`INSERT INTO cib_vendors(company,email,phone,address,city,type,currency,notes,"createdAt","updatedAt") VALUES($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW()) RETURNING *`,
-      [name,email,phone,address,city,type,currency||'FCFA',notes]);
-    res.json({...r.rows[0],name:r.rows[0].company});
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-app.put('/api/cleanitbooks/vendors/:id', auth, async (req,res)=>{
-  try {
-    const {name,email,phone,address,city,type,currency,notes}=req.body;
-    const r=await pool.query(`UPDATE cib_vendors SET company=$1,email=$2,phone=$3,address=$4,city=$5,type=$6,currency=$7,notes=$8,"updatedAt"=NOW() WHERE id=$9 RETURNING *`,
-      [name,email,phone,address,city,type,currency||'FCFA',notes,req.params.id]);
-    res.json({...r.rows[0],name:r.rows[0].company});
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-
-// ── INVOICES ──
-app.get('/api/cleanitbooks/invoices', auth, async (req,res)=>{
-  try { const r=await pool.query('SELECT * FROM cib_invoices ORDER BY "createdAt" DESC'); res.json(r.rows); }
-  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-app.post('/api/cleanitbooks/invoices', auth, async (req,res)=>{
-  try {
-    const {customerId,jobId,date,dueDate,currency,lines,subtotal,taxAmount,total,memo,poNumber}=req.body;
-    const r=await pool.query(`INSERT INTO cib_invoices("customerId","jobId",date,"dueDate",currency,lines,subtotal,"taxAmount",total,memo,"poNumber",status,"createdAt","updatedAt")
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'draft',NOW(),NOW()) RETURNING *`,
-      [customerId,jobId,date,dueDate,currency||'FCFA',JSON.stringify(lines||[]),subtotal||0,taxAmount||0,total||0,memo,poNumber]);
-    res.json(r.rows[0]);
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-app.put('/api/cleanitbooks/invoices/:id', auth, async (req,res)=>{
-  try {
-    const {status,total,lines,memo}=req.body;
-    const r=await pool.query(`UPDATE cib_invoices SET status=$1,total=$2,lines=$3,memo=$4,"updatedAt"=NOW() WHERE id=$5 RETURNING *`,
-      [status,total||0,JSON.stringify(lines||[]),memo,req.params.id]);
-    res.json(r.rows[0]);
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-
-// ── BILLS ──
-app.get('/api/cleanitbooks/bills', auth, async (req,res)=>{
-  try { const r=await pool.query('SELECT * FROM cib_bills ORDER BY "createdAt" DESC'); res.json(r.rows); }
-  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-app.post('/api/cleanitbooks/bills', auth, async (req,res)=>{
-  try {
-    const {vendorId,jobId,date,dueDate,currency,lines,total,memo,refNum}=req.body;
-    const r=await pool.query(`INSERT INTO cib_bills("vendorId","jobId",date,"dueDate",currency,lines,total,memo,"refNum",status,"createdAt","updatedAt")
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft',NOW(),NOW()) RETURNING *`,
-      [vendorId,jobId,date,dueDate,currency||'FCFA',JSON.stringify(lines||[]),total||0,memo,refNum]);
-    res.json(r.rows[0]);
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-app.put('/api/cleanitbooks/bills/:id', auth, async (req,res)=>{
-  try {
-    const {status,total,lines,memo}=req.body;
-    const r=await pool.query(`UPDATE cib_bills SET status=$1,total=$2,lines=$3,memo=$4,"updatedAt"=NOW() WHERE id=$5 RETURNING *`,
-      [status,total||0,JSON.stringify(lines||[]),memo,req.params.id]);
-    res.json(r.rows[0]);
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-
-// ── JOURNAL (CIB ENTRIES) ──
+// ── JOURNAL CIB ──
 app.get('/api/cleanitbooks/journal', auth, async (req,res)=>{
   try {
-    const r=await pool.query('SELECT * FROM cib_entries ORDER BY created_at DESC LIMIT 200');
+    const r=await pool.query(`SELECT je.*,
+      COALESCE(json_agg(json_build_object('account',jl."accountCode",'accountNom',jl."accountNom",'debit',jl.debit,'credit',jl.credit,'libelle',jl.libelle)) FILTER (WHERE jl.id IS NOT NULL), '[]') as lines
+      FROM cib_journal_entries je
+      LEFT JOIN cib_journal_lines jl ON jl."entryId"=je.id
+      GROUP BY je.id ORDER BY je.date DESC LIMIT 200`);
     res.json(r.rows);
   } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
 });
-
-// ── BALANCE / P&L / BILAN ──
-app.get('/api/cleanitbooks/balance', auth, async (req,res)=>{
+app.post('/api/cleanitbooks/journal', auth, async (req,res)=>{
   try {
-    const inv=await pool.query("SELECT SUM(total) as total FROM cib_invoices WHERE status='paid'");
-    const bills=await pool.query("SELECT SUM(total) as total FROM cib_bills WHERE status='paid'");
-    res.json({revenues:parseFloat(inv.rows[0].total)||0, expenses:parseFloat(bills.rows[0].total)||0});
+    const {date,libelle,journal,lines=[]}=req.body;
+    const je=await pool.query(`INSERT INTO cib_journal_entries(date,libelle,journal,"createdAt") VALUES($1,$2,$3,NOW()) RETURNING *`,[date,libelle,journal]);
+    const jeId=je.rows[0].id;
+    for(const l of lines){
+      await pool.query(`INSERT INTO cib_journal_lines("entryId","accountCode","accountNom",debit,credit,libelle) VALUES($1,$2,$3,$4,$5,$6)`,
+        [jeId,l.account,l.accountNom||'',l.debit||0,l.credit||0,l.libelle||l.memo||'']);
+    }
+    res.json(je.rows[0]);
   } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
 });
-app.get('/api/cleanitbooks/pl', auth, async (req,res)=>{
+app.get('/api/cleanitbooks/dashboard', auth, async (req,res)=>{
   try {
-    const inv=await pool.query('SELECT SUM(total) as total FROM cib_invoices');
-    const bills=await pool.query('SELECT SUM(total) as total FROM cib_bills');
-    const rev=parseFloat(inv.rows[0].total)||0;
-    const exp=parseFloat(bills.rows[0].total)||0;
-    res.json({revenues:rev,expenses:exp,net:rev-exp});
+    const [inv,bills,jobs,cust]=await Promise.all([
+      pool.query('SELECT COUNT(*) as count,COALESCE(SUM(total),0) as total FROM cib_invoices'),
+      pool.query('SELECT COUNT(*) as count,COALESCE(SUM(total),0) as total FROM cib_bills'),
+      pool.query('SELECT COUNT(*) as count FROM cib_jobs'),
+      pool.query('SELECT COUNT(*) as count FROM cib_customers'),
+    ]);
+    res.json({
+      invoices:{count:parseInt(inv.rows[0].count),total:parseFloat(inv.rows[0].total)},
+      bills:{count:parseInt(bills.rows[0].count),total:parseFloat(bills.rows[0].total)},
+      jobs:parseInt(jobs.rows[0].count),
+      customers:parseInt(cust.rows[0].count),
+    });
   } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
 });
 

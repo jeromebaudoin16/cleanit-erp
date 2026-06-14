@@ -338,7 +338,7 @@ const LABEL = {
 };
 
 // ─── BOTTOM NAV ───────────────────────────────────────────────
-const BottomNav = ({user,navigate,active}) => {
+const BottomNav = ({user,navigate,active,unreadCount=0}) => {
   const tabs = TABS[user.role] || TABS.bureau;
 
   return (
@@ -349,6 +349,7 @@ const BottomNav = ({user,navigate,active}) => {
       scrollbarWidth:'none',msOverflowStyle:'none'}}>
       {tabs.map(tab => {
         const isActive = active===tab.id || (active===''&&tab.id==='fil');
+        const showBadge = tab.id==='messages' && unreadCount>0 && !isActive;
         return (
           <button key={tab.id} onClick={()=>navigate(tab.url)}
             style={{minWidth:58,padding:'8px 4px 7px',border:'none',
@@ -361,8 +362,16 @@ const BottomNav = ({user,navigate,active}) => {
             <span style={{
               color:isActive?getC().primary:getC().text3,
               opacity:isActive?1:.45,
-              display:'flex',alignItems:'center',justifyContent:'center'}}>
+              display:'flex',alignItems:'center',justifyContent:'center',
+              position:'relative'}}>
               {NAV_ICONS[tab.id]}
+              {showBadge&&<div style={{position:'absolute',top:-4,right:-6,
+                width:16,height:16,borderRadius:8,background:'#E86C6C',
+                color:'white',fontSize:9,fontWeight:700,
+                display:'flex',alignItems:'center',justifyContent:'center',
+                border:'1.5px solid '+getC().bg}}>
+                {unreadCount>9?'9+':unreadCount}
+              </div>}
             </span>
             <span style={{fontSize:9,fontWeight:isActive?700:400,
               color:isActive?getC().primary:getC().text3}}>{LABEL[tab.id]||tab.id}</span>
@@ -420,6 +429,25 @@ const ScreenLogin = ({onLogin}) => {
       if(d.token){
         localStorage.setItem('token', d.token);
         localStorage.setItem('user', JSON.stringify(d.user));
+        // Auto-enregistrer push subscription si permission déjà accordée
+        if('Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(async reg => {
+            try {
+              const vapidKey = 'BNSQIjGGELW6UAg0K1bkGLRgkWf0xSn9pocHSAwrtMauehwBVm-v1fM3TE_QRoQVlBmq15FGbqMP3ZNmH7ZSjZc';
+              const padding = '='.repeat((4 - vapidKey.length % 4) % 4);
+              const base64 = (vapidKey + padding).replace(/-/g, '+').replace(/_/g, '/');
+              const rawData = window.atob(base64);
+              const outputArray = new Uint8Array(rawData.length);
+              for(let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+              const sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:outputArray});
+              await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe', {
+                method:'POST',
+                headers:{'Content-Type':'application/json','Authorization':'Bearer '+d.token},
+                body: JSON.stringify({subscription: JSON.parse(JSON.stringify(sub)), userId: d.user?.id||null})
+              });
+            } catch(e) { console.log('Push auto-register:', e.message); }
+          }).catch(()=>{});
+        }
         onLogin({
           id: d.user.id,
           name: d.user.firstName+' '+d.user.lastName,
@@ -1229,19 +1257,40 @@ const ScreenMessages = () => {
   const [contactSearch, setContactSearch] = useState('');
 
   useEffect(()=>{
-    const tk = localStorage.getItem('token');
-    const me = JSON.parse(localStorage.getItem('user')||'{}');
-    fetch('https://backend-cleanit-erp.vercel.app/users/online',{headers:{'Authorization':'Bearer '+tk}})
-      .then(r=>r.json()).then(users=>{
-        if(!Array.isArray(users)) return;
+    const fetchOnline = () => {
+      const tk = localStorage.getItem('token');
+      const me = JSON.parse(localStorage.getItem('user')||'{}');
+      fetch('https://backend-cleanit-erp.vercel.app/users/online',{headers:{'Authorization':'Bearer '+tk}})
+        .then(r=>r.json()).then(users=>{
+          if(!Array.isArray(users)) return;
+          setContacts(users.filter(u=>u.id!==me.id).map(u=>({
+            id:u.id, name:(u.firstName||'')+(u.lastName?' '+u.lastName:''),
+            role:u.role==='project_manager'?'Project Manager':u.role==='hr'?'RH Manager':u.role==='admin'?'Administrateur':'Technicien',
+            status:u.status||'offline', avatar:((u.firstName||'')[0]||'?')+((u.lastName||'')[0]||''),
+          })));
+        }).catch(()=>{});
+    };
+    fetchOnline();
+    const iv = setInterval(fetchOnline, 30000);
+    return () => clearInterval(iv);
+  },[]);
+
+
+  // Charger la liste des conversations avec les derniers messages
+  const loadConvList = async () => {
+    try {
+      const tk = localStorage.getItem('token');
+      const me = JSON.parse(localStorage.getItem('user')||'{}');
+      const users = await fetch(BASE+'/users/online',{headers:{'Authorization':'Bearer '+tk}}).then(r=>r.json()).catch(()=>[]);
+      if(Array.isArray(users)) {
         setContacts(users.filter(u=>u.id!==me.id).map(u=>({
           id:u.id, name:(u.firstName||'')+(u.lastName?' '+u.lastName:''),
           role:u.role==='project_manager'?'Project Manager':u.role==='hr'?'RH Manager':u.role==='admin'?'Administrateur':'Technicien',
           status:u.status||'offline', avatar:((u.firstName||'')[0]||'?')+((u.lastName||'')[0]||''),
         })));
-      }).catch(()=>{});
-  },[]);
-
+      }
+    } catch(e){}
+  };
 
   const openConvFn = async(conv) => {
     setOpenConv(conv);
@@ -1254,6 +1303,7 @@ const ScreenMessages = () => {
       setConvId(r.id);
       loadMsgs(r.id);
       if(pollRef.current) clearInterval(pollRef.current);
+      // Polling messages toutes les 3s quand conversation ouverte
       pollRef.current = setInterval(()=>loadMsgs(r.id), 3000);
     } catch(e){}
   };
@@ -1967,55 +2017,168 @@ const ScreenDispatch = ({user}) => {
   );
 };
 const ScreenApprovals = ({user}) => {
+  const C = getC();
   const [tab,setTab] = useState('pending');
-  const [loadingApprovals, setLoadingApprovals] = useState(false);
-
-  // Charger depuis la DB
-  useEffect(() => {
-    setLoadingApprovals(true);
-    const token = localStorage.getItem('token');
-    fetch('https://backend-cleanit-erp.vercel.app/approvals', {
-      headers:{'Authorization':'Bearer '+token}
-    }).then(r=>r.json()).then(data => {
-      if(Array.isArray(data) && data.length > 0) {
-        const formatted = data.map(a=>({
-          id:a.id, userId:String(a.user_id), name:a.user_name,
-          av:(a.user_name||'U').split(' ').map(n=>n[0]).join('').slice(0,2),
-          color:'#0066CC', type:a.type, label:a.label, detail:a.detail,
-          level:a.n1_done&&a.n2_done?3:a.n1_done?2:1,
-          n1done:a.n1_done, n2done:a.n2_done, status:a.status
-        }));
-        setItems(formatted);
-      }
-    }).catch(()=>{}).finally(()=>setLoadingApprovals(false));
-  }, []);
-
-  // Filtrer selon le role
-  const getVisibleItems = () => {
-    if(user.role==='dg') return APPROVALS.filter(a=>a.n1done&&a.n2done); // DG voit N1+N2 valides
-    if(user.role==='rh') return APPROVALS.filter(a=>a.type==='conge'&&!a.n1done); // RH voit conges N1
-    if(user.role==='admin') return APPROVALS; // Admin voit tout
-    if(user.role==='pm'||user.role==='bureau') return APPROVALS.filter(a=>a.n1done&&!a.n2done); // N2
-    return APPROVALS.filter(a=>a.userId===user.id); // Autres voient les leurs
-  };
-  const [items,setItems] = useState(getVisibleItems());
+  const [items,setItems] = useState([]);
+  const [loadingApprovals, setLoadingApprovals] = useState(true);
+  const [actionLoading, setActionLoading] = useState(null);
+  const [showNewRequest, setShowNewRequest] = useState(false);
+  const [newReqForm, setNewReqForm] = useState({type:'payment_request',label:'',detail:'',montant:'',duid:'',beneficiaire:''});
+  const [submitting, setSubmitting] = useState(false);
   const {toast,toastMsg,toastShow,toastType} = useToast();
 
-  const typeColors = {conge:'#F5F7FA',frais:C.primaryL,materiel:'#F5F7FA',paiement:'#FFF8E6'};
-  const typeTextColors = {conge:C.text2,frais:C.primary,materiel:C.text2,paiement:C.warning};
+  const BASE = 'https://backend-cleanit-erp.vercel.app';
+  const isApprover = ['admin','project_manager','hr','dg','bureau'].includes(user?.role);
+  const isPM = ['project_manager','pm'].includes(user?.role);
+
+  const loadApprovals = () => {
+    setLoadingApprovals(true);
+    const token = localStorage.getItem('token');
+    fetch(BASE+'/approvals', {headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(data => {
+        if(Array.isArray(data)) {
+          const formatted = data.map(a=>({
+            id:a.id, userId:String(a.user_id), name:a.user_name||'Inconnu',
+            av:(a.user_name||'U').split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),
+            color:'#0066CC', type:a.type, label:a.label||a.type, detail:a.detail||'',
+            montant:a.amount||0, duid:a.duid||'', beneficiaire:a.beneficiary_name||'',
+            level:a.n1_done&&a.n2_done?3:a.n1_done?2:1,
+            n1done:a.n1_done, n2done:a.n2_done, status:a.status||'pending',
+            createdAt:a.created_at
+          }));
+          setItems(formatted);
+        }
+      }).catch(()=>{}).finally(()=>setLoadingApprovals(false));
+  };
+
+  useEffect(()=>{ loadApprovals(); }, []);
+
+  const doAction = async (id, action) => {
+    setActionLoading(id+'_'+action);
+    const token = localStorage.getItem('token');
+    try {
+      const r = await fetch(BASE+'/approvals/'+id, {
+        method:'PUT',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body: JSON.stringify({action})
+      });
+      const data = await r.json();
+      if(data.id || data.message) {
+        toast(action==='approve'?'✓ Validé avec succès':'✗ Rejeté');
+        loadApprovals();
+      } else { toast('Erreur — '+JSON.stringify(data)); }
+    } catch(e) { toast('Erreur réseau'); }
+    setActionLoading(null);
+  };
+
+  const submitRequest = async () => {
+    if(!newReqForm.label.trim()) { toast('Le titre est obligatoire'); return; }
+    setSubmitting(true);
+    const token = localStorage.getItem('token');
+    try {
+      const r = await fetch(BASE+'/approvals', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+        body: JSON.stringify({
+          type: newReqForm.type,
+          label: newReqForm.label,
+          detail: newReqForm.detail,
+          amount: Number(newReqForm.montant)||0,
+          duid: newReqForm.duid,
+          siteCode: newReqForm.duid,         // aussi en siteCode comme le backend attend
+          beneficiaryName: newReqForm.beneficiaire,  // camelCase comme le backend attend
+          justification: newReqForm.detail,
+        })
+      });
+      const data = await r.json();
+      if(data.id || r.ok) {
+        toast('✓ Demande soumise avec succès');
+        setShowNewRequest(false);
+        setNewReqForm({type:'payment_request',label:'',detail:'',montant:'',duid:'',beneficiaire:''});
+        loadApprovals();
+      } else { toast('Erreur: '+(data.error||'Vérifiez les champs')); }
+    } catch(e) { toast('Erreur réseau'); }
+    setSubmitting(false);
+  };
+
+  const pendingItems = items.filter(a=>a.status==='pending');
+  const approvedItems = items.filter(a=>a.status==='approved');
+  const rejectedItems = items.filter(a=>a.status==='rejected');
+
+  const typeColors = {conge:'#F5F7FA',frais:C.primaryL,materiel:'#F5F7FA',paiement:'#FFF8E6',payment_request:'#FFF8E6',leave_request:'#F5F7FA',purchase_request:'#E8F3FF'};
+  const typeTextColors = {conge:C.text2,frais:C.primary,materiel:C.text2,paiement:C.warning,payment_request:C.warning,leave_request:C.text2,purchase_request:C.primary};
 
   const ChainStep = ({label,done,active}) => (
     <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,zIndex:2}}>
       <div style={{width:26,height:26,borderRadius:'50%',
         background:done?C.successL:active?C.warningL:C.bg2,
         border:'2px solid '+(done?C.success:active?C.warning:C.text4),
-        display:'flex',alignItems:'center',justifyContent:'center',fontSize:12}}>
-        {done?'✓':active?'⏱':''}
+        display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700}}>
+        {done?'✓':active?'·':''}
       </div>
-      <span style={{fontSize:8,fontWeight:600,
-        color:done?C.success:active?C.warning:C.text4}}>
+      <span style={{fontSize:8,fontWeight:600,color:done?C.success:active?C.warning:C.text4}}>
         {label}{done?' ✓':''}
       </span>
+    </div>
+  );
+
+  const ApprovalCard = ({item}) => {
+    const n1Active = !item.n1done;
+    const n2Active = item.n1done && !item.n2done;
+    const dgActive = item.n1done && item.n2done;
+    const width = item.n1done&&item.n2done?'85%':item.n1done?'55%':'20%';
+    const actId = actionLoading?.startsWith(item.id);
+    return (
+      <div style={{padding:'12px 14px',borderBottom:'0.5px solid '+C.border}}>
+        <div style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:10}}>
+          <AvatarCircle av={item.av} color={item.color} size={36}/>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.text}}>{item.name}</div>
+            <div style={{fontSize:10,color:C.text3,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.detail||item.label}</div>
+            {item.montant>0&&<div style={{fontSize:10,fontWeight:700,color:'#E76500',marginTop:2}}>{new Intl.NumberFormat('fr-FR').format(item.montant)} FCFA</div>}
+          </div>
+          <div style={{background:typeColors[item.type]||C.bg2,color:typeTextColors[item.type]||C.text2,padding:'3px 8px',borderRadius:8,fontSize:9,fontWeight:700,flexShrink:0}}>{item.label}</div>
+        </div>
+        <div style={{position:'relative',marginBottom:10,padding:'0 4px'}}>
+          <div style={{position:'absolute',top:13,left:18,right:18,height:2,background:C.border,zIndex:0}}/>
+          <div style={{position:'absolute',top:13,left:18,width,height:2,background:C.success,zIndex:1,transition:'width .5s'}}/>
+          <div style={{display:'flex',justifyContent:'space-between',position:'relative',zIndex:2}}>
+            <ChainStep label="Soumis" done={true} active={false}/>
+            <ChainStep label="N1" done={item.n1done} active={n1Active}/>
+            <ChainStep label="N2" done={item.n2done} active={n2Active}/>
+            <ChainStep label="Final" done={false} active={dgActive}/>
+          </div>
+        </div>
+        {isApprover && (
+          <div style={{display:'flex',gap:7}}>
+            <button disabled={actId} onClick={()=>doAction(item.id,'reject')}
+              style={{flex:1,padding:8,border:'0.5px solid '+C.dangerL,background:C.bg,borderRadius:8,fontSize:11,color:C.danger,fontWeight:700,cursor:'pointer',fontFamily:FONT,opacity:actId?0.5:1}}>
+              {actionLoading===item.id+'_reject'?'...':'✕ Rejeter'}
+            </button>
+            <button disabled={actId} onClick={()=>doAction(item.id,'approve')}
+              style={{flex:2,padding:8,border:'none',background:dgActive?C.primary:C.success,borderRadius:8,fontSize:11,color:'white',fontWeight:700,cursor:'pointer',fontFamily:FONT,display:'flex',alignItems:'center',justifyContent:'center',gap:4,opacity:actId?0.5:1}}>
+              {actionLoading===item.id+'_approve'?'...':(dgActive?'Approuver final':'✓ Valider')}
+            </button>
+          </div>
+        )}
+        {!isApprover && (
+          <div style={{fontSize:10,color:C.text3,textAlign:'center',padding:'6px 0',background:C.bg2,borderRadius:8}}>
+            En attente de validation — Niveau {item.level}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const HistoryCard = ({item, type}) => (
+    <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:type==='approved'?C.successL:C.dangerL,borderRadius:10,border:'0.5px solid '+(type==='approved'?'#C0DD97':'#F7C1C1')}}>
+      <AvatarCircle av={item.av} color={item.color} size={34}/>
+      <div style={{flex:1}}>
+        <div style={{fontSize:12,fontWeight:700,color:C.text}}>{item.name}</div>
+        <div style={{fontSize:10,color:type==='approved'?'#3B6D11':C.danger}}>{item.label} · {item.createdAt?new Date(item.createdAt).toLocaleDateString('fr-FR'):''}</div>
+        {item.montant>0&&<div style={{fontSize:10,color:C.text2}}>{new Intl.NumberFormat('fr-FR').format(item.montant)} FCFA</div>}
+      </div>
+      <span style={{fontSize:18}}>{type==='approved'?'✅':'❌'}</span>
     </div>
   );
 
@@ -2023,133 +2186,121 @@ const ScreenApprovals = ({user}) => {
     <div style={{flex:1,overflowY:'auto',background:C.bg,paddingBottom:80}}>
       <Toast msg={toastMsg} show={toastShow} type={toastType}/>
       <Header title={t('approvals')} right={
-        <div style={{background:C.dangerL,padding:'4px 10px',borderRadius:20,
-          display:'flex',alignItems:'center',gap:4}}>
-          <div style={{width:6,height:6,borderRadius:'50%',background:C.pink}}/>
-          <span style={{fontSize:10,color:C.danger,fontWeight:700}}>
-            {items.length} en attente
-          </span>
-        </div>
+        (isPM||isApprover) ? (
+          <button onClick={()=>setShowNewRequest(true)}
+            style={{background:C.primary,color:'white',border:'none',borderRadius:8,padding:'5px 11px',fontSize:11,fontWeight:700,cursor:'pointer',fontFamily:FONT}}>
+            + Demande
+          </button>
+        ) : (
+          <div style={{background:C.dangerL,padding:'4px 10px',borderRadius:20,display:'flex',alignItems:'center',gap:4}}>
+            <div style={{width:6,height:6,borderRadius:'50%',background:C.pink}}/>
+            <span style={{fontSize:10,color:C.danger,fontWeight:700}}>{pendingItems.length} en attente</span>
+          </div>
+        )
       }/>
+
+      {/* Nouvelle demande modal */}
+      {showNewRequest && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'flex-end'}}>
+          <div style={{background:C.bg,borderRadius:'18px 18px 0 0',padding:20,width:'100%',maxHeight:'85vh',overflowY:'auto'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+              <div style={{fontSize:15,fontWeight:700,color:C.text}}>Nouvelle demande</div>
+              <button onClick={()=>setShowNewRequest(false)} style={{border:'none',background:C.bg2,color:C.text2,borderRadius:8,width:30,height:30,cursor:'pointer',fontSize:16,fontFamily:FONT}}>×</button>
+            </div>
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              <div>
+                <label style={{fontSize:11,color:C.text2,fontWeight:600,display:'block',marginBottom:4}}>Type de demande</label>
+                <select value={newReqForm.type} onChange={e=>setNewReqForm(p=>({...p,type:e.target.value}))}
+                  style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid '+C.border,fontSize:13,background:C.bg,color:C.text,fontFamily:FONT}}>
+                  <option value="payment_request">Demande de paiement</option>
+                  <option value="leave_request">Demande de congé</option>
+                  <option value="purchase_request">Demande d'achat</option>
+                  <option value="advance_request">Avance sur salaire</option>
+                  <option value="expense_report">Note de frais</option>
+                </select>
+              </div>
+              <div>
+                <label style={{fontSize:11,color:C.text2,fontWeight:600,display:'block',marginBottom:4}}>Titre / Objet *</label>
+                <input value={newReqForm.label} onChange={e=>setNewReqForm(p=>({...p,label:e.target.value}))}
+                  placeholder="Ex: Paiement matériaux site DLA-001"
+                  style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid '+C.border,fontSize:13,background:C.bg,color:C.text,fontFamily:FONT,boxSizing:'border-box'}}/>
+              </div>
+              <div>
+                <label style={{fontSize:11,color:C.text2,fontWeight:600,display:'block',marginBottom:4}}>Détails / Justification</label>
+                <textarea value={newReqForm.detail} onChange={e=>setNewReqForm(p=>({...p,detail:e.target.value}))}
+                  placeholder="Description de la demande..."
+                  rows={3}
+                  style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid '+C.border,fontSize:13,background:C.bg,color:C.text,fontFamily:FONT,boxSizing:'border-box',resize:'none'}}/>
+              </div>
+              {['payment_request','purchase_request','advance_request','expense_report'].includes(newReqForm.type) && (
+                <div>
+                  <label style={{fontSize:11,color:C.text2,fontWeight:600,display:'block',marginBottom:4}}>Montant (FCFA)</label>
+                  <input type="number" value={newReqForm.montant} onChange={e=>setNewReqForm(p=>({...p,montant:e.target.value}))}
+                    placeholder="Ex: 150000"
+                    style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid '+C.border,fontSize:13,background:C.bg,color:C.text,fontFamily:FONT,boxSizing:'border-box'}}/>
+                </div>
+              )}
+              <div>
+                <label style={{fontSize:11,color:C.text2,fontWeight:600,display:'block',marginBottom:4}}>DUID (identifiant site)</label>
+                <input value={newReqForm.duid} onChange={e=>setNewReqForm(p=>({...p,duid:e.target.value}))}
+                  placeholder="Ex: DLA-001-A"
+                  style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid '+C.border,fontSize:13,background:C.bg,color:C.text,fontFamily:FONT,boxSizing:'border-box'}}/>
+              </div>
+              {['payment_request','purchase_request'].includes(newReqForm.type) && (
+                <div>
+                  <label style={{fontSize:11,color:C.text2,fontWeight:600,display:'block',marginBottom:4}}>Bénéficiaire / Fournisseur</label>
+                  <input value={newReqForm.beneficiaire} onChange={e=>setNewReqForm(p=>({...p,beneficiaire:e.target.value}))}
+                    placeholder="Ex: MTN Cameroun"
+                    style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid '+C.border,fontSize:13,background:C.bg,color:C.text,fontFamily:FONT,boxSizing:'border-box'}}/>
+                </div>
+              )}
+              <button disabled={submitting} onClick={submitRequest}
+                style={{padding:'13px',background:C.primary,color:'white',border:'none',borderRadius:12,fontSize:14,fontWeight:700,cursor:'pointer',fontFamily:FONT,marginTop:4,opacity:submitting?0.6:1}}>
+                {submitting?'Envoi en cours...':'Soumettre la demande'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{display:'flex',borderBottom:'1px solid '+C.border}}>
         {[['pending',t('waiting')],['approved',t('approved')],['refused',t('refused')]].map(([id,lbl])=>(
           <button key={id} onClick={()=>setTab(id)}
-            style={{flex:1,padding:'9px 4px',border:'none',background:C.bg,
-              fontSize:10,fontWeight:tab===id?700:500,cursor:'pointer',fontFamily:FONT,
-              color:tab===id?C.primary:C.text3,
-              borderBottom:tab===id?'2px solid '+C.primary:'2px solid transparent'}}>
-            {lbl}
+            style={{flex:1,padding:'9px 4px',border:'none',background:C.bg,fontSize:10,fontWeight:tab===id?700:500,cursor:'pointer',fontFamily:FONT,color:tab===id?C.primary:C.text3,borderBottom:tab===id?'2px solid '+C.primary:'2px solid transparent'}}>
+            {lbl} {id==='pending'&&pendingItems.length>0?`(${pendingItems.length})`:''}
           </button>
         ))}
       </div>
 
-      {tab==='pending' && items.map(item=>{
-        const n1Active = !item.n1done;
-        const n2Active = item.n1done && !item.n2done;
-        const dgActive = item.n1done && item.n2done;
-        const width = item.n1done&&item.n2done?'85%':item.n1done?'55%':'20%';
-
-        return (
-          <div key={item.id} style={{padding:'12px 14px',borderBottom:'0.5px solid '+C.border}}>
-            <div style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:10}}>
-              <AvatarCircle av={item.av} color={item.color} size={36}/>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:700,color:C.text}}>{item.name}</div>
-                <div style={{fontSize:10,color:C.text3}}>{item.detail}</div>
-              </div>
-              <div style={{background:typeColors[item.type]||C.bg2,
-                color:typeTextColors[item.type]||C.text2,
-                padding:'3px 8px',borderRadius:8,fontSize:9,fontWeight:700,flexShrink:0}}>
-                {item.label}
-              </div>
-            </div>
-
-            <div style={{position:'relative',marginBottom:10,padding:'0 4px'}}>
-              <div style={{position:'absolute',top:13,left:18,right:18,
-                height:2,background:C.border,zIndex:0}}/>
-              <div style={{position:'absolute',top:13,left:18,width,
-                height:2,background:C.success,zIndex:1,transition:'width .5s'}}/>
-              <div style={{display:'flex',justifyContent:'space-between',position:'relative',zIndex:2}}>
-                <ChainStep label="Soumis" done={true} active={false}/>
-                <ChainStep label={item.n1||'N1'} done={item.n1done} active={n1Active}/>
-                <ChainStep label={item.n2||'N2'} done={item.n2done} active={n2Active}/>
-                <ChainStep label="DG" done={false} active={dgActive}/>
-              </div>
-            </div>
-
-            <div style={{borderRadius:8,padding:'7px 10px',marginBottom:10,
-              background:dgActive?C.warningL:n2Active?C.successL:C.warningL,
-              borderLeft:'3px solid '+(dgActive?C.warning:n2Active?C.success:C.warning),
-              fontSize:10,color:dgActive?'#92400E':n2Active?'#3B6D11':'#92400E',
-              display:'flex',alignItems:'center',gap:5}}>
-              {dgActive?'👑 '+t('final_decision'):
-               n2Active?'✓ '+t('n1_validated')+' — '+t('your_validation')+' (N2)':
-               '⏱ '+t('your_validation')+' ('+item.n1+')'}
-            </div>
-
-            <div style={{display:'flex',gap:7}}>
-              <button onClick={()=>toast('Rejete')}
-                style={{flex:1,padding:8,border:'0.5px solid '+C.dangerL,
-                  background:C.bg,borderRadius:8,fontSize:11,color:C.danger,
-                  fontWeight:700,cursor:'pointer',fontFamily:FONT}}>
-                {t('reject')}
-              </button>
-              <button onClick={()=>toast('Modifie')}
-                style={{flex:1,padding:8,border:'0.5px solid '+C.warningL,
-                  background:C.bg,borderRadius:8,fontSize:11,color:C.warning,
-                  fontWeight:700,cursor:'pointer',fontFamily:FONT}}>
-                {t('modify')}
-              </button>
-              <button onClick={()=>{
-                setItems(prev=>prev.map(i=>i.id===item.id?
-                  {...i,n1done:i.n1done?i.n1done:true,
-                   n2done:i.n1done&&!i.n2done?true:i.n2done}:i));
-                toast('Valide ✓');
-              }} style={{flex:2,padding:8,border:'none',
-                background:dgActive?C.primary:C.success,borderRadius:8,
-                fontSize:11,color:'white',fontWeight:700,cursor:'pointer',fontFamily:FONT,
-                display:'flex',alignItems:'center',justifyContent:'center',gap:4}}>
-                {dgActive?'👑 '+t('approve'):'✓ '+t('validate')}
-              </button>
-            </div>
-          </div>
-        );
-      })}
-
-      {tab==='approved' && (
-        <div style={{padding:14,display:'flex',flexDirection:'column',gap:8}}>
-          {[{av:'MK',color:'#0066CC',name:'Marie Kamga',detail:'Note de frais approuvee · 25 mai'},
-            {av:'TN',color:'#EA580C',name:'Thomas Ngono',detail:'Conge approuve · 15 mai'}].map((item,i)=>(
-            <div key={i} style={{display:'flex',alignItems:'center',gap:10,
-              padding:'10px 12px',background:C.successL,borderRadius:10,
-              border:'0.5px solid #C0DD97'}}>
-              <AvatarCircle av={item.av} color={item.color} size={34}/>
-              <div style={{flex:1}}>
-                <div style={{fontSize:12,fontWeight:700,color:C.text}}>{item.name}</div>
-                <div style={{fontSize:10,color:'#3B6D11'}}>{item.detail}</div>
-              </div>
-              <span style={{fontSize:20}}>✅</span>
-            </div>
-          ))}
+      {loadingApprovals && (
+        <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:40}}>
+          <div style={{width:32,height:32,border:'3px solid '+C.primaryL,borderTopColor:C.primary,borderRadius:'50%',animation:'spin .8s linear infinite'}}/>
         </div>
       )}
 
-      {tab==='refused' && (
-        <div style={{padding:14}}>
-          <div style={{display:'flex',gap:10,padding:'10px 12px',
-            background:C.dangerL,borderRadius:10,border:'0.5px solid #F7C1C1'}}>
-            <AvatarCircle av="AM" color={C.danger} size={34}/>
-            <div style={{flex:1}}>
-              <div style={{fontSize:12,fontWeight:700,color:C.text}}>Ali Moussa</div>
-              <div style={{fontSize:10,color:C.danger,marginBottom:4}}>Conge refuse par DG · 20 mai</div>
-              <div style={{background:C.bg,borderRadius:6,padding:'5px 8px',
-                fontSize:10,color:C.text2,fontStyle:'italic'}}>
-                Motif: Mission GAR-001 en cours
-              </div>
+      {!loadingApprovals && tab==='pending' && (
+        pendingItems.length===0
+          ? <div style={{padding:40,textAlign:'center',color:C.text3}}>
+              <div style={{fontSize:32,marginBottom:8}}>✓</div>
+              <div style={{fontSize:13,fontWeight:600}}>Aucune demande en attente</div>
             </div>
-            <span style={{fontSize:20}}>❌</span>
-          </div>
-        </div>
+          : pendingItems.map(item=><ApprovalCard key={item.id} item={item}/>)
+      )}
+
+      {!loadingApprovals && tab==='approved' && (
+        approvedItems.length===0
+          ? <div style={{padding:40,textAlign:'center',color:C.text3,fontSize:13}}>Aucune demande approuvée</div>
+          : <div style={{padding:14,display:'flex',flexDirection:'column',gap:8}}>
+              {approvedItems.map(item=><HistoryCard key={item.id} item={item} type="approved"/>)}
+            </div>
+      )}
+
+      {!loadingApprovals && tab==='refused' && (
+        rejectedItems.length===0
+          ? <div style={{padding:40,textAlign:'center',color:C.text3,fontSize:13}}>Aucune demande rejetée</div>
+          : <div style={{padding:14,display:'flex',flexDirection:'column',gap:8}}>
+              {rejectedItems.map(item=><HistoryCard key={item.id} item={item} type="refused"/>)}
+            </div>
       )}
     </div>
   );
@@ -2331,43 +2482,47 @@ const ScreenProfil = ({user,onLogout}) => {
             </div>
             <div onClick={async()=>{
               if(!notifs){
-                if('Notification' in window){
+                if(!('Notification' in window)){ alert('Notifications non supportées sur ce navigateur'); return; }
+                try {
                   const perm = await Notification.requestPermission();
-                  if(perm==='granted'){
-                    try {
-                      if('serviceWorker' in navigator){
-                        const reg = await navigator.serviceWorker.ready;
-                        // Convertir la clé VAPID en Uint8Array (requis par Chrome)
-                        const vapidKey = 'BNSQIjGGELW6UAg0K1bkGLRgkWf0xSn9pocHSAwrtMauehwBVm-v1fM3TE_QRoQVlBmq15FGbqMP3ZNmH7ZSjZc';
-                        const padding = '='.repeat((4 - vapidKey.length % 4) % 4);
-                        const base64 = (vapidKey + padding).replace(/-/g, '+').replace(/_/g, '/');
-                        const rawData = window.atob(base64);
-                        const outputArray = new Uint8Array(rawData.length);
-                        for(let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
-                        const sub = await reg.pushManager.subscribe({
-                          userVisibleOnly: true,
-                          applicationServerKey: outputArray
-                        });
-                        const token = localStorage.getItem('token') || localStorage.getItem('token') || localStorage.getItem('cit_mobile_token');
-                        const resp = await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe',{
-                          method:'POST',
-                          headers:{'Content-Type':'application/json','Authorization':'Bearer '+(token||'')},
-                          body:JSON.stringify({
-                            subscription:JSON.parse(JSON.stringify(sub)),
-                            userId: JSON.parse(localStorage.getItem('cit_mobile_user')||'{}')?.id || null
-                          })
-                        }).then(r=>r.json()).catch(e=>({error:e.message}));
-                        if(resp.ok) {
-                          setNotifs(true);
-                          alert('Notifications activées !');
-                        } else {
-                          alert('Erreur: '+JSON.stringify(resp));
-                        }
-                      }
-                    } catch(e){ alert('Erreur: '+e.message); }
-                  } else { alert('Permission refusée par Chrome'); }
+                  if(perm!=='granted'){ alert('Permission refusée — activez les notifications dans les paramètres Chrome'); return; }
+                  if(!('serviceWorker' in navigator)){ alert('Service Worker non disponible'); return; }
+                  const reg = await navigator.serviceWorker.ready;
+                  // Clé VAPID en Uint8Array
+                  const vapidKey = 'BNSQIjGGELW6UAg0K1bkGLRgkWf0xSn9pocHSAwrtMauehwBVm-v1fM3TE_QRoQVlBmq15FGbqMP3ZNmH7ZSjZc';
+                  const padding = '='.repeat((4-vapidKey.length%4)%4);
+                  const base64 = (vapidKey+padding).replace(/-/g,'+').replace(/_/g,'/');
+                  const rawData = window.atob(base64);
+                  const key = new Uint8Array(rawData.length);
+                  for(let i=0;i<rawData.length;++i) key[i]=rawData.charCodeAt(i);
+                  // S'abonner aux push
+                  const sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:key});
+                  const token = localStorage.getItem('token');
+                  if(!token){ alert('Non connecté — reconnectez-vous'); return; }
+                  // Envoyer au backend
+                  const r = await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe',{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+                    body:JSON.stringify({subscription: sub.toJSON()})
+                  });
+                  const data = await r.json();
+                  if(r.ok && data.ok){
+                    setNotifs(true);
+                    // Toast de confirmation
+                    new Notification('CleanIT ERP', {body:'Notifications activées ✓', icon:'/icon-192.png'});
+                  } else {
+                    alert('Erreur serveur: '+(data.message||data.detail||JSON.stringify(data)));
+                  }
+                } catch(e){ alert('Erreur: '+e.message); }
+              } else {
+                setNotifs(false);
+                // Désabonner
+                if('serviceWorker' in navigator){
+                  const reg = await navigator.serviceWorker.ready;
+                  const sub = await reg.pushManager.getSubscription();
+                  if(sub) await sub.unsubscribe().catch(()=>{});
                 }
-              } else { setNotifs(false); }
+              }
             }}
               style={{width:38,height:22,borderRadius:11,cursor:'pointer',
                 background:notifs?C.success:C.border,position:'relative',
@@ -2433,10 +2588,11 @@ const ScreenProfil = ({user,onLogout}) => {
                   });
                   // Envoyer subscription au backend
                   const token = localStorage.getItem('token');
+                  const pushUser = JSON.parse(localStorage.getItem('user')||localStorage.getItem('cit_mobile_user')||'{}');
                   await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
-                    body: JSON.stringify({ subscription: sub })
+                    body: JSON.stringify({ subscription: sub, userId: pushUser.id||null })
                   });
                   localStorage.setItem('push_sub', JSON.stringify(sub));
                   toast('Notifications activées !', 'success');
@@ -2523,6 +2679,14 @@ export default function MobileApp() {
 
   useEffect(()=>{
     const id = setInterval(()=>setNow(new Date()),1000);
+    // Ping toutes les 2 minutes pour maintenir last_seen actif
+    const pingId = setInterval(()=>{
+      const tk = localStorage.getItem('token');
+      if(tk) fetch('https://backend-cleanit-erp.vercel.app/ping',{method:'POST',headers:{'Authorization':'Bearer '+tk}}).catch(()=>{});
+    }, 120000);
+    // Ping immédiat au chargement
+    const tk0 = localStorage.getItem('token');
+    if(tk0) fetch('https://backend-cleanit-erp.vercel.app/ping',{method:'POST',headers:{'Authorization':'Bearer '+tk0}}).catch(()=>{});
     return()=>clearInterval(id);
   },[]);
 
@@ -2577,6 +2741,26 @@ export default function MobileApp() {
   }, []);
   const logout = () => {setUser(null);localStorage.removeItem('cit_mobile_user');};
 
+  // Hooks déclarés avant tout return conditionnel
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(()=>{
+    if(!user) return;
+    const fetchUnread = () => {
+      const tk = localStorage.getItem('token');
+      if(!tk) return;
+      fetch('https://backend-cleanit-erp.vercel.app/conversations/list',{headers:{'Authorization':'Bearer '+tk}})
+        .then(r=>r.json())
+        .then(data=>{ if(Array.isArray(data)) setUnreadCount(data.reduce((s,c)=>s+(parseInt(c.unread_count)||0),0)); })
+        .catch(()=>{});
+    };
+    fetchUnread();
+    const iv = setInterval(fetchUnread, 5000);
+    return()=>clearInterval(iv);
+  },[user]);
+
   if(!user) return <ScreenLogin onLogin={login}/>;
 
   const parts = loc.split('/').filter(Boolean);
@@ -2597,11 +2781,29 @@ export default function MobileApp() {
   };
 
   const isCamera = loc.includes('/camera');
+  const tabs = TABS[user.role] || TABS.bureau;
+
+  const handleSwipeStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+  const handleSwipeEnd = (e) => {
+    if(isCamera) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    if(Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy)) return;
+    const currentIdx = tabs.findIndex(t=>t.id===activePage||(activePage===''&&t.id==='fil'));
+    if(dx < 0 && currentIdx < tabs.length-1) navigate(tabs[currentIdx+1].url);
+    if(dx > 0 && currentIdx > 0) navigate(tabs[currentIdx-1].url);
+  };
 
   return (
-    <ErrorBoundary><div style={{minHeight:'100vh',background:C.bg,fontFamily:FONT,
-      maxWidth:430,margin:'0 auto',display:'flex',flexDirection:'column',
-      position:'relative'}}>
+    <ErrorBoundary><div
+      style={{minHeight:'100vh',background:C.bg,fontFamily:FONT,
+        maxWidth:430,margin:'0 auto',display:'flex',flexDirection:'column',
+        position:'relative'}}
+      onTouchStart={handleSwipeStart}
+      onTouchEnd={handleSwipeEnd}>
       <style>{`
         *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
         body{margin:0;overscroll-behavior:none}
@@ -2613,7 +2815,7 @@ export default function MobileApp() {
         .skeleton{animation:pulse 1.5s ease-in-out infinite;background:#E2E8F0;border-radius:6px}
       `}</style>
       {getPage()}
-      {!isCamera && <BottomNav user={user} navigate={navigate} active={activePage}/>}
+      {!isCamera && <BottomNav user={user} navigate={navigate} active={activePage} unreadCount={unreadCount}/>}
     </div></ErrorBoundary>
   );
 }

@@ -163,6 +163,11 @@ export default function App() {
           <Route path="cleanitbooks/analytics" element={<CleanITBooks />} />
           <Route path="cleanitbooks/reports" element={<CleanITBooks />} />
           <Route path="cleanitbooks/time" element={<CleanITBooks />} />
+          <Route path="cleanitbooks/journal" element={<CleanITBooks />} />
+          <Route path="cleanitbooks/balance" element={<CleanITBooks />} />
+          <Route path="cleanitbooks/plan-comptable" element={<CleanITBooks />} />
+          <Route path="cleanitbooks/pl" element={<CleanITBooks />} />
+          <Route path="cleanitbooks/bilan" element={<CleanITBooks />} />
           <Route path="messaging"       element={<Soon title="Messagerie Interne" color="#7c3aed" />} />
           <Route path="provisioning"    element={<Soon title="Provisioning Réseau" color="#4f8ef7" />} />
         </Route>

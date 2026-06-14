@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getUser } from '../utils/api';
 
 const GROQ_API = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY;
@@ -49,6 +50,7 @@ const CHACHA_TOOLS = [
 
 export default function ChaCha() {
   const navigate   = useNavigate();
+  const user = getUser();
   const [open,     setOpen]     = useState(false);
   const [msgs,     setMsgs]     = useState(loadHistory);
   const [input,    setInput]    = useState('');
