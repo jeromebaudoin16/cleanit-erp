@@ -5604,49 +5604,44 @@ const CIB_C = {
 };
 
 const CIBNav = ({active, onTab, navigate}) => {
-  const [hover, setHover] = useState(false);
   return (
-    <div onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} style={{
-      width:hover?200:52, flexShrink:0, background:CIB_C.navy, minHeight:'100vh',
-      display:'flex', flexDirection:'column', position:'fixed', top:0, left:0, bottom:0,
-      overflowY:'auto', overflowX:'hidden', transition:'width .15s ease', zIndex:100,
+    <div style={{
+      background:CIB_C.navy, display:'flex', alignItems:'center', gap:4,
+      padding:'0 16px', height:52, position:'sticky', top:0, zIndex:100, overflowX:'auto',
     }}>
       <div onClick={()=>navigate('/cleanitbooks')} style={{
-        padding:hover?'16px 14px 14px':'16px 0 14px', borderBottom:'1px solid rgba(255,255,255,0.1)',
-        display:'flex', alignItems:'center', gap:8, cursor:'pointer', justifyContent:hover?'flex-start':'center',
+        display:'flex', alignItems:'center', gap:8, cursor:'pointer', flexShrink:0, marginRight:10,
       }}>
         <div style={{width:26,height:26,background:'#2E86C1',borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
           <span style={{color:'white',fontWeight:700,fontSize:9}}>CIB</span>
         </div>
-        {hover && <span style={{color:'white',fontSize:12,fontWeight:600,whiteSpace:'nowrap'}}>CleanIT Books</span>}
+        <span style={{color:'white',fontSize:13,fontWeight:700,whiteSpace:'nowrap'}}>CleanIT Books</span>
       </div>
 
-      <button onClick={()=>onTab('sales')} title="Nouveau" style={{
-        margin:hover?'12px 12px':'12px 8px', display:'flex', alignItems:'center', justifyContent:'center', gap:6,
-        padding:hover?'8px 10px':'8px 0', background:CIB_C.green, border:'none', borderRadius:7,
-        color:'#fff', fontSize:11.5, fontWeight:700, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', overflow:'hidden',
-      }}>
-        <Ico n="plus" s={13} c="#fff"/> {hover && 'Nouveau'}
-      </button>
-
-      <div style={{padding:hover?'4px 8px':'4px 6px', display:'flex', flexDirection:'column', gap:1}}>
+      <div style={{display:'flex',gap:2,flex:1,overflowX:'auto'}}>
         {CIB_TABS.map(t=>(
           <button key={t.id} onClick={()=>onTab(t.id)} title={t.label} style={{
-            display:'flex', alignItems:'center', gap:9, padding:hover?'8px 10px':'9px 0', border:'none', borderRadius:7,
+            display:'flex', alignItems:'center', gap:7, padding:'7px 12px', border:'none', borderRadius:7,
             background:active===t.id?'rgba(255,255,255,0.14)':'transparent',
-            color:active===t.id?'#fff':'rgba(255,255,255,0.6)', justifyContent:hover?'flex-start':'center',
-            fontSize:12, fontWeight:active===t.id?600:400, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', overflow:'hidden',
+            color:active===t.id?'#fff':'rgba(255,255,255,0.6)',
+            fontSize:12, fontWeight:active===t.id?600:400, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap',
           }}>
             <Ico n={t.icon} s={14} c={active===t.id?'#fff':'rgba(255,255,255,0.55)'}/>
-            {hover && t.label}
+            {t.label}
           </button>
         ))}
       </div>
 
-      <div style={{flex:1}}/>
-      <div style={{padding:hover?'10px 12px':'10px 6px',borderTop:'1px solid rgba(255,255,255,0.1)',display:'flex',alignItems:'center',gap:8,justifyContent:hover?'flex-start':'center'}}>
+      <button onClick={()=>onTab('sales')} title="Nouveau" style={{
+        display:'flex', alignItems:'center', justifyContent:'center', gap:6, flexShrink:0,
+        padding:'7px 14px', background:CIB_C.green, border:'none', borderRadius:7,
+        color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap',
+      }}>
+        <Ico n="plus" s={13} c="#fff"/> Nouveau
+      </button>
+
+      <div style={{display:'flex',alignItems:'center',gap:8,flexShrink:0,marginLeft:14,paddingLeft:14,borderLeft:'1px solid rgba(255,255,255,0.1)'}}>
         <div style={{width:26,height:26,borderRadius:'50%',background:'#2E86C1',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontSize:10,fontWeight:600,flexShrink:0}}>JB</div>
-        {hover && <span style={{fontSize:11,color:'rgba(255,255,255,0.7)',whiteSpace:'nowrap'}}>Jérôme Bell</span>}
       </div>
     </div>
   );
@@ -7288,7 +7283,7 @@ export default function CleanITBooks() {
     <div style={{minHeight:'100%',background:CIB_C.bg}}>
       <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
       <CIBNav active={getTabFromLoc()} onTab={handleTab} navigate={navigate}/>
-      <div style={{marginLeft:52}}>{renderContent()}</div>
+      <div>{renderContent()}</div>
     </div>
   );
 }
