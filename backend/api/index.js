@@ -1544,6 +1544,10 @@ pool.query(`CREATE TABLE IF NOT EXISTS bons_commande (
   site_code VARCHAR(50),
   duid VARCHAR(100),
   po_number VARCHAR(100),
+  project_code VARCHAR(100),
+  project_name VARCHAR(200),
+  site_id VARCHAR(100),
+  region VARCHAR(100),
   devise VARCHAR(10) DEFAULT 'FCFA',
   description TEXT,
   notes TEXT,
@@ -1554,6 +1558,11 @@ pool.query(`CREATE TABLE IF NOT EXISTS bons_commande (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 )`).catch(console.error);
+// Ajouter les colonnes manquantes si la table existait déjà avant cette mise à jour
+pool.query('ALTER TABLE bons_commande ADD COLUMN IF NOT EXISTS project_code VARCHAR(100)').catch(()=>{});
+pool.query('ALTER TABLE bons_commande ADD COLUMN IF NOT EXISTS project_name VARCHAR(200)').catch(()=>{});
+pool.query('ALTER TABLE bons_commande ADD COLUMN IF NOT EXISTS site_id VARCHAR(100)').catch(()=>{});
+pool.query('ALTER TABLE bons_commande ADD COLUMN IF NOT EXISTS region VARCHAR(100)').catch(()=>{});
 
 // Colonne last_seen pour statut en ligne
 pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP').catch(()=>{});
@@ -1857,10 +1866,10 @@ app.post('/purchase-orders/import', auth, upload.single('file'), async (req, res
       const ref = po||('BC-'+Date.now().toString().slice(-6));
       const r = await pool.query(
         `INSERT INTO bons_commande 
-         (numero,client,site_code,duid,po_number,description,lignes,montant_total,status,created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,0,'en_cours',$8) 
+         (numero,client,site_code,duid,po_number,project_code,project_name,site_id,region,description,lignes,montant_total,status,created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,0,'en_cours',$12) 
          ON CONFLICT DO NOTHING RETURNING *`,
-        [ref, projectName||'MTN Cameroun', siteCode, siteCode, po, description,
+        [ref, projectName||'MTN Cameroun', siteCode, siteCode, po, projectCode, projectName, siteId, region, description,
          JSON.stringify([{description,requested,billed,due:requested-billed}]),
          req.user.sub]
       ).catch(()=>({rows:[]}));
