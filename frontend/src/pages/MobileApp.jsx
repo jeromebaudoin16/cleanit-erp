@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, Component } from 'react';
 import jsQR from 'jsqr';
+import QRCode from 'qrcode';
 import { AuthAPI, FeedAPI, MissionsAPI } from '../services/api.mobile.js';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useInactivityLogout } from '../hooks/useInactivityLogout';
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null }; }
@@ -59,7 +61,7 @@ const TR = {
     no_account: 'Pas encore de compte ?',
     fil: 'Fil', camera: 'Camera', mission: 'Mission',
     messages: 'Messages', pointer: 'Pointer',
-    equipes: 'Equipes', dispatch: 'Dispatch',
+    equipe: 'Équipe',
     approvals: 'Approvals', analytics: 'Analytics',
     profile: 'Profil',
     publish: 'Publier', sites_actifs: 'Sites actifs',
@@ -106,7 +108,7 @@ const TR = {
     no_account: 'No account yet?',
     fil: 'Feed', camera: 'Camera', mission: 'Mission',
     messages: 'Messages', pointer: 'Check In',
-    equipes: 'Teams', dispatch: 'Dispatch',
+    equipe: 'Team',
     approvals: 'Approvals', analytics: 'Analytics',
     profile: 'Profile',
     publish: 'Post', sites_actifs: 'Active sites',
@@ -269,9 +271,8 @@ const NAV_ICONS = {
   mission: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 000 4h6a2 2 0 000-4M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>,
   messages: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>,
   pointer: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>,
-  equipes: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
+  equipe: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>,
   approvals: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>,
-  dispatch: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
   analytics: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
   profil: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
 };
@@ -289,9 +290,8 @@ const TABS = {
     {id:'camera',url:'/mobile/camera'},
     {id:'messages',url:'/mobile/messages'},
     {id:'pointer',url:'/mobile/pointer'},
-    {id:'equipes',url:'/mobile/equipes'},
+    {id:'equipe',url:'/mobile/equipe'},
     {id:'approvals',url:'/mobile/approvals'},
-    {id:'dispatch',url:'/mobile/dispatch'},
     {id:'profil',url:'/mobile/profil'},
   ],
   pm: [
@@ -299,9 +299,8 @@ const TABS = {
     {id:'camera',url:'/mobile/camera'},
     {id:'messages',url:'/mobile/messages'},
     {id:'pointer',url:'/mobile/pointer'},
-    {id:'equipes',url:'/mobile/equipes'},
+    {id:'equipe',url:'/mobile/equipe'},
     {id:'approvals',url:'/mobile/approvals'},
-    {id:'dispatch',url:'/mobile/dispatch'},
     {id:'profil',url:'/mobile/profil'},
   ],
   rh: [
@@ -316,16 +315,15 @@ const TABS = {
     {id:'messages',url:'/mobile/messages'},
     {id:'approvals',url:'/mobile/approvals'},
     {id:'analytics',url:'/mobile/analytics'},
-    {id:'equipes',url:'/mobile/equipes'},
+    {id:'equipe',url:'/mobile/equipe'},
     {id:'profil',url:'/mobile/profil'},
   ],
   admin: [
     {id:'fil',url:'/mobile'},
     {id:'messages',url:'/mobile/messages'},
     {id:'pointer',url:'/mobile/pointer'},
-    {id:'equipes',url:'/mobile/equipes'},
+    {id:'equipe',url:'/mobile/equipe'},
     {id:'approvals',url:'/mobile/approvals'},
-    {id:'dispatch',url:'/mobile/dispatch'},
     {id:'analytics',url:'/mobile/analytics'},
     {id:'profil',url:'/mobile/profil'},
   ],
@@ -333,8 +331,8 @@ const TABS = {
 
 const LABEL = {
   fil:'Fil',camera:'Camera',mission:'Mission',messages:'Messages',
-  pointer:'Pointer',equipes:'Equipes',approvals:'Approvals',
-  dispatch:'Dispatch',analytics:'Analytics',profil:'Profil',
+  pointer:'Pointer',equipe:'Équipe',approvals:'Approvals',
+  analytics:'Analytics',profil:'Profil',
 };
 
 // ─── BOTTOM NAV ───────────────────────────────────────────────
@@ -414,7 +412,10 @@ const ScreenLogin = ({onLogin}) => {
   const [pwd, setPwd] = useState('');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
-  const [showPwd, setShowPwd] = useState(false);
+  const [lit, setLit] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const cordZoneRef = useRef(null);
+  const startYRef = useRef(0);
 
   const doLogin = async() => {
     if(!email||!pwd) return setErr('Veuillez remplir tous les champs');
@@ -429,7 +430,6 @@ const ScreenLogin = ({onLogin}) => {
       if(d.token){
         localStorage.setItem('token', d.token);
         localStorage.setItem('user', JSON.stringify(d.user));
-        // Auto-enregistrer push subscription si permission déjà accordée
         if('Notification' in window && Notification.permission === 'granted' && 'serviceWorker' in navigator) {
           navigator.serviceWorker.ready.then(async reg => {
             try {
@@ -463,146 +463,247 @@ const ScreenLogin = ({onLogin}) => {
     setLoading(false);
   };
 
+  // Interaction du cordon — glisser ou cliquer pour activer le pylône
+  const turnOn = () => setLit(true);
+  const turnOff = () => setLit(false);
+
+  const onCordStart = (clientY) => { setDragging(true); startYRef.current = clientY; };
+  const onCordMove = (clientY) => { if(dragging && clientY - startYRef.current > 35 && !lit) turnOn(); };
+  const onCordEnd = () => setDragging(false);
+
+  useEffect(() => {
+    const mm = e => onCordMove(e.clientY);
+    const tm = e => onCordMove(e.touches[0].clientY);
+    const up = () => onCordEnd();
+    window.addEventListener('mousemove', mm);
+    window.addEventListener('touchmove', tm);
+    window.addEventListener('mouseup', up);
+    window.addEventListener('touchend', up);
+    return () => {
+      window.removeEventListener('mousemove', mm);
+      window.removeEventListener('touchmove', tm);
+      window.removeEventListener('mouseup', up);
+      window.removeEventListener('touchend', up);
+    };
+  }, [dragging, lit]);
+
+  const RED = '#E85D5D';
+
   return (
     <div style={{
-      minHeight:'100vh', margin:0,
-      background:'linear-gradient(160deg,#0C2D5A 0%,#1B4F8A 45%,#2E7D32 100%)',
+      minHeight:'100vh', margin:0, background: lit ? '#0D1722' : '#080B10',
       display:'flex', flexDirection:'column',
-      alignItems:'center', justifyContent:'center',
-      padding:'20px', fontFamily:"'Inter','Helvetica Neue',Arial,sans-serif",
-      position:'relative', overflow:'hidden'
+      fontFamily:"'Inter','Helvetica Neue',Arial,sans-serif",
+      position:'relative', overflow:'hidden',
+      transition:'background 1.2s ease',
     }}>
-      {/* Cercles décoratifs */}
-      <div style={{position:'absolute',top:-80,right:-80,width:250,height:250,borderRadius:125,background:'rgba(255,255,255,0.05)'}}/>
-      <div style={{position:'absolute',bottom:-60,left:-60,width:200,height:200,borderRadius:100,background:'rgba(255,255,255,0.05)'}}/>
-      <div style={{position:'absolute',top:'30%',left:-40,width:120,height:120,borderRadius:60,background:'rgba(46,125,50,0.2)'}}/>
+      <style>{`
+        @keyframes citBlink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+        @keyframes citBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(4px)} }
+      `}</style>
 
-      {/* Logo + Nom */}
-      <div style={{textAlign:'center',marginBottom:32,zIndex:1}}>
-        <div style={{
-          width:80,height:80,borderRadius:20,
-          background:'linear-gradient(135deg,#ffffff22,#ffffff44)',
-          border:'2px solid rgba(255,255,255,0.3)',
-          display:'flex',alignItems:'center',justifyContent:'center',
-          margin:'0 auto 16px', backdropFilter:'blur(10px)'
-        }}>
-          <span style={{fontSize:40}}>🏢</span>
+      {/* Étoiles discrètes */}
+      <div style={{position:'absolute',inset:0,backgroundImage:
+        'radial-gradient(1px 1px at 20% 8%, rgba(255,255,255,0.4), transparent),'+
+        'radial-gradient(1px 1px at 70% 4%, rgba(255,255,255,0.3), transparent),'+
+        'radial-gradient(1.5px 1.5px at 85% 12%, rgba(255,255,255,0.5), transparent),'+
+        'radial-gradient(1px 1px at 40% 16%, rgba(255,255,255,0.3), transparent),'+
+        'radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.4), transparent)'
+      }}/>
+
+      {/* Status bar / marque */}
+      <div style={{position:'relative',zIndex:5,display:'flex',justifyContent:'space-between',alignItems:'center',padding:'18px 28px 0'}}>
+        <span style={{fontSize:13,fontWeight:600,color:'#C8CDD3'}}>CleanIT</span>
+        <div style={{display:'flex',alignItems:'center',gap:6}}>
+          <svg width="16" height="16" viewBox="0 0 100 100" fill="none">
+            <circle cx="50" cy="50" r="34" stroke="#9CA3AF" strokeWidth="6"/>
+            <circle cx="50" cy="16" r="9" fill={RED}/>
+            <circle cx="79" cy="34" r="9" fill={RED}/>
+            <circle cx="79" cy="66" r="9" fill={RED}/>
+            <circle cx="21" cy="50" r="9" fill={RED}/>
+            <circle cx="50" cy="50" r="9" fill={RED}/>
+          </svg>
+          <span style={{fontSize:13,fontWeight:600,color:'#C8CDD3'}}>CleanIT ERP</span>
         </div>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:4,marginBottom:4}}>
-          <span style={{fontSize:28,fontWeight:900,color:'white',letterSpacing:'-0.5px'}}>Clean</span>
-          <span style={{fontSize:28,fontWeight:900,color:'#4CAF50',letterSpacing:'-0.5px'}}>IT</span>
-          <span style={{fontSize:16,fontWeight:500,color:'rgba(255,255,255,0.7)',marginLeft:4}}>ERP</span>
-        </div>
-        <p style={{color:'rgba(255,255,255,0.6)',fontSize:13,margin:0,letterSpacing:'0.5px'}}>
-          SYSTÈME DE GESTION TERRAIN
-        </p>
       </div>
 
-      {/* Carte login */}
-      <div style={{
-        background:'rgba(255,255,255,0.97)',
-        borderRadius:24, padding:'32px 28px',
-        width:'100%', maxWidth:380,
-        boxShadow:'0 24px 80px rgba(0,0,0,0.4)',
-        zIndex:1
-      }}>
-        <h2 style={{fontSize:20,fontWeight:700,color:'#0C2D5A',margin:'0 0 4px',textAlign:'center'}}>
-          Connexion
-        </h2>
-        <p style={{fontSize:13,color:'#6B7280',textAlign:'center',marginBottom:24}}>
-          Accédez à votre espace CleanIT
-        </p>
+      {/* Scène pylône */}
+      <div style={{position:'relative',height:'42vh',minHeight:300,maxHeight:380,display:'flex',justifyContent:'center',alignItems:'flex-end'}}>
+        {/* Brume au sol */}
+        <div style={{position:'absolute',bottom:-10,left:'50%',transform:'translateX(-50%)',width:280,height:60,
+          background:'radial-gradient(ellipse, rgba(150,160,175,0.12) 0%, transparent 75%)',pointerEvents:'none',zIndex:1}}/>
+        {/* Halo */}
+        <div style={{position:'absolute',top:-10,left:'50%',transform:'translateX(-50%)',width:200,height:200,borderRadius:'50%',
+          background:'radial-gradient(circle, rgba(232,93,93,0.3) 0%, transparent 70%)',opacity:lit?1:0,
+          transition:'opacity 0.7s ease',pointerEvents:'none'}}/>
+        {/* Faisceau lumineux vers la carte */}
+        <div style={{position:'absolute',top:55,left:'50%',transform:'translateX(-50%)',width:200,height:420,
+          background:'linear-gradient(to bottom, rgba(232,93,93,0) 0%, rgba(232,93,93,0.05) 35%, rgba(232,93,93,0.12) 70%, rgba(232,93,93,0.2) 100%)',
+          opacity:lit?1:0,transition:'opacity 0.9s ease',pointerEvents:'none',zIndex:1,
+          clipPath:'polygon(44% 0%, 56% 0%, 100% 100%, 0% 100%)'}}/>
 
-        {/* Email */}
-        <div style={{marginBottom:16}}>
-          <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.5px'}}>
-            Email
-          </label>
-          <div style={{position:'relative'}}>
-            <span style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',fontSize:16}}>✉️</span>
-            <input
-              type="text" inputMode="email"
-              value={email} onChange={e=>setEmail(e.target.value)}
-              placeholder="votre@email.com"
-              autoComplete="username" autoCorrect="off"
-              autoCapitalize="none" spellCheck="false"
+        <div style={{position:'relative',width:140,height:'100%',maxHeight:400,zIndex:2}}>
+          <svg viewBox="0 0 140 400" fill="none" style={{width:'100%',height:'100%',display:'block'}}>
+            <line x1="62" y1="26" x2="14" y2="394" stroke={lit?'#5E6B7A':'#4A5562'} strokeWidth="3.5" style={{transition:'stroke .5s'}}/>
+            <line x1="78" y1="26" x2="126" y2="394" stroke={lit?'#5E6B7A':'#4A5562'} strokeWidth="3.5" style={{transition:'stroke .5s'}}/>
+            <line x1="62" y1="26" x2="42" y2="394" stroke={lit?'#5E6B7A':'#4A5562'} strokeWidth="2" opacity="0.55"/>
+            <line x1="78" y1="26" x2="98" y2="394" stroke={lit?'#5E6B7A':'#4A5562'} strokeWidth="2" opacity="0.55"/>
+
+            <g stroke={lit?'#4D5868':'#3A4452'} strokeWidth="1.4" style={{transition:'stroke .5s'}}>
+              <path d="M 14 394 L 30 360 M 30 394 L 14 360"/>
+              <path d="M 17 360 L 33 326 M 33 360 L 17 326"/>
+              <path d="M 20 326 L 35 292 M 35 326 L 20 292"/>
+              <path d="M 23 292 L 37 258 M 37 292 L 23 258"/>
+              <path d="M 26 258 L 39 224 M 39 258 L 26 224"/>
+              <path d="M 29 224 L 41 190 M 41 224 L 29 190"/>
+              <path d="M 32 190 L 43 156 M 43 190 L 32 156"/>
+              <path d="M 35 156 L 45 122 M 45 156 L 35 122"/>
+              <path d="M 38 122 L 47 88 M 47 122 L 38 88"/>
+              <path d="M 41 88 L 50 54 M 50 88 L 41 54"/>
+              <path d="M 44 54 L 62 26 M 53 54 L 62 26"/>
+            </g>
+            <g stroke={lit?'#4D5868':'#3A4452'} strokeWidth="1.4" style={{transition:'stroke .5s'}}>
+              <path d="M 126 394 L 110 360 M 110 394 L 126 360"/>
+              <path d="M 123 360 L 107 326 M 107 360 L 123 326"/>
+              <path d="M 120 326 L 105 292 M 105 326 L 120 292"/>
+              <path d="M 117 292 L 103 258 M 103 292 L 117 258"/>
+              <path d="M 114 258 L 101 224 M 101 258 L 114 224"/>
+              <path d="M 111 224 L 99 190 M 99 224 L 111 190"/>
+              <path d="M 108 190 L 97 156 M 97 190 L 108 156"/>
+              <path d="M 105 156 L 95 122 M 95 156 L 105 122"/>
+              <path d="M 102 122 L 93 88 M 93 122 L 102 88"/>
+              <path d="M 99 88 L 90 54 M 90 88 L 99 54"/>
+              <path d="M 96 54 L 78 26 M 87 54 L 78 26"/>
+            </g>
+            <g stroke={lit?'#4D5868':'#3A4452'} strokeWidth="1.3" opacity="0.85" style={{transition:'stroke .5s'}}>
+              <line x1="14" y1="394" x2="126" y2="394"/>
+              <line x1="17" y1="360" x2="123" y2="360"/>
+              <line x1="20" y1="326" x2="120" y2="326"/>
+              <line x1="23" y1="292" x2="117" y2="292"/>
+              <line x1="26" y1="258" x2="114" y2="258"/>
+              <line x1="29" y1="224" x2="111" y2="224"/>
+              <line x1="32" y1="190" x2="108" y2="190"/>
+              <line x1="35" y1="156" x2="105" y2="156"/>
+              <line x1="38" y1="122" x2="102" y2="122"/>
+              <line x1="41" y1="88" x2="99" y2="88"/>
+              <line x1="44" y1="54" x2="96" y2="54"/>
+            </g>
+
+            <rect x="6" y="392" width="18" height="6" rx="1" fill="#2A323D"/>
+            <rect x="116" y="392" width="18" height="6" rx="1" fill="#2A323D"/>
+            <rect x="36" y="392" width="14" height="5" rx="1" fill="#2A323D" opacity="0.7"/>
+            <rect x="90" y="392" width="14" height="5" rx="1" fill="#2A323D" opacity="0.7"/>
+
+            <g stroke={lit?'#4D5868':'#3A4452'} strokeWidth="1" opacity="0.6">
+              <line x1="50" y1="380" x2="56" y2="380"/>
+              <line x1="49" y1="350" x2="55" y2="350"/>
+              <line x1="48" y1="320" x2="54" y2="320"/>
+              <line x1="47" y1="290" x2="53" y2="290"/>
+              <line x1="46" y1="260" x2="52" y2="260"/>
+              <line x1="45" y1="230" x2="51" y2="230"/>
+              <line x1="44" y1="200" x2="50" y2="200"/>
+            </g>
+
+            <path d="M 70 60 C 68 120, 72 200, 69 280 C 67 330, 71 370, 70 394" stroke={lit?'#4D5868':'#3A4452'} strokeWidth="1.2" opacity="0.5" fill="none"/>
+            <rect x="42" y="44" width="36" height="5" rx="1" fill="#2A323D"/>
+
+            <rect x="24" y="22" width="9" height="30" rx="1.5" fill={lit?RED:'#2A323D'} style={lit?{filter:'drop-shadow(0 0 5px rgba(232,93,93,0.7))'}:{}}/>
+            <rect x="65" y="14" width="9" height="30" rx="1.5" fill={lit?RED:'#2A323D'} style={lit?{filter:'drop-shadow(0 0 5px rgba(232,93,93,0.7))'}:{}}/>
+            <rect x="106" y="22" width="9" height="30" rx="1.5" fill={lit?RED:'#2A323D'} style={lit?{filter:'drop-shadow(0 0 5px rgba(232,93,93,0.7))'}:{}}/>
+
+            <circle cx="36" cy="90" r="8" fill={lit?RED:'#2A323D'} style={lit?{filter:'drop-shadow(0 0 5px rgba(232,93,93,0.7))'}:{}}/>
+            <circle cx="104" cy="90" r="8" fill={lit?RED:'#2A323D'} style={lit?{filter:'drop-shadow(0 0 5px rgba(232,93,93,0.7))'}:{}}/>
+
+            <line x1="70" y1="14" x2="70" y2="4" stroke={lit?'#5E6B7A':'#4A5562'} strokeWidth="2"/>
+            <circle cx="70" cy="3" r="4.5" fill={lit?'#FF4444':'#5A2020'} style={lit?{filter:'drop-shadow(0 0 8px rgba(255,68,68,1))',animation:'citBlink 1.6s ease-in-out infinite'}:{}}/>
+          </svg>
+
+          {!lit && (
+            <div style={{position:'absolute',bottom:30,right:-30,fontSize:10,color:'#5B6472',fontWeight:600,
+              textAlign:'center',width:95,animation:'citBob 1.6s ease-in-out infinite'}}>
+              Tirez le cordon pour activer le site
+            </div>
+          )}
+
+          <div ref={cordZoneRef}
+            onMouseDown={e=>onCordStart(e.clientY)}
+            onTouchStart={e=>onCordStart(e.touches[0].clientY)}
+            onClick={()=>{ if(!dragging){ lit ? turnOff() : turnOn(); } }}
+            style={{position:'absolute',bottom:0,right:-56,width:60,height:170,cursor:dragging?'grabbing':'grab'}}>
+            <div style={{position:'absolute',top:0,left:'50%',width:2,height:105,background:'#4A5562',transform:'translateX(-50%)'}}/>
+            <div style={{position:'absolute',top:lit?145:105,left:'50%',transform:'translate(-50%,0)',width:24,height:24,
+              borderRadius:'50%',background:RED,boxShadow:'0 4px 12px rgba(0,0,0,0.4)',transition:'top .25s cubic-bezier(0.34,1.56,0.64,1)'}}>
+              <div style={{position:'absolute',inset:7,borderRadius:'50%',background:'rgba(255,255,255,0.35)'}}/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Carte de connexion */}
+      <div style={{position:'relative',zIndex:3,marginTop:-28,background:'#12161B',borderRadius:'28px 28px 0 0',
+        padding:'30px 28px 28px',flex:1,
+        border:lit?'1.5px solid rgba(232,93,93,0.5)':'1.5px solid rgba(232,93,93,0)',
+        borderBottom:'none',
+        transform:lit?'translateY(0)':'translateY(100%)',opacity:lit?1:0,
+        boxShadow:lit?'0 0 0 1px rgba(232,93,93,0.15), 0 -10px 30px -6px rgba(232,93,93,0.25), 0 0 40px -8px rgba(232,93,93,0.3), inset 0 0 24px -8px rgba(232,93,93,0.18)':'none',
+        transition:'transform 0.7s cubic-bezier(0.16,1,0.3,1), opacity 0.5s ease, border-color 1.1s ease, box-shadow 1.1s ease'}}>
+
+        <div style={{width:76,height:76,borderRadius:'50%',background:'#1A1F26',
+          border:lit?'2px solid rgba(232,93,93,0.8)':'2px solid rgba(232,93,93,0.4)',
+          display:'flex',alignItems:'center',justifyContent:'center',margin:'-58px auto 22px',position:'relative',zIndex:2,
+          boxShadow:lit?'0 0 22px rgba(232,93,93,0.35)':'none',transition:'border-color .9s ease, box-shadow .9s ease'}}>
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke={RED} strokeWidth="1.8">
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 21v-1a8 8 0 0116 0v1"/>
+          </svg>
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <label style={{display:'block',fontSize:11,fontWeight:600,color:'#8A9099',marginBottom:7,textTransform:'uppercase',letterSpacing:'0.6px'}}>Email</label>
+          <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.04)',border:'1.5px solid rgba(255,255,255,0.1)',borderRadius:14,padding:'0 16px',height:50}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#565C66" strokeWidth="2" style={{marginRight:10,flexShrink:0}}>
+              <path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6zm-2 0l-8 5-8-5h16zm0 12H4V8l8 5 8-5v10z"/>
+            </svg>
+            <input type="text" inputMode="email" value={email} onChange={e=>setEmail(e.target.value)}
+              placeholder="vous@cleanit.cm" autoComplete="username" autoCorrect="off" autoCapitalize="none" spellCheck="false"
               onKeyDown={e=>e.key==='Enter'&&doLogin()}
-              style={{
-                width:'100%',padding:'13px 14px 13px 40px',
-                border:'1.5px solid #E5E7EB',borderRadius:12,
-                fontSize:14,outline:'none',boxSizing:'border-box',
-                background:'#F9FAFB',color:'#111827',
-                transition:'border-color 0.2s'
-              }}
-              onFocus={e=>e.target.style.borderColor='#1B4F8A'}
-              onBlur={e=>e.target.style.borderColor='#E5E7EB'}
-            />
+              style={{flex:1,background:'none',border:'none',outline:'none',color:'#FAFAF8',fontSize:14}}/>
           </div>
         </div>
 
-        {/* Mot de passe */}
-        <div style={{marginBottom:20}}>
-          <label style={{display:'block',fontSize:12,fontWeight:700,color:'#374151',marginBottom:6,textTransform:'uppercase',letterSpacing:'0.5px'}}>
-            Mot de passe
-          </label>
-          <div style={{position:'relative'}}>
-            <span style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',fontSize:16}}>🔒</span>
-            <input
-              type={showPwd?'text':'password'}
-              value={pwd} onChange={e=>setPwd(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="new-password" autoCorrect="off" autoCapitalize="none"
+        <div style={{marginBottom:8}}>
+          <label style={{display:'block',fontSize:11,fontWeight:600,color:'#8A9099',marginBottom:7,textTransform:'uppercase',letterSpacing:'0.6px'}}>Mot de passe</label>
+          <div style={{display:'flex',alignItems:'center',background:'rgba(255,255,255,0.04)',border:'1.5px solid rgba(255,255,255,0.1)',borderRadius:14,padding:'0 16px',height:50}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#565C66" strokeWidth="2" style={{marginRight:10,flexShrink:0}}>
+              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+            </svg>
+            <input type="password" value={pwd} onChange={e=>setPwd(e.target.value)} placeholder="••••••••"
+              autoComplete="current-password" autoCorrect="off" autoCapitalize="none"
               onKeyDown={e=>e.key==='Enter'&&doLogin()}
-              style={{
-                width:'100%',padding:'13px 44px 13px 40px',
-                border:'1.5px solid #E5E7EB',borderRadius:12,
-                fontSize:14,outline:'none',boxSizing:'border-box',
-                background:'#F9FAFB',color:'#111827',
-                transition:'border-color 0.2s'
-              }}
-              onFocus={e=>e.target.style.borderColor='#1B4F8A'}
-              onBlur={e=>e.target.style.borderColor='#E5E7EB'}
-            />
-            <button type="button" onClick={()=>setShowPwd(!showPwd)} style={{
-              position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',
-              background:'none',border:'none',cursor:'pointer',fontSize:18,
-              color:'#6B7280',padding:4
-            }}>{showPwd?'🙈':'👁️'}</button>
+              style={{flex:1,background:'none',border:'none',outline:'none',color:'#FAFAF8',fontSize:14}}/>
           </div>
         </div>
 
-        {/* Erreur */}
-        {err&&(
-          <div style={{
-            background:'#FEE2E2',color:'#991B1B',
-            borderRadius:10,padding:'10px 14px',
-            fontSize:13,marginBottom:16,textAlign:'center',
-            border:'1px solid #FECACA'
-          }}>⚠️ {err}</div>
+        {err && (
+          <div style={{background:'rgba(232,93,93,0.1)',color:'#F2A0A0',borderRadius:10,padding:'9px 13px',
+            fontSize:12.5,marginTop:14,textAlign:'center',border:'1px solid rgba(232,93,93,0.25)'}}>
+            {err}
+          </div>
         )}
 
-        {/* Bouton */}
-        <button onClick={doLogin} disabled={loading} style={{
-          width:'100%',
-          background:loading?'#9CA3AF':'linear-gradient(135deg,#1B4F8A,#0C2D5A)',
-          color:'white',border:'none',borderRadius:12,
-          padding:'14px',fontSize:15,fontWeight:700,
-          cursor:loading?'not-allowed':'pointer',
-          boxShadow:loading?'none':'0 4px 20px rgba(27,79,138,0.4)',
-          transition:'all 0.2s',letterSpacing:'0.3px'
-        }}>
-          {loading ? '⏳ Connexion...' : 'Se connecter →'}
+        <button onClick={doLogin} disabled={loading} style={{width:'100%',height:51,
+          background:loading?'#6B4444':RED,border:'none',borderRadius:14,color:'#14171A',
+          fontSize:15,fontWeight:600,display:'flex',alignItems:'center',justifyContent:'center',gap:8,
+          marginTop:18,cursor:loading?'default':'pointer'}}>
+          {loading ? 'Connexion...' : (<>Se connecter
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </>)}
         </button>
 
-        <div style={{textAlign:'center',marginTop:20,paddingTop:16,borderTop:'1px solid #F3F4F6'}}>
-          <span style={{fontSize:11,color:'#9CA3AF'}}>CleanIT SARL · Douala, Cameroun</span>
+        <div style={{textAlign:'center',marginTop:18,fontSize:11,color:'#565C66'}}>
+          CleanIT SARL — Douala, Cameroun
         </div>
       </div>
-
-      {/* Version */}
-      <p style={{color:'rgba(255,255,255,0.3)',fontSize:11,marginTop:20,zIndex:1}}>
-        v2.0 · 2026
-      </p>
     </div>
   );
 };
@@ -616,9 +717,32 @@ const ScreenFil = ({user,navigate}) => {
   const [pullY,setPullY] = useState(0);
   const [posts, setPosts] = useState(FEED_POSTS);
   const [loadingFeed, setLoadingFeed] = useState(false);
+  const [terrainUsers, setTerrainUsers] = useState([]);
+  const [activeMissions, setActiveMissions] = useState([]);
   const touchStartY = useRef(0);
   const C2 = getC();
   const EMOJIS = ['👍','🔥','👏','😮','😂','🙏'];
+
+  // Charger les techniciens terrain et leurs missions actives ("Sites actifs")
+  useEffect(() => {
+    const tk = localStorage.getItem('token');
+    const h = {'Authorization':'Bearer '+tk};
+    const b = 'https://backend-cleanit-erp.vercel.app';
+    Promise.all([
+      fetch(b+'/users',{headers:h}).then(r=>r.json()).catch(()=>[]),
+      fetch(b+'/missions',{headers:h}).then(r=>r.json()).catch(()=>[]),
+    ]).then(([us,ms])=>{
+      if(Array.isArray(us)){
+        const colors = ['#0066CC','#7C3AED','#059669','#EA580C','#DC2626'];
+        setTerrainUsers(us.filter(u=>['technician','terrain'].includes(u.role)).map((u,i)=>({
+          id: u.id,
+          av: ((u.firstName||'?')[0]+(u.lastName||'')[0]).toUpperCase(),
+          color: colors[i%colors.length],
+        })));
+      }
+      if(Array.isArray(ms)) setActiveMissions(ms.filter(m=>m.status==='in_progress'));
+    });
+  }, []);
 
   // Charger posts depuis la DB
   useEffect(() => {
@@ -686,8 +810,6 @@ const ScreenFil = ({user,navigate}) => {
     }
     setPullY(0);
   };
-
-  const terrainUsers = USERS.filter(u=>u.role==='terrain');
 
   if(viewPhoto) return (
     <div style={{position:'fixed',inset:0,background:'#000',zIndex:9999,display:'flex',flexDirection:'column'}}>
@@ -813,7 +935,7 @@ const ScreenFil = ({user,navigate}) => {
         </div>
         <div style={{display:'flex',gap:12,overflowX:'auto',paddingBottom:2}}>
           {terrainUsers.map(u=>{
-            const m = MISSIONS.find(ms=>ms.techId===u.id);
+            const m = activeMissions.find(ms=>ms.tech_id===u.id);
             return (
               <div key={u.id} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,flexShrink:0}}>
                 <div style={{width:52,height:52,borderRadius:'50%',padding:2,
@@ -966,7 +1088,7 @@ const ScreenFil = ({user,navigate}) => {
   );
 };
 
-const ScreenCamera = ({user, gps, now}) => {
+const ScreenCamera = ({user, gps, now, navigate}) => {
   const vRef = useRef(null);
   const cRef = useRef(null);
   const streamRef = useRef(null);
@@ -975,8 +1097,23 @@ const ScreenCamera = ({user, gps, now}) => {
   const [last, setLast] = useState(null);
   const [flash, setFlash] = useState(false);
   const [w3wAddress, setW3wAddress] = useState(null);
+  const [myMission, setMyMission] = useState(null);
+  const [siteInput, setSiteInput] = useState('');
+  const [siteEdited, setSiteEdited] = useState(false);
   const {toast, toastMsg, toastShow,toastType} = useToast();
   const n = now || new Date();
+
+  useEffect(() => {
+    const tk = localStorage.getItem('token');
+    fetch('https://backend-cleanit-erp.vercel.app/missions/my',{headers:{'Authorization':'Bearer '+tk}})
+      .then(r=>r.json()).then(d=>{
+        if(Array.isArray(d) && d[0]){
+          setMyMission(d[0]);
+          // Pré-remplir avec le site du planning, seulement si l'utilisateur n'a pas déjà tapé quelque chose
+          if(!siteEdited) setSiteInput(d[0].site||'');
+        }
+      }).catch(()=>{});
+  }, []);
 
   useEffect(() => {
     if(gps && !w3wAddress) {
@@ -1024,7 +1161,24 @@ const ScreenCamera = ({user, gps, now}) => {
     }
   };
 
+  const [address, setAddress] = useState(null);
+  useEffect(() => {
+    if(gps?.lat && gps?.lng){
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${gps.lat}&lon=${gps.lng}&addressdetails=1`,
+        {headers:{'User-Agent':'CleanIT-ERP-CleanCam/1.0'}})
+        .then(r=>r.json()).then(d=>{
+          const a = d.address||{};
+          const parts = [a.country, a.state, a.county, a.suburb||a.neighbourhood||a.road].filter(Boolean);
+          setAddress(parts.join(', ')||d.display_name||null);
+        }).catch(()=>{});
+    }
+  }, [gps?.lat, gps?.lng]);
+
   const shoot = () => {
+    if(!siteInput.trim()){
+      toast('Indiquez le code du site avant de prendre la photo','error');
+      return;
+    }
     const v = vRef.current;
     const canvas = cRef.current;
     if(!v || !canvas) return;
@@ -1032,20 +1186,30 @@ const ScreenCamera = ({user, gps, now}) => {
     canvas.height = v.videoHeight || 480;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-    const barH = 60;
-    ctx.fillStyle = 'rgba(0,0,0,.75)';
-    ctx.fillRect(0, canvas.height-barH, canvas.width, barH);
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 14px system-ui';
-    const mission = MISSIONS.find(m => m.techId === user.id);
-    ctx.fillText('CleanIT — '+user.name+(mission?' — '+mission.site:''), 10, canvas.height-barH+20);
-    ctx.font = '11px system-ui';
-    const d = n.toLocaleDateString('fr-FR')+' '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-    const g = gps?' · '+gps.lat.toFixed(4)+','+gps.lng.toFixed(4):'';
-    ctx.fillText(d+g, 10, canvas.height-barH+38);
-    ctx.fillStyle = '#E86C6C';
-    ctx.font = 'bold 10px system-ui';
-    ctx.fillText('///'+(w3wAddress||'localisation.site.cleanit'), 10, canvas.height-barH+54);
+
+    // Encart légende en haut à gauche — format Lat/Long/Alt/Accuracy/Time/Address
+    const lines = [
+      `Latitude: ${gps?.lat?.toFixed(7)||'—'}`,
+      `Longitude: ${gps?.lng?.toFixed(7)||'—'}`,
+      `Altitude: ${gps?.altitude!=null?gps.altitude.toFixed(1)+' m':'—'}`,
+      `Accuracy: ${gps?.accuracy!=null?gps.accuracy.toFixed(1)+' m':'—'}`,
+      `Time: ${n.toLocaleDateString('en-GB',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})} ${n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`,
+      `Address: ${address||'Localisation en cours...'}`,
+      siteInput?`Site: ${siteInput}`:'Site: —',
+    ];
+    const lineH = 17;
+    const padX = 12, padY = 10;
+    const boxW = Math.min(canvas.width*0.78, 340);
+    const boxH = lines.length*lineH + padY*2;
+    ctx.fillStyle = 'rgba(255,255,255,.88)';
+    ctx.fillRect(0, 0, boxW, boxH);
+    ctx.fillStyle = '#111';
+    ctx.font = '12px system-ui, sans-serif';
+    ctx.textBaseline = 'top';
+    lines.forEach((line,i)=>{
+      ctx.fillText(line, padX, padY + i*lineH);
+    });
+
     const url = canvas.toDataURL('image/jpeg', 0.9);
     const photoId = Date.now();
     setPhotos(p => [{id:photoId, url}, ...p]);
@@ -1069,6 +1233,14 @@ const ScreenCamera = ({user, gps, now}) => {
       <Toast msg={toastMsg} show={toastShow} type={toastType}/>
       <canvas ref={cRef} style={{display:'none'}}/>
       {flash && <div style={{position:'absolute',inset:0,background:'#fff',zIndex:50,opacity:.7,pointerEvents:'none'}}/>}
+
+      <button onClick={()=>{stopCam(); navigate('/mobile/fil');}}
+        style={{position:'absolute',top:14,left:14,zIndex:40,width:34,height:34,borderRadius:'50%',
+          background:'rgba(0,0,0,.55)',border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+      </button>
 
       <div style={{flex:1,position:'relative',overflow:'hidden',background:'#0a0a0a',minHeight:300}}>
         <video ref={vRef} autoPlay playsInline
@@ -1104,6 +1276,15 @@ const ScreenCamera = ({user, gps, now}) => {
                 GPS {gps ? Math.round(gps.accuracy)+'m' : '...'}
               </span>
             </div>
+            <div style={{position:'absolute',top:10,right:10,display:'flex',alignItems:'center',gap:5,
+              background:'rgba(0,0,0,.55)',borderRadius:10,padding:'3px 6px 3px 10px',
+              border:siteInput.trim()?'1px solid transparent':'1px solid rgba(232,93,93,.7)'}}>
+              <span style={{fontSize:8,color:'rgba(255,255,255,.6)'}}>Site:</span>
+              <input value={siteInput} onChange={e=>{setSiteInput(e.target.value);setSiteEdited(true);}}
+                placeholder="Obligatoire"
+                style={{background:'transparent',border:'none',outline:'none',color:'white',
+                  fontSize:9,fontWeight:600,fontFamily:FONT,width:90,padding:'2px 0'}}/>
+            </div>
             <div style={{position:'absolute',bottom:0,left:0,right:0,
               background:'linear-gradient(transparent,rgba(0,0,0,.8))',padding:'10px 12px 6px'}}>
               <div style={{fontSize:10,color:'rgba(255,255,255,.9)',fontWeight:600}}>{user.name}</div>
@@ -1115,14 +1296,6 @@ const ScreenCamera = ({user, gps, now}) => {
             </div>
           </>
         )}
-      </div>
-
-      <div style={{background:'#111',padding:'6px 12px',display:'flex',justifyContent:'center',gap:6}}>
-        {['Grille','Before/After','Scan serie'].map((m,i)=>(
-          <button key={i} style={{background:'rgba(255,255,255,.1)',border:'none',
-            borderRadius:8,padding:'4px 10px',color:'white',fontSize:9,
-            cursor:'pointer',fontFamily:FONT}}>{m}</button>
-        ))}
       </div>
 
       <div style={{background:'#0a0a0a',padding:'14px 20px 24px',
@@ -1180,55 +1353,9 @@ const ScreenCamera = ({user, gps, now}) => {
       )}
 
       {!active && (
-        <div style={{background:'#0a0a0a',padding:'0 14px 10px',textAlign:'center'}}>
-          <div style={{fontSize:9,color:'rgba(255,255,255,.4)',marginBottom:6}}>Envoyer vers</div>
-          <div style={{display:'flex',gap:6,justifyContent:'center'}}>
-            {[
-              {label:'Fil', action:()=>{
-                if(last){
-                  const mission = MISSIONS.find(m=>m.techId===user.id);
-                  const newPost = {
-                    id:Date.now(),
-                    userId:user.id,
-                    userName:user.name.toLowerCase().replace(' ','_'),
-                    name:user.name,
-                    site:mission?.site||'',
-                    siteName:mission?.siteName||'',
-                    text:'Photo prise sur site — '+( mission?.site||'CleanIT'),
-                    time:new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
-                    date:new Date().toLocaleDateString('fr-FR'),
-                    gpsLat:gps ? gps.lat.toFixed(5)+'° N' : null,
-                    gpsLng:gps ? gps.lng.toFixed(5)+'° E' : null,
-                    gpsAcc:gps?.accuracy||null,
-                    what3words:w3wAddress||'localisation.site.cleanit',
-                    reactions:{like:0,fire:0,clap:0},
-                    comments:0,
-                    type:'photo',
-                    photoUrl:last
-                  };
-                  // Publier vers API
-                  try { FeedAPI.createPost({
-                      text: newPost.text, site: newPost.site,
-                      siteName: newPost.siteName, photoUrl: newPost.photoUrl,
-                      gpsLat: newPost.gpsLat, gpsLng: newPost.gpsLng,
-                      what3words: newPost.what3words, type: 'photo'
-                    }).catch(e => console.log('API offline'));
-                  } catch(e) {}
-                  FEED_POSTS.unshift(newPost);
-                  saveFeedPosts();
-                  toast('Photo publiee dans le Fil', 'success');
-                } else toast('Prenez une photo d abord');
-              }},
-              {label:'Projet', action:()=>{ toast('Envoye au projet'); }},
-              {label:'Message', action:()=>{ toast('Envoye en message'); }},
-            ].map(({label,action})=>(
-              <button key={label} onClick={action}
-                style={{background:'rgba(255,255,255,.15)',border:'none',
-                  borderRadius:20,padding:'5px 14px',color:'white',
-                  fontSize:9,cursor:'pointer',fontFamily:FONT,fontWeight:500}}>
-                {label}
-              </button>
-            ))}
+        <div style={{background:'#0a0a0a',padding:'0 14px 12px',textAlign:'center'}}>
+          <div style={{fontSize:11,color:'rgba(34,197,94,.9)',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+            <span>✓</span> Photo enregistrée dans la galerie
           </div>
         </div>
       )}
@@ -1237,8 +1364,42 @@ const ScreenCamera = ({user, gps, now}) => {
 };
 
 // ─── SCREEN: MESSAGES ─────────────────────────────────────────
+// Composant réutilisable : crée une room Daily.co via le backend puis affiche l'iframe
+const DailyFrame = ({ room, displayName, audioOnly }) => {
+  const [roomUrl, setRoomUrl] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const tk = localStorage.getItem('token');
+    fetch('https://backend-cleanit-erp.vercel.app/calls/daily-room', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+      body: JSON.stringify({ roomName: room })
+    }).then(r=>r.json()).then(r=>{
+      if(r.url) setRoomUrl(r.url); else setError(r.message||'Erreur création room');
+    }).catch(e=>setError(e.message));
+  }, [room]);
+
+  if(error) return (
+    <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:13,padding:20,textAlign:'center'}}>
+      Erreur de connexion : {error}
+    </div>
+  );
+  if(!roomUrl) return (
+    <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,.6)',fontSize:13}}>
+      Connexion en cours...
+    </div>
+  );
+  return (
+    <iframe
+      src={`${roomUrl}?displayname=${encodeURIComponent(displayName||'Utilisateur')}`}
+      style={{flex:1,border:'none'}}
+      allow="camera; microphone; fullscreen; display-capture" title="Appel"/>
+  );
+};
+
 const ScreenMessages = () => {
   const [openConv, setOpenConv] = useState(null);
+  const [inCall, setInCall] = useState(null); // {type:'audio'|'video'}
   const [msg, setMsg] = useState('');
   const [chatMsgs, setChatMsgs] = useState([]);
   const [convos, setConvos] = useState([]);
@@ -1349,7 +1510,42 @@ const ScreenMessages = () => {
             </div>
           )}
         </div>
-        <span style={{fontSize:20,cursor:'pointer'}}>📞</span>
+        <button onClick={async ()=>{
+            const tk = localStorage.getItem('token');
+            const me = JSON.parse(localStorage.getItem('user')||'{}');
+            const room = `CleanIT-dm-${[me.id, openConv.otherId].sort((a,b)=>a-b).join('-')}`;
+            try {
+              const r = await fetch('https://backend-cleanit-erp.vercel.app/calls/initiate',{
+                method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+                body:JSON.stringify({calleeId:openConv.otherId, type:'video', room})
+              }).then(r=>r.json());
+              setInCall({type:'video', callId:r.id, room});
+            } catch(e){ setInCall({type:'video', room}); }
+          }}
+          style={{background:'none',border:'none',cursor:'pointer',padding:6,
+            display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C2.primary} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
+        </button>
+        <button onClick={async ()=>{
+            const tk = localStorage.getItem('token');
+            const me = JSON.parse(localStorage.getItem('user')||'{}');
+            const room = `CleanIT-dm-${[me.id, openConv.otherId].sort((a,b)=>a-b).join('-')}`;
+            try {
+              const r = await fetch('https://backend-cleanit-erp.vercel.app/calls/initiate',{
+                method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+                body:JSON.stringify({calleeId:openConv.otherId, type:'audio', room})
+              }).then(r=>r.json());
+              setInCall({type:'audio', callId:r.id, room});
+            } catch(e){ setInCall({type:'audio', room}); }
+          }}
+          style={{background:'none',border:'none',cursor:'pointer',padding:6,
+            display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke={C2.primary} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.948V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+          </svg>
+        </button>
         {openConv.waGroup && (
           <a href={openConv.waGroup} target='_blank' rel='noopener noreferrer'
             style={{background:'#25D366',border:'none',borderRadius:8,
@@ -1387,6 +1583,34 @@ const ScreenMessages = () => {
           );
         })}
       </div>
+
+      {inCall && (
+        <div style={{position:'fixed',inset:0,background:'#0b1120',zIndex:300,
+          display:'flex',flexDirection:'column',maxWidth:430,margin:'0 auto'}}>
+          <div style={{padding:'10px 16px',background:'#111827',display:'flex',
+            alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,color:'#fff'}}>
+                {inCall.type==='video'?'Appel vidéo':'Appel audio'} · {openConv.name||openConv.from}
+              </div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,.5)'}}>En cours</div>
+            </div>
+            <button onClick={async ()=>{
+                const tk = localStorage.getItem('token');
+                if(inCall.callId) await fetch(`https://backend-cleanit-erp.vercel.app/calls/${inCall.callId}/end`,{method:'POST',headers:{'Authorization':'Bearer '+tk}}).catch(()=>{});
+                setInCall(null);
+              }}
+              style={{padding:'6px 14px',borderRadius:8,border:'none',background:'#DC2626',
+                color:'#fff',fontWeight:700,fontSize:11,cursor:'pointer'}}>
+              Quitter
+            </button>
+          </div>
+          <DailyFrame
+            room={inCall.room||`CleanIT-dm-${[JSON.parse(localStorage.getItem('user')||'{}').id, openConv.otherId].sort((a,b)=>a-b).join('-')}`}
+            displayName={JSON.parse(localStorage.getItem('user')||'{}').firstName}
+            audioOnly={inCall.type==='audio'}/>
+        </div>
+      )}
 
       <div style={{position:'fixed',bottom:0,left:0,right:0,maxWidth:430,margin:'0 auto',
         padding:'10px 14px',background:C2.bg,borderTop:'1px solid '+C2.border,
@@ -1512,6 +1736,46 @@ const ScreenMessages = () => {
     </div>
   );
 };
+// ─── BADGE PERSONNEL AVEC VRAI QR CODE SCANNABLE ──────────────
+const BadgeQR = ({ user, bColor, av }) => {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (!canvasRef.current || !user?.id) return;
+    const payload = JSON.stringify({
+      type: 'CLEANIT_POINTAGE',
+      userId: user.id,
+      userName: `${user.firstName || user.name || ''} ${user.lastName || ''}`.trim(),
+      role: user.role,
+      code: 'CLEANIT-EMP-' + user.id,
+    });
+    QRCode.toCanvas(canvasRef.current, payload, {
+      width: 200, margin: 1,
+      color: { dark: bColor || '#1a1a1a', light: '#ffffff' },
+    }).catch(() => {});
+  }, [user?.id, bColor]);
+
+  return (
+    <div style={{padding:20,display:'flex',flexDirection:'column',alignItems:'center',gap:14}}>
+      <div style={{width:120,height:120,borderRadius:24,background:bColor+'15',border:'2px solid '+bColor,
+        display:'flex',alignItems:'center',justifyContent:'center',fontSize:44,fontWeight:800,color:bColor}}>{av}</div>
+      <div style={{textAlign:'center'}}>
+        <div style={{fontSize:18,fontWeight:700,color:'#111'}}>{user.firstName||user.name} {user.lastName||''}</div>
+        <div style={{fontSize:12,color:'#888'}}>{user.role} · CleanIT</div>
+      </div>
+      <div style={{background:'#fff',borderRadius:14,padding:14,boxShadow:'0 2px 12px rgba(0,0,0,.08)',border:'1px solid #eee'}}>
+        <canvas ref={canvasRef}/>
+      </div>
+      <div style={{fontSize:11,color:'#999',textAlign:'center',maxWidth:260}}>
+        Scannez ce QR depuis l'onglet "Scanner QR" pour pointer votre arrivée ou votre départ
+      </div>
+      <div style={{background:bColor,borderRadius:10,padding:'8px 20px',width:'100%',textAlign:'center',color:'white',fontSize:12,fontWeight:600}}>
+        ID: EMP-{String(user.id||'001').padStart(4,'0')}
+      </div>
+    </div>
+  );
+};
+
 // ─── SCREEN: POINTER ──────────────────────────────────────────
 const ScreenPointer = ({user, gps}) => {
   const [mode, setMode] = useState('badge');
@@ -1539,6 +1803,14 @@ const ScreenPointer = ({user, gps}) => {
     streamRef.current=null; setScanning(false);
   };
 
+  // Coupe la caméra si l'utilisateur quitte l'écran sans cliquer "Arrêter"
+  // (navigation vers un autre onglet) — évite que le flux reste actif en arrière-plan
+  useEffect(() => () => {
+    if(animRef.current) cancelAnimationFrame(animRef.current);
+    if(streamRef.current) streamRef.current.getTracks().forEach(t=>t.stop());
+    streamRef.current = null;
+  }, []);
+
   const scanFrame = () => {
     if(!videoRef.current||!canvasRef.current) return;
     const v=videoRef.current; const cv=canvasRef.current;
@@ -1565,15 +1837,25 @@ const ScreenPointer = ({user, gps}) => {
     } catch(e){toast('Camera non disponible','error');setScanning(false);}
   };
 
+  const parseQrName = (raw) => {
+    if (!raw) return 'Site inconnu';
+    if (!String(raw).trim().startsWith('{')) return raw;
+    try {
+      const p = JSON.parse(raw);
+      return p.siteName || p.userName || p.name || 'Badge personnel';
+    } catch (e) { return 'Badge scanné'; }
+  };
+
   const handleQRCode = async(data) => {
     stopScan();
-    let site={code:data,name:data};
+    let site={code:data,name:parseQrName(data)};
     try{
       const p=JSON.parse(data);
       if(p.type==='CLEANIT_POINTAGE'){
-        site={code:p.code||data, name:p.siteName||'Bureau CleanIT Douala', userId:p.userId, userName:p.userName};
+        // Badge personnel scanné par son propriétaire — pointage sur son lieu de travail
+        site={code:p.code||data, name:'Poste de travail — '+(p.userName||'employé'), userId:p.userId, userName:p.userName};
       } else {
-        site={code:p.code||data, name:p.siteName||p.name||data};
+        site={code:p.code||data, name:p.siteName||p.name||parseQrName(data)};
       }
     }catch(e){}
     setScanned(site); setLoading(true);
@@ -1581,11 +1863,11 @@ const ScreenPointer = ({user, gps}) => {
       const token=localStorage.getItem('token');
       const r=await fetch('https://backend-cleanit-erp.vercel.app/pointages',{
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-        body:JSON.stringify({siteCode:site.code,siteName:site.name,type:'arrivee',gpsLat:gps?.lat,gpsLng:gps?.lng})
+        body:JSON.stringify({siteCode:site.code,siteName:site.name,gpsLat:gps?.lat,gpsLng:gps?.lng})
       });
       const d=await r.json();
-      toast('Pointage enregistré — '+site.name,'success');
-      setHistory(h=>[{...d,site_name:site.name||d.site_name,created_at:new Date().toISOString()},...h]);
+      toast((d.type==='arrivee'?'Arrivée':'Départ')+' enregistré — '+site.name,'success');
+      setHistory(h=>[d,...h]);
     } catch(e){toast('Erreur','error');}
     setLoading(false);
   };
@@ -1607,17 +1889,7 @@ const ScreenPointer = ({user, gps}) => {
         ))}
       </div>
       {mode==='badge'&&(
-        <div style={{padding:20,display:'flex',flexDirection:'column',alignItems:'center',gap:14}}>
-          <div style={{width:120,height:120,borderRadius:24,background:bColor+'15',border:'2px solid '+bColor,
-            display:'flex',alignItems:'center',justifyContent:'center',fontSize:44,fontWeight:800,color:bColor}}>{av}</div>
-          <div style={{textAlign:'center'}}>
-            <div style={{fontSize:18,fontWeight:700,color:C2.text}}>{user.firstName||user.name} {user.lastName||''}</div>
-            <div style={{fontSize:12,color:C2.text3}}>{user.role} · CleanIT</div>
-          </div>
-          <div style={{background:bColor,borderRadius:10,padding:'8px 20px',width:'100%',textAlign:'center',color:'white',fontSize:12,fontWeight:600}}>
-            ID: EMP-{String(user.id||'001').padStart(4,'0')}
-          </div>
-        </div>
+        <BadgeQR user={user} bColor={bColor} av={av}/>
       )}
       {mode==='scan'&&(
         <div style={{padding:16,display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
@@ -1643,7 +1915,7 @@ const ScreenPointer = ({user, gps}) => {
             <div style={{background:C2.successL,borderRadius:12,padding:16,width:'100%',textAlign:'center',border:'1px solid '+C2.success}}>
               <div style={{fontSize:24,marginBottom:8}}>✅</div>
               <div style={{fontSize:14,fontWeight:700,color:C2.success}}>Pointage enregistré</div>
-              <div style={{fontSize:12,color:C2.text,marginTop:6}}>{(()=>{const n=scanned?.name||'';try{return n.startsWith('{')?JSON.parse(n).siteName||'Bureau CleanIT Douala':n;}catch{return n;}})()}</div>
+              <div style={{fontSize:12,color:C2.text,marginTop:6}}>{scanned?.name||'Pointage enregistré'}</div>
               <div style={{fontSize:10,color:C2.text3,marginTop:4}}>{new Date().toLocaleString('fr-FR')}</div>
               <button onClick={()=>{setScanned(null);}} style={{marginTop:12,background:C2.primary,border:'none',
                 borderRadius:8,padding:'8px 20px',color:'white',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:FONT}}>
@@ -1658,12 +1930,16 @@ const ScreenPointer = ({user, gps}) => {
           {history.length===0?<div style={{padding:32,textAlign:'center',color:C2.text3}}>Aucun pointage</div>:
           history.map((h,i)=>(
             <div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',borderBottom:'0.5px solid '+C2.border}}>
-              <div style={{width:36,height:36,borderRadius:'50%',background:C2.successL,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>📍</div>
+              <div style={{width:36,height:36,borderRadius:'50%',background:h.type==='depart'?'#FEF3C7':C2.successL,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>
+                {h.type==='depart'?'🚪':'📍'}
+              </div>
               <div style={{flex:1}}>
                 <div style={{fontSize:13,fontWeight:600,color:C2.text}}>
-                  {(()=>{const s=h.site_name||h.site_code||'';try{return s.startsWith('{')?JSON.parse(s).siteName||s:s;}catch{return s;}})()}
+                  {parseQrName(h.site_name||h.site_code)||'Pointage'}
                 </div>
-                <div style={{fontSize:10,color:C2.text3}}>{new Date(h.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
+                <div style={{fontSize:10,color:C2.text3}}>
+                  {h.type==='depart'?'Départ':'Arrivée'} · {new Date(h.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+                </div>
               </div>
               <div style={{background:C2.successL,color:C2.success,padding:'3px 8px',borderRadius:8,fontSize:10,fontWeight:700}}>✓</div>
             </div>
@@ -1679,7 +1955,23 @@ const ScreenMission = ({user,gps,navigate}) => {
   const [arrived,setArrived] = useState(false);
   const [showReport,setShowReport] = useState(false);
   const [report,setReport] = useState({done:'',issues:''});
+  const [allUsers, setAllUsers] = useState([]);
   const {toast,toastMsg,toastShow,toastType} = useToast();
+
+  useEffect(() => {
+    const tk = localStorage.getItem('token');
+    fetch('https://backend-cleanit-erp.vercel.app/users',{headers:{'Authorization':'Bearer '+tk}})
+      .then(r=>r.json()).then(d=>{
+        if(Array.isArray(d)){
+          const colors=['#0066CC','#7C3AED','#059669','#EA580C','#DC2626'];
+          setAllUsers(d.map((u,i)=>({
+            id:u.id, name:(u.firstName||'')+' '+(u.lastName||''),
+            post:u.role, av:((u.firstName||'?')[0]+(u.lastName||'')[0]).toUpperCase(),
+            color:colors[i%colors.length],
+          })));
+        }
+      }).catch(()=>{});
+  }, []);
 
   useEffect(() => {
     MissionsAPI.getMy().then(data => {
@@ -1820,7 +2112,7 @@ const ScreenMission = ({user,gps,navigate}) => {
                 {t('team_on_site')}
               </div>
               {mission.team.map(tid=>{
-                const u = USERS.find(u=>u.id===tid);
+                const u = allUsers.find(u=>u.id===tid);
                 if(!u) return null;
                 return (
                   <div key={tid} style={{display:'flex',alignItems:'center',gap:10,
@@ -1882,137 +2174,157 @@ const ScreenMission = ({user,gps,navigate}) => {
 };
 
 // ─── SCREEN: EQUIPES ──────────────────────────────────────────
-const ScreenEquipes = ({user}) => {
-  const [tab,setTab] = useState('all');
+const ScreenEquipe = ({user, navigate}) => {
+  const [tab,setTab] = useState('team');
   const [users,setUsers] = useState([]);
+  const [missions,setMissions] = useState([]);
   const [loading,setLoading] = useState(true);
+  const {toast,toastMsg,toastShow,toastType} = useToast();
   const C2 = getC();
+
   useEffect(()=>{
     const load = () => {
-      const token = localStorage.getItem('token');
-      fetch('https://backend-cleanit-erp.vercel.app/users',{headers:{'Authorization':'Bearer '+token}})
-        .then(r=>r.json()).then(d=>{if(Array.isArray(d))setUsers(d);}).catch(()=>{}).finally(()=>setLoading(false));
+      const tk = localStorage.getItem('token');
+      const h = {'Authorization':'Bearer '+tk};
+      const b = 'https://backend-cleanit-erp.vercel.app';
+      Promise.all([
+        fetch(b+'/users',{headers:h}).then(r=>r.json()).catch(()=>[]),
+        fetch(b+'/missions',{headers:h}).then(r=>r.json()).catch(()=>[]),
+      ]).then(([us,ms])=>{
+        if(Array.isArray(us)) setUsers(us);
+        if(Array.isArray(ms)) setMissions(ms);
+      }).finally(()=>setLoading(false));
     };
     load();
     const iv = setInterval(load, 10000);
     return ()=>clearInterval(iv);
   },[]);
+
   const terrain = users.filter(u=>['technician','terrain'].includes(u.role));
   const bureau = users.filter(u=>!['technician','terrain'].includes(u.role));
   const canAll = ['admin','hr','dg'].includes(user.role);
-  const display = tab==='terrain'?terrain:tab==='bureau'&&canAll?bureau:canAll?users:terrain;
+  const display = tab==='team'?(canAll?[...terrain,...bureau]:terrain):[];
+  const active = missions.filter(m=>m.status==='in_progress');
+  const pending = missions.filter(m=>m.status==='pending');
+  const avail = users.filter(u=>['technician','terrain'].includes(u.role)&&!missions.find(m=>m.tech_id===u.id&&m.status==='in_progress'));
+
+  const assign = async(mId,uId,uName) => {
+    const tk = localStorage.getItem('token');
+    const r = await fetch('https://backend-cleanit-erp.vercel.app/missions/'+mId,{method:'PUT',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+      body:JSON.stringify({techId:uId,status:'in_progress'})}).then(r=>r.json()).catch(()=>null);
+    if(r?.id){ toast(uName+' assigné(e)','success'); setMissions(ms=>ms.map(m=>m.id===mId?{...m,tech_id:uId,status:'in_progress'}:m)); }
+    else toast('Erreur','error');
+  };
+
+  const callUser = async (otherId, type) => {
+    const tk = localStorage.getItem('token');
+    const me = JSON.parse(localStorage.getItem('user')||'{}');
+    const room = `CleanIT-dm-${[me.id, otherId].sort((a,b)=>a-b).join('-')}`;
+    try {
+      const r = await fetch('https://backend-cleanit-erp.vercel.app/calls/initiate',{
+        method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+        body:JSON.stringify({calleeId:otherId, type, room})
+      }).then(r=>r.json());
+      navigate('/mobile/messages', { state:{ startCall:{type, callId:r.id, room} } });
+    } catch(e){ toast('Erreur appel','error'); }
+  };
+
   return (
     <div style={{flex:1,overflowY:'auto',background:C2.bg,paddingBottom:80}}>
-      <Header title="Equipes"/>
-      {loading?<div style={{padding:32,textAlign:'center'}}><div style={{width:32,height:32,border:'3px solid '+C2.primaryL,borderTopColor:C2.primary,borderRadius:'50%',animation:'spin .8s linear infinite',margin:'0 auto'}}/></div>:(
+      <Toast msg={toastMsg} show={toastShow} type={toastType}/>
+      <Header title="Équipe"/>
+      {loading?(
+        <div style={{padding:32,textAlign:'center'}}><div style={{width:32,height:32,border:'3px solid '+C2.primaryL,borderTopColor:C2.primary,borderRadius:'50%',animation:'spin .8s linear infinite',margin:'0 auto'}}/></div>
+      ):(
         <>
           <div style={{display:'flex',borderBottom:'1px solid '+C2.border}}>
-            {(canAll?[['all','Tous ('+users.length+')'],['terrain','Terrain ('+terrain.length+')'],['bureau','Bureau ('+bureau.length+')']]:
-              [['all','Terrain ('+terrain.length+')']]).map(([id,lbl])=>(
+            {[['team','Équipe ('+(canAll?users.length:terrain.length)+')'],['active','En cours ('+active.length+')'],['assign','À assigner ('+pending.length+')']].map(([id,lbl])=>(
               <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:'9px 4px',border:'none',background:C2.bg,
                 fontSize:10,fontWeight:tab===id?700:500,cursor:'pointer',fontFamily:FONT,
                 color:tab===id?C2.primary:C2.text3,borderBottom:tab===id?'2px solid '+C2.primary:'2px solid transparent'}}>{lbl}</button>
             ))}
           </div>
-          {display.map(u=>{
+
+          {tab==='team' && display.map(u=>{
             const av=((u.firstName||'')[0]+(u.lastName||'')[0]).toUpperCase();
             const col=u.role==='admin'?'#DC2626':u.role==='project_manager'?'#7C3AED':u.role==='hr'?'#059669':'#EA580C';
-            const active=u.lastSeen&&(Date.now()-new Date(u.lastSeen).getTime())<1800000;
+            const isActive=u.lastSeen&&(Date.now()-new Date(u.lastSeen).getTime())<1800000;
+            const isMe = u.id===user.id;
             return(
               <div key={u.id} style={{display:'flex',alignItems:'center',gap:10,padding:'11px 14px',borderBottom:'0.5px solid '+C2.border}}>
                 <div style={{position:'relative'}}>
                   <div style={{width:44,height:44,borderRadius:'50%',background:col+'22',border:'1.5px solid '+col,
                     display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,color:col}}>{av}</div>
                   <div style={{position:'absolute',bottom:0,right:0,width:12,height:12,borderRadius:'50%',
-                    background:active?'#22C55E':'#9CA3AF',border:'2px solid white'}}/>
+                    background:isActive?'#22C55E':'#9CA3AF',border:'2px solid white'}}/>
                 </div>
                 <div style={{flex:1}}>
                   <div style={{fontSize:13,fontWeight:600,color:C2.text}}>{u.firstName} {u.lastName}</div>
                   <div style={{fontSize:10,color:C2.text3}}>{u.role} · {u.email}</div>
                 </div>
-                <div style={{background:active?'#DCFCE7':'#F3F4F6',color:active?'#16A34A':'#6B7280',
-                  padding:'3px 8px',borderRadius:10,fontSize:10,fontWeight:700}}>
-                  {active?'Actif':'Hors ligne'}
-                </div>
+                {!isMe && (
+                  <div style={{display:'flex',gap:6}}>
+                    <button onClick={()=>callUser(u.id,'audio')} title="Appeler"
+                      style={{width:30,height:30,borderRadius:'50%',border:'none',background:C2.primaryL,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C2.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.948V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
-        </>
-      )}
-    </div>
-  );
-};
-const ScreenDispatch = ({user}) => {
-  const [tab,setTab] = useState('active');
-  const [missions,setMissions] = useState([]);
-  const [users,setUsers] = useState([]);
-  const {toast,toastMsg,toastShow,toastType} = useToast();
-  const C2 = getC();
-  useEffect(()=>{
-    const load = () => {
-      const tk = localStorage.getItem('token');
-      const h = {'Authorization':'Bearer '+tk};
-      const b = 'https://backend-cleanit-erp.vercel.app';
-      Promise.all([fetch(b+'/missions',{headers:h}).then(r=>r.json()).catch(()=>[]),
-        fetch(b+'/users',{headers:h}).then(r=>r.json()).catch(()=>[])]).then(([ms,us])=>{
-        if(Array.isArray(ms))setMissions(ms);if(Array.isArray(us))setUsers(us);});
-    };
-    load();const iv=setInterval(load,10000);return()=>clearInterval(iv);
-  },[]);
-  const active=missions.filter(m=>m.status==='in_progress');
-  const pending=missions.filter(m=>m.status==='pending');
-  const avail=users.filter(u=>['technician','terrain'].includes(u.role)&&!missions.find(m=>m.tech_id===u.id&&m.status==='in_progress'));
-  const assign=async(mId,uId,uName)=>{
-    const tk=localStorage.getItem('token');
-    const r=await fetch('https://backend-cleanit-erp.vercel.app/missions/'+mId,{method:'PUT',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
-      body:JSON.stringify({techId:uId,status:'in_progress'})}).then(r=>r.json()).catch(()=>null);
-    if(r?.id){toast(uName+' assigné(e)','success');setMissions(ms=>ms.map(m=>m.id===mId?{...m,tech_id:uId,status:'in_progress'}:m));}
-    else toast('Erreur','error');
-  };
-  const C = getC();
-  return(
-    <div style={{flex:1,overflowY:'auto',background:C2.bg,paddingBottom:80}}>
-      <Toast msg={toastMsg} show={toastShow} type={toastType}/>
-      <Header title="Dispatch"/>
-      <div style={{display:'flex',borderBottom:'1px solid '+C2.border}}>
-        {[['active','En cours ('+active.length+')'],['assign','A assigner ('+pending.length+')']].map(([id,lbl])=>(
-          <button key={id} onClick={()=>setTab(id)} style={{flex:1,padding:'9px 4px',border:'none',background:C2.bg,
-            fontSize:10,fontWeight:tab===id?700:500,cursor:'pointer',fontFamily:FONT,
-            color:tab===id?C2.primary:C2.text3,borderBottom:tab===id?'2px solid '+C2.primary:'2px solid transparent'}}>{lbl}</button>
-        ))}
-      </div>
-      {tab==='active'&&active.map(m=>{
-        const tech=users.find(u=>u.id===m.tech_id);
-        return(<div key={m.id} style={{padding:'12px 14px',borderBottom:'0.5px solid '+C2.border}}>
-          <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
-            <div><div style={{fontSize:10,color:C2.text3}}>{m.client} · {m.site}</div>
-              <div style={{fontSize:13,fontWeight:700,color:C2.text}}>{m.type||'Mission'}</div></div>
-            <div style={{background:C2.primaryL,color:C2.primary,padding:'3px 9px',borderRadius:10,fontSize:10,fontWeight:700}}>En cours</div>
-          </div>
-          <div style={{background:C2.bg2,borderRadius:4,height:5,marginBottom:6}}>
-            <div style={{width:(m.progress||0)+'%',height:'100%',background:C2.primary,borderRadius:4}}/></div>
-          <div style={{display:'flex',justifyContent:'space-between'}}>
-            {tech&&<span style={{fontSize:11,color:C2.text}}>{tech.firstName} {tech.lastName}</span>}
-            <span style={{fontSize:10,color:C2.text3}}>📅 {m.deadline||'—'}</span>
-          </div>
-        </div>);
-      })}
-      {tab==='assign'&&pending.map(m=>(
-        <div key={m.id} style={{padding:12,margin:'8px 14px',background:C2.bg2,borderRadius:12,border:'0.5px solid '+C2.border}}>
-          <div style={{fontSize:13,fontWeight:700,color:C2.text}}>{m.client} · {m.site}</div>
-          <div style={{fontSize:11,color:C2.text3,marginBottom:10}}>{m.type} · {m.deadline||'—'}</div>
-          {avail.map(u=>(
-            <div key={u.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-              padding:'7px 9px',background:C2.bg,borderRadius:8,border:'0.5px solid '+C2.border,marginBottom:5}}>
-              <span style={{fontSize:11,color:C2.text}}>{u.firstName} {u.lastName}</span>
-              <button onClick={()=>assign(m.id,u.id,u.firstName+' '+u.lastName)}
-                style={{background:C2.primary,border:'none',borderRadius:6,padding:'4px 10px',
-                  color:'white',fontSize:10,fontWeight:700,cursor:'pointer',fontFamily:FONT}}>Assigner</button>
+          {tab==='team' && display.length===0 && (
+            <div style={{padding:30,textAlign:'center',color:C2.text3,fontSize:12}}>Aucun membre d'équipe</div>
+          )}
+
+          {tab==='active' && active.map(m=>{
+            const tech=users.find(u=>u.id===m.tech_id);
+            return(<div key={m.id} style={{padding:'12px 14px',borderBottom:'0.5px solid '+C2.border}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+                <div><div style={{fontSize:10,color:C2.text3}}>{m.client} · {m.site}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:C2.text}}>{m.type||'Mission'}</div></div>
+                <div style={{background:C2.primaryL,color:C2.primary,padding:'3px 9px',borderRadius:10,fontSize:10,fontWeight:700}}>En cours</div>
+              </div>
+              <div style={{background:C2.bg2,borderRadius:4,height:5,marginBottom:6}}>
+                <div style={{width:(m.progress||0)+'%',height:'100%',background:C2.primary,borderRadius:4}}/></div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                {tech&&<span style={{fontSize:11,color:C2.text}}>{tech.firstName} {tech.lastName}</span>}
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <span style={{fontSize:10,color:C2.text3}}>📅 {m.deadline||'—'}</span>
+                  {tech && <button onClick={()=>callUser(tech.id,'audio')} style={{width:26,height:26,borderRadius:'50%',border:'none',background:C2.primaryL,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C2.primary} strokeWidth="2" strokeLinecap="round"><path d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.948V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                  </button>}
+                </div>
+              </div>
+            </div>);
+          })}
+          {tab==='active' && active.length===0 && (
+            <div style={{padding:30,textAlign:'center',color:C2.text3,fontSize:12}}>Aucune mission en cours</div>
+          )}
+
+          {tab==='assign' && pending.map(m=>(
+            <div key={m.id} style={{padding:12,margin:'8px 14px',background:C2.bg2,borderRadius:12,border:'0.5px solid '+C2.border}}>
+              <div style={{fontSize:13,fontWeight:700,color:C2.text}}>{m.client} · {m.site}</div>
+              <div style={{fontSize:11,color:C2.text3,marginBottom:10}}>{m.type} · {m.deadline||'—'}</div>
+              {avail.map(u=>(
+                <div key={u.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+                  padding:'7px 9px',background:C2.bg,borderRadius:8,border:'0.5px solid '+C2.border,marginBottom:5}}>
+                  <span style={{fontSize:11,color:C2.text}}>{u.firstName} {u.lastName}</span>
+                  <button onClick={()=>assign(m.id,u.id,u.firstName+' '+u.lastName)}
+                    style={{background:C2.primary,border:'none',borderRadius:6,padding:'4px 10px',
+                      color:'white',fontSize:10,fontWeight:700,cursor:'pointer',fontFamily:FONT}}>Assigner</button>
+                </div>
+              ))}
             </div>
           ))}
-        </div>
-      ))}
+          {tab==='assign' && pending.length===0 && (
+            <div style={{padding:30,textAlign:'center',color:C2.text3,fontSize:12}}>Aucune mission à assigner</div>
+          )}
+        </>
+      )}
     </div>
   );
 };
@@ -2368,9 +2680,30 @@ const ScreenProfil = ({user,onLogout}) => {
   const [lang,setLang] = useState(getLang());
   const [theme,setTheme] = useState(getTheme());
   const [notifs,setNotifs] = useState(true);
+  const [realStats,setRealStats] = useState({missionsCount:0,presenceRate:null});
   const {toast,toastMsg,toastShow,toastType} = useToast();
   const userObj = USERS.find(u=>u.id===user.id)||user;
-  const missions = MISSIONS.filter(m=>m.techId===user.id);
+
+  useEffect(()=>{
+    const tk = localStorage.getItem('token');
+    const h = {'Authorization':'Bearer '+tk};
+    const b = 'https://backend-cleanit-erp.vercel.app';
+    Promise.all([
+      fetch(b+'/missions/my',{headers:h}).then(r=>r.json()).catch(()=>[]),
+      fetch(b+'/pointages',{headers:h}).then(r=>r.json()).catch(()=>[]),
+    ]).then(([ms,pts])=>{
+      const missionsCount = Array.isArray(ms) ? ms.length : 0;
+      // Taux de présence réel = jours avec au moins 1 pointage valide sur les 30 derniers jours
+      let presenceRate = null;
+      if(Array.isArray(pts) && pts.length>0){
+        const last30 = new Date(); last30.setDate(last30.getDate()-30);
+        const recentValid = pts.filter(p=>p.valide!==false && new Date(p.created_at)>=last30);
+        const daysWithPointage = new Set(recentValid.map(p=>(p.created_at||'').slice(0,10))).size;
+        presenceRate = Math.round((daysWithPointage/30)*100);
+      }
+      setRealStats({missionsCount, presenceRate});
+    });
+  },[]);
 
   const saveLang = (l) => { setLang(l);localStorage.setItem('cit_lang',l); };
   const saveTheme = (th) => {
@@ -2413,9 +2746,9 @@ const ScreenProfil = ({user,onLogout}) => {
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
           {[
-            {label:'Missions',val:missions.length||3},
+            {label:'Missions',val:realStats.missionsCount},
             {label:'Certs',val:userObj.certs?.length||0},
-            {label:'Presence',val:'98%'},
+            {label:'Presence',val:realStats.presenceRate!==null?realStats.presenceRate+'%':'—'},
           ].map(({label,val})=>(
             <div key={label} style={{background:'rgba(255,255,255,.15)',
               borderRadius:8,padding:'7px',textAlign:'center'}}>
@@ -2692,8 +3025,33 @@ export default function MobileApp() {
 
   useEffect(()=>{
     if(!navigator.geolocation||!user) return;
+    let lastSent = 0;
+    const sendLocation = (lat, lng, accuracy) => {
+      const now2 = Date.now();
+      if(now2 - lastSent < 30000) return; // throttle: max 1 envoi / 30s
+      lastSent = now2;
+      const tk = localStorage.getItem('token');
+      if(!tk) return;
+      // Batterie si dispo (API navigator.getBattery, support partiel)
+      const sendWithBattery = (batteryLevel) => {
+        fetch('https://backend-cleanit-erp.vercel.app/location/update', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+          body: JSON.stringify({ lat, lng, accuracy, battery: batteryLevel })
+        }).catch(()=>{});
+      };
+      if(navigator.getBattery) {
+        navigator.getBattery().then(b=>sendWithBattery(Math.round(b.level*100))).catch(()=>sendWithBattery(null));
+      } else {
+        sendWithBattery(null);
+      }
+    };
     const wid = navigator.geolocation.watchPosition(
-      p=>setGps({lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy}),
+      p=>{
+        const coords = {lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy,altitude:p.coords.altitude};
+        setGps(coords);
+        sendLocation(coords.lat, coords.lng, coords.accuracy);
+      },
       ()=>{},{enableHighAccuracy:true,timeout:10000,maximumAge:5000}
     );
     return()=>navigator.geolocation.clearWatch(wid);
@@ -2739,12 +3097,17 @@ export default function MobileApp() {
       }
     }
   }, []);
-  const logout = () => {setUser(null);localStorage.removeItem('cit_mobile_user');};
+  const logout = () => {setUser(null);localStorage.removeItem('cit_mobile_user');localStorage.removeItem('token');localStorage.removeItem('cit_last_activity');};
+
+  // Déconnexion automatique après 1h d'inactivité
+  useInactivityLogout(60 * 60 * 1000, logout, !!user);
 
   // Hooks déclarés avant tout return conditionnel
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [activeCall, setActiveCall] = useState(null);
 
   useEffect(()=>{
     if(!user) return;
@@ -2761,6 +3124,32 @@ export default function MobileApp() {
     return()=>clearInterval(iv);
   },[user]);
 
+  // Polling appel entrant — global, fonctionne peu importe l'écran ouvert
+  useEffect(()=>{
+    if(!user) return;
+    const checkIncoming = () => {
+      const tk = localStorage.getItem('token');
+      if(!tk) return;
+      if(incomingCall && !activeCall){
+        // Une popup est déjà affichée : vérifier que l'appel est toujours "ringing" côté serveur
+        fetch(`https://backend-cleanit-erp.vercel.app/calls/incoming`,{headers:{'Authorization':'Bearer '+tk}})
+          .then(r=>r.json())
+          .then(call=>{
+            if(!call || call.id!==incomingCall.id) setIncomingCall(null); // appel annulé/expiré/répondu ailleurs
+          }).catch(()=>{});
+        return;
+      }
+      if(activeCall) return;
+      fetch('https://backend-cleanit-erp.vercel.app/calls/incoming',{headers:{'Authorization':'Bearer '+tk}})
+        .then(r=>r.json())
+        .then(call=>{ if(call) setIncomingCall(call); })
+        .catch(()=>{});
+    };
+    checkIncoming();
+    const iv = setInterval(checkIncoming, 3000);
+    return()=>clearInterval(iv);
+  },[user, incomingCall, activeCall]);
+
   if(!user) return <ScreenLogin onLogin={login}/>;
 
   const parts = loc.split('/').filter(Boolean);
@@ -2772,8 +3161,7 @@ export default function MobileApp() {
     if(loc.includes('/messages')) return <ScreenMessages/>;
     if(loc.includes('/pointer'))  return <ScreenPointer {...common}/>;
     if(loc.includes('/mission'))  return <ScreenMission {...common}/>;
-    if(loc.includes('/equipes'))  return <ScreenEquipes user={user}/>;
-    if(loc.includes('/dispatch')) return <ScreenDispatch/>;
+    if(loc.includes('/equipe'))  return <ScreenEquipe user={user} navigate={navigate}/>;
     if(loc.includes('/approvals'))return <ScreenApprovals user={user}/>;
     if(loc.includes('/analytics'))return <ScreenAnalytics/>;
     if(loc.includes('/profil'))   return <ScreenProfil {...common} onLogout={logout}/>;
@@ -2816,6 +3204,75 @@ export default function MobileApp() {
       `}</style>
       {getPage()}
       {!isCamera && <BottomNav user={user} navigate={navigate} active={activePage} unreadCount={unreadCount}/>}
+
+      {incomingCall && !activeCall && (
+        <div style={{position:'fixed',top:16,left:16,right:16,zIndex:950,maxWidth:398,margin:'0 auto',
+          background:'#111827',color:'#fff',borderRadius:14,padding:'16px 18px',
+          boxShadow:'0 12px 40px rgba(0,0,0,.4)'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+            <div style={{width:40,height:40,borderRadius:'50%',background:'#0A2D6E',
+              display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:700,flexShrink:0}}>
+              {(incomingCall.caller_name||'?')[0]}
+            </div>
+            <div>
+              <div style={{fontSize:13,fontWeight:700}}>{incomingCall.caller_name}</div>
+              <div style={{fontSize:11,color:'rgba(255,255,255,.6)'}}>
+                {incomingCall.type==='audio'?'Appel audio entrant':'Appel vidéo entrant'}
+              </div>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:8}}>
+            <button onClick={async ()=>{
+                const tk = localStorage.getItem('token');
+                await fetch(`https://backend-cleanit-erp.vercel.app/calls/${incomingCall.id}/respond`,{method:'POST',
+                  headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+                  body:JSON.stringify({accepted:false})}).catch(()=>{});
+                setIncomingCall(null);
+              }}
+              style={{flex:1,padding:'10px',borderRadius:9,border:'none',background:'#DC2626',
+                color:'#fff',fontWeight:700,fontSize:12,cursor:'pointer'}}>
+              Refuser
+            </button>
+            <button onClick={async ()=>{
+                const tk = localStorage.getItem('token');
+                await fetch(`https://backend-cleanit-erp.vercel.app/calls/${incomingCall.id}/respond`,{method:'POST',
+                  headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+                  body:JSON.stringify({accepted:true})}).catch(()=>{});
+                setActiveCall({type:incomingCall.type, room:incomingCall.room, withName:incomingCall.caller_name, callId:incomingCall.id});
+                setIncomingCall(null);
+              }}
+              style={{flex:1,padding:'10px',borderRadius:9,border:'none',background:'#16A34A',
+                color:'#fff',fontWeight:700,fontSize:12,cursor:'pointer'}}>
+              Répondre
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeCall && (
+        <div style={{position:'fixed',inset:0,background:'#0b1120',zIndex:960,
+          display:'flex',flexDirection:'column',maxWidth:430,margin:'0 auto'}}>
+          <div style={{padding:'10px 16px',background:'#111827',display:'flex',
+            alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,color:'#fff'}}>
+                {activeCall.type==='video'?'Appel vidéo':'Appel audio'} · {activeCall.withName||''}
+              </div>
+              <div style={{fontSize:10,color:'rgba(255,255,255,.5)'}}>En cours</div>
+            </div>
+            <button onClick={async ()=>{
+                const tk = localStorage.getItem('token');
+                if(activeCall.callId) await fetch(`https://backend-cleanit-erp.vercel.app/calls/${activeCall.callId}/end`,{method:'POST',headers:{'Authorization':'Bearer '+tk}}).catch(()=>{});
+                setActiveCall(null);
+              }}
+              style={{padding:'6px 14px',borderRadius:8,border:'none',background:'#DC2626',
+                color:'#fff',fontWeight:700,fontSize:11,cursor:'pointer'}}>
+              Quitter
+            </button>
+          </div>
+          <DailyFrame room={activeCall.room} displayName={user?.firstName} audioOnly={activeCall.type==='audio'}/>
+        </div>
+      )}
     </div></ErrorBoundary>
   );
 }

@@ -181,7 +181,23 @@ const fmtTime = d => {
   if(diff<86400000) return new Date(d).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   return new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
 };
-const fmtFull = d => new Date(d).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+const fmtFull = d => {
+  const dt = new Date(d);
+  const isToday = dt.toDateString() === new Date().toDateString();
+  const time = dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  if(isToday) return time;
+  const isYesterday = (() => { const y=new Date(); y.setDate(y.getDate()-1); return dt.toDateString()===y.toDateString(); })();
+  if(isYesterday) return `Hier ${time}`;
+  return dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}) + ' ' + time;
+};
+const dayLabel = d => {
+  const dt = new Date(d);
+  const isToday = dt.toDateString() === new Date().toDateString();
+  if(isToday) return "Aujourd'hui";
+  const isYesterday = (() => { const y=new Date(); y.setDate(y.getDate()-1); return dt.toDateString()===y.toDateString(); })();
+  if(isYesterday) return 'Hier';
+  return dt.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+};
 const getUser = id => CONTACTS.find(u=>u.id===id)||ME;
 const statusDot = s => s==='online'?P.green:s==='busy'?P.red:s==='away'?P.yellow:P.gray;
 
@@ -214,6 +230,7 @@ const IconNav = ({active, navigate, badge}) => {
   const tabs = [
     {id:'chat',     icon:'chat',     label:'Messages'},
     {id:'reunions', icon:'meeting',  label:'Réunions'},
+    {id:'appels',   icon:'phone',    label:'Appels'},
     {id:'email',    icon:'email',    label:'Emails'},
     {id:'drive',    icon:'drive',    label:'Cloud Drive'},
     {id:'contacts', icon:'contacts', label:'Contacts'},
@@ -261,7 +278,47 @@ const IconNav = ({active, navigate, badge}) => {
 // ═══════════════════════════════════════════════════════════════════
 //  SECTION CHAT
 // ═══════════════════════════════════════════════════════════════════
+const DailyCall = ({ room, displayName, audioOnly, onClose }) => {
+  const [roomUrl, setRoomUrl] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const tk = localStorage.getItem('token');
+    fetch('https://backend-cleanit-erp.vercel.app/calls/daily-room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+tk },
+      body: JSON.stringify({ roomName: room })
+    }).then(r=>r.json()).then(r=>{
+      if(r.url) setRoomUrl(r.url); else setError(r.message||'Erreur création room');
+    }).catch(e=>setError(e.message));
+  }, [room]);
+
+  return (
+    <div style={{flex:1,position:'relative',display:'flex'}}>
+      {error && (
+        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',
+          color:'#fff',fontSize:13,padding:20,textAlign:'center'}}>
+          Erreur de connexion à l'appel : {error}
+        </div>
+      )}
+      {!error && !roomUrl && (
+        <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,.6)',fontSize:13}}>
+          Connexion en cours...
+        </div>
+      )}
+      {roomUrl && (
+        <iframe
+          src={`${roomUrl}?displayname=${encodeURIComponent(displayName||'Utilisateur')}`}
+          style={{flex:1,border:'none',width:'100%',height:'100%'}}
+          allow="camera; microphone; fullscreen; display-capture" title="Appel"/>
+      )}
+    </div>
+  );
+};
+
 const SectionChat = ({navigate, onUnreadChange}) => {
+  const [inCall, setInCall] = useState(null); // {type:'audio'|'video', withUser, callId, room}
+  const [incomingCall, setIncomingCall] = useState(null);
   const [showDMModal, setShowDMModal] = useState(false);
   const [activeDM, setActiveDM] = useState(null);
   const [dmMessages, setDMMessages] = useState([]);
@@ -269,6 +326,33 @@ const SectionChat = ({navigate, onUnreadChange}) => {
   const [realUsers, setRealUsers] = useState([]);
   const [conversations, setConversations] = useState([]);
   const BASE = 'https://backend-cleanit-erp.vercel.app';
+
+  const startCall = async (type, withUser) => {
+    const myId = JSON.parse(localStorage.getItem('user')||'{}').id;
+    const room = `CleanIT-dm-${[myId, withUser?.id].sort((a,b)=>a-b).join('-')}`;
+    try {
+      const r = await fetch(BASE+'/calls/initiate', {
+        method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token')},
+        body: JSON.stringify({ calleeId: withUser?.id, type, room })
+      }).then(r=>r.json());
+      setInCall({ type, withUser, callId: r.id, room });
+    } catch(e) { setInCall({ type, withUser, room }); }
+  };
+
+  // Polling appel entrant toutes les 4s — fallback si la push notification n'arrive pas
+  useEffect(() => {
+    const checkIncoming = async () => {
+      if(inCall || incomingCall) return;
+      try {
+        const call = await fetch(BASE+'/calls/incoming', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}}).then(r=>r.json());
+        if(call) setIncomingCall(call);
+      } catch(e){}
+    };
+    const iv = setInterval(checkIncoming, 4000);
+    checkIncoming();
+    return () => clearInterval(iv);
+  }, [inCall, incomingCall]);
+
 
   // Charger statuts en ligne toutes les 30s
   useEffect(() => {
@@ -518,19 +602,90 @@ const SectionChat = ({navigate, onUnreadChange}) => {
             </>
           )}
           <div style={{marginLeft:'auto',display:'flex',gap:6}}>
-            <button onClick={()=>navigate('/cleanitcomm/reunions')}
-              style={{display:'flex',alignItems:'center',gap:5,padding:'6px 12px',borderRadius:8,border:'none',background:P.blue,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer'}}>
-              <Icon name="video" size={14} color="#fff"/> Appel vidéo (bientôt)
-            </button>
-            <button style={{width:34,height:34,borderRadius:8,border:`1px solid ${P.border}`,background:P.white,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <Icon name="phone" size={16} color={P.text3}/>
-            </button>
+            {isDM && (
+              <>
+                <button onClick={()=>startCall('video', dmUser)}
+                  style={{display:'flex',alignItems:'center',gap:5,padding:'6px 12px',borderRadius:8,border:'none',background:P.blue,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+                  <Icon name="video" size={14} color="#fff"/> Appel vidéo
+                </button>
+                <button onClick={()=>startCall('audio', dmUser)}
+                  style={{width:34,height:34,borderRadius:8,border:`1px solid ${P.border}`,background:P.white,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <Icon name="phone" size={16} color={P.text3}/>
+                </button>
+              </>
+            )}
             <button onClick={()=>setShowRight(!showRight)}
               style={{width:34,height:34,borderRadius:8,border:`1px solid ${showRight?P.blue:P.border}`,background:showRight?P.blue_l:P.white,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
               <Icon name="info" size={16} color={showRight?P.blue:P.text3}/>
             </button>
           </div>
         </div>
+
+        {incomingCall && !inCall && (
+          <div style={{position:'fixed',top:20,right:24,zIndex:950,background:'#111827',
+            color:'#fff',borderRadius:14,padding:'16px 20px',width:280,
+            boxShadow:'0 12px 40px rgba(0,0,0,.35)',animation:'slideIn .25s ease'}}>
+            <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
+              <div style={{width:40,height:40,borderRadius:'50%',background:P.blue,
+                display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:700,flexShrink:0}}>
+                {(incomingCall.caller_name||'?')[0]}
+              </div>
+              <div>
+                <div style={{fontSize:13,fontWeight:700}}>{incomingCall.caller_name}</div>
+                <div style={{fontSize:11,color:'rgba(255,255,255,.6)'}}>
+                  {incomingCall.type==='audio'?'Appel audio entrant':'Appel vidéo entrant'}
+                </div>
+              </div>
+            </div>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={async ()=>{
+                  await fetch(BASE+`/calls/${incomingCall.id}/respond`,{method:'POST',
+                    headers:{'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token')},
+                    body:JSON.stringify({accepted:false})});
+                  setIncomingCall(null);
+                }}
+                style={{flex:1,padding:'9px',borderRadius:8,border:'none',background:P.red,
+                  color:'#fff',fontWeight:700,fontSize:12,cursor:'pointer'}}>
+                Refuser
+              </button>
+              <button onClick={async ()=>{
+                  await fetch(BASE+`/calls/${incomingCall.id}/respond`,{method:'POST',
+                    headers:{'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token')},
+                    body:JSON.stringify({accepted:true})});
+                  setInCall({ type: incomingCall.type, withUser: {firstName: incomingCall.caller_name, id: incomingCall.caller_id}, room: incomingCall.room });
+                  setIncomingCall(null);
+                }}
+                style={{flex:1,padding:'9px',borderRadius:8,border:'none',background:'#16A34A',
+                  color:'#fff',fontWeight:700,fontSize:12,cursor:'pointer'}}>
+                Répondre
+              </button>
+            </div>
+          </div>
+        )}
+
+        {inCall && (
+          <div style={{position:'fixed',inset:0,background:'#0b1120',zIndex:900,display:'flex',flexDirection:'column'}}>
+            <div style={{padding:'10px 20px',background:'#111827',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+              <div>
+                <div style={{fontSize:14,fontWeight:700,color:'#fff'}}>
+                  {inCall.type==='video'?'Appel vidéo':'Appel audio'} · {inCall.withUser?.firstName} {inCall.withUser?.lastName}
+                </div>
+                <div style={{fontSize:11,color:'rgba(255,255,255,.5)'}}>En cours</div>
+              </div>
+              <button onClick={async ()=>{
+                  if(inCall.callId) await fetch(BASE+`/calls/${inCall.callId}/end`,{method:'POST',headers:{'Authorization':'Bearer '+localStorage.getItem('token')}}).catch(()=>{});
+                  setInCall(null);
+                }} style={{padding:'7px 16px',borderRadius:8,border:'none',background:P.red,color:'#fff',fontWeight:700,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',gap:5}}>
+                <Icon name="close" size={14} color="#fff"/> Quitter
+              </button>
+            </div>
+            <DailyCall
+              room={inCall.room || `CleanIT-dm-${[JSON.parse(localStorage.getItem('user')||'{}').id, inCall.withUser?.id].sort((a,b)=>a-b).join('-')}`}
+              displayName={JSON.parse(localStorage.getItem('user')||'{}').firstName||'Utilisateur'}
+              audioOnly={inCall.type==='audio'}
+              onClose={()=>setInCall(null)}/>
+          </div>
+        )}
 
         {/* Messages */}
         <div style={{flex:1,overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column',gap:0}}>
@@ -550,18 +705,32 @@ const SectionChat = ({navigate, onUnreadChange}) => {
             const prevTs = prev ? (prev.created_at ? new Date(prev.created_at).getTime() : prev.ts) : 0;
             const grouped = prev&&(prev.from_id||prev.uid)===(msg.from_id||msg.uid)&&msgTs-prevTs<300000;
             const alertSt = ALERT_STYLE[msg.alertType]||{};
+            const showDaySeparator = !prev || new Date(msgTs).toDateString() !== new Date(prevTs).toDateString();
+
+            const daySeparator = showDaySeparator && (
+              <div key={'day-'+msg.id} style={{display:'flex',justifyContent:'center',margin:'14px 0 10px'}}>
+                <div style={{padding:'4px 14px',borderRadius:20,fontSize:11,fontWeight:600,background:P.listBg,color:P.text3,border:`1px solid ${P.border}`}}>
+                  {dayLabel(msgTs)}
+                </div>
+              </div>
+            );
 
             if(isSys) return(
-              <div key={msg.id} style={{display:'flex',justifyContent:'center',marginBottom:6}}>
-                <div style={{padding:'6px 14px',borderRadius:20,fontSize:12,fontWeight:600,background:alertSt.bg||'#f3f4f6',color:alertSt.color||P.gray,border:`1px solid ${alertSt.border||'#e5e7eb'}`,maxWidth:'80%',textAlign:'center'}}>
-                  {msg.text}
-                  <span style={{fontSize:9,marginLeft:8,opacity:.6}}>{fmtFull(msgTs)}</span>
+              <div key={msg.id}>
+                {daySeparator}
+                <div style={{display:'flex',justifyContent:'center',marginBottom:6}}>
+                  <div style={{padding:'6px 14px',borderRadius:20,fontSize:12,fontWeight:600,background:alertSt.bg||'#f3f4f6',color:alertSt.color||P.gray,border:`1px solid ${alertSt.border||'#e5e7eb'}`,maxWidth:'80%',textAlign:'center'}}>
+                    {msg.text}
+                    <span style={{fontSize:9,marginLeft:8,opacity:.6}}>{fmtFull(msgTs)}</span>
+                  </div>
                 </div>
               </div>
             );
 
             return(
-              <div key={msg.id} style={{display:'flex',flexDirection:isMe?'row-reverse':'row',gap:8,marginBottom:grouped?2:10,alignItems:'flex-end'}}>
+              <div key={msg.id}>
+                {daySeparator}
+                <div style={{display:'flex',flexDirection:isMe?'row-reverse':'row',gap:8,marginBottom:grouped?2:10,alignItems:'flex-end'}}>
                 {!isMe&&(
                   <div style={{width:32,flexShrink:0}}>
                     {!grouped&&<Av user={user} size={32}/>}
@@ -589,6 +758,7 @@ const SectionChat = ({navigate, onUnreadChange}) => {
                   ))}
                   {!grouped&&<div style={{fontSize:9,color:P.text4,marginTop:3,paddingLeft:2}}>{fmtFull(msgTs||msg.ts||Date.now())}</div>}
                 </div>
+              </div>
               </div>
             );
           })}
@@ -633,11 +803,11 @@ const SectionChat = ({navigate, onUnreadChange}) => {
                 <div style={{fontSize:11,color:dmUser?.status==='online'?P.green:dmUser?.status==='away'?P.orange:P.text4,fontWeight:600}}>{dmUser?.status==='online'?'● En ligne':dmUser?.status==='away'?'● Absent':'● Hors ligne'}</div>
                 {dmUser?.last_seen&&dmUser?.status!=='online'&&<div style={{fontSize:10,color:P.text4,marginTop:2}}>Vu le {new Date(dmUser.last_seen).toLocaleDateString('fr-FR')} à {new Date(dmUser.last_seen).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div>}
                 <div style={{display:'flex',gap:8,marginTop:12,justifyContent:'center'}}>
-                  <button style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:'8px 12px',borderRadius:9,border:`1px solid ${P.border}`,background:'#f9fafb',cursor:'pointer'}}>
+                  <button onClick={()=>startCall('audio', dmUser)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:'8px 12px',borderRadius:9,border:`1px solid ${P.border}`,background:'#f9fafb',cursor:'pointer'}}>
                     <Icon name="phone" size={16} color={P.blue}/>
                     <span style={{fontSize:10,color:P.text3}}>Appel</span>
                   </button>
-                  <button onClick={()=>navigate('/cleanitcomm/reunions')} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:'8px 12px',borderRadius:9,border:`1px solid ${P.border}`,background:'#f9fafb',cursor:'pointer'}}>
+                  <button onClick={()=>startCall('video', dmUser)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,padding:'8px 12px',borderRadius:9,border:`1px solid ${P.border}`,background:'#f9fafb',cursor:'pointer'}}>
                     <Icon name="video" size={16} color={P.blue}/>
                     <span style={{fontSize:10,color:P.text3}}>Vidéo</span>
                   </button>
@@ -709,6 +879,72 @@ const SectionChat = ({navigate, onUnreadChange}) => {
 // ═══════════════════════════════════════════════════════════════════
 //  SECTION RÉUNIONS
 // ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+//  SECTION HISTORIQUE DES APPELS — appels manqués bien visibles
+// ═══════════════════════════════════════════════════════════════════
+const SectionCallHistory = () => {
+  const [calls, setCalls] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const tk = localStorage.getItem('token');
+    fetch('https://backend-cleanit-erp.vercel.app/calls/history', {headers:{'Authorization':'Bearer '+tk}})
+      .then(r=>r.json()).then(d=>{ if(Array.isArray(d)) setCalls(d); }).catch(()=>{}).finally(()=>setLoading(false));
+  }, []);
+
+  const fmtTime = (d) => {
+    const dt = new Date(d);
+    const isToday = dt.toDateString() === new Date().toDateString();
+    const time = dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    if(isToday) return "Aujourd'hui " + time;
+    return dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}) + ' ' + time;
+  };
+
+  const statusInfo = (status, direction) => {
+    if(status==='missed') return { label: direction==='incoming' ? 'Appel manqué' : 'Sans réponse', color: P.red };
+    if(status==='declined') return { label: 'Refusé', color: P.red };
+    if(status==='ended') return { label: 'Terminé', color: P.text3 };
+    if(status==='accepted'||status==='ringing') return { label: 'En cours', color: P.green };
+    return { label: status, color: P.text3 };
+  };
+
+  return (
+    <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',background:P.contentBg}}>
+      <div style={{padding:'0 16px',height:52,borderBottom:`1px solid ${P.border}`,background:P.white,display:'flex',alignItems:'center',flexShrink:0}}>
+        <span style={{fontSize:14,fontWeight:700,color:P.text}}>Historique des appels</span>
+      </div>
+      <div style={{flex:1,overflowY:'auto',padding:'8px 0'}}>
+        {loading ? (
+          <div style={{padding:30,textAlign:'center',color:P.text3,fontSize:13}}>Chargement...</div>
+        ) : calls.length===0 ? (
+          <div style={{padding:40,textAlign:'center',color:P.text3,fontSize:13}}>Aucun appel pour l'instant</div>
+        ) : calls.map(c => {
+          const info = statusInfo(c.status, c.direction);
+          const otherName = c.direction==='outgoing' ? c.caller_display : c.caller_name;
+          return (
+            <div key={c.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 16px',borderBottom:`1px solid ${P.border2}`}}>
+              <div style={{width:38,height:38,borderRadius:'50%',background:info.label.includes('manqué')||info.label==='Refusé'?P.redL||'#FEE2E2':P.blueL||'#DBEAFE',
+                display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <Icon name={c.type==='video'?'video':'phone'} size={16} color={info.color}/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:600,color:P.text}}>{otherName||'Utilisateur'}</div>
+                <div style={{fontSize:11,color:info.color,fontWeight:info.label.includes('manqué')?700:400,display:'flex',alignItems:'center',gap:5}}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d={c.direction==='outgoing' ? 'M7 17L17 7M7 7h10v10' : 'M17 7L7 17M17 17H7V7'}/>
+                  </svg>
+                  {info.label}
+                </div>
+              </div>
+              <div style={{fontSize:11,color:P.text4}}>{fmtTime(c.created_at)}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const SectionReunions = ({navigate}) => {
   const [meetings, setMeetings] = useState(MEETINGS);
   const [inMeeting, setInMeeting] = useState(null);
@@ -733,8 +969,7 @@ const SectionReunions = ({navigate}) => {
           <Icon name="close" size={14} color="#fff"/> Quitter
         </button>
       </div>
-      <iframe src={`https://meet.jit.si/CleanIT-${inMeeting.room}#userInfo.displayName="${ME.nom}"&config.prejoinPageEnabled=false&interfaceConfig.SHOW_JITSI_WATERMARK=false`}
-        style={{flex:1,border:'none'}} allow="camera; microphone; fullscreen; display-capture" title="Réunion"/>
+      <DailyCall room={`CleanIT-${inMeeting.room}`} displayName={ME.nom} audioOnly={false} onClose={()=>setInMeeting(null)}/>
     </div>
   );
 
@@ -1402,16 +1637,18 @@ export default function CleanITComm() {
   const navigate = useNavigate();
   const params   = useParams();
   const section  = params.section||'chat';
-  const unread   = CHANNELS.reduce((s,c)=>s+c.unread,0);
+  const [dmUnread, setDmUnread] = useState(0);
+  const unread = CHANNELS.reduce((s,c)=>s+c.unread,0) + dmUnread;
 
   const getSection = () => {
     switch(section){
       case 'reunions': return <SectionReunions navigate={navigate}/>;
+      case 'appels':   return <SectionCallHistory/>;
       case 'email':    return <SectionEmail/>;
       case 'drive':    return <SectionDrive/>;
       case 'contacts': return <SectionContacts navigate={navigate}/>;
       case 'whatsapp': return <SectionWhatsApp waMessages={waMessages} waContacts={waContacts} sendWAMessage={sendWAMessage} waInput={waInput} setWaInput={setWaInput} sending={sending} selectedContact={selectedContact} setSelectedContact={setSelectedContact} messagesEndRef={messagesEndRef}/>;
-      default:         return <SectionChat navigate={navigate}/>;
+      default:         return <SectionChat navigate={navigate} onUnreadChange={setDmUnread}/>;
     }
   };
 
@@ -1426,7 +1663,7 @@ export default function CleanITComm() {
         button{font-family:inherit}
         @keyframes fadeIn{from{opacity:0}to{opacity:1}}
       `}</style>
-      <IconNav active={section} navigate={navigate} badge={totalUnread+unread}/>
+      <IconNav active={section} navigate={navigate} badge={unread}/>
       <div style={{flex:1,display:'flex',overflow:'hidden',animation:'fadeIn .2s ease'}}>
         {getSection()}
       </div>

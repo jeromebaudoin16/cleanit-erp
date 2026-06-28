@@ -127,6 +127,7 @@ export default function ApprovalsMax() {
   const nav = useNavigate();
   const [section, setSection] = useState('requests'); // requests | reports | config
   const [tab, setTab] = useState('all');
+  const [boardView, setBoardView] = useState('kanban'); // kanban | list
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
@@ -206,64 +207,103 @@ export default function ApprovalsMax() {
 
   const typeInfo = t => TYPES[t]||TYPES.autre;
 
-  // ── TOPBAR ─────────────────────────────────────────────────
-  const TopBar = () => (
-    <div style={{background:C.white,boxShadow:C.shadow,position:'sticky',top:0,zIndex:200}}>
-      {/* Rangée 1 — sections principales */}
-      <div style={{background:C.navy,display:'flex',alignItems:'center',padding:'0 20px',height:44}}>
-        <div style={{display:'flex',alignItems:'center',gap:8,marginRight:20}}>
-          <div style={{width:26,height:26,borderRadius:6,background:'rgba(255,255,255,0.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <Ic d={I.check} s={14} c="#fff"/>
+  // ── SIDEBAR VERTICALE (collapsible au survol, style ApprovalMax) ──
+  // ── BARRE DE NAVIGATION HORIZONTALE (ne gêne plus la sidebar globale) ──
+  const TopNav = () => (
+    <div style={{background:C.navyD}}>
+      <div style={{display:'flex',alignItems:'center',padding:'0 20px',height:46,gap:6}}>
+        <div style={{display:'flex',alignItems:'center',gap:8,marginRight:16,flexShrink:0}}>
+          <div style={{width:24,height:24,borderRadius:6,background:'rgba(255,255,255,0.18)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <Ic d={I.check} s={13} c="#fff"/>
           </div>
-          <span style={{fontSize:13,fontWeight:700,color:'#fff',letterSpacing:.3}}>CleanIT <span style={{opacity:.7,fontWeight:400}}>Approvals</span></span>
+          <span style={{fontSize:12.5,fontWeight:700,color:'#fff',whiteSpace:'nowrap'}}>CleanIT <span style={{opacity:.65,fontWeight:400}}>Approvals</span></span>
         </div>
-        <div style={{display:'flex',gap:1}}>
+
+        <div style={{display:'flex',gap:2}}>
           {[
-            {id:'requests', l:'Demandes',  ic:I.list},
-            {id:'reports',  l:'Rapports',  ic:I.report},
-            {id:'audit',    l:'Audit Trail',ic:I.audit},
+            {id:'requests', l:'Demandes',     ic:I.list},
+            {id:'reports',  l:'Rapports',     ic:I.report},
+            {id:'audit',    l:'Audit Trail',  ic:I.audit},
             {id:'config',   l:'Configuration',ic:I.settings},
           ].map(s=>(
             <button key={s.id} onClick={()=>{setSection(s.id);setSelected(null);}} style={{
-              display:'flex',alignItems:'center',gap:5,padding:'0 14px',height:44,border:'none',
-              background:section===s.id?'rgba(255,255,255,0.15)':'transparent',
-              borderBottom:section===s.id?'2px solid #fff':'2px solid transparent',
-              color:section===s.id?'#fff':'rgba(255,255,255,0.65)',
-              fontSize:12,fontWeight:section===s.id?600:400,cursor:'pointer',fontFamily:'inherit',
+              display:'flex', alignItems:'center', gap:6, padding:'7px 12px', border:'none', borderRadius:7,
+              background:section===s.id?'rgba(255,255,255,0.14)':'transparent',
+              color:section===s.id?'#fff':'rgba(255,255,255,0.6)',
+              fontSize:12, fontWeight:section===s.id?600:400, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap',
             }}>
-              <Ic d={s.ic} s={13} c={section===s.id?'#fff':'rgba(255,255,255,0.65)'}/>
+              <Ic d={s.ic} s={13} c={section===s.id?'#fff':'rgba(255,255,255,0.55)'}/>
               {s.l}
             </button>
           ))}
         </div>
+
         <div style={{flex:1}}/>
+
         <button onClick={()=>setShowNew(true)} style={{
-          display:'flex',alignItems:'center',gap:6,padding:'6px 14px',
-          background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.3)',
-          borderRadius:6,color:'#fff',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit',
+          display:'flex', alignItems:'center', gap:6, padding:'7px 14px',
+          background:'#fff', border:'none', borderRadius:7, color:C.navyD, fontSize:12,
+          fontWeight:700, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', flexShrink:0,
         }}>
-          <Ic d={I.plus} s={13} c="#fff"/>
-          Nouvelle demande
+          <Ic d={I.plus} s={13} c={C.navyD}/> Nouvelle demande
         </button>
       </div>
-      {/* Rangée 2 — sous-onglets (seulement pour Demandes) */}
-      {section==='requests'&&(
-        <div style={{display:'flex',padding:'0 20px',background:C.white,borderBottom:'1px solid '+C.border}}>
-          {TABS.map(t=>(
-            <button key={t.id} onClick={()=>setTab(t.id)} style={{
-              display:'flex',alignItems:'center',gap:5,padding:'0 14px',height:38,border:'none',
-              borderBottom:tab===t.id?'2px solid '+C.navy:'2px solid transparent',
-              background:'transparent',color:tab===t.id?C.navy:C.text3,
-              fontWeight:tab===t.id?600:400,fontSize:12,cursor:'pointer',fontFamily:'inherit',
-            }}>
-              {t.l}
-              {t.n>0&&<span style={{
-                fontSize:10,fontWeight:700,padding:'1px 6px',borderRadius:10,
-                background:tab===t.id?(t.c+'20'):C.bg2,
-                color:tab===t.id?t.c:C.text3,
-              }}>{t.n}</span>}
-            </button>
-          ))}
+
+      {section==='requests' && (
+        <div style={{display:'flex',alignItems:'center',gap:14,padding:'0 20px 10px',overflowX:'auto'}}>
+          <div style={{display:'flex',gap:2,flexShrink:0}}>
+            {TABS.map(t=>(
+              <button key={t.id} onClick={()=>setTab(t.id)} style={{
+                display:'flex',alignItems:'center',gap:5,padding:'5px 10px',border:'none',borderRadius:6,
+                background:tab===t.id?'rgba(255,255,255,0.14)':'transparent',
+                color:tab===t.id?'#fff':'rgba(255,255,255,0.55)',
+                fontSize:11.5,fontWeight:tab===t.id?600:400,cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap',
+              }}>
+                {t.l}
+                {t.n>0 && <span style={{fontSize:9.5,fontWeight:700,padding:'1px 6px',borderRadius:10,background:tab===t.id?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.1)',color:'#fff'}}>{t.n}</span>}
+              </button>
+            ))}
+          </div>
+
+          <div style={{width:1,height:18,background:'rgba(255,255,255,0.15)',flexShrink:0}}/>
+
+          <div style={{display:'flex',gap:2,overflowX:'auto'}}>
+            {Object.entries(TYPES).map(([id,t])=>{
+              const count = approvals.filter(a=>a.type===id).length;
+              if(count===0) return null;
+              return (
+                <button key={id} onClick={()=>setFilterType(filterType===id?'':id)} style={{
+                  display:'flex',alignItems:'center',gap:5,padding:'5px 10px',border:'none',borderRadius:6,
+                  background:filterType===id?'rgba(255,255,255,0.14)':'transparent',
+                  color:filterType===id?'#fff':'rgba(255,255,255,0.5)',
+                  fontSize:11,cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap',
+                }}>
+                  <Ic d={I[t.ik]} s={11} c={filterType===id?'#fff':'rgba(255,255,255,0.4)'}/>
+                  {t.l} <span style={{opacity:.6}}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // ── TOPBAR (barre fine au-dessus du contenu, vue toggle Liste/Kanban) ──
+  const TopBar = () => (
+    <div style={{background:C.white,boxShadow:C.shadow,position:'sticky',top:0,zIndex:200,padding:'10px 24px',display:'flex',alignItems:'center',gap:12}}>
+      <span style={{fontSize:15,fontWeight:700,color:C.text}}>
+        {section==='requests'?'Demandes':section==='reports'?'Rapports':section==='audit'?'Audit Trail':'Configuration'}
+      </span>
+      <div style={{flex:1}}/>
+      {section==='requests' && (
+        <div style={{display:'flex',border:'1px solid '+C.border,borderRadius:7,overflow:'hidden'}}>
+          <button onClick={()=>setBoardView('kanban')} style={{display:'flex',alignItems:'center',gap:5,padding:'6px 12px',border:'none',borderRight:'1px solid '+C.border,background:boardView==='kanban'?C.navy:C.white,color:boardView==='kanban'?'#fff':C.text3,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
+            <Ic d={I.grid} s={12} c={boardView==='kanban'?'#fff':C.text3}/> Kanban
+          </button>
+          <button onClick={()=>setBoardView('list')} style={{display:'flex',alignItems:'center',gap:5,padding:'6px 12px',border:'none',background:boardView==='list'?C.navy:C.white,color:boardView==='list'?'#fff':C.text3,fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
+            <Ic d={I.list} s={12} c={boardView==='list'?'#fff':C.text3}/> Liste
+          </button>
         </div>
       )}
     </div>
@@ -313,6 +353,91 @@ export default function ApprovalsMax() {
       <button style={{display:'flex',alignItems:'center',gap:5,padding:'7px 12px',border:'1px solid '+C.border,borderRadius:6,background:C.white,cursor:'pointer',fontSize:12,color:C.text3,fontFamily:'inherit'}}>
         <Ic d={I.download} s={13} c={C.text3}/> Export
       </button>
+    </div>
+  );
+
+  // ── VUE KANBAN (style ApprovalMax) ──────────────────────────
+  const KANBAN_COLUMNS = [
+    {id:'draft',     l:'Brouillon',       c:C.text3,  filter:a=>a.status==='draft'},
+    {id:'n1',        l:'Étape 1 — N1',    c:C.navy,   filter:a=>['pending','submitted','review_1'].includes(a.status)&&!a.n1_done},
+    {id:'n2',        l:'Étape 2 — N2',    c:C.blue,   filter:a=>['pending','review_2'].includes(a.status)&&a.n1_done&&!a.n2_done},
+    {id:'dg',        l:'Étape 3 — DG',    c:C.orange, filter:a=>a.status==='pending'&&a.n2_done&&!a.dg_done},
+    {id:'approved',  l:'Approuvées',      c:C.green,  filter:a=>['approved','paid'].includes(a.status)},
+    {id:'rejected',  l:'Rejetées',        c:C.red,    filter:a=>['rejected','cancelled'].includes(a.status)},
+  ];
+
+  const KanbanCard = ({a}) => {
+    const tp = typeInfo(a.type);
+    return (
+      <div onClick={()=>setSelected(a)} style={{
+        background:C.white,border:'1px solid '+C.border,borderRadius:8,padding:'12px 13px',marginBottom:8,
+        cursor:'pointer',boxShadow:C.shadow,
+      }}
+        onMouseEnter={e=>e.currentTarget.style.boxShadow='0 4px 10px rgba(0,0,0,0.1)'}
+        onMouseLeave={e=>e.currentTarget.style.boxShadow=C.shadow}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:7}}>
+          <span style={{fontSize:11,fontWeight:700,color:C.navy,fontFamily:'monospace'}}>#{String(a.id).padStart(4,'0')}</span>
+          <div style={{width:20,height:20,borderRadius:5,background:tp.c+'18',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <Ic d={I[tp.ik]} s={11} c={tp.c}/>
+          </div>
+        </div>
+        <div style={{fontSize:12.5,fontWeight:600,color:C.text,marginBottom:6,lineHeight:1.3,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>
+          {a.label||a.detail||tp.l}
+        </div>
+        {a.amount>0 && (
+          <div style={{fontSize:13,fontWeight:700,color:tp.c,marginBottom:8}}>{fN(a.amount)} F</div>
+        )}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{display:'flex',alignItems:'center',gap:5}}>
+            <Av name={a.user_name||a.submitted_by||'?'} size={20} color={C.navy}/>
+            <span style={{fontSize:10.5,color:C.text3}}>{(a.user_name||'').split(' ')[0]||'—'}</span>
+          </div>
+          <span style={{fontSize:10,color:C.text4}}>{fD(a.created_at)}</span>
+        </div>
+        {a.status==='pending' && (
+          <div style={{display:'flex',gap:5,marginTop:9}} onClick={e=>e.stopPropagation()}>
+            <button onClick={()=>doAction(a.id,'approve')} style={{flex:1,padding:'5px',background:C.greenL,color:C.green,border:'none',borderRadius:5,fontSize:10.5,fontWeight:700,cursor:'pointer'}}>
+              Approuver
+            </button>
+            <button onClick={()=>{const c=prompt('Motif du refus (obligatoire) :');if(c){setComment(c);doAction(a.id,'reject');}}} style={{flex:1,padding:'5px',background:C.redL,color:C.red,border:'none',borderRadius:5,fontSize:10.5,fontWeight:700,cursor:'pointer'}}>
+              Rejeter
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const KanbanView = () => (
+    <div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:16}}>
+        <KpiCard label="Total" value={approvals.length} color={C.navy} icon="list"/>
+        <KpiCard label="En attente" value={pending.length} color={C.orange} icon="clock" sub={escalated.length>0?escalated.length+' en escalade':''}/>
+        <KpiCard label="Approuvées" value={approved.length} color={C.green} icon="check" sub={fN(approved.reduce((s,a)=>s+(a.amount||0),0))+' F'}/>
+        <KpiCard label="Rejetées" value={rejected.length} color={C.red} icon="x"/>
+      </div>
+      <FilterBar/>
+      <div style={{display:'flex',gap:12,overflowX:'auto',paddingBottom:8,alignItems:'flex-start'}}>
+        {KANBAN_COLUMNS.map(col=>{
+          const items = filtered.filter(col.filter);
+          return (
+            <div key={col.id} style={{minWidth:230,flex:'0 0 230px',background:C.bg2,borderRadius:10,padding:10}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10,padding:'2px 4px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                  <div style={{width:8,height:8,borderRadius:4,background:col.c}}/>
+                  <span style={{fontSize:11.5,fontWeight:700,color:C.text2}}>{col.l}</span>
+                </div>
+                <span style={{fontSize:10,fontWeight:700,color:C.text3,background:C.white,padding:'1px 7px',borderRadius:10}}>{items.length}</span>
+              </div>
+              <div style={{minHeight:60,maxHeight:'calc(100vh - 320px)',overflowY:'auto'}}>
+                {items.length===0 ? (
+                  <div style={{padding:'20px 8px',textAlign:'center',color:C.text4,fontSize:11}}>Aucune demande</div>
+                ) : items.map(a=><KanbanCard key={a.id} a={a}/>)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 
@@ -659,18 +784,36 @@ export default function ApprovalsMax() {
   };
 
   // ── CONFIG / WORKFLOW BUILDER ──────────────────────────────
-  const [workflows, setWorkflows] = React.useState([
-    {id:'default', name:'Workflow par défaut', types:['achat_materiel','transport','paiement_prestataire','frais_mission','location_engin','frais_douane','hebergement','paiement_technicien','avance_salaire','formation','autre'],
-     steps:[
-       {id:'n1',label:'Responsable direct (N1)',role:'project_manager',amtMin:0,amtMax:null,required:true},
-       {id:'n2',label:'Directeur Général (DG)',role:'dg',amtMin:0,amtMax:null,required:true},
-     ]},
-    {id:'conge', name:'Workflow Congés RH', types:['conge'],
-     steps:[
-       {id:'n1',label:'RH Manager (N1)',role:'hr',amtMin:0,amtMax:null,required:true},
-       {id:'n2',label:'Directeur Général (DG)',role:'dg',amtMin:500000,amtMax:null,required:false},
-     ]},
-  ]);
+  const [workflows, setWorkflows] = React.useState([]);
+  const [wfLoading, setWfLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    api.get('/approval-workflows').then(r => {
+      setWorkflows((r.data||[]).map(w => ({
+        id: w.id, name: w.name,
+        types: typeof w.types === 'string' ? JSON.parse(w.types) : (w.types||[]),
+        steps: typeof w.steps === 'string' ? JSON.parse(w.steps) : (w.steps||[]),
+      })));
+      setWfLoading(false);
+    }).catch(() => setWfLoading(false));
+  }, []);
+
+  const saveWorkflow = async (wf) => {
+    try {
+      if(String(wf.id).startsWith('wf-')) {
+        const r = await api.post('/approval-workflows', {name:wf.name, types:wf.types, steps:wf.steps});
+        setWorkflows(p => p.map(w => w.id===wf.id ? {...wf, id:r.data.id} : w));
+      } else {
+        await api.put('/approval-workflows/'+wf.id, {name:wf.name, types:wf.types, steps:wf.steps});
+      }
+    } catch(e) { console.error('Erreur sauvegarde workflow:', e); }
+  };
+
+  const deleteWorkflowRemote = async (id) => {
+    if(!String(id).startsWith('wf-')) {
+      try { await api.delete('/approval-workflows/'+id); } catch(e) { console.error(e); }
+    }
+  };
   const [editWF, setEditWF] = React.useState(null);
   const [auditDuid, setAuditDuid] = React.useState('');
   const [auditData, setAuditData] = React.useState(null);
@@ -705,17 +848,26 @@ export default function ApprovalsMax() {
         <div>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
             <span style={{fontSize:13,fontWeight:700,color:C.text}}>Chaînes d'approbation configurables</span>
-            <button onClick={()=>setWorkflows(p=>[...p,{id:'wf-'+Date.now(),name:'Nouveau workflow',types:[],steps:[{id:'n1',label:'Approbateur 1',role:'project_manager',amtMin:0,amtMax:null,required:true}]}])}
+            <button onClick={async ()=>{
+              const newWf = {id:'wf-'+Date.now(),name:'Nouveau workflow',types:[],steps:[{id:'n1',label:'Approbateur 1',role:'project_manager',amtMin:0,amtMax:null,required:true}]};
+              setWorkflows(p=>[...p,newWf]);
+              const r = await api.post('/approval-workflows', {name:newWf.name, types:newWf.types, steps:newWf.steps}).catch(()=>null);
+              if(r?.data?.id) setWorkflows(p=>p.map(w=>w.id===newWf.id?{...w,id:r.data.id}:w));
+            }}
               style={{display:'flex',alignItems:'center',gap:5,padding:'6px 12px',background:C.navy,color:'#fff',border:'none',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'inherit'}}>
               <Ic d={I.plus} s={12} c="#fff"/> Nouveau workflow
             </button>
           </div>
           {workflows.map((wf,wi)=>(
             <div key={wf.id} style={{background:C.white,border:'1px solid '+C.border,borderRadius:8,padding:'16px',marginBottom:12,boxShadow:C.shadow}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,gap:8}}>
                 <input value={wf.name} onChange={e=>setWorkflows(p=>p.map((w,i)=>i===wi?{...w,name:e.target.value}:w))}
                   style={{fontSize:13,fontWeight:700,color:C.navy,border:'none',outline:'none',background:'transparent',fontFamily:'inherit',flex:1}}/>
-                <button onClick={()=>setWorkflows(p=>p.filter((_,i)=>i!==wi))}
+                <button onClick={()=>saveWorkflow(workflows[wi])}
+                  style={{padding:'3px 10px',background:C.navy,color:'#fff',border:'none',borderRadius:4,fontSize:11,fontWeight:600,cursor:'pointer'}}>
+                  Enregistrer
+                </button>
+                <button onClick={()=>{deleteWorkflowRemote(wf.id);setWorkflows(p=>p.filter((_,i)=>i!==wi));}}
                   style={{padding:'3px 8px',background:C.redL,color:C.red,border:'none',borderRadius:4,fontSize:11,cursor:'pointer'}}>
                   Supprimer
                 </button>
@@ -988,21 +1140,24 @@ export default function ApprovalsMax() {
   const lbl = {display:'block',fontSize:11,fontWeight:600,color:C.text3,textTransform:'uppercase',letterSpacing:.3,marginBottom:4};
 
   return (
-    <div style={{minHeight:'100vh',background:C.bg,fontFamily:"'Inter','Helvetica Neue',Arial,sans-serif"}}>
-      <TopBar/>
-      <div style={{padding:'16px 24px',maxWidth:1400,margin:'0 auto'}}>
-        {loading
-          ? <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',flexDirection:'column',gap:12}}>
-              <div style={{width:36,height:36,border:'3px solid '+C.navy,borderTopColor:'transparent',borderRadius:'50%',animation:'spin 1s linear infinite'}}/>
-              <span style={{fontSize:13,color:C.text3}}>Chargement...</span>
-            </div>
-          : selected
-            ? <DetailView a={selected}/>
-            : section==='requests' ? <ListeView/>
-            : section==='reports'  ? <ReportsView/>
-            : section==='audit'    ? <AuditView/>
-            : <ConfigView/>
-        }
+    <div style={{minHeight:'100vh',background:C.bg,fontFamily:"'Inter','Helvetica Neue',Arial,sans-serif",display:'flex',flexDirection:'column'}}>
+      <TopNav/>
+      <div style={{flex:1,display:'flex',flexDirection:'column'}}>
+        <TopBar/>
+        <div style={{padding:'16px 24px',maxWidth:1400}}>
+          {loading
+            ? <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',flexDirection:'column',gap:12}}>
+                <div style={{width:36,height:36,border:'3px solid '+C.navy,borderTopColor:'transparent',borderRadius:'50%',animation:'spin 1s linear infinite'}}/>
+                <span style={{fontSize:13,color:C.text3}}>Chargement...</span>
+              </div>
+            : selected
+              ? <DetailView a={selected}/>
+              : section==='requests' ? (boardView==='kanban' ? <KanbanView/> : <ListeView/>)
+              : section==='reports'  ? <ReportsView/>
+              : section==='audit'    ? <AuditView/>
+              : <ConfigView/>
+          }
+        </div>
       </div>
 
       {showNew&&(

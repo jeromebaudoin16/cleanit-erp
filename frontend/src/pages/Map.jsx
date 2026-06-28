@@ -2,37 +2,12 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 const MAPTILER_KEY = "r30VkE2cM55t67KloPhg";
 
-const PHOTOS = {
-  "EE001":"https://i.pravatar.cc/150?img=15",
-  "EE002":"https://i.pravatar.cc/150?img=17",
-  "EE003":"https://i.pravatar.cc/150?img=22",
-  "EE004":"https://i.pravatar.cc/150?img=3",
-  "EE005":"https://i.pravatar.cc/150?img=25",
-};
+// Photos technicien — non disponibles tant que pas de champ photo en DB users
+const PHOTOS = {};
 
-const SITES = [
-  {code:"DLA-001",bcPo:"416121376123-2",bcDuid:"ON-OSN9800-DLA-001",name:"Site Akwa Douala",lat:4.0511,lng:9.7085,status:"en_cours",type:"5G NR",progression:65,client:"MTN Cameroun",projet:"PROJ-2024-001",budget:180,techId:"EE001"},
-  {code:"DLA-003",name:"Site Bonabéri",lat:4.0667,lng:9.6500,status:"en_retard",type:"4G LTE",progression:30,client:"Orange Cameroun",projet:"PROJ-2024-002",budget:85,techId:null},
-  {code:"YDE-001",bcPo:"416121016354-58",name:"Site Centre Yaoundé",lat:3.8480,lng:11.5021,status:"termine",type:"5G NR",progression:100,client:"MTN Cameroun",projet:"PROJ-2024-001",budget:95,techId:"EE002"},
-  {code:"BFN-001",name:"Site Bafoussam",lat:5.4764,lng:10.4214,status:"planifie",type:"4G LTE",progression:0,client:"CAMTEL",projet:"PROJ-2024-006",budget:50,techId:null},
-  {code:"GAR-001",bcPo:"4161HG3336731-43",name:"Site Garoua",lat:9.3019,lng:13.3920,status:"en_cours",type:"3G UMTS",progression:55,client:"Nexttel",projet:"PROJ-2024-004",budget:45,techId:"EE004"},
-  {code:"KRI-001",name:"Site Kribi Port",lat:2.9395,lng:9.9087,status:"livre",type:"5G NR",progression:100,client:"MTN Cameroun",projet:"PROJ-2024-001",budget:0,techId:null},
-  {code:"LIM-001",name:"Site Limbé",lat:4.0167,lng:9.2000,status:"en_cours",type:"4G LTE",progression:75,client:"Orange Cameroun",projet:"PROJ-2024-002",budget:40,techId:"EE003"},
-  {code:"MAR-001",name:"Site Maroua",lat:10.5900,lng:14.3157,status:"planifie",type:"4G LTE",progression:0,client:"CAMTEL",projet:"PROJ-2024-006",budget:30,techId:null},
-];
-
-const TECHNICIENS_INIT = [
-  {id:"EE001",nom:"Thomas Ngono",lat:4.0580,lng:9.7150,status:"en_mission",site:"DLA-001",siteLat:4.0511,siteLng:9.7085,phone:"+237 677 100 001",avatar:"TN",color:"#1a73e8",matricule:"CLN-EXT-001",specialite:"5G NR / 4G LTE",battery:78,signal:4,lastUpdate:"À l\'instant",taches:3,rapport:"Câblage RRU terminé. Test en cours.",heureDebut:"07:30",
-    trajectory:[{lat:4.0400,lng:9.6900,time:"07:30"},{lat:4.0450,lng:9.7000,time:"08:15"},{lat:4.0500,lng:9.7080,time:"09:00"},{lat:4.0511,lng:9.7085,time:"09:30"},{lat:4.0580,lng:9.7150,time:"14:45"}]},
-  {id:"EE002",nom:"Jean Mbarga",lat:3.8600,lng:11.5100,status:"en_mission",site:"YDE-001",siteLat:3.8480,siteLng:11.5021,phone:"+237 677 100 002",avatar:"JM",color:"#7c3aed",matricule:"CLN-EXT-002",specialite:"Survey RF",battery:92,signal:5,lastUpdate:"À l\'instant",taches:2,rapport:"Installation antenne BBU terminée.",heureDebut:"08:00",
-    trajectory:[{lat:3.8200,lng:11.4800,time:"08:00"},{lat:3.8350,lng:11.4900,time:"08:45"},{lat:3.8480,lng:11.5021,time:"09:30"},{lat:3.8600,lng:11.5100,time:"14:45"}]},
-  {id:"EE003",nom:"Samuel Djomo",lat:4.0300,lng:9.1800,status:"en_deplacement",site:"LIM-001",siteLat:4.0167,siteLng:9.2000,phone:"+237 677 100 003",avatar:"SD",color:"#0f9d58",matricule:"CLN-EXT-003",specialite:"3G UMTS / 4G LTE",battery:45,signal:3,lastUpdate:"Il y a 3 min",taches:1,rapport:"En route vers site Limbé.",heureDebut:"09:15",
-    trajectory:[{lat:4.0500,lng:9.0500,time:"09:15"},{lat:4.0400,lng:9.1000,time:"10:30"},{lat:4.0300,lng:9.1800,time:"14:45"}]},
-  {id:"EE004",nom:"Ali Moussa",lat:9.2800,lng:13.4100,status:"en_mission",site:"GAR-001",siteLat:9.3019,siteLng:13.3920,phone:"+237 677 100 004",avatar:"AM",color:"#f29900",matricule:"CLN-EXT-004",specialite:"Supervision HSE",battery:63,signal:2,lastUpdate:"Il y a 5 min",taches:4,rapport:"Vérification sécurité pylône terminée.",heureDebut:"06:45",
-    trajectory:[{lat:9.2500,lng:13.3500,time:"06:45"},{lat:9.2700,lng:13.3800,time:"08:00"},{lat:9.3019,lng:13.3920,time:"09:00"},{lat:9.2800,lng:13.4100,time:"14:45"}]},
-  {id:"EE005",nom:"René Talla",lat:4.0400,lng:9.6800,status:"disponible",site:"—",siteLat:null,siteLng:null,phone:"+237 677 100 005",avatar:"RT",color:"#db2777",matricule:"CLN-EXT-005",specialite:"Fibre optique",battery:100,signal:5,lastUpdate:"En ligne",taches:0,rapport:"",heureDebut:"—",
-    trajectory:[{lat:4.0400,lng:9.6800,time:"08:00"}]},
-];
+// Données réelles chargées depuis l'API au montage (voir loadRealData)
+const SITES = [];
+const TECHNICIENS_INIT = [];
 
 // Geofences prédéfinis
 const GEOFENCES_INIT = [
@@ -251,57 +226,65 @@ export default function MapPage() {
   const [techniciens, setTechniciens] = useState(TECHNICIENS_INIT);
   const [realSites, setRealSites] = useState(SITES);
 
-  // Charger vrais sites et techniciens depuis API
-  useEffect(()=>{
+  // Charger vrais sites et positions GPS réelles des techniciens depuis API
+  const loadRealData = useCallback(() => {
     const token = localStorage.getItem('token');
     const h = {'Authorization':'Bearer '+token};
     const base = 'https://backend-cleanit-erp.vercel.app';
     Promise.all([
       fetch(base+'/sites',{headers:h}).then(r=>r.json()).catch(()=>[]),
-      fetch(base+'/users',{headers:h}).then(r=>r.json()).catch(()=>[]),
+      fetch(base+'/location/all',{headers:h}).then(r=>r.json()).catch(()=>[]),
       fetch(base+'/missions',{headers:h}).then(r=>r.json()).catch(()=>[]),
-    ]).then(([sites, users, missions])=>{
-      if(Array.isArray(sites) && sites.length > 0){
+    ]).then(([sites, locations, missions])=>{
+      if(Array.isArray(sites)){
         const formatted = sites.map(s=>({
           code: s.code, name: s.name,
           lat: parseFloat(s.latitude)||0, lng: parseFloat(s.longitude)||0,
-          status: s.status==='active'?'en_cours':s.status==='completed'?'termine':'planifie',
+          status: s.status==='active'||s.status==='in_progress'?'en_cours':s.status==='completed'?'termine':s.status==='delayed'?'en_retard':'planifie',
           type: s.technology||'4G LTE',
-          progression: s.progression||0,
-          client: s.projectManager||'—',
-          budget: s.budgetEstime||0,
-          techId: null
+          progression: s.status==='completed'?100:s.status==='active'?50:0,
+          client: s.region||'—',
+          budget: 0,
+          techId: null,
+          duid: s.duid, ville: s.ville, poNumber: s.poNumber,
         }));
         setRealSites(formatted);
       }
-      if(Array.isArray(users) && users.length > 0){
-        const techs = users.filter(u=>['technician','terrain'].includes(u.role));
-        if(techs.length > 0){
-          const colors = ['#1a73e8','#7c3aed','#0f9d58','#f29900','#db2777','#ea4335'];
-          const formatted = techs.map((u,i)=>{
-            const mission = Array.isArray(missions) ? missions.find(m=>m.tech_id===u.id&&m.status==='in_progress') : null;
-            const av = ((u.firstName||'')[0]+(u.lastName||'')[0]).toUpperCase();
-            return {
-              id: String(u.id), nom: (u.firstName||'')+' '+(u.lastName||''),
-              lat: mission ? (parseFloat(mission.site_lat)||4.0511) : 4.0511,
-              lng: mission ? (parseFloat(mission.site_lng)||9.7085) : 9.7085,
-              status: mission ? 'en_mission' : 'disponible',
-              site: mission ? mission.site : '—',
-              siteLat: mission ? parseFloat(mission.site_lat) : null,
-              siteLng: mission ? parseFloat(mission.site_lng) : null,
-              phone: u.phone||'', avatar: av,
-              color: colors[i%colors.length],
-              matricule: 'CLN-EXT-'+String(u.id).padStart(3,'0'),
-              specialite: '5G/4G', battery: 80, signal: 4,
-              lastUpdate: 'En ligne', taches: mission ? 1 : 0,
-              rapport: '', heureDebut: '—', trajectory:[]
-            };
-          });
-          setTechniciens(formatted);
-        }
+      if(Array.isArray(locations)){
+        const colors = ['#1a73e8','#7c3aed','#0f9d58','#f29900','#db2777','#ea4335'];
+        const formatted = locations.map((loc,i)=>{
+          const mission = Array.isArray(missions) ? missions.find(m=>m.tech_id===loc.user_id&&m.status==='in_progress') : null;
+          const av = ((loc.firstName||'')[0]+(loc.lastName||'')[0]).toUpperCase();
+          return {
+            id: String(loc.user_id), nom: (loc.firstName||'')+' '+(loc.lastName||''),
+            lat: parseFloat(loc.lat), lng: parseFloat(loc.lng),
+            status: loc.status||(mission?'en_mission':'disponible'),
+            site: loc.current_site_code||mission?.site||'—',
+            siteLat: mission ? parseFloat(mission.site_lat) : null,
+            siteLng: mission ? parseFloat(mission.site_lng) : null,
+            phone: '', avatar: av,
+            color: colors[i%colors.length],
+            matricule: 'CLN-EXT-'+String(loc.user_id).padStart(3,'0'),
+            specialite: loc.role==='technician'?'Technicien terrain':loc.role,
+            battery: loc.battery||null, signal: 4,
+            lastUpdate: loc.is_live ? 'En direct' : new Date(loc.updated_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+            isLive: loc.is_live,
+            taches: mission ? 1 : 0,
+            rapport: '', heureDebut: '—', trajectory:[]
+          };
+        });
+        setTechniciens(formatted);
+      } else {
+        setTechniciens([]);
       }
     }).catch(console.error);
   },[]);
+
+  useEffect(()=>{
+    loadRealData();
+    const iv = setInterval(loadRealData, 30000); // rafraîchir les positions toutes les 30s
+    return ()=>clearInterval(iv);
+  },[loadRealData]);
   const [activeLayer, setActiveLayer] = useState("hybrid");
   const [liveMode, setLiveMode] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
@@ -1031,11 +1014,11 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
           <span style={{fontSize:7,color:showGeofences?"#1a73e8":"#5f6368",fontWeight:showGeofences?700:400,marginTop:1}}>Zones</span>
         </div>
 
-        {/* Photos CleanCam */}
-        <div onClick={()=>{setShowPhotos(!showPhotos);}} title="Photos CleanCam terrain"
+        {/* Calque Photos CleanCam sur la carte */}
+        <div onClick={()=>{setShowPhotos(!showPhotos);}} title="Afficher/masquer les photos sur la carte"
           style={{width:44,height:44,borderRadius:10,background:showPhotos?"#e8f0fe":"transparent",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",gap:2}}>
           <SvgIco d={ICONS.photos} size={18} color={showPhotos?"#1a73e8":"#5f6368"}/>
-          <span style={{fontSize:7,color:showPhotos?"#1a73e8":"#5f6368",fontWeight:showPhotos?700:400,marginTop:1}}>Photos</span>
+          <span style={{fontSize:7,color:showPhotos?"#1a73e8":"#5f6368",fontWeight:showPhotos?700:400,marginTop:1}}>Calque</span>
         </div>
 
         {/* Collab */}

@@ -359,7 +359,7 @@ function Historique(){
         {pointages.length>0&&(
           <table style={{width:'100%',borderCollapse:'collapse'}}>
             <thead><tr style={{background:C.bg}}>
-              {['Employé','Zone','Méthode','Heure','Distance','Statut'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 14px',fontSize:10,fontWeight:600,color:C.text3,textTransform:'uppercase',letterSpacing:.4,borderBottom:`1px solid ${C.border}`}}>{h}</th>)}
+              {['Employé','Zone','Type','Méthode','Heure','Distance','Statut'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 14px',fontSize:10,fontWeight:600,color:C.text3,textTransform:'uppercase',letterSpacing:.4,borderBottom:`1px solid ${C.border}`}}>{h}</th>)}
             </tr></thead>
             <tbody>{[...pointages].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map((p,i)=>(
               <tr key={p.id||i} onMouseEnter={e=>e.currentTarget.style.background=C.bg} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
@@ -370,6 +370,9 @@ function Historique(){
                   </div>
                 </td>
                 <td style={{padding:'10px 14px',fontSize:12,color:C.text3,borderBottom:`1px solid ${C.border2}`}}>{p.site_name||p.site_code||'—'}</td>
+                <td style={{padding:'10px 14px',borderBottom:`1px solid ${C.border2}`}}>
+                  <Badge label={p.type==='depart'?'🚪 Départ':'📍 Arrivée'} color={p.type==='depart'?C.orange||'#E76500':C.green}/>
+                </td>
                 <td style={{padding:'10px 14px',borderBottom:`1px solid ${C.border2}`}}>
                   <div style={{display:'flex',alignItems:'center',gap:5}}>
                     <Icon d={IC.qr} size={12} color={C.blue}/>

@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { getUser, doLogout, api } from '../utils/api';
+import { useInactivityLogout } from '../hooks/useInactivityLogout';
 
 const NAV = [
   { section:'OPÉRATIONS', color:'#64748b', items:[
@@ -49,6 +50,7 @@ const getNavForRole = (role) => {
   { section:'CLIENT OEM', color:'#f05a5a', roles:['admin','project_manager'], items:[
     { path:'/inventaire', label:'Inventaire OEM', roles:['admin','project_manager'], icon:'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
     { path:'/purchase-orders', label:'Bons de Commande', roles:['admin','project_manager'], icon:'M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z' },
+    { path:'/planning', label:'Tableau Projets BC', roles:['admin','project_manager'], icon:'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z' },
   ]},
   { section:'ENTREPRISE', color:'#34c97e', roles:['admin','project_manager','hr'], items:[
     { path:'/cleanitbooks', label:'CleanITBooks', roles:['admin'], icon:'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
@@ -93,6 +95,12 @@ export default function Layout() {
   const sidebarRef = useRef(null);
   const profileRef = useRef(null);
   const notifRef = useRef(null);
+
+  // Déconnexion automatique après 1h d'inactivité
+  const handleInactivityLogout = useCallback(() => {
+    doLogout();
+  }, []);
+  useInactivityLogout(60 * 60 * 1000, handleInactivityLogout, true);
 
   useEffect(() => {
     loadNotifs();
