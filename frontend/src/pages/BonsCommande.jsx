@@ -183,7 +183,88 @@ const ImportBCModal = ({onClose, onImport}) => {
   const [creerProjet, setCreerProjet] = useState(true);
   const [planPaiement, setPlanPaiement] = useState('3phases');
   const [saving, setSaving] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeError, setAnalyzeError] = useState('');
+  const [extractedSites, setExtractedSites] = useState(null); // sites Type A extraits, en attente de confirmation
   const fileRef = useRef(null);
+
+  const BASE = 'https://backend-cleanit-erp.vercel.app';
+  const GROQ_API = 'https://api.groq.com/openai/v1/chat/completions';
+  const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY;
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if(!file) return;
+    setAnalyzing(true);
+    setAnalyzeError('');
+    const token = localStorage.getItem('token');
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await fetch(BASE+'/bons-commande/analyze', {
+        method:'POST', headers:{'Authorization':'Bearer '+token}, body: fd
+      });
+      const data = await r.json();
+      if(!r.ok) throw new Error(data.message||'Erreur analyse fichier');
+
+      let extractedText = '';
+      if(data.type === 'excel') {
+        extractedText = data.sheets.map(s => `Feuille "${s.name}":\n` + s.rows.map(row => row.filter(v=>v!==null).join(' | ')).join('\n')).join('\n\n');
+      } else if(data.type === 'pdf') {
+        if(data.warning) { setAnalyzeError(data.warning); setAnalyzing(false); e.target.value=''; return; }
+        extractedText = data.text || '';
+      }
+
+      // Demander à Groq de structurer les données extraites en JSON
+      const prompt = `Voici le contenu brut d'un Bon de Commande (fichier: ${file.name}):\n\n${extractedText.slice(0,6000)}\n\n` +
+        `Détecte le format: Type A (planning projet — colonnes Site ID, Team Leader, Budget, Payment 1/2/3, dates) ou ` +
+        `Type B (classique — Désignation, Qté, Prix unitaire, Total). Réponds UNIQUEMENT en JSON valide, sans aucun texte autour, format:\n` +
+        `{"formatType":"A"|"B","numero":"...","client":"...","sites":[{"projectType":"...","siteId":"...","siteName":"...","teamLeader":"...","budgetTotal":0,"outboundDate":"YYYY-MM-DD","installStartDate":"YYYY-MM-DD","installClosedDate":"YYYY-MM-DD"}]} ` +
+        `(pour Type B, utilise les mêmes clés sites[] mais avec designation/quantite/prixUnitaire/budgetTotal à la place). Si le client n'est pas identifiable, laisse "client":"".`;
+
+      const groqRes = await fetch(GROQ_API, {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+GROQ_KEY},
+        body: JSON.stringify({
+          model:'openai/gpt-oss-120b',
+          messages:[{role:'user', content:prompt}],
+          max_tokens:2000,
+          temperature:0.1,
+        })
+      });
+      const groqData = await groqRes.json();
+      const raw = groqData.choices?.[0]?.message?.content || '';
+      const cleaned = raw.replace(/```json|```/g,'').trim();
+      const parsed = JSON.parse(cleaned);
+
+      setExtractedSites(parsed);
+      if(parsed.numero) setNumero(parsed.numero);
+      if(parsed.client) setClient(parsed.client);
+    } catch(err) {
+      setAnalyzeError('Erreur lors de l\'analyse: '+err.message);
+    }
+    setAnalyzing(false);
+    e.target.value = '';
+  };
+
+  const confirmExtractedImport = () => {
+    if(!extractedSites) return;
+    const newLignes = extractedSites.sites.map((s,i) => ({
+      id: Date.now()+i,
+      ref: s.siteId || `L${i+1}`,
+      description: s.siteName || s.designation || s.projectType || 'Site',
+      unite: 'Forfait',
+      qte: s.quantite || 1,
+      puBC: s.budgetTotal || s.prixUnitaire || 0,
+      tva: true,
+      status: 'non_facture',
+      qteUtilisee: 0, qteFacturee: 0,
+      notes: s.teamLeader ? `Team Leader: ${s.teamLeader}` : '',
+    }));
+    setLignes(newLignes);
+    setExtractedSites(null);
+    setStep(2); // passe directement à la vérification des lignes
+  };
 
   const addLigne = () => setLignes(p=>[...p,{id:Date.now(),ref:'',description:'',unite:'Unité',qte:1,puBC:0,tva:true,status:'non_facture',qteUtilisee:0,qteFacturee:0,notes:''}]);
   const updLigne = (i,k,v) => setLignes(p=>p.map((l,idx)=>idx===i?{...l,[k]:v}:l));
@@ -233,16 +314,57 @@ const ImportBCModal = ({onClose, onImport}) => {
       {step===1&&(
         <div>
           {/* Import Excel/PDF */}
-          <div style={{border:`2px dashed ${C.border}`,borderRadius:8,padding:'20px',textAlign:'center',marginBottom:20,background:'#fafafa',cursor:'pointer'}}
-            onClick={()=>fileRef.current?.click()}
-            onMouseEnter={e=>e.currentTarget.style.borderColor=C.green}
-            onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
-            <input ref={fileRef} type="file" accept=".xlsx,.xls,.pdf,.csv" style={{display:'none'}} onChange={()=>{}}/>
-            <Ico name="upload" size={32} color={C.muted}/>
-            <div style={{fontSize:14,fontWeight:600,color:C.text2,marginTop:8}}>Importer depuis Excel ou PDF</div>
-            <div style={{fontSize:12,color:C.muted,marginTop:4}}>Formats supportés: .xlsx, .xls, .pdf, .csv</div>
-            <Btn label="Choisir un fichier" onClick={()=>fileRef.current?.click()} ghost sm icon="upload" style={{marginTop:10}}/>
+          <div style={{border:`2px dashed ${analyzing?C.blue:C.border}`,borderRadius:8,padding:'20px',textAlign:'center',marginBottom:20,background:'#fafafa',cursor:analyzing?'default':'pointer'}}
+            onClick={()=>!analyzing&&fileRef.current?.click()}
+            onMouseEnter={e=>{if(!analyzing)e.currentTarget.style.borderColor=C.green}}
+            onMouseLeave={e=>{if(!analyzing)e.currentTarget.style.borderColor=C.border}}>
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.pdf,.csv" style={{display:'none'}} onChange={handleFileUpload} disabled={analyzing}/>
+            {analyzing ? (
+              <>
+                <div style={{width:32,height:32,border:`3px solid ${C.blue_bg}`,borderTopColor:C.blue,borderRadius:'50%',animation:'spin .8s linear infinite',margin:'0 auto'}}/>
+                <div style={{fontSize:14,fontWeight:600,color:C.blue,marginTop:10}}>Analyse en cours par ChaCha...</div>
+                <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
+              </>
+            ) : (
+              <>
+                <Ico name="upload" size={32} color={C.muted}/>
+                <div style={{fontSize:14,fontWeight:600,color:C.text2,marginTop:8}}>Importer depuis Excel ou PDF</div>
+                <div style={{fontSize:12,color:C.muted,marginTop:4}}>Formats supportés: .xlsx, .xls, .pdf, .csv — l'IA détecte automatiquement la structure</div>
+                <Btn label="Choisir un fichier" onClick={()=>fileRef.current?.click()} ghost sm icon="upload" style={{marginTop:10}}/>
+              </>
+            )}
           </div>
+
+          {analyzeError && (
+            <div style={{background:C.red_bg,border:`1px solid ${C.red}30`,borderRadius:6,padding:'12px 14px',marginBottom:18,display:'flex',alignItems:'flex-start',gap:10}}>
+              <Ico name="alert" size={16} color={C.red}/>
+              <span style={{fontSize:13,color:C.red}}>{analyzeError}</span>
+            </div>
+          )}
+
+          {extractedSites && (
+            <div style={{background:C.green_bg,border:`1px solid ${C.green}30`,borderRadius:8,padding:16,marginBottom:20}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                <Ico name="check" size={16} color={C.green}/>
+                <span style={{fontSize:13,fontWeight:700,color:C.green}}>
+                  Bon de commande détecté — Type {extractedSites.formatType} — {extractedSites.sites.length} ligne(s)
+                </span>
+              </div>
+              <div style={{maxHeight:160,overflowY:'auto',background:'white',borderRadius:6,padding:'6px 10px',marginBottom:12}}>
+                {extractedSites.sites.slice(0,8).map((s,i)=>(
+                  <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:`1px solid ${C.border2}`,fontSize:12}}>
+                    <span>{s.siteId||s.designation||('Ligne '+(i+1))}</span>
+                    <span style={{fontWeight:700,color:C.blue}}>{fmtN(s.budgetTotal||s.prixUnitaire||0)} {devise}</span>
+                  </div>
+                ))}
+                {extractedSites.sites.length>8 && <div style={{fontSize:11,color:C.muted,padding:'5px 0'}}>+{extractedSites.sites.length-8} autre(s)...</div>}
+              </div>
+              <div style={{display:'flex',gap:8}}>
+                <Btn label="Confirmer et continuer" onClick={confirmExtractedImport} primary icon="check" sm/>
+                <Btn label="Annuler" onClick={()=>setExtractedSites(null)} ghost sm/>
+              </div>
+            </div>
+          )}
 
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
             <div style={{flex:1,height:1,background:C.border2}}/>
