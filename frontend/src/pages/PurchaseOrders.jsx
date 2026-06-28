@@ -122,12 +122,12 @@ export default function PurchaseOrders(){
     setLoading(true);
     try{
       const r = await api.get('/purchase-orders');
-      const data = Array.isArray(r.data) && r.data.length > 0 ? r.data : SEED_BC;
+      const data = Array.isArray(r.data) ? r.data : [];
       setBcs(data);
       // Sauvegarder les sites BC pour liaison avec Approvals et CleanITBooks
       try{localStorage.setItem('cleanit_bc_sites',JSON.stringify(data.map(b=>({site_id:b.site_id,site_code:b.site_code,duid:b.duid,po:b.po,project_code:b.project_code,project_name:b.project_name}))));}catch{}
     }catch{
-      setBcs(SEED_BC);
+      setBcs([]);
     }
     setLoading(false);
   };
@@ -163,41 +163,75 @@ export default function PurchaseOrders(){
     setImporting(false);
   };
 
-  const declarerFacture = (bc) => {
+  const declarerFacture = async (bc) => {
     const updated = bcs.map(b => b.id===bc.id ? {...b, statut:'facture', billed:b.requested, due:0} : b);
     setBcs(updated);
-    addAudit({
-      type:'facturation', user:`${user?.firstName} ${user?.lastName} (${user?.role})`,
-      title:'Déclaration facturation soumise',
-      detail:`PO ${bc.po} · Site ${bc.site_id} · DUID: ${bc.duid} · Qté: ${bc.requested} · Statut: À facturer → Facturé · Envoyé vers Approvals`,
-    });
-    refreshAudit();
     setShowConfirm(null);
     if(selected?.id===bc.id) setSelected({...bc, statut:'facture', billed:bc.requested, due:0});
+    try {
+      await api.put(`/purchase-orders/${bc.id}`, { status: 'facture' });
+      addAudit({
+        type:'facturation', user:`${user?.firstName} ${user?.lastName} (${user?.role})`,
+        title:'Déclaration facturation soumise',
+        detail:`PO ${bc.po} · Site ${bc.site_id} · DUID: ${bc.duid} · Qté: ${bc.requested} · Statut: À facturer → Facturé · Envoyé vers Approvals`,
+      });
+    } catch(e) {
+      addAudit({
+        type:'facturation', user:`${user?.firstName} ${user?.lastName} (${user?.role})`,
+        title:'Erreur — déclaration facturation NON enregistrée en base',
+        detail:`PO ${bc.po} · Erreur: ${e.message}`,
+      });
+    }
+    refreshAudit();
   };
 
-  const envoyerApprovals = (bc) => {
+  const envoyerApprovals = async (bc) => {
     const updated = bcs.map(b => b.id===bc.id ? {...b, statut:'approuve'} : b);
     setBcs(updated);
-    addAudit({
-      type:'approbation', user:`${user?.firstName} ${user?.lastName} (${user?.role})`,
-      title:'Envoyé vers Approvals pour validation paiement',
-      detail:`PO ${bc.po} · Site ${bc.site_id} · DUID: ${bc.duid} · Project: ${bc.project_name} · En attente approbation DG`,
-    });
-    refreshAudit();
     if(selected?.id===bc.id) setSelected({...bc, statut:'approuve'});
+    try {
+      await api.put(`/purchase-orders/${bc.id}`, { status: 'approuve' });
+      await api.post('/approvals', {
+        label: `Paiement BC ${bc.po} — ${bc.project_name||bc.site_id}`,
+        type: 'payment_request',
+        amount: bc.billed||bc.requested||0,
+        siteCode: bc.site_code||bc.duid,
+        detail: `PO ${bc.po} · DUID: ${bc.duid} · Project: ${bc.project_name}`,
+      });
+      addAudit({
+        type:'approbation', user:`${user?.firstName} ${user?.lastName} (${user?.role})`,
+        title:'Envoyé vers Approvals pour validation paiement',
+        detail:`PO ${bc.po} · Site ${bc.site_id} · DUID: ${bc.duid} · Project: ${bc.project_name} · En attente approbation DG`,
+      });
+    } catch(e) {
+      addAudit({
+        type:'approbation', user:`${user?.firstName} ${user?.lastName} (${user?.role})`,
+        title:'Erreur — envoi vers Approvals NON enregistré en base',
+        detail:`PO ${bc.po} · Erreur: ${e.message}`,
+      });
+    }
+    refreshAudit();
   };
 
-  const marquerPaye = (bc) => {
+  const marquerPaye = async (bc) => {
     const updated = bcs.map(b => b.id===bc.id ? {...b, statut:'paye'} : b);
     setBcs(updated);
-    addAudit({
-      type:'paiement', user:`${user?.firstName} ${user?.lastName} (${user?.role})`,
-      title:'Paiement validé et imputé dans CleanITBooks',
-      detail:`PO ${bc.po} · DUID: ${bc.duid} · Imputation SYSCOHADA: DR 411100 / CR 707000 · Piste d'audit enregistrée`,
-    });
-    refreshAudit();
     if(selected?.id===bc.id) setSelected({...bc, statut:'paye'});
+    try {
+      await api.put(`/purchase-orders/${bc.id}`, { status: 'paye' });
+      addAudit({
+        type:'paiement', user:`${user?.firstName} ${user?.lastName} (${user?.role})`,
+        title:'Paiement validé et imputé dans CleanITBooks',
+        detail:`PO ${bc.po} · DUID: ${bc.duid} · Imputation SYSCOHADA: DR 411100 / CR 707000 · Piste d'audit enregistrée`,
+      });
+    } catch(e) {
+      addAudit({
+        type:'paiement', user:`${user?.firstName} ${user?.lastName} (${user?.role})`,
+        title:'Erreur — paiement NON enregistré en base',
+        detail:`PO ${bc.po} · Erreur: ${e.message}`,
+      });
+    }
+    refreshAudit();
   };
 
   const filtered = bcs.filter(b => {
