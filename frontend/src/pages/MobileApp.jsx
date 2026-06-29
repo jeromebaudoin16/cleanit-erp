@@ -1234,7 +1234,7 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
       <canvas ref={cRef} style={{display:'none'}}/>
       {flash && <div style={{position:'absolute',inset:0,background:'#fff',zIndex:50,opacity:.7,pointerEvents:'none'}}/>}
 
-      <button onClick={()=>{stopCam(); navigate('/mobile/fil');}}
+      <button onClick={()=>{stopCam(); navigate('/mobile');}}
         style={{position:'absolute',top:14,left:14,zIndex:40,width:34,height:34,borderRadius:'50%',
           background:'rgba(0,0,0,.55)',border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
