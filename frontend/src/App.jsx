@@ -50,7 +50,6 @@ import Techniciens from './pages/Techniciens';
 import Interventions from './pages/Interventions';
 import Planning from './pages/Planning';
 import Inventaire from './pages/Inventaire';
-import CatalogueOEM from './pages/CatalogueOEM';
 import Parametres from './pages/Parametres';
 import Finance from './pages/Finance';
 import BonsCommande from './pages/BonsCommande';
@@ -107,7 +106,6 @@ export default function App() {
           <Route path="interventions"   element={<Interventions />} />
           <Route path="planning"        element={<Planning />} />
           <Route path="inventaire"      element={<Inventaire />} />
-          <Route path="catalogue-oem"   element={<CatalogueOEM />} />
           <Route path="parametres"      element={<Parametres />} />
           <Route path="contrats"        element={<Contrats />} />
           <Route path="mediation"       element={<Mediation />} />

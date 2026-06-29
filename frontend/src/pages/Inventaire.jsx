@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 
 const STATUS_EQ = {
@@ -9,18 +8,7 @@ const STATUS_EQ = {
   stock:       { label:'En stock',     color:'#0078d4', bg:'#eff6ff' },
 };
 
-const SEED = [
-  { id:1, code:'BBU-5900-001', name:'BBU 5900 5G NR', type:'BBU', model:'Client BBU5900', serialNumber:'SN20240001', site:'DLA-001', status:'actif', condition:'bon', dateInstallation:'2024-01-15', garantieExpiry:'2027-01-15', prix:8500000 },
-  { id:2, code:'RRU-5258-001', name:'RRU 5258 4T4R', type:'RRU', model:'Client RRU5258', serialNumber:'SN20240002', site:'DLA-001', status:'actif', condition:'bon', dateInstallation:'2024-01-15', garantieExpiry:'2027-01-15', prix:2500000 },
-  { id:3, code:'AAU-5614-001', name:'AAU 5614 Massive MIMO', type:'AAU', model:'Client AAU5614', serialNumber:'SN20240003', site:'YDE-001', status:'actif', condition:'bon', dateInstallation:'2024-02-01', garantieExpiry:'2027-02-01', prix:3200000 },
-  { id:4, code:'BBU-5900-002', name:'BBU 5900 5G NR', type:'BBU', model:'Client BBU5900', serialNumber:'SN20240004', site:'', status:'stock', condition:'neuf', dateInstallation:'', garantieExpiry:'2027-03-01', prix:8500000 },
-  { id:5, code:'RRU-5258-002', name:'RRU 5258 4T4R', type:'RRU', model:'Client RRU5258', serialNumber:'SN20240005', site:'DLA-003', status:'maintenance', condition:'moyen', dateInstallation:'2023-06-15', garantieExpiry:'2026-06-15', prix:2500000 },
-  { id:6, code:'SW-CE6870-001', name:'Switch CE6870', type:'Switch', model:'Client CE6870', serialNumber:'SN20240006', site:'YDE-001', status:'actif', condition:'bon', dateInstallation:'2024-02-01', garantieExpiry:'2027-02-01', prix:4500000 },
-  { id:7, code:'RTR-NE40-001', name:'Routeur NE40E', type:'Routeur', model:'Client NE40E', serialNumber:'SN20240007', site:'DLA-001', status:'actif', condition:'bon', dateInstallation:'2024-01-15', garantieExpiry:'2027-01-15', prix:12000000 },
-  { id:8, code:'BBU-5900-003', name:'BBU 5900 5G NR', type:'BBU', model:'Client BBU5900', serialNumber:'SN20240008', site:'KRI-001', status:'actif', condition:'bon', dateInstallation:'2024-03-01', garantieExpiry:'2027-03-01', prix:8500000 },
-];
 
-// ── ICÔNES CATALOGUE (style ligne, cohérent avec le reste de l'app) ───────
 const CatIc = ({d,size=20,color='currentColor',sw=1.7}) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
     {(Array.isArray(d)?d:[d]).map((p,i)=><path key={i} d={p}/>)}
@@ -32,76 +20,138 @@ const CAT_ICONS = {
   dish:      ['M3 17a9 9 0 0118 0','M12 17V8','M9 5l3 3 3-3'],
   router:    ['M4 4h16v4H4V4z','M4 10h16v4H4v-4z','M4 16h16v4H4v-4z','M7 6h.01','M7 12h.01','M7 18h.01'],
   fiber:     ['M2 12h6','M16 12h6','M9 12a3 3 0 106 0 3 3 0 10-6 0z'],
+  battery:   ['M4 8h13v8H4z','M17 11h2v2h-2z','M8 8v8M11 8v8'],
+  bolt:      ['M13 2L4 14h6l-1 8 9-12h-6l1-8z'],
+  tool:      ['M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z'],
+  splice:    ['M4 12h4l2-4 4 8 2-4h4'],
 };
 const CATALOG_CATEGORIES = [
-  { id:'ran',          label:'Accès Radio (RAN)',         color:'#ea580c' },
-  { id:'transmission', label:'Transmission / DWDM',       color:'#0078d4' },
-  { id:'microwave',    label:'Faisceaux hertziens',       color:'#7c3aed' },
-  { id:'ipcore',       label:'Cœur de réseau IP',         color:'#16a34a' },
-  { id:'entreprise',   label:'Entreprise / B2B',          color:'#dc2626' },
+  { id:'ran',          label:'Accès Radio',                 color:'#ea580c' },
+  { id:'transmission', label:'Transmission / DWDM',         color:'#0078d4' },
+  { id:'microwave',    label:'Faisceaux hertziens',         color:'#7c3aed' },
+  { id:'ipcore',       label:'Cœur de réseau IP',           color:'#16a34a' },
+  { id:'entreprise',   label:'Entreprise / B2B',            color:'#dc2626' },
+  { id:'energie',      label:'Alimentation & Énergie',      color:'#ca8a04' },
+  { id:'fibre',        label:'Fibre optique & Raccordement',color:'#0d9488' },
+  { id:'accessoires',  label:'Accessoires & Petit matériel',color:'#475569' },
 ];
 const CATALOG_ITEMS = [
   { id:'bbu5900', cat:'ran', icon:'bbu', name:'BBU 5900', sub:'Unité bande de base 5G/4G/3G/2G',
+    img:'https://image.chukouplus.com/upload/C_4415/file/20240416/66205eeb559fb0712f1d58c725cc5c26.jpg',
     desc:"Cœur numérique de la station de base : traite le signal radio et pilote les unités RRU/AAU déportées par fibre optique. Un seul châssis peut combiner plusieurs générations technologiques (2G à 5G).",
+    usage:"Installé en armoire (intérieur ou extérieur) à la base du site. Raccordé aux RRU/AAU par fibre optique (CPRI) et au réseau de transport par le côté backhaul.",
     specs:["Jusqu'à 6 standards radio dans un même boîtier","Liaison optique CPRI vers RRU/AAU déportés","Format compact (~9U), intérieur ou armoire extérieure"] },
   { id:'aau', cat:'ran', icon:'antenna', name:'AAU Massive MIMO', sub:'Antenne active (ex. AAU5613/5619/5639)',
+    img:'https://www.henanliyuan.com/Uploads/5ea39b5c30c1e8517.jpg',
     desc:"Combine l'antenne et l'électronique radio dans un seul boîtier extérieur fixé en hauteur, pour une couverture 4G/5G plus large avec une emprise réduite sur le mât.",
+    usage:"Fixation directe sur mât/pylône à la hauteur définie par l'étude radio. Alimentation DC depuis le bas du site, liaison optique vers le BBU.",
     specs:["Plusieurs gammes de fréquences selon le modèle","Installation directe sur mât, sans câble RF séparé","Réduit le nombre d'équipements à installer en hauteur"] },
   { id:'rru3908', cat:'ran', icon:'antenna', name:'RRU 3908', sub:'Unité radio distante (RRU)',
     desc:"Amplifie et transmet le signal radio près de l'antenne, relié au BBU par fibre optique pour limiter les pertes de signal sur la liaison antenne-baie.",
+    usage:"Monté sur mât ou en façade, le plus proche possible de l'antenne passive qu'il alimente, pour minimiser la perte en ligne RF.",
     specs:["Liaison optique CPRI vers le BBU","Installation sur mât ou en façade, proche de l'antenne","Plusieurs variantes selon la bande de fréquence"] },
   { id:'antenne-dir', cat:'ran', icon:'antenna', name:'Antenne directionnelle multibande', sub:'Antenne passive sectorielle',
     desc:"Antenne passive installée par trois (un triptyque par secteur) pour couvrir une zone géographique donnée autour du site.",
+    usage:"Montage en triptyque (3 secteurs à 120°) sur le pylône, orientation et inclinaison (downtilt/azimut) réglées selon l'étude de couverture du site.",
     specs:["Plusieurs ports pour combiner plusieurs bandes","Réglage du downtilt pour ajuster la couverture","Montage sur mât ou pylône"] },
   { id:'osn9800', cat:'transmission', icon:'router', name:'OptiX OSN 9800', sub:'Transmission optique haute capacité',
     desc:"Plateforme de transmission utilisée pour le cœur du réseau de transport longue distance ; multiplexe plusieurs longueurs d'onde (DWDM) sur une seule fibre pour un très grand volume de trafic.",
+    usage:"Installé en salle technique/data center, en baie 19/21 pouces, raccordé aux liaisons fibre longue distance entre sites majeurs du réseau de transport.",
     specs:["Technologie DWDM / OTN","Conçu pour les liaisons backbone et data center","Capacité évolutive par ajout de cartes"] },
   { id:'osn6800', cat:'transmission', icon:'router', name:'OptiX OSN 6800', sub:'Transmission métro (MS-OTN)',
     desc:"Plateforme orientée réseaux métropolitains : regroupe plusieurs types de trafic (TDM, paquet, OTN) sur une infrastructure unique, adaptée aux sites secondaires.",
+    usage:"Déployé dans les nœuds de transmission métropolitains/régionaux reliant les sites entre eux dans une même zone urbaine.",
     specs:["Convergence TDM + Ethernet + OTN","Architecture flexible (MS-OTN)","Bon compromis coût / capacité pour le métro"] },
   { id:'dc908', cat:'transmission', icon:'router', name:'OptiXtrans DC908', sub:'Interconnexion data centers (DCI)',
     desc:"Équipement dédié à l'interconnexion de data centers à très haut débit, avec un déploiement automatisé conçu pour être rapide à mettre en service.",
+    usage:"Installé entre deux sites de data center à interconnecter, raccordé sur la fibre noire dédiée entre les deux sites.",
     specs:["Interconnexion data center longue distance","Déploiement automatisé","Bande passante élevée par longueur d'onde"] },
-  { id:'rtn950', cat:'microwave', icon:'dish', name:'OptiX RTN 950', sub:'Faisceau hertzien — unité intérieure (IDU)',
+  { id:'rtn950', cat:'microwave', icon:'dish', name:'RTN 950', sub:'Faisceau hertzien — unité intérieure (IDU)',
     desc:"Unité intérieure de transmission par faisceau hertzien, utilisée pour relier un site au réseau de transport quand la fibre optique n'est pas disponible.",
+    usage:"Installé en armoire/baie à l'intérieur du shelter, raccordé à l'ODU extérieur par câble coaxial (FE/IF) et au réseau local du site côté Ethernet.",
     specs:["Liaison point-à-point sans fibre","Couplée à une unité extérieure (ODU) sur mât","Solution de backhaul pour sites isolés"] },
   { id:'odu', cat:'microwave', icon:'dish', name:'ODU faisceau hertzien', sub:'Unité extérieure (ODU) + antenne parabolique',
     desc:"Module extérieur monté sur mât et couplé à une antenne parabolique ; convertit et transmet le signal micro-ondes entre deux sites en visibilité directe.",
+    usage:"Fixé directement derrière l'antenne parabolique sur le mât, en visibilité directe (ligne de vue) avec le site distant — alignement précis requis à l'installation.",
     specs:["Installation extérieure, résistant aux intempéries","Couplé à une antenne parabolique dédiée","Portée selon la fréquence et la taille d'antenne"] },
   { id:'ne40e', cat:'ipcore', icon:'router', name:'NE40E', sub:'Routeur de cœur de réseau IP',
+    img:'https://www.henanliyuan.com/Uploads/6930f9e1df8046554.jpg',
     desc:"Routeur haut de gamme utilisé pour l'agrégation et le routage du trafic IP à fort débit, avec une haute disponibilité.",
+    usage:"Installé en data center ou nœud central du réseau IP, en baie 19 pouces, raccordé aux liaisons de transport et aux équipements d'agrégation.",
     specs:["Hautes performances de routage IP","Redondance pour la haute disponibilité","Utilisé en cœur ou en agrégation réseau"] },
-  { id:'cloudengine', cat:'entreprise', icon:'router', name:'CloudEngine', sub:'Gamme commutateurs entreprise',
-    desc:"Commutateurs haute performance utilisés pour les réseaux d'entreprise et les services B2B : data centers clients, campus, agrégation.",
-    specs:["Plusieurs modèles selon le débit requis","Adapté aux réseaux d'entreprise et data center","Utilisé pour les déploiements B2B chez le client"] },
-  { id:'ea5800', cat:'entreprise', icon:'fiber', name:'EA5800', sub:'Terminal de ligne optique (OLT)',
+  { id:'cloudengine-campus', cat:'entreprise', icon:'router', name:'Commutateur de campus', sub:'Ex. S16700, S8700, S5755-H, S5735-L-V2',
+    img:'https://www.henanliyuan.com/Uploads/5ec4a450128f78257.jpg',
+    desc:"Gamme de commutateurs de campus, du modèle d'accès simple aux gros commutateurs cœur de réseau, pour les réseaux d'entreprise, gouvernement, éducation et finance.",
+    usage:"Installé chez le client en armoire réseau (salle informatique, local technique), selon le rôle (accès, agrégation ou cœur) défini par l'architecture réseau du site.",
+    specs:["Plusieurs gammes selon le débit (Gigabit à 100GE)","Modèles haut de gamme : cœur de réseau campus","Modèles d'accès : postes de travail"] },
+  { id:'cloudengine-dc', cat:'entreprise', icon:'router', name:'Commutateur de data center', sub:'Ex. CE16800, CE9800, CE8800, CE6800',
+    desc:"Gamme de commutateurs pour centre de données, avec automatisation et visibilité temps réel, utilisée aussi en campus haut de gamme.",
+    usage:"Installé en baie de data center client, raccordant les serveurs et le stockage au réseau, ou en cœur de réseau campus pour les plus gros sites.",
+    specs:["Modèles haut de gamme : cœur de très grande capacité","Modèles intermédiaires : agrégation/cœur data center","Modèles d'accès : le plus courant"] },
+  { id:'routeur-agence', cat:'entreprise', icon:'router', name:'Routeur de succursale', sub:'Ex. AR6700, AR6100, AR650, AR630, AR610',
+    desc:"Routeurs qui combinent routage, switching, sécurité et Wi-Fi dans un seul boîtier — utilisés en sortie de réseau pour les sièges/agences clients en B2B.",
+    usage:"Installé en local technique chez le client, en coupure entre le réseau local de l'entreprise et la liaison opérateur (fibre/4G/5G) — souvent le tout premier équipement posé sur un site B2B.",
+    specs:["Modèles d'entrée : petites/moyennes structures","Modèles avancés : sites plus importants, SD-WAN","Intègre souvent routage + Wi-Fi + sécurité"] },
+  { id:'ea5800', cat:'entreprise', icon:'fiber', name:'Terminal de ligne optique (OLT)', sub:'Ex. série EA5800 / MA5800',
+    img:'https://www.henanliyuan.com/Uploads/5d91782f3a3898333.jpg',
     desc:"Point de départ du réseau fibre optique passif (PON) vers les clients finaux ou entreprises raccordés en fibre.",
+    usage:"Installé au central/nœud d'accès, raccordé en amont au réseau de transport et en aval aux fibres desservant les clients (FTTH/FTTB).",
     specs:["Point d'accès du réseau fibre passif (PON)","Dessert plusieurs clients depuis une seule fibre","Utilisé pour les raccordements FTTH / B2B fibre"] },
+  { id:'etp-cabinet', cat:'energie', icon:'battery', name:"Armoire d'alimentation de site", sub:"Système d'alimentation -48V (ex. ETP48150/ETP48200)",
+    desc:"Armoire d'alimentation qui convertit le courant alternatif du secteur en courant continu -48V pour tous les équipements télécom du site, avec gestion intégrée des batteries de secours.",
+    usage:"Installée au pied du site (shelter ou armoire extérieure), c'est le point d'alimentation central : tout le matériel actif du site (BBU, transmission, etc.) y est raccordé en -48V.",
+    specs:["Convertit AC secteur → DC -48V pour le site","Gestion intelligente de la charge batterie","Hauteur modulaire 1U à 11U selon la puissance"] },
+  { id:'r4850', cat:'energie', icon:'bolt', name:'Module redresseur', sub:'Module de redressement enfichable (ex. R4850)',
+    desc:"Module enfichable (\"hot-swap\") qui fait la conversion AC→DC à l'intérieur de l'armoire d'alimentation ; plusieurs modules en parallèle selon la puissance totale du site.",
+    usage:"S'insère dans les emplacements prévus de l'armoire d'alimentation — remplaçable à chaud sans couper l'alimentation du site en cas de panne d'un module.",
+    specs:["Haut rendement (>96%)","Remplaçable à chaud (hot-swap)","Plusieurs modules combinables selon la charge du site"] },
+  { id:'batterie-site', cat:'energie', icon:'battery', name:'Batteries de site (plomb ou lithium)', sub:'Autonomie de secours en cas de coupure secteur',
+    desc:"Bancs de batteries (technologie plomb-acide ou lithium selon le site) qui prennent le relais automatiquement en cas de coupure du secteur, pour maintenir le site actif.",
+    usage:"Installées en armoire dédiée ou dans l'armoire d'alimentation elle-même, raccordées au bus -48V ; l'autonomie dépend du nombre de strings installées et de la consommation du site.",
+    specs:["Bascule automatique en cas de coupure secteur","Plomb-acide (économique) ou lithium (plus léger, plus durable)","Autonomie dimensionnée selon la criticité du site"] },
+  { id:'smu', cat:'energie', icon:'router', name:'Unité de supervision', sub:"Monitoring de l'alimentation et de l'environnement (SMU/PMU)",
+    desc:"Carte de supervision qui surveille en temps réel l'état de l'alimentation, des batteries et de l'environnement du site (température, fumée, intrusion), avec alerte à distance.",
+    usage:"Intégrée dans l'armoire d'alimentation, raccordée aux capteurs du site (température, fumée, porte) ; transmet les alertes au centre de supervision via le réseau.",
+    specs:["Supervision à distance (SNMP/Ethernet)","Alerte température, fumée, intrusion porte","Écran LCD local pour diagnostic sur site"] },
+  { id:'odf', cat:'fibre', icon:'fiber', name:'Tiroir de brassage optique (ODF)', sub:'Répartiteur optique',
+    desc:"Tiroir installé en baie qui regroupe et organise les raccordements en fibre optique entre les câbles extérieurs et les équipements actifs, avec épissures et connecteurs.",
+    usage:"Monté en baie 19/21 pouces dans le shelter, c'est le point de passage entre la fibre extérieure (vers les autres sites) et le câblage interne vers les équipements actifs.",
+    specs:["1U à plusieurs U selon la densité de fibres","Connecteurs SC/LC/FC selon l'équipement","Tiroir à épissures pour protéger les soudures fibre"] },
+  { id:'fat-fdt', cat:'fibre', icon:'fiber', name:'Boîtier de distribution fibre (FAT/FDT)', sub:'Point de dérivation sur le réseau fibre extérieur',
+    desc:"Boîtier installé sur le parcours du câble fibre extérieur (poteau, façade, chambre) pour dériver et distribuer les fibres vers plusieurs destinations sans repasser par le central.",
+    usage:"Installé sur poteau, en façade ou en chambre souterraine, au point où le câble fibre principal se divise vers plusieurs directions/clients.",
+    specs:["Boîtier étanche (IP65/IP67) pour usage extérieur","Capacité de quelques à plusieurs dizaines de fibres","Utilisé en FTTH et en liaison inter-sites"] },
+  { id:'splice-closure', cat:'fibre', icon:'splice', name:"Boîte d'épissure fibre", sub:'Protection des soudures de fibre optique',
+    desc:"Boîtier hermétique qui protège les points de soudure (épissures) entre deux tronçons de câble fibre, indispensable à chaque raccordement ou réparation de câble extérieur.",
+    usage:"Posé directement sur le câble au point de jonction (souterrain, aérien ou en chambre) ; refermé après l'opération de soudure pour protéger les fibres des intempéries.",
+    specs:["Protection étanche des soudures fibre","Usage aérien, souterrain ou en chambre","Capacité variable selon le nombre de fibres à protéger"] },
+  { id:'connecteurs-fibre', cat:'fibre', icon:'splice', name:'Connecteurs & jarretières fibre', sub:'Raccordement entre équipements et ODF (SC/LC/FC/ST)',
+    desc:"Cordons et connecteurs qui relient physiquement les équipements actifs aux tiroirs ODF — chaque type de connecteur (SC, LC, FC, ST) correspond à un format de port différent.",
+    usage:"Utilisés à chaque raccordement entre un équipement (BBU, transmission, switch) et le tiroir ODF, ou pour les tests/mesures avec un appareil de mesure optique.",
+    specs:["SC : le plus courant en télécom/FTTH","LC : format compact, dense (data center)","FC/ST : connecteurs vissés, plus anciens mais robustes"] },
+  { id:'feeder-jumper', cat:'accessoires', icon:'tool', name:'Câbles feeder / jumper RF', sub:'Liaison radiofréquence antenne ↔ équipement',
+    desc:"Câbles coaxiaux qui transportent le signal radiofréquence entre l'antenne/RRU et le reste de la chaîne radio, avec des connecteurs adaptés à chaque extrémité.",
+    usage:"Tirés le long du mât/pylône entre l'antenne ou le RRU et l'équipement en pied de mât ; longueur et type choisis selon la distance et la perte acceptable.",
+    specs:["Plusieurs diamètres selon la longueur/perte tolérée","Connecteurs N, DIN ou 4.3-10 selon l'équipement","Protection contre l'humidité aux connexions"] },
+  { id:'mise-terre', cat:'accessoires', icon:'tool', name:'Kit de mise à la terre & parafoudre', sub:'Protection électrique du site',
+    desc:"Ensemble de câbles de terre, barrettes et parafoudres qui protègent les équipements et le personnel contre la foudre et les surtensions, obligatoire sur chaque site.",
+    usage:"Installé sur le pylône, les câbles RF/fibre entrants et l'armoire électrique — chaque point d'entrée d'un câble extérieur doit être mis à la terre.",
+    specs:["Protection contre la foudre et les surtensions","Barrettes de terre sur mât, câbles et armoires","Conformité obligatoire pour la sécurité du site"] },
+  { id:'fixation-montage', cat:'accessoires', icon:'tool', name:'Supports de montage & visserie', sub:'Colliers, brides, rails, boulonnerie',
+    desc:"Ensemble du petit matériel de fixation (colliers de câble, brides de mât, rails de baie, boulons, vis) nécessaire à l'installation physique de tous les équipements d'un site.",
+    usage:"Utilisé à chaque étape d'installation : fixation des antennes/RRU sur mât, montage des équipements en baie, cheminement et attache des câbles.",
+    specs:["Colliers et brides adaptés au diamètre du mât","Rails et vis standard 19/21 pouces pour les baies","Quantités variables selon la taille du site"] },
+  { id:'manchons-thermo', cat:'accessoires', icon:'tool', name:'Manchons thermorétractables & rubans', sub:'Étanchéité et isolation des connexions',
+    desc:"Manchons qui se rétractent à la chaleur pour étanchéifier les connexions de câbles, et rubans d'isolation/identification utilisés sur la quasi-totalité des raccordements d'un site.",
+    usage:"Appliqués sur chaque connexion de câble RF ou électrique exposée aux intempéries, ainsi que pour le repérage couleur des câbles selon leur fonction.",
+    specs:["Étanchéité des connexions extérieures","Plusieurs diamètres selon le câble","Rubans de couleur pour l'identification des circuits"] },
 ];
 
 export default function Inventaire() {
-  const navigate = useNavigate();
   const [tab, setTab] = useState('stock');
   const [catSearch, setCatSearch] = useState('');
   const [catFilter, setCatFilter] = useState('tous');
   const [catSelected, setCatSelected] = useState(null);
-
-
-  // __INVENTAIRE_API__ — Inventaire OEM depuis missions
-  const [realInventaire, setRealInventaire] = useState([]);
-  useEffect(() => {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    fetch('https://backend-cleanit-erp.vercel.app/missions', {headers:{'Authorization':'Bearer '+token}})
-      .then(r=>r.json()).then(missions => {
-        if(Array.isArray(missions) && missions.length > 0) {
-          const items = missions.map(m => ({
-            id: m.id, reference: m.code, site: m.siteName || m.site,
-            client: m.client, type: m.type, statut: m.status
-          }));
-          setRealInventaire(items);
-        }
-      }).catch(()=>{});
-  }, []);
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -120,8 +170,8 @@ export default function Inventaire() {
     try {
       const r = await api.get('/inventaire');
       const data = Array.isArray(r.data) ? r.data : [];
-      setItems(data.length > 0 ? data : SEED);
-    } catch { setItems(SEED); }
+      setItems(data);
+    } catch { setItems([]); }
     finally { setLoading(false); }
   };
 
@@ -162,7 +212,7 @@ export default function Inventaire() {
       {/* Onglets */}
       <div style={{display:'flex',gap:0,marginBottom:18,borderBottom:'1px solid #e2e8f0'}}>
         <button onClick={()=>setTab('stock')} style={{padding:'9px 16px',border:'none',borderBottom:`2px solid ${tab==='stock'?'#ea580c':'transparent'}`,background:'transparent',color:tab==='stock'?'#ea580c':'#64748b',fontWeight:tab==='stock'?700:500,fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>Stock</button>
-        <button onClick={()=>navigate('/catalogue-oem')} style={{padding:'9px 16px',border:'none',borderBottom:'2px solid transparent',background:'transparent',color:'#64748b',fontWeight:500,fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>Catalogue Huawei ↗</button>
+        <button onClick={()=>setTab('catalogue')} style={{padding:'9px 16px',border:'none',borderBottom:`2px solid ${tab==='catalogue'?'#ea580c':'transparent'}`,background:'transparent',color:tab==='catalogue'?'#ea580c':'#64748b',fontWeight:tab==='catalogue'?700:500,fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>Catalogue Matériel</button>
       </div>
 
       {tab==='stock' && <>
@@ -254,7 +304,11 @@ export default function Inventaire() {
                   onMouseEnter={e=>{e.currentTarget.style.borderColor=cat.color;e.currentTarget.style.boxShadow='0 4px 14px rgba(0,0,0,0.07)';}}
                   onMouseLeave={e=>{e.currentTarget.style.borderColor='#e2e8f0';e.currentTarget.style.boxShadow='none';}}>
                   <div style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:8}}>
-                    <div style={{width:38,height:38,borderRadius:8,background:cat.color+'14',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    {it.img && (
+                      <img src={it.img} alt={it.name} style={{width:38,height:38,borderRadius:8,objectFit:'cover',flexShrink:0}}
+                        onError={e=>{e.target.style.display='none'; e.target.nextSibling.style.display='flex';}} />
+                    )}
+                    <div style={{width:38,height:38,borderRadius:8,background:cat.color+'14',display:it.img?'none':'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                       <CatIc d={CAT_ICONS[it.icon]} size={19} color={cat.color}/>
                     </div>
                     <div style={{flex:1,minWidth:0}}>
@@ -300,13 +354,21 @@ export default function Inventaire() {
           <div style={{background:'white',borderRadius:14,width:'100%',maxWidth:480,overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,0.25)'}}>
             <div style={{padding:'18px 20px',background:cat.color,color:'white',display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
               <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
-                <div style={{width:38,height:38,borderRadius:8,background:'rgba(255,255,255,0.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><CatIc d={CAT_ICONS[catSelected.icon]} size={19} color="white"/></div>
+                {catSelected.img && (
+                  <img src={catSelected.img} alt={catSelected.name} style={{width:38,height:38,borderRadius:8,objectFit:'cover',flexShrink:0}}
+                    onError={e=>{e.target.style.display='none'; e.target.nextSibling.style.display='flex';}} />
+                )}
+                <div style={{width:38,height:38,borderRadius:8,background:'rgba(255,255,255,0.18)',display:catSelected.img?'none':'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><CatIc d={CAT_ICONS[catSelected.icon]} size={19} color="white"/></div>
                 <div><div style={{fontSize:16,fontWeight:800}}>{catSelected.name}</div><div style={{fontSize:12,opacity:0.85}}>{catSelected.sub}</div></div>
               </div>
               <button onClick={()=>setCatSelected(null)} style={{background:'rgba(255,255,255,0.2)',border:'none',color:'white',width:28,height:28,borderRadius:'50%',cursor:'pointer',fontSize:16,flexShrink:0}}>✕</button>
             </div>
             <div style={{padding:22}}>
               <p style={{fontSize:13,color:'#374151',lineHeight:1.7,margin:'0 0 14px'}}>{catSelected.desc}</p>
+              {catSelected.usage && <>
+                <div style={{fontSize:11,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:6}}>Usage sur site</div>
+                <p style={{fontSize:13,color:'#374151',lineHeight:1.7,margin:'0 0 14px'}}>{catSelected.usage}</p>
+              </>}
               <div style={{fontSize:11,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:8}}>Points clés</div>
               <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:18}}>
                 {catSelected.specs.map((s,i)=>(
@@ -315,7 +377,7 @@ export default function Inventaire() {
               </div>
               <div style={{display:'flex',gap:10}}>
                 <button onClick={()=>setCatSelected(null)} style={{flex:1,padding:11,borderRadius:8,border:'1px solid #e2e8f0',background:'white',cursor:'pointer',fontSize:13,fontWeight:600,color:'#374151'}}>Fermer</button>
-                <button onClick={()=>{ setForm(p=>({...p,name:catSelected.name,model:'Huawei '+catSelected.name,type:catSelected.icon==='dish'?'Antenne':catSelected.icon==='fiber'?'Autre':catSelected.icon==='bbu'?'BBU':catSelected.icon==='antenna'?'Antenne':'Routeur'})); setCatSelected(null); setTab('stock'); setShowForm(true); }}
+                <button onClick={()=>{ setForm(p=>({...p,name:catSelected.name,model:catSelected.name,type:catSelected.icon==='dish'?'Antenne':catSelected.icon==='fiber'||catSelected.icon==='splice'?'Autre':catSelected.icon==='bbu'?'BBU':catSelected.icon==='antenna'?'Antenne':catSelected.icon==='battery'||catSelected.icon==='bolt'?'Autre':'Routeur'})); setCatSelected(null); setTab('stock'); setShowForm(true); }}
                   style={{flex:2,padding:11,borderRadius:8,border:'none',background:cat.color,color:'white',cursor:'pointer',fontSize:13,fontWeight:700}}>+ Ajouter au stock</button>
               </div>
             </div>

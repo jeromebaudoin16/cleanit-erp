@@ -11,7 +11,6 @@ export const MODULES = [
   ]},
   { section:'Client OEM', items:[
     { path:'/inventaire', label:'Inventaire OEM', roles:['admin','project_manager'] },
-    { path:'/catalogue-oem', label:'Catalogue Huawei', roles:['admin','project_manager'] },
     { path:'/purchase-orders', label:'Bons de Commande', roles:['admin','project_manager'] },
   ]},
   { section:'Entreprise', items:[
