@@ -7,5 +7,8 @@
       "config": { "maxLambdaSize": "10mb" }
     }
   ],
-  "routes": [{"src": "/(.*)", "dest": "api/index.js"}]
+  "routes": [{"src": "/(.*)", "dest": "api/index.js"}],
+  "crons": [
+    { "path": "/admin/backup", "schedule": "0 2 * * *" }
+  ]
 }

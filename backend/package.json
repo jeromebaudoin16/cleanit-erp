@@ -20,7 +20,6 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "pdf-parse": "^1.1.1",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
@@ -32,6 +31,7 @@
     "@nestjs/swagger": "^11.2.7",
     "@nestjs/typeorm": "^11.0.1",
     "@nestjs/websockets": "^11.1.19",
+    "@vercel/blob": "^2.5.0",
     "axios": "^1.15.0",
     "bcryptjs": "^3.0.3",
     "class-transformer": "^0.5.1",
@@ -42,6 +42,7 @@
     "nodemailer": "^8.0.5",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pdf-parse": "^1.1.1",
     "pdfkit": "^0.18.0",
     "pg": "^8.21.0",
     "reflect-metadata": "^0.2.2",

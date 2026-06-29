@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 
 const STATUS_EQ = {
@@ -79,6 +80,7 @@ const CATALOG_ITEMS = [
 ];
 
 export default function Inventaire() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState('stock');
   const [catSearch, setCatSearch] = useState('');
   const [catFilter, setCatFilter] = useState('tous');
@@ -159,9 +161,8 @@ export default function Inventaire() {
 
       {/* Onglets */}
       <div style={{display:'flex',gap:0,marginBottom:18,borderBottom:'1px solid #e2e8f0'}}>
-        {[{id:'stock',label:'Stock'},{id:'catalogue',label:'Catalogue Huawei'}].map(t=>(
-          <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'9px 16px',border:'none',borderBottom:`2px solid ${tab===t.id?'#ea580c':'transparent'}`,background:'transparent',color:tab===t.id?'#ea580c':'#64748b',fontWeight:tab===t.id?700:500,fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>{t.label}</button>
-        ))}
+        <button onClick={()=>setTab('stock')} style={{padding:'9px 16px',border:'none',borderBottom:`2px solid ${tab==='stock'?'#ea580c':'transparent'}`,background:'transparent',color:tab==='stock'?'#ea580c':'#64748b',fontWeight:tab==='stock'?700:500,fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>Stock</button>
+        <button onClick={()=>navigate('/catalogue-oem')} style={{padding:'9px 16px',border:'none',borderBottom:'2px solid transparent',background:'transparent',color:'#64748b',fontWeight:500,fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>Catalogue Huawei ↗</button>
       </div>
 
       {tab==='stock' && <>

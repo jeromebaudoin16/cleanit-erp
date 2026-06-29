@@ -84,7 +84,56 @@ const isAdmin = (req, res, next) => {
   next();
 };
 
-// ─── PROXY IA — ChaCha (Groq + fallback Gemini) ────────────────
+// ─── SAUVEGARDE AUTOMATIQUE (PRA/DRP) ──────────────────────────
+// Exporte TOUTES les tables de la base vers un fichier JSON horodaté, stocké sur
+// Vercel Blob (indépendant de Neon — si Neon a un problème, cette copie survit).
+// Déclenché par un Cron Vercel quotidien (voir vercel.json), sécurisé par CRON_SECRET.
+// Peut aussi être lancé manuellement par un admin authentifié.
+app.get('/admin/backup', async (req, res) => {
+  try {
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = req.headers.authorization;
+    const isCron = cronSecret && authHeader === `Bearer ${cronSecret}`;
+    let isAdminUser = false;
+    if (!isCron && authHeader) {
+      try {
+        const decoded = jwt.verify(authHeader.replace('Bearer ', ''), JWT_SECRET);
+        isAdminUser = ['admin', 'dg'].includes(decoded.role);
+      } catch {}
+    }
+    if (!isCron && !isAdminUser) return res.status(401).json({ message: 'Non autorisé' });
+
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return res.status(500).json({ message: 'BLOB_READ_WRITE_TOKEN non configuré — active Vercel Blob Storage sur ce projet (onglet Storage du dashboard Vercel)' });
+    }
+    const { put } = require('@vercel/blob');
+
+    const tablesRes = await pool.query(
+      `SELECT table_name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE'`
+    );
+    const dump = { generated_at: new Date().toISOString(), tables: {} };
+    let totalRows = 0;
+    for (const { table_name } of tablesRes.rows) {
+      try {
+        const t = await pool.query(`SELECT * FROM "${table_name}"`);
+        dump.tables[table_name] = t.rows;
+        totalRows += t.rows.length;
+      } catch (e) {
+        dump.tables[table_name] = { error: e.message };
+      }
+    }
+    const json = JSON.stringify(dump);
+    const filename = `backups/cleanit-backup-${new Date().toISOString().slice(0,10)}-${Date.now()}.json`;
+    const blob = await put(filename, json, { access: 'public', contentType: 'application/json', addRandomSuffix: false });
+
+    res.json({ ok: true, url: blob.url, tables: Object.keys(dump.tables).length, totalRows, sizeKB: Math.round(json.length/1024) });
+  } catch (e) {
+    console.error('Backup error:', e);
+    res.status(500).json({ message: 'Erreur de sauvegarde', error: e.message });
+  }
+});
+
+
 // Les clés GROQ_API_KEY / GEMINI_API_KEY vivent UNIQUEMENT dans les variables d'env du
 // backend Vercel (jamais préfixées VITE_, donc jamais envoyées au navigateur).
 // Le frontend envoie le même payload qu'avant (model/messages/tools pour Groq,
@@ -128,7 +177,7 @@ app.post('/auth/login', rateLimit(5, 60000), async (req, res) => {
       return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
     const token = jwt.sign({ sub: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
     await pool.query('UPDATE users SET "lastSeen" = NOW() WHERE id = $1', [user.id]);
-    res.json({ token, user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role } });
+    res.json({ token, user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, moduleAccess: user.module_access || null } });
   } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
@@ -166,7 +215,8 @@ app.get('/auth/me', auth, async (req, res) => {
 // ─── USERS ROUTES ─────────────────────────────────────────────
 app.get('/users', auth, async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, email, "firstName", "lastName", role, "isActive", "lastSeen", "createdAt" FROM users ORDER BY "createdAt" DESC');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS module_access JSONB').catch(()=>{});
+    const result = await pool.query('SELECT id, email, "firstName", "lastName", role, "isActive", "lastSeen", "createdAt", module_access FROM users ORDER BY "createdAt" DESC');
     res.json(result.rows);
   } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
@@ -219,11 +269,14 @@ app.put('/users/:id', auth, async (req, res) => {
       certifications: 'certifications', hireDate: 'hire_date',
       contractEnd: 'contract_end', cnps: 'cnps',
       numContribuable: 'num_contribuable', status: 'status',
+      moduleAccess: 'module_access',
     };
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS module_access JSONB').catch(()=>{});
     for(const [f,col] of Object.entries(fieldMap)){
       if(req.body[f]!==undefined){
         updates.push(`${col} = $${idx++}`);
-        values.push(req.body[f]);
+        // module_access arrive en tableau JS (ou null pour "revenir aux permissions par défaut du rôle") — il faut le sérialiser pour une colonne JSONB
+        values.push(f==='moduleAccess' ? (req.body[f]===null ? null : JSON.stringify(req.body[f])) : req.body[f]);
       }
     }
     if(req.body.password && isAdm){
@@ -233,7 +286,7 @@ app.put('/users/:id', auth, async (req, res) => {
     if(!updates.length) return res.status(400).json({message:'Aucune modification'});
     values.push(id);
     const result = await pool.query(
-      `UPDATE users SET ${updates.join(',')} WHERE id = $${idx} RETURNING id,email,"firstName","lastName",role,"isActive",phone,department,salary,contract,city,address,bank,rib,matricule,education,gender,certifications,speciality,daily_rate`,
+      `UPDATE users SET ${updates.join(',')} WHERE id = $${idx} RETURNING id,email,"firstName","lastName",role,"isActive",phone,department,salary,contract,city,address,bank,rib,matricule,education,gender,certifications,speciality,daily_rate,module_access`,
       values
     );
     res.json(result.rows[0]);

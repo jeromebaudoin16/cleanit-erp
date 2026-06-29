@@ -1,15 +1,22 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
 
-// Redirection automatique vers /mobile sur smartphone
+// Redirection automatique vers /mobile sur smartphone — au chargement ET à chaque navigation arrière/avant
 function MobileRedirect() {
   useEffect(() => {
-    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-    const isOnMobile = window.location.pathname.startsWith('/mobile');
-    const isOnLogin = window.location.pathname === '/login';
-    if(isMobile && !isOnMobile && !isOnLogin) {
-      window.location.href = '/mobile';
-    }
+    const check = () => {
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+      const isOnMobile = window.location.pathname.startsWith('/mobile');
+      const isOnLogin = window.location.pathname === '/login';
+      if(isMobile && !isOnMobile && !isOnLogin) {
+        // replace() plutôt que href : ne laisse pas l'URL desktop dans l'historique,
+        // donc un futur bouton retour ne peut plus y retomber.
+        window.location.replace('/mobile');
+      }
+    };
+    check();
+    window.addEventListener('popstate', check);
+    return () => window.removeEventListener('popstate', check);
   }, []);
   return null;
 }
@@ -43,6 +50,8 @@ import Techniciens from './pages/Techniciens';
 import Interventions from './pages/Interventions';
 import Planning from './pages/Planning';
 import Inventaire from './pages/Inventaire';
+import CatalogueOEM from './pages/CatalogueOEM';
+import Parametres from './pages/Parametres';
 import Finance from './pages/Finance';
 import BonsCommande from './pages/BonsCommande';
 import Projets from './pages/Projets';
@@ -98,6 +107,8 @@ export default function App() {
           <Route path="interventions"   element={<Interventions />} />
           <Route path="planning"        element={<Planning />} />
           <Route path="inventaire"      element={<Inventaire />} />
+          <Route path="catalogue-oem"   element={<CatalogueOEM />} />
+          <Route path="parametres"      element={<Parametres />} />
           <Route path="contrats"        element={<Contrats />} />
           <Route path="mediation"       element={<Mediation />} />
           <Route path="purchase-orders" element={<PurchaseOrders />} />
