@@ -19,7 +19,71 @@ const SEED = [
   { id:8, code:'BBU-5900-003', name:'BBU 5900 5G NR', type:'BBU', model:'Client BBU5900', serialNumber:'SN20240008', site:'KRI-001', status:'actif', condition:'bon', dateInstallation:'2024-03-01', garantieExpiry:'2027-03-01', prix:8500000 },
 ];
 
+// ── ICÔNES CATALOGUE (style ligne, cohérent avec le reste de l'app) ───────
+const CatIc = ({d,size=20,color='currentColor',sw=1.7}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+    {(Array.isArray(d)?d:[d]).map((p,i)=><path key={i} d={p}/>)}
+  </svg>
+);
+const CAT_ICONS = {
+  antenna:   ['M12 2v20','M7 9a5 5 0 0110 0','M4 6a8 8 0 0116 0','M9 20h6'],
+  bbu:       ['M4 4h16v16H4V4z','M4 9.3h16','M4 14.7h16','M9.3 4v16','M14.7 4v16'],
+  dish:      ['M3 17a9 9 0 0118 0','M12 17V8','M9 5l3 3 3-3'],
+  router:    ['M4 4h16v4H4V4z','M4 10h16v4H4v-4z','M4 16h16v4H4v-4z','M7 6h.01','M7 12h.01','M7 18h.01'],
+  fiber:     ['M2 12h6','M16 12h6','M9 12a3 3 0 106 0 3 3 0 10-6 0z'],
+};
+const CATALOG_CATEGORIES = [
+  { id:'ran',          label:'Accès Radio (RAN)',         color:'#ea580c' },
+  { id:'transmission', label:'Transmission / DWDM',       color:'#0078d4' },
+  { id:'microwave',    label:'Faisceaux hertziens',       color:'#7c3aed' },
+  { id:'ipcore',       label:'Cœur de réseau IP',         color:'#16a34a' },
+  { id:'entreprise',   label:'Entreprise / B2B',          color:'#dc2626' },
+];
+const CATALOG_ITEMS = [
+  { id:'bbu5900', cat:'ran', icon:'bbu', name:'BBU 5900', sub:'Unité bande de base 5G/4G/3G/2G',
+    desc:"Cœur numérique de la station de base : traite le signal radio et pilote les unités RRU/AAU déportées par fibre optique. Un seul châssis peut combiner plusieurs générations technologiques (2G à 5G).",
+    specs:["Jusqu'à 6 standards radio dans un même boîtier","Liaison optique CPRI vers RRU/AAU déportés","Format compact (~9U), intérieur ou armoire extérieure"] },
+  { id:'aau', cat:'ran', icon:'antenna', name:'AAU Massive MIMO', sub:'Antenne active (ex. AAU5613/5619/5639)',
+    desc:"Combine l'antenne et l'électronique radio dans un seul boîtier extérieur fixé en hauteur, pour une couverture 4G/5G plus large avec une emprise réduite sur le mât.",
+    specs:["Plusieurs gammes de fréquences selon le modèle","Installation directe sur mât, sans câble RF séparé","Réduit le nombre d'équipements à installer en hauteur"] },
+  { id:'rru3908', cat:'ran', icon:'antenna', name:'RRU 3908', sub:'Unité radio distante (RRU)',
+    desc:"Amplifie et transmet le signal radio près de l'antenne, relié au BBU par fibre optique pour limiter les pertes de signal sur la liaison antenne-baie.",
+    specs:["Liaison optique CPRI vers le BBU","Installation sur mât ou en façade, proche de l'antenne","Plusieurs variantes selon la bande de fréquence"] },
+  { id:'antenne-dir', cat:'ran', icon:'antenna', name:'Antenne directionnelle multibande', sub:'Antenne passive sectorielle',
+    desc:"Antenne passive installée par trois (un triptyque par secteur) pour couvrir une zone géographique donnée autour du site.",
+    specs:["Plusieurs ports pour combiner plusieurs bandes","Réglage du downtilt pour ajuster la couverture","Montage sur mât ou pylône"] },
+  { id:'osn9800', cat:'transmission', icon:'router', name:'OptiX OSN 9800', sub:'Transmission optique haute capacité',
+    desc:"Plateforme de transmission utilisée pour le cœur du réseau de transport longue distance ; multiplexe plusieurs longueurs d'onde (DWDM) sur une seule fibre pour un très grand volume de trafic.",
+    specs:["Technologie DWDM / OTN","Conçu pour les liaisons backbone et data center","Capacité évolutive par ajout de cartes"] },
+  { id:'osn6800', cat:'transmission', icon:'router', name:'OptiX OSN 6800', sub:'Transmission métro (MS-OTN)',
+    desc:"Plateforme orientée réseaux métropolitains : regroupe plusieurs types de trafic (TDM, paquet, OTN) sur une infrastructure unique, adaptée aux sites secondaires.",
+    specs:["Convergence TDM + Ethernet + OTN","Architecture flexible (MS-OTN)","Bon compromis coût / capacité pour le métro"] },
+  { id:'dc908', cat:'transmission', icon:'router', name:'OptiXtrans DC908', sub:'Interconnexion data centers (DCI)',
+    desc:"Équipement dédié à l'interconnexion de data centers à très haut débit, avec un déploiement automatisé conçu pour être rapide à mettre en service.",
+    specs:["Interconnexion data center longue distance","Déploiement automatisé","Bande passante élevée par longueur d'onde"] },
+  { id:'rtn950', cat:'microwave', icon:'dish', name:'OptiX RTN 950', sub:'Faisceau hertzien — unité intérieure (IDU)',
+    desc:"Unité intérieure de transmission par faisceau hertzien, utilisée pour relier un site au réseau de transport quand la fibre optique n'est pas disponible.",
+    specs:["Liaison point-à-point sans fibre","Couplée à une unité extérieure (ODU) sur mât","Solution de backhaul pour sites isolés"] },
+  { id:'odu', cat:'microwave', icon:'dish', name:'ODU faisceau hertzien', sub:'Unité extérieure (ODU) + antenne parabolique',
+    desc:"Module extérieur monté sur mât et couplé à une antenne parabolique ; convertit et transmet le signal micro-ondes entre deux sites en visibilité directe.",
+    specs:["Installation extérieure, résistant aux intempéries","Couplé à une antenne parabolique dédiée","Portée selon la fréquence et la taille d'antenne"] },
+  { id:'ne40e', cat:'ipcore', icon:'router', name:'NE40E', sub:'Routeur de cœur de réseau IP',
+    desc:"Routeur haut de gamme utilisé pour l'agrégation et le routage du trafic IP à fort débit, avec une haute disponibilité.",
+    specs:["Hautes performances de routage IP","Redondance pour la haute disponibilité","Utilisé en cœur ou en agrégation réseau"] },
+  { id:'cloudengine', cat:'entreprise', icon:'router', name:'CloudEngine', sub:'Gamme commutateurs entreprise',
+    desc:"Commutateurs haute performance utilisés pour les réseaux d'entreprise et les services B2B : data centers clients, campus, agrégation.",
+    specs:["Plusieurs modèles selon le débit requis","Adapté aux réseaux d'entreprise et data center","Utilisé pour les déploiements B2B chez le client"] },
+  { id:'ea5800', cat:'entreprise', icon:'fiber', name:'EA5800', sub:'Terminal de ligne optique (OLT)',
+    desc:"Point de départ du réseau fibre optique passif (PON) vers les clients finaux ou entreprises raccordés en fibre.",
+    specs:["Point d'accès du réseau fibre passif (PON)","Dessert plusieurs clients depuis une seule fibre","Utilisé pour les raccordements FTTH / B2B fibre"] },
+];
+
 export default function Inventaire() {
+  const [tab, setTab] = useState('stock');
+  const [catSearch, setCatSearch] = useState('');
+  const [catFilter, setCatFilter] = useState('tous');
+  const [catSelected, setCatSelected] = useState(null);
+
 
   // __INVENTAIRE_API__ — Inventaire OEM depuis missions
   const [realInventaire, setRealInventaire] = useState([]);
@@ -93,6 +157,14 @@ export default function Inventaire() {
         <button onClick={()=>setShowForm(true)} style={{padding:'9px 16px',borderRadius:8,border:'none',background:'#ea580c',color:'white',fontSize:13,fontWeight:600,cursor:'pointer'}}>+ Nouvel Équipement</button>
       </div>
 
+      {/* Onglets */}
+      <div style={{display:'flex',gap:0,marginBottom:18,borderBottom:'1px solid #e2e8f0'}}>
+        {[{id:'stock',label:'Stock'},{id:'catalogue',label:'Catalogue Huawei'}].map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{padding:'9px 16px',border:'none',borderBottom:`2px solid ${tab===t.id?'#ea580c':'transparent'}`,background:'transparent',color:tab===t.id?'#ea580c':'#64748b',fontWeight:tab===t.id?700:500,fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>{t.label}</button>
+        ))}
+      </div>
+
+      {tab==='stock' && <>
       {/* Stats */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(140px,1fr))',gap:10,marginBottom:20}}>
         {[{l:'Total',v:items.length,c:'#0078d4'},{l:'Actifs',v:items.filter(i=>i.status==='actif').length,c:'#16a34a'},{l:'En stock',v:items.filter(i=>i.status==='stock').length,c:'#0078d4'},{l:'Maintenance',v:items.filter(i=>i.status==='maintenance').length,c:'#f59e0b'},{l:'Hors service',v:items.filter(i=>i.status==='hors_service').length,c:'#dc2626'}].map(s=>(
@@ -148,6 +220,55 @@ export default function Inventaire() {
           </tbody>
         </table>
       </div>
+      </>}
+
+      {tab==='catalogue' && (
+        <div>
+          <div style={{background:'white',borderRadius:10,padding:'12px 16px',border:'1px solid #e2e8f0',marginBottom:16,display:'flex',gap:10,flexWrap:'wrap',alignItems:'center'}}>
+            <div style={{position:'relative',flex:1,minWidth:200}}>
+              <span style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'#94a3b8'}}>🔍</span>
+              <input placeholder="Rechercher un équipement (BBU, RTN, OLT...)" value={catSearch} onChange={e=>setCatSearch(e.target.value)} style={{width:'100%',padding:'8px 12px 8px 32px',border:'1px solid #e2e8f0',borderRadius:8,fontSize:13,outline:'none',boxSizing:'border-box'}} />
+            </div>
+            <select value={catFilter} onChange={e=>setCatFilter(e.target.value)} style={{padding:'8px 12px',border:'1px solid #e2e8f0',borderRadius:8,fontSize:13,background:'white'}}>
+              <option value="tous">Toutes les catégories</option>
+              {CATALOG_CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </div>
+
+          <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:16}}>
+            {CATALOG_CATEGORIES.map(c=>(
+              <span key={c.id} style={{padding:'4px 10px',borderRadius:12,fontSize:11,fontWeight:600,background:c.color+'15',color:c.color,border:`1px solid ${c.color}30`}}>{c.label}</span>
+            ))}
+          </div>
+
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(260px,1fr))',gap:14}}>
+            {CATALOG_ITEMS.filter(it=>{
+              const mc = catFilter==='tous'||it.cat===catFilter;
+              const mq = !catSearch || it.name.toLowerCase().includes(catSearch.toLowerCase()) || it.sub.toLowerCase().includes(catSearch.toLowerCase());
+              return mc&&mq;
+            }).map(it=>{
+              const cat = CATALOG_CATEGORIES.find(c=>c.id===it.cat);
+              return (
+                <div key={it.id} onClick={()=>setCatSelected(it)} style={{background:'white',borderRadius:10,border:'1px solid #e2e8f0',padding:16,cursor:'pointer',transition:'all .15s'}}
+                  onMouseEnter={e=>{e.currentTarget.style.borderColor=cat.color;e.currentTarget.style.boxShadow='0 4px 14px rgba(0,0,0,0.07)';}}
+                  onMouseLeave={e=>{e.currentTarget.style.borderColor='#e2e8f0';e.currentTarget.style.boxShadow='none';}}>
+                  <div style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:8}}>
+                    <div style={{width:38,height:38,borderRadius:8,background:cat.color+'14',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      <CatIc d={CAT_ICONS[it.icon]} size={19} color={cat.color}/>
+                    </div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:14,fontWeight:700,color:'#1e293b'}}>{it.name}</div>
+                      <div style={{fontSize:11,color:'#64748b',marginTop:1}}>{it.sub}</div>
+                    </div>
+                  </div>
+                  <div style={{fontSize:12,color:'#374151',lineHeight:1.5,marginBottom:8}}>{it.desc.slice(0,110)}{it.desc.length>110?'…':''}</div>
+                  <span style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:8,background:cat.color+'12',color:cat.color}}>{cat.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Modal Détail */}
       {selected && (
@@ -171,6 +292,35 @@ export default function Inventaire() {
           </div>
         </div>
       )}
+
+      {/* Modal Détail Catalogue */}
+      {catSelected && (() => { const cat = CATALOG_CATEGORIES.find(c=>c.id===catSelected.cat); return (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+          <div style={{background:'white',borderRadius:14,width:'100%',maxWidth:480,overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,0.25)'}}>
+            <div style={{padding:'18px 20px',background:cat.color,color:'white',display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+              <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+                <div style={{width:38,height:38,borderRadius:8,background:'rgba(255,255,255,0.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><CatIc d={CAT_ICONS[catSelected.icon]} size={19} color="white"/></div>
+                <div><div style={{fontSize:16,fontWeight:800}}>{catSelected.name}</div><div style={{fontSize:12,opacity:0.85}}>{catSelected.sub}</div></div>
+              </div>
+              <button onClick={()=>setCatSelected(null)} style={{background:'rgba(255,255,255,0.2)',border:'none',color:'white',width:28,height:28,borderRadius:'50%',cursor:'pointer',fontSize:16,flexShrink:0}}>✕</button>
+            </div>
+            <div style={{padding:22}}>
+              <p style={{fontSize:13,color:'#374151',lineHeight:1.7,margin:'0 0 14px'}}>{catSelected.desc}</p>
+              <div style={{fontSize:11,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:'0.5px',marginBottom:8}}>Points clés</div>
+              <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:18}}>
+                {catSelected.specs.map((s,i)=>(
+                  <div key={i} style={{display:'flex',gap:8,fontSize:12,color:'#1e293b'}}><span style={{color:cat.color,fontWeight:700}}>•</span>{s}</div>
+                ))}
+              </div>
+              <div style={{display:'flex',gap:10}}>
+                <button onClick={()=>setCatSelected(null)} style={{flex:1,padding:11,borderRadius:8,border:'1px solid #e2e8f0',background:'white',cursor:'pointer',fontSize:13,fontWeight:600,color:'#374151'}}>Fermer</button>
+                <button onClick={()=>{ setForm(p=>({...p,name:catSelected.name,model:'Huawei '+catSelected.name,type:catSelected.icon==='dish'?'Antenne':catSelected.icon==='fiber'?'Autre':catSelected.icon==='bbu'?'BBU':catSelected.icon==='antenna'?'Antenne':'Routeur'})); setCatSelected(null); setTab('stock'); setShowForm(true); }}
+                  style={{flex:2,padding:11,borderRadius:8,border:'none',background:cat.color,color:'white',cursor:'pointer',fontSize:13,fontWeight:700}}>+ Ajouter au stock</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ); })()}
 
       {/* Modal Form */}
       {showForm && (
