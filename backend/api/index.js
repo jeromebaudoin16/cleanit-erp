@@ -164,7 +164,180 @@ app.post('/chacha/gemini', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ message: 'Erreur proxy Gemini', error: e.message }); }
 });
 
-// ─── AUTH ROUTES ─────────────────────────────────────────────
+// ─── GÉNÉRATION DE DOCUMENTS (ChaCha) ──────────────────────────
+// ChaCha peut générer une lettre Word, un tableau Excel, ou une présentation PowerPoint
+// à la demande, et renvoie un lien de téléchargement (stocké sur Vercel Blob).
+app.post('/chacha/generate-document', auth, async (req, res) => {
+  try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return res.status(500).json({ message: 'BLOB_READ_WRITE_TOKEN non configuré — active Vercel Blob Storage sur ce projet' });
+    }
+    const { put } = require('@vercel/blob');
+    const { type, title, content } = req.body;
+    if (!type || !title) return res.status(400).json({ message: 'type et title requis' });
+
+    let buffer, ext, mime;
+    const userRow = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1', [req.user.sub]);
+    const authorName = userRow.rows[0] ? userRow.rows[0].firstName + ' ' + userRow.rows[0].lastName : 'CleanIT SARL';
+    const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    if (type === 'lettre' || type === 'word') {
+      const { Document, Packer, Paragraph, TextRun, AlignmentType } = require('docx');
+      const paragraphs = (Array.isArray(content) ? content : String(content || '').split('\n\n'))
+        .filter(p => p && p.trim())
+        .map(p => new Paragraph({ children: [new TextRun(p.trim())], spacing: { after: 200 } }));
+
+      const doc = new Document({
+        sections: [{
+          children: [
+            new Paragraph({ children: [new TextRun({ text: 'CleanIT SARL', bold: true, size: 28 })] }),
+            new Paragraph({ children: [new TextRun({ text: 'Sous-traitant télécom certifié Huawei — Douala, Cameroun', italics: true, size: 18 })], spacing: { after: 400 } }),
+            new Paragraph({ children: [new TextRun({ text: 'Douala, le ' + today })], alignment: AlignmentType.RIGHT, spacing: { after: 400 } }),
+            new Paragraph({ children: [new TextRun({ text: title, bold: true, size: 26 })], spacing: { after: 300 } }),
+            ...paragraphs,
+            new Paragraph({ children: [new TextRun({ text: authorName })], spacing: { before: 400 } }),
+          ],
+        }],
+      });
+      buffer = await Packer.toBuffer(doc);
+      ext = 'docx'; mime = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+    } else if (type === 'excel') {
+      const ExcelJS = require('exceljs');
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet(title.slice(0, 30));
+      const headers = content?.headers || [];
+      const rows = content?.rows || [];
+      ws.addRow(headers);
+      ws.getRow(1).font = { bold: true };
+      ws.getRow(1).eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A5276' } }; c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; });
+      rows.forEach(r => ws.addRow(r));
+      ws.columns.forEach(col => { col.width = 22; });
+      buffer = await wb.xlsx.writeBuffer();
+      ext = 'xlsx'; mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+    } else if (type === 'presentation' || type === 'powerpoint') {
+      const PptxGenJS = require('pptxgenjs');
+      const pres = new PptxGenJS();
+      const titleSlide = pres.addSlide();
+      titleSlide.background = { color: '1A5276' };
+      titleSlide.addText(title, { x: 0.5, y: 2.2, w: 9, h: 1.2, fontSize: 32, bold: true, color: 'FFFFFF', align: 'center' });
+      titleSlide.addText('CleanIT SARL', { x: 0.5, y: 3.3, w: 9, h: 0.5, fontSize: 16, color: 'FFFFFF', align: 'center' });
+      const slides = Array.isArray(content) ? content : [];
+      slides.forEach(s => {
+        const slide = pres.addSlide();
+        slide.addText(s.title || '', { x: 0.5, y: 0.4, w: 9, h: 0.8, fontSize: 24, bold: true, color: '1A5276' });
+        const bullets = (s.bullets || []).map(b => ({ text: b, options: { bullet: true, fontSize: 16, breakLine: true } }));
+        if (bullets.length) slide.addText(bullets, { x: 0.6, y: 1.4, w: 8.8, h: 5 });
+      });
+      buffer = await pres.write({ outputType: 'nodebuffer' });
+      ext = 'pptx'; mime = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+
+    } else {
+      return res.status(400).json({ message: "type doit être 'lettre', 'excel' ou 'presentation'" });
+    }
+
+    const safeTitle = title.replace(/[^a-zA-Z0-9]+/g, '_').slice(0, 50);
+    const filename = `documents/${safeTitle}_${Date.now()}.${ext}`;
+    const blob = await put(filename, buffer, { access: 'public', contentType: mime, addRandomSuffix: false });
+    res.json({ ok: true, url: blob.url, filename: safeTitle + '.' + ext });
+  } catch (e) {
+    console.error('generate-document error:', e);
+    res.status(500).json({ message: 'Erreur de génération', error: e.message });
+  }
+});
+
+
+// ─── RECAP / BRIEF QUOTIDIEN (ChaCha) — données réelles, pas de contexte fictif ──
+const ROLE_BRIEF_LABEL = { admin:'Administrateur', dg:'Directeur Général', hr:'Responsable RH', project_manager:'Chef de Projet', technician:'Technicien', bureau:'Collaborateur' };
+
+async function gatherRealContext(userId, role) {
+  const today = new Date().toISOString().slice(0,10);
+  const [pendingApprovals, todayEvents, activeMissions] = await Promise.all([
+    pool.query(`SELECT COUNT(*) FROM approvals WHERE status NOT IN ('approved','rejected','cancelled')`).catch(()=>({rows:[{count:0}]})),
+    pool.query(`SELECT COUNT(*) FROM planning_events WHERE $1 BETWEEN start_date AND end_date`, [today]).catch(()=>({rows:[{count:0}]})),
+    pool.query(`SELECT COUNT(*) FROM missions WHERE status NOT IN ('completed','cancelled')`).catch(()=>({rows:[{count:0}]})),
+  ]);
+  return {
+    pendingApprovals: parseInt(pendingApprovals.rows[0]?.count || 0),
+    todayEvents: parseInt(todayEvents.rows[0]?.count || 0),
+    activeMissions: parseInt(activeMissions.rows[0]?.count || 0),
+  };
+}
+
+async function generateBriefForUser(userId) {
+  const userRes = await pool.query('SELECT "firstName","lastName",role FROM users WHERE id=$1', [userId]);
+  const u = userRes.rows[0];
+  if (!u) return null;
+  const ctx = await gatherRealContext(userId, u.role);
+  const roleLabel = ROLE_BRIEF_LABEL[u.role] || 'Collaborateur';
+  const contextStr = `Demandes Approvals en attente: ${ctx.pendingApprovals}. Événements planning aujourd'hui: ${ctx.todayEvents}. Missions terrain actives: ${ctx.activeMissions}.`;
+  const prompt = `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, génère un brief matinal court pour ${u.firstName} (${roleLabel}). Parle-lui directement, ton professionnel et chaleureux. Base-toi UNIQUEMENT sur ces chiffres réels, n'invente rien d'autre: ${contextStr}`;
+  if (!process.env.GROQ_API_KEY) return contextStr; // pas de clé dispo, on renvoie au moins les chiffres bruts
+  try {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.GROQ_API_KEY },
+      body: JSON.stringify({ model: 'openai/gpt-oss-120b', max_tokens: 100, messages: [{ role: 'user', content: prompt }] }),
+    });
+    const data = await r.json();
+    return data.choices?.[0]?.message?.content || contextStr;
+  } catch { return contextStr; }
+}
+
+app.get('/chacha/daily-brief', auth, async (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0,10);
+    await pool.query(`CREATE TABLE IF NOT EXISTS daily_briefs (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), brief_date DATE, content TEXT, created_at TIMESTAMP DEFAULT NOW(), UNIQUE(user_id, brief_date))`).catch(()=>{});
+    if (req.query.refresh !== 'true') {
+      const cached = await pool.query('SELECT content FROM daily_briefs WHERE user_id=$1 AND brief_date=$2', [req.user.sub, today]);
+      if (cached.rows[0]) return res.json({ content: cached.rows[0].content, cached: true });
+    }
+    const content = await generateBriefForUser(req.user.sub);
+    await pool.query(
+      `INSERT INTO daily_briefs (user_id, brief_date, content) VALUES ($1,$2,$3)
+       ON CONFLICT (user_id, brief_date) DO UPDATE SET content=$3, created_at=NOW()`,
+      [req.user.sub, today, content]
+    ).catch(()=>{});
+    res.json({ content, cached: false });
+  } catch (e) { res.status(500).json({ message: 'Erreur de génération', error: e.message }); }
+});
+
+// Cron quotidien (voir vercel.json) — génère et stocke le brief de chaque utilisateur actif,
+// et l'envoie en notification push aux utilisateurs mobiles.
+app.get('/admin/daily-recap', async (req, res) => {
+  try {
+    const cronSecret = process.env.CRON_SECRET;
+    const authHeader = req.headers.authorization;
+    if (!(cronSecret && authHeader === `Bearer ${cronSecret}`)) return res.status(401).json({ message: 'Non autorisé' });
+
+    await pool.query(`CREATE TABLE IF NOT EXISTS daily_briefs (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id), brief_date DATE, content TEXT, created_at TIMESTAMP DEFAULT NOW(), UNIQUE(user_id, brief_date))`).catch(()=>{});
+    const today = new Date().toISOString().slice(0,10);
+    const users = await pool.query(`SELECT id FROM users WHERE "isActive"=true`);
+    let done = 0;
+    for (const { id: userId } of users.rows) {
+      try {
+        const content = await generateBriefForUser(userId);
+        await pool.query(
+          `INSERT INTO daily_briefs (user_id, brief_date, content) VALUES ($1,$2,$3)
+           ON CONFLICT (user_id, brief_date) DO UPDATE SET content=$3, created_at=NOW()`,
+          [userId, today, content]
+        );
+        const subs = await pool.query('SELECT subscription FROM push_subscriptions WHERE user_id=$1', [userId]);
+        for (const row of subs.rows) {
+          try {
+            await webpush.sendNotification(row.subscription, JSON.stringify({
+              title: 'ChaCha — Brief du jour', body: content.slice(0, 120), data: { url: '/mobile' },
+            }));
+          } catch {}
+        }
+        done++;
+      } catch {}
+    }
+    res.json({ ok: true, usersProcessed: done });
+  } catch (e) { res.status(500).json({ message: 'Erreur recap', error: e.message }); }
+});
+
 app.post('/auth/login', rateLimit(5, 60000), async (req, res) => {
   try {
     const email = sanitize(req.body.email || '');

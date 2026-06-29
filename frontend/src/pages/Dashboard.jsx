@@ -157,42 +157,20 @@ const AIBrief = ({user, role, dashData}) => {
   const [loading,setLoading]=useState(false);
   const [done,setDone]=useState(false);
 
-  const generate = useCallback(async() => {
+  const generate = useCallback(async(forceRefresh) => {
     setLoading(true);
     try {
-      const userName = user?.firstName || user?.first_name || user?.email?.split('@')[0] || 'Collaborateur';
-      const context = [
-        `Utilisateur: ${userName}, Rôle: ${role.label}`,
-        `CA ce mois: ${fM(dashData?.totalCA||87000000)}`,
-        `Jobs actifs: ${dashData?.jobsCount||4}`,
-        `Factures en attente: ${dashData?.invoicesCount||8}`,
-        `Nouveaux bons de commande clients: ${NEW_PROJECTS.length} (${NEW_PROJECTS.map(p=>p.client).join(', ')})`,
-        `Réunions aujourd'hui: ${TODAY_MEETINGS.length}`,
-        `Emails urgents: ${URGENT_EMAILS.filter(e=>e.priority==='high').length}`,
-      ].join('. ');
-
-      const rolePrompts = {
-        dg: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, génère un brief matinal pour ${userName} (Directeur Général) en 2-3 phrases. Parle-lui directement. Inclus: situation financière, nouveaux projets clients, points d'attention stratégiques. ${context}`,
-        comptable: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, brief pour ${userName} (Comptable) en 2-3 phrases. Parle-lui directement. Inclus: trésorerie, factures à traiter, déclarations fiscales imminentes. ${context}`,
-        chef_proj: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, brief pour ${userName} (Chef de Projet) en 2-3 phrases. Parle-lui directement. Inclus: état des jobs, jalons critiques, ressources disponibles. ${context}`,
-        chef_terrain: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, brief pour ${userName} (Chef Terrain) en 2-3 phrases. Parle-lui directement. Inclus: équipes déployées, jobs du jour, conditions opérationnelles. ${context}`,
-        rh: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, brief pour ${userName} (Responsable RH) en 2-3 phrases. Parle-lui directement. Inclus: présences, demandes RH en attente, points RH du jour. ${context}`,
-      };
-
       const tk = localStorage.getItem('token');
-      const res = await fetch((import.meta.env.VITE_API_URL||'https://backend-cleanit-erp.vercel.app')+'/chacha/groq',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
-        body:JSON.stringify({model:'openai/gpt-oss-120b',max_tokens:100,messages:[{role:'user',content:rolePrompts[role.id]||rolePrompts.chef_proj}]})
-      });
+      const url = (import.meta.env.VITE_API_URL||'https://backend-cleanit-erp.vercel.app')+'/chacha/daily-brief'+(forceRefresh?'?refresh=true':'');
+      const res = await fetch(url, { headers:{'Authorization':'Bearer '+tk} });
       const d = await res.json();
-      setBrief(d.choices?.[0]?.message?.content||'Données insuffisantes.');
+      setBrief(d.content||'Données insuffisantes.');
       setDone(true);
     } catch { setBrief('Connexion IA indisponible. Bonne journée !'); setDone(true); }
     setLoading(false);
-  },[user,role,dashData]);
+  },[]);
 
-  useEffect(()=>{ if(!done) generate(); },[role.id]);
+  useEffect(()=>{ if(!done) generate(false); },[role.id]);
 
   return (
     <Card>
@@ -204,7 +182,7 @@ const AIBrief = ({user, role, dashData}) => {
           <div style={{flex:1}}>
             <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
               <span style={{fontSize:12,fontWeight:700,color:role.color}}>ChaCha — Brief du {new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}</span>
-              <button onClick={()=>{setDone(false);setBrief('');generate();}} disabled={loading} style={{marginLeft:'auto',fontSize:10,color:role.color,background:'none',border:`1px solid ${role.color}30`,borderRadius:4,padding:'2px 7px',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',gap:3}}>
+              <button onClick={()=>{setDone(false);setBrief('');generate(true);}} disabled={loading} style={{marginLeft:'auto',fontSize:10,color:role.color,background:'none',border:`1px solid ${role.color}30`,borderRadius:4,padding:'2px 7px',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',gap:3}}>
                 <Ic d={I.refresh} size={10} color={role.color}/>{loading?'...':'Actualiser'}
               </button>
             </div>

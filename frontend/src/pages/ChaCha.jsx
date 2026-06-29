@@ -50,9 +50,8 @@ BONS DE COMMANDE — quand l'utilisateur importe un fichier BC (Excel ou PDF):
 
 COMMANDES SYSTÈME (utilise sans afficher):
 - Navigation: ##NAVIGATE:/url##
-- Excel: ##EXCEL:factures## ##EXCEL:paie## ##EXCEL:jobs##
-- Word: ##WORD:contrat## ##WORD:rapport##
 - Musique: ##MUSIC:titre##
+- Pour générer un document réel (lettre Word, tableau Excel, présentation PowerPoint) : utilise l'outil generer_document — jamais de marqueur texte pour ça, c'est un vrai fichier téléchargeable.
 
 RÈGLES:
 - Réponds toujours en français, sois concise et professionnelle
@@ -95,7 +94,13 @@ const CHACHA_TOOLS = [
     texte:{type:"string"}
   },required:["destinataireId","texte"]}}},
   {type:"function",function:{name:"chercher_technicien",description:"Trouver un technicien disponible",parameters:{type:"object",properties:{competence:{type:"string"},region:{type:"string"}}}}},
-  {type:"function",function:{name:"generer_rapport",description:"Générer Excel ou Word",parameters:{type:"object",properties:{type:{type:"string",enum:["factures","paie","jobs","contrat","rapport"]}},required:["type"]}}},
+  {type:"function",function:{name:"generer_document",description:"Générer un vrai document téléchargeable (lettre Word, tableau Excel, ou présentation PowerPoint) à partir d'un contenu libre. Utilise ça pour toute demande de lettre, courrier, contrat, rapport, tableau de données ou présentation — y compris des sujets qui n'ont rien à voir avec CleanIT si l'utilisateur le demande.",parameters:{type:"object",properties:{
+    type:{type:"string",enum:["lettre","excel","presentation"],description:"lettre=document Word, excel=tableau, presentation=PowerPoint"},
+    titre:{type:"string",description:"Titre du document"},
+    paragraphes:{type:"array",items:{type:"string"},description:"Pour type=lettre : un paragraphe par élément du tableau, dans l'ordre"},
+    tableau:{type:"object",properties:{headers:{type:"array",items:{type:"string"}},lignes:{type:"array",items:{type:"array"}}},description:"Pour type=excel : en-têtes de colonnes + lignes de données"},
+    diapositives:{type:"array",items:{type:"object",properties:{titre:{type:"string"},points:{type:"array",items:{type:"string"}}}},description:"Pour type=presentation : une diapositive par élément, avec son titre et ses puces"}
+  },required:["type","titre"]}}},
   {type:"function",function:{name:"analyser_bon_commande",description:"Structurer les données extraites d'un Bon de Commande importé (Excel ou PDF) après que l'utilisateur a uploadé un fichier",parameters:{type:"object",properties:{
     formatType:{type:"string",enum:["A","B","C"],description:"A=planning projet (budget/dates), B=classique (qté×prix), C=mixte"},
     sites:{type:"array",description:"Liste des sites extraits pour Type A",items:{type:"object",properties:{
@@ -305,65 +310,6 @@ export default function ChaCha() {
   const doActions = useCallback(async(text)=>{
     const nav=text.match(/##NAVIGATE:([^#]+)##/);
     if(nav){ setTimeout(()=>navigate(nav[1].trim()),500); }
-
-    const excel=text.match(/##EXCEL:(\w+)##/);
-    if(excel){
-      const type=excel[1];
-      const ExcelJS=(await import('exceljs')).default;
-      const wb=new ExcelJS.Workbook(); wb.creator='ChaCha';
-      const ws=wb.addWorksheet(type);
-      const hStyle={font:{bold:true,color:{argb:'FFFFFFFF'}},fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FF1F4E79'}},alignment:{horizontal:'center'}};
-      if(type==='factures'){
-        ws.columns=[{key:'id',width:16,header:'N° Facture'},{key:'client',width:26,header:'Client'},{key:'date',width:14,header:'Date'},{key:'total',width:18,header:'Total TTC'},{key:'statut',width:14,header:'Statut'}];
-        ws.getRow(1).eachCell(c=>{c.font=hStyle.font;c.fill=hStyle.fill;c.alignment=hStyle.alignment;});
-        [['INV-2024-001','MTN Cameroun','15/01/2024','53 935 625 F','Payée'],['INV-2024-002','Orange Cameroun','28/01/2024','10 195 875 F','En retard'],['INV-2024-003','Gouvernement CM','01/02/2024','32 000 000 F','Partielle'],['INV-2024-004','CAMTEL','10/03/2024','71 550 000 F','Envoyée']].forEach((r,i)=>{const row=ws.addRow({id:r[0],client:r[1],date:r[2],total:r[3],statut:r[4]});if(i%2===0)row.eachCell(c=>c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFDEEAF1'}});});
-      } else if(type==='paie'){
-        ws.columns=[{key:'mat',width:10,header:'Matricule'},{key:'nom',width:22,header:'Employé'},{key:'brut',width:14,header:'Brut'},{key:'cnps',width:12,header:'CNPS'},{key:'net',width:14,header:'Net'}];
-        ws.getRow(1).eachCell(c=>{c.font=hStyle.font;c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF7C3AED'}};c.alignment=hStyle.alignment;});
-        [['EI-001','Marie Kamga','850 000','71 400','705 617'],['EI-002','Jean Fouda','750 000','63 000','628 767'],['EI-003','Alice Finance','1 200 000','100 800','965 967']].forEach((r,i)=>{const row=ws.addRow({mat:r[0],nom:r[1],brut:r[2],cnps:r[3],net:r[4]});if(i%2===0)row.eachCell(c=>c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF5F3FF'}});});
-      } else if(type==='jobs'){
-        ws.columns=[{key:'id',width:12,header:'Job ID'},{key:'nom',width:30,header:'Nom'},{key:'client',width:22,header:'Client'},{key:'contrat',width:16,header:'Contrat'},{key:'statut',width:14,header:'Statut'}];
-        ws.getRow(1).eachCell(c=>{c.font=hStyle.font;c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF059669'}};c.alignment=hStyle.alignment;});
-        [['JOB-001','Installation 5G NR DLA-001','MTN Cameroun','165 000 000 F','En cours'],['JOB-002','Maintenance 4G LTE YDE-001','Orange Cameroun','38 000 000 F','Terminé'],['JOB-003','Infrastructure GAR-001','Gouvernement CM','29 000 000 F','En cours'],['JOB-004','Fibre Optique BFN-001','CAMTEL','195 000 000 F','Attribué']].forEach((r,i)=>{const row=ws.addRow({id:r[0],nom:r[1],client:r[2],contrat:r[3],statut:r[4]});if(i%2===0)row.eachCell(c=>c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF0FDF4'}});});
-      }
-      const buf=await wb.xlsx.writeBuffer();
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
-      a.download=`${type}_${new Date().toISOString().split('T')[0]}.xlsx`; a.click();
-    }
-
-    const word=text.match(/##WORD:(\w+)##/);
-    if(word){
-      const type=word[1]; const today=new Date().toLocaleDateString('fr-FR');
-      const html=`<html><head><meta charset="utf-8"/><style>body{font-family:Calibri,Arial;font-size:11pt;margin:2.5cm}h1{color:#1F4E79;text-align:center;font-size:16pt}h2{color:#2563EB;font-size:13pt;border-bottom:1px solid #2563EB;padding-bottom:4px;margin-top:20px}.header{background:linear-gradient(135deg,#1F4E79,#2563EB);color:white;padding:20px;text-align:center;border-radius:5px;margin-bottom:25px}.signature{display:flex;justify-content:space-between;margin-top:50px}.sig{text-align:center;width:45%}table{width:100%;border-collapse:collapse}td,th{border:1px solid #ddd;padding:8px}th{background:#1F4E79;color:white}</style></head><body>
-<div class="header"><h2 style="margin:0;color:white">⚡ CleanIT ERP</h2><p style="margin:5px 0;opacity:.8;font-size:10pt">Document généré — ${today}</p></div>
-<h1>${type==='contrat'?'CONTRAT DE PRESTATIONS DE SERVICES':type==='rapport'?'RAPPORT D\'ACTIVITÉ':type==='courrier'?'COURRIER':'DOCUMENT'}</h1>
-${type==='contrat'?`
-<h2>ARTICLE 1 — PARTIES CONTRACTANTES</h2>
-<p><strong>Le Prestataire :</strong> CleanIT Cameroun, société de services télécom, sise à Douala, Cameroun.</p>
-<p><strong>Le Client :</strong> _________________________________, représenté par _________________________.</p>
-<h2>ARTICLE 2 — OBJET</h2>
-<p>Le présent contrat a pour objet : _____________________________________________</p>
-<h2>ARTICLE 3 — MONTANT ET PAIEMENT</h2>
-<table><tr><th>Prestation</th><th>Montant HT</th><th>TVA 19.25%</th><th>Total TTC</th></tr>
-<tr><td>_____________</td><td>____________ FCFA</td><td>____________ FCFA</td><td>____________ FCFA</td></tr></table>
-<h2>ARTICLE 4 — DURÉE</h2>
-<p>Durée : _________ mois à compter du _____________</p>
-<h2>ARTICLE 5 — SIGNATURES</h2>
-<div class="signature"><div class="sig"><p>Pour CleanIT Cameroun</p><br/><br/><hr/><p style="font-size:9pt">Signature & Cachet</p></div>
-<div class="sig"><p>Pour le Client</p><br/><br/><hr/><p style="font-size:9pt">Signature & Cachet</p></div></div>`:
-type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | Établi le : ${today}</p>
-<h2>2. INDICATEURS CLÉS</h2>
-<table><tr><th>Indicateur</th><th>Valeur</th><th>Objectif</th><th>Écart</th></tr>
-<tr><td>Chiffre d'affaires</td><td>207 M FCFA</td><td>200 M FCFA</td><td>+3.5%</td></tr>
-<tr><td>Jobs actifs</td><td>5</td><td>—</td><td>—</td></tr></table>
-<h2>3. OBSERVATIONS</h2><p>_______________________________________________</p>`:
-`<p>Douala, le ${today}</p><p>Objet : ______________________________</p><br/><p>Madame, Monsieur,</p><br/><p>_____________________________________________</p><br/><p>Veuillez agréer nos cordiales salutations.</p><br/><p>La Direction</p>`}
-</body></html>`;
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(new Blob([html],{type:'application/msword'}));
-      a.download=`${type}_cleanit_${today.replace(/\//g,'-')}.doc`; a.click();
-    }
 
     const music=text.match(/##MUSIC:([^#]+)##/);
     if(music) window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(music[1])}`, '_blank');
@@ -617,10 +563,26 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
             case 'chercher_technicien':
               result = await lireSysteme('techniciens');
               break;
-            case 'generer_rapport':
-              await doActions(`##EXCEL:${args.type}## ##WORD:${args.type}##`);
-              result = `Rapport ${args.type} généré`;
+            case 'generer_document': {
+              try {
+                const tk2 = localStorage.getItem('token');
+                let content;
+                if (args.type === 'lettre') content = args.paragraphes || [];
+                else if (args.type === 'excel') content = { headers: args.tableau?.headers || [], rows: args.tableau?.lignes || [] };
+                else content = (args.diapositives || []).map(d => ({ title: d.titre, bullets: d.points || [] }));
+                const r = await fetch(BASE_API+'/chacha/generate-document', {
+                  method: 'POST',
+                  headers: {'Content-Type':'application/json','Authorization':'Bearer '+tk2},
+                  body: JSON.stringify({ type: args.type, title: args.titre, content })
+                });
+                const data = await r.json();
+                if (!r.ok) throw new Error(data.message || 'Erreur de génération');
+                result = `Document généré : [📄 ${data.filename}](${data.url})`;
+              } catch (err) {
+                result = `Erreur lors de la génération du document: ${err.message}`;
+              }
               break;
+            }
             case 'afficher_alerte':
               result = `Alerte affichée: ${args.message}`;
               break;
@@ -766,6 +728,7 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
   const renderMd=(t)=>{
     if(!t) return '';
     return t
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#a78bfa;text-decoration:underline;font-weight:600">$1</a>')
       .replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
       .replace(/^### (.+)$/gm,'<div style="font-weight:700;font-size:12px;color:#a78bfa;margin:8px 0 3px">$1</div>')
       .replace(/^## (.+)$/gm,'<div style="font-weight:800;font-size:13px;color:#c4b5fd;margin:10px 0 4px">$1</div>')
