@@ -32,10 +32,12 @@ const CATEGORIES = [
 
 const ITEMS = [
   { id:'bbu5900', cat:'ran', icon:'bbu', name:'BBU 5900', sub:'Unité bande de base 5G/4G/3G/2G',
+    img:'https://image.chukouplus.com/upload/C_4415/file/20240416/66205eeb559fb0712f1d58c725cc5c26.jpg',
     desc:"Cœur numérique de la station de base : traite le signal radio et pilote les unités RRU/AAU déportées par fibre optique. Un seul châssis peut combiner plusieurs générations technologiques (2G à 5G).",
     usage:"Installé en armoire (intérieur ou extérieur) à la base du site. Raccordé aux RRU/AAU par fibre optique (CPRI) et au réseau de transport par le côté backhaul.",
     specs:["Jusqu'à 6 standards radio dans un même boîtier","Liaison optique CPRI vers RRU/AAU déportés","Format compact (~9U), intérieur ou armoire extérieure"] },
   { id:'aau', cat:'ran', icon:'antenna', name:'AAU Massive MIMO', sub:'Antenne active (ex. AAU5613/5619/5639)',
+    img:'https://www.henanliyuan.com/Uploads/5ea39b5c30c1e8517.jpg',
     desc:"Combine l'antenne et l'électronique radio dans un seul boîtier extérieur fixé en hauteur, pour une couverture 4G/5G plus large avec une emprise réduite sur le mât.",
     usage:"Fixation directe sur mât/pylône à la hauteur définie par l'étude radio. Alimentation DC depuis le bas du site, liaison optique vers le BBU.",
     specs:["Plusieurs gammes de fréquences selon le modèle","Installation directe sur mât, sans câble RF séparé","Réduit le nombre d'équipements à installer en hauteur"] },
@@ -68,10 +70,12 @@ const ITEMS = [
     usage:"Fixé directement derrière l'antenne parabolique sur le mât, en visibilité directe (ligne de vue) avec le site distant — alignement précis requis à l'installation.",
     specs:["Installation extérieure, résistant aux intempéries","Couplé à une antenne parabolique dédiée","Portée selon la fréquence et la taille d'antenne"] },
   { id:'ne40e', cat:'ipcore', icon:'router', name:'NE40E', sub:'Routeur de cœur de réseau IP',
+    img:'https://www.henanliyuan.com/Uploads/6930f9e1df8046554.jpg',
     desc:"Routeur haut de gamme utilisé pour l'agrégation et le routage du trafic IP à fort débit, avec une haute disponibilité.",
     usage:"Installé en data center ou nœud central du réseau IP, en baie 19 pouces, raccordé aux liaisons de transport et aux équipements d'agrégation.",
     specs:["Hautes performances de routage IP","Redondance pour la haute disponibilité","Utilisé en cœur ou en agrégation réseau"] },
   { id:'cloudengine-campus', cat:'entreprise', icon:'router', name:'CloudEngine S-Series (Campus)', sub:'Ex. S16700, S8700, S5755-H, S5735-L-V2',
+    img:'https://www.henanliyuan.com/Uploads/5ec4a450128f78257.jpg',
     desc:"Gamme de commutateurs de campus, du modèle d'accès simple aux gros commutateurs cœur de réseau, pour les réseaux d'entreprise, gouvernement, éducation et finance.",
     usage:"Installé chez le client en armoire réseau (salle informatique, local technique), selon le rôle (accès, agrégation ou cœur) défini par l'architecture réseau du site.",
     specs:["Plusieurs gammes selon le débit (Gigabit à 100GE)","S16700/S8700 : cœur de réseau campus","S5735/S5755 : accès, postes de travail"] },
@@ -83,7 +87,8 @@ const ITEMS = [
     desc:"Routeurs qui combinent routage, switching, sécurité et Wi-Fi dans un seul boîtier — utilisés en sortie de réseau pour les sièges/agences clients en B2B.",
     usage:"Installé en local technique chez le client, en coupure entre le réseau local de l'entreprise et la liaison opérateur (fibre/4G/5G) — souvent le tout premier équipement posé sur un site B2B.",
     specs:["AR650/AR630/AR610 : petites/moyennes structures","AR6700/AR6100 : sites plus importants, SD-WAN","Intègre souvent routage + Wi-Fi + sécurité"] },
-  { id:'ea5800', cat:'entreprise', icon:'fiber', name:'EA5800', sub:'Terminal de ligne optique (OLT)',
+  { id:'ea5800', cat:'entreprise', icon:'fiber', name:'EA5800 / MA5800 (Série OLT)', sub:'Terminal de ligne optique (OLT)',
+    img:'https://www.henanliyuan.com/Uploads/5d91782f3a3898333.jpg',
     desc:"Point de départ du réseau fibre optique passif (PON) vers les clients finaux ou entreprises raccordés en fibre.",
     usage:"Installé au central/nœud d'accès, raccordé en amont au réseau de transport et en aval aux fibres desservant les clients (FTTH/FTTB).",
     specs:["Point d'accès du réseau fibre passif (PON)","Dessert plusieurs clients depuis une seule fibre","Utilisé pour les raccordements FTTH / B2B fibre"] },
@@ -181,7 +186,11 @@ export default function CatalogueOEM(){
               onMouseEnter={e=>{e.currentTarget.style.borderColor=cat.color;e.currentTarget.style.boxShadow='0 4px 14px rgba(0,0,0,0.07)';}}
               onMouseLeave={e=>{e.currentTarget.style.borderColor='#e2e8f0';e.currentTarget.style.boxShadow='none';}}>
               <div style={{display:'flex',alignItems:'flex-start',gap:10,marginBottom:8}}>
-                <div style={{width:38,height:38,borderRadius:8,background:cat.color+'14',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                {it.img && (
+                  <img src={it.img} alt={it.name} style={{width:38,height:38,borderRadius:8,objectFit:'cover',flexShrink:0}}
+                    onError={e=>{e.target.style.display='none'; e.target.nextSibling.style.display='flex';}} />
+                )}
+                <div style={{width:38,height:38,borderRadius:8,background:cat.color+'14',display:it.img?'none':'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                   <Ic d={ICONS[it.icon]} size={19} color={cat.color}/>
                 </div>
                 <div style={{flex:1,minWidth:0}}>
@@ -204,7 +213,11 @@ export default function CatalogueOEM(){
           <div style={{background:'white',borderRadius:14,width:'100%',maxWidth:520,maxHeight:'85vh',overflowY:'auto',boxShadow:'0 24px 64px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
             <div style={{padding:'18px 20px',background:cat.color,color:'white',display:'flex',justifyContent:'space-between',alignItems:'flex-start',position:'sticky',top:0}}>
               <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
-                <div style={{width:38,height:38,borderRadius:8,background:'rgba(255,255,255,0.18)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Ic d={ICONS[selected.icon]} size={19} color="white"/></div>
+                {selected.img && (
+                  <img src={selected.img} alt={selected.name} style={{width:38,height:38,borderRadius:8,objectFit:'cover',flexShrink:0}}
+                    onError={e=>{e.target.style.display='none'; e.target.nextSibling.style.display='flex';}} />
+                )}
+                <div style={{width:38,height:38,borderRadius:8,background:'rgba(255,255,255,0.18)',display:selected.img?'none':'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><Ic d={ICONS[selected.icon]} size={19} color="white"/></div>
                 <div><div style={{fontSize:16,fontWeight:800}}>{selected.name}</div><div style={{fontSize:12,opacity:0.85}}>{selected.sub}</div></div>
               </div>
               <button onClick={()=>setSelected(null)} style={{background:'rgba(255,255,255,0.2)',border:'none',color:'white',width:28,height:28,borderRadius:'50%',cursor:'pointer',fontSize:16,flexShrink:0}}>✕</button>
