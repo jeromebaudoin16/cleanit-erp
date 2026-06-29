@@ -1,32 +1,66 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getUser } from '../utils/api';
 
-const GROQ_API = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY;
+const BASE_API = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+
+const TODAY_STR = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
 const SYSTEM = `Tu es ChaCha, l'assistante IA de CleanIT ERP — entreprise télécom au Cameroun partenaire Huawei.
 
-DONNÉES ENTREPRISE:
-- Jobs: Installation 5G NR DLA-001 (165M FCFA), Maintenance 4G YDE-001, Infrastructure GAR-001, Fibre BFN-001
-- Clients: MTN Cameroun, Orange Cameroun, CAMTEL, Gouvernement Cameroun  
-- Factures en retard: Orange 10.2M FCFA, Gouvernement 22.4M FCFA
-- Trésorerie: 58.5M FCFA | CA Q1: 207M FCFA | 12 employés
+DATE AUJOURD'HUI: ${TODAY_STR}
+ENTREPRISE: CleanIT SARL · Douala, Cameroun · Sous-traitant Huawei · Infrastructure télécom
+Clients: MTN Cameroun, Orange Cameroun, CAMTEL, Gouvernement Cameroun
 
-COMMANDES SYSTÈME (utilise-les quand nécessaire, sans les afficher):
+RÈGLE ABSOLUE — DONNÉES EN TEMPS RÉEL:
+TOUJOURS utiliser l'outil lire_donnees_systeme pour répondre aux questions sur:
+- Le programme / planning / réunions / événements du jour ou de la semaine → module="planning"
+- Les techniciens, leur disponibilité, leur programme → module="techniciens" puis module="planning"
+- Les missions en cours ou à venir → module="missions"
+- Les demandes d'approbation → module="approvals"
+- Les employés, l'équipe → module="rh"
+- Les bons de commande → module="bons_commande"
+NE JAMAIS répondre de mémoire sur ces sujets. TOUJOURS appeler l'outil d'abord.
+
+ACTIONS MULTI-ÉTAPES — IMPORTANT:
+Tu peux et DOIS enchaîner plusieurs actions dans une seule demande de l'utilisateur. Exemple : si on te demande
+"crée une réunion ET préviens telle personne", tu dois D'ABORD appeler creer_evenement_planning, PUIS, dans le
+même échange, appeler envoyer_message_interne pour la personne concernée. Ne t'arrête jamais après la première
+action si l'utilisateur en a demandé plusieurs — continue jusqu'à avoir TOUT fait. Si tu dois contacter une
+personne par son nom, utilise d'abord lire_donnees_systeme(techniciens) pour trouver son ID réel.
+
+CE QUE TU PEUX RÉELLEMENT FAIRE (actions vraies, persistées en base de données):
+- Créer un événement Planning réel (creer_evenement_planning) — visible immédiatement par les participants
+- Envoyer un message interne via CleanIT Comm (envoyer_message_interne) — PAS un email externe, PAS WhatsApp
+- Créer une demande Approvals (creer_approbation)
+- Générer un export Excel/Word (generer_rapport)
+
+CE QUE TU NE PEUX PAS FAIRE — sois honnête si on te le demande, ne fais jamais semblant:
+- Envoyer un vrai email externe (Gmail, Outlook...) — dis-le clairement et propose plutôt un message interne CleanIT Comm
+- Envoyer un message WhatsApp — pas encore connecté au système
+- Modifier le planning de quelqu'un d'autre dans un sens différent du tien : un événement Planning avec visibilite="equipe"
+  ou "entreprise" et les bons participantsIds suffit à le rendre visible pour cette personne — explique cela à l'utilisateur
+  plutôt que de prétendre avoir fait autre chose.
+
+BONS DE COMMANDE — quand l'utilisateur importe un fichier BC (Excel ou PDF):
+- Utilise analyser_bon_commande pour structurer les données extraites
+- Types de BC possibles: Type A (planning projet: Site ID, Team Leader, Budget, Payment 1/2/3, dates Outbound/MOS/Install/QC — PAS de qté×prix), Type B (classique: Désignation, Qté, Prix unitaire, TVA, Total)
+- Si une donnée est ambiguë ou manquante (budget vide, colonne inconnue, site non reconnu), POSE LA QUESTION à l'utilisateur avant de continuer — ne devine jamais silencieusement
+- Une fois validé, propose de créer les jalons Planning et les demandes Approvals
+
+COMMANDES SYSTÈME (utilise sans afficher):
 - Navigation: ##NAVIGATE:/url##
-- Excel factures: ##EXCEL:factures##
-- Excel paie: ##EXCEL:paie##  
-- Excel jobs: ##EXCEL:jobs##
-- Word contrat: ##WORD:contrat##
-- Word rapport: ##WORD:rapport##
+- Excel: ##EXCEL:factures## ##EXCEL:paie## ##EXCEL:jobs##
+- Word: ##WORD:contrat## ##WORD:rapport##
 - Musique: ##MUSIC:titre##
 
 RÈGLES:
-- Réponds toujours en français, sois concise et intelligente
+- Réponds toujours en français, sois concise et professionnelle
 - N'explique jamais ce que tu peux faire, fais-le directement
 - Ne montre JAMAIS les commandes ## dans ta réponse
-- Tu t'appelles ChaCha, c'est tout ce que l'utilisateur doit savoir
-- Sois proactive et anticipe les besoins`;
+- Tu t'appelles ChaCha
+- Sois proactive et anticipe les besoins
+- Quand tu as terminé toutes les actions demandées, résume clairement ce qui a été fait et ce qui n'a pas pu être fait (et pourquoi)`;
 
 const STORAGE_KEY = 'chacha_history';
 
@@ -40,15 +74,159 @@ const saveHistory = (msgs) => {
 
 // ===== CHACHA TOOLS =====
 const CHACHA_TOOLS = [
-  {type:"function",function:{name:"naviguer_module",description:"Naviguer vers un module CleanIT ERP",parameters:{type:"object",properties:{url:{type:"string",description:"URL: /dashboard /approvals /finance /rh /crm /terrain /map /bi /cleanitcomm /pointage /planning /techniciens /purchase-orders /cleanitbooks"}},required:["url"]}}},
-  {type:"function",function:{name:"lire_donnees_systeme",description:"Lire les données réelles du système",parameters:{type:"object",properties:{module:{type:"string",enum:["approvals","finances","techniciens","bc_sites"]}},required:["module"]}}},
+  {type:"function",function:{name:"naviguer_module",description:"Naviguer vers un module CleanIT ERP",parameters:{type:"object",properties:{url:{type:"string",description:"URL: /dashboard /approvals /finance /rh /crm /terrain /map /bi /cleanitcomm /pointage /planning /techniciens /purchase-orders /cleanitbooks /bons-commande"}},required:["url"]}}},
+  {type:"function",function:{name:"lire_donnees_systeme",description:"Lire les données réelles du système CleanIT ERP. UTILISE cet outil pour répondre aux questions sur le planning, les techniciens, les missions, les approbations, les employés.",parameters:{type:"object",properties:{module:{type:"string",enum:["planning","missions","techniciens","approvals","projets","bons_commande","rh"],description:"planning=événements et réunions, missions=missions terrain, techniciens=liste équipe, approvals=demandes en attente, projets=projets, bons_commande=BCs, rh=employés"}},required:["module"]}}},
   {type:"function",function:{name:"creer_approbation",description:"Créer une demande dans Approvals",parameters:{type:"object",properties:{titre:{type:"string"},montant:{type:"number"},beneficiaire:{type:"string"},site:{type:"string"},type:{type:"string",enum:["payment_request","leave_request","purchase_request"]}},required:["titre"]}}},
+  {type:"function",function:{name:"creer_evenement_planning",description:"Créer un événement réel dans le module Planning, visible immédiatement par les participants assignés. Utilise lire_donnees_systeme(techniciens) d'abord pour obtenir les vrais IDs des participants.",parameters:{type:"object",properties:{
+    titre:{type:"string"},
+    type:{type:"string",enum:["reunion_interne","reunion_externe","mission","formation","conge","jalon","echeance"]},
+    departement:{type:"string",enum:["terrain","commercial","rh","finance","direction","it","personnel"]},
+    visibilite:{type:"string",enum:["personnel","equipe","entreprise"]},
+    dateDebut:{type:"string",description:"Format YYYY-MM-DD"},
+    dateFin:{type:"string",description:"Format YYYY-MM-DD, optionnel si même jour que dateDebut"},
+    heureDebut:{type:"number",description:"Heure de début (7 à 18), ignoré si journeeComplete=true"},
+    heureFin:{type:"number"},
+    journeeComplete:{type:"boolean"},
+    description:{type:"string"},
+    participantsIds:{type:"array",items:{type:"string"},description:"IDs des utilisateurs participants, obtenus via lire_donnees_systeme(techniciens)"}
+  },required:["titre","dateDebut"]}}},
+  {type:"function",function:{name:"envoyer_message_interne",description:"Envoyer un message direct à un employé via CleanIT Comm (messagerie interne du système, pas WhatsApp ni email externe)",parameters:{type:"object",properties:{
+    destinataireId:{type:"string",description:"ID de l'utilisateur destinataire, obtenu via lire_donnees_systeme(techniciens)"},
+    texte:{type:"string"}
+  },required:["destinataireId","texte"]}}},
   {type:"function",function:{name:"chercher_technicien",description:"Trouver un technicien disponible",parameters:{type:"object",properties:{competence:{type:"string"},region:{type:"string"}}}}},
   {type:"function",function:{name:"generer_rapport",description:"Générer Excel ou Word",parameters:{type:"object",properties:{type:{type:"string",enum:["factures","paie","jobs","contrat","rapport"]}},required:["type"]}}},
+  {type:"function",function:{name:"analyser_bon_commande",description:"Structurer les données extraites d'un Bon de Commande importé (Excel ou PDF) après que l'utilisateur a uploadé un fichier",parameters:{type:"object",properties:{
+    formatType:{type:"string",enum:["A","B","C"],description:"A=planning projet (budget/dates), B=classique (qté×prix), C=mixte"},
+    sites:{type:"array",description:"Liste des sites extraits pour Type A",items:{type:"object",properties:{
+      siteId:{type:"string"},siteName:{type:"string"},teamLeader:{type:"string"},
+      budgetTotal:{type:"number"},outboundDate:{type:"string"},installStartDate:{type:"string"},
+      installClosedDate:{type:"string"},remark:{type:"string"}
+    }}},
+    needsReview:{type:"boolean",description:"true si des données sont ambiguës et nécessitent une question à l'utilisateur"},
+    reviewQuestion:{type:"string",description:"Question précise à poser si needsReview est true"}
+  },required:["formatType"]}}},
 ];
+
+// ===== CARTE DE CONFIRMATION BC — affichée dans le chat après extraction =====
+const BcConfirmCard = ({ bc, onImported }) => {
+  const [importing, setImporting] = useState(false);
+  const [paymentMode, setPaymentMode] = useState('grouped'); // grouped | per-payment (Type A uniquement)
+  const [error, setError] = useState(null);
+  const BASE_API = 'https://backend-cleanit-erp.vercel.app';
+
+  if(bc.imported) {
+    return (
+      <div style={{padding:'12px 16px',borderRadius:14,background:'rgba(34,197,94,.1)',border:'1px solid rgba(34,197,94,.3)',
+        display:'flex',alignItems:'center',gap:10,maxWidth:'85%'}}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+        <span style={{fontSize:13,color:'#86efac',fontWeight:600}}>
+          {bc.sites.length} site(s) importé(s) avec succès dans Bons de Commande
+        </span>
+      </div>
+    );
+  }
+
+  const importBC = async () => {
+    setImporting(true); setError(null);
+    const tk = localStorage.getItem('token');
+    const h = {'Content-Type':'application/json','Authorization':'Bearer '+tk};
+    try {
+      // 1. Créer le BC parent
+      const totalAmount = bc.sites.reduce((s,site)=>s+(Number(site.budgetTotal)||0),0);
+      const bcRes = await fetch(BASE_API+'/bons-commande', {
+        method:'POST', headers:h,
+        body: JSON.stringify({
+          numero: 'BC-'+Date.now().toString().slice(-6),
+          client: bc.sites[0]?.client || 'Client',
+          montantTotal: totalAmount,
+          status: 'en_cours',
+          notes: `Importé via ChaCha — Format ${bc.formatType}`,
+        })
+      }).then(r=>r.json());
+      if(!bcRes?.id) throw new Error(bcRes?.message||'Erreur création du BC');
+
+      // 2. Insérer les sites (Type A) ou les lignes (Type B)
+      if(bc.formatType === 'B') {
+        await fetch(BASE_API+'/bc-lines/bulk', {
+          method:'POST', headers:h,
+          body: JSON.stringify({ bcId: bcRes.id, lines: bc.sites.map(s=>({
+            designation: s.siteName||s.designation||'Article',
+            quantite: s.quantite||1, prixUnitaire: s.budgetTotal||s.prixUnitaire||0,
+            totalHt: s.budgetTotal||0,
+          })) })
+        });
+      } else {
+        await fetch(BASE_API+'/bc-sites/bulk', {
+          method:'POST', headers:h,
+          body: JSON.stringify({ bcId: bcRes.id, sites: bc.sites })
+        });
+      }
+      setImporting(false);
+      onImported();
+    } catch(e) {
+      setImporting(false);
+      setError(e.message);
+    }
+  };
+
+  return (
+    <div style={{maxWidth:'90%',borderRadius:14,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.1)',overflow:'hidden'}}>
+      <div style={{padding:'10px 14px',background:'rgba(139,92,246,.15)',borderBottom:'1px solid rgba(255,255,255,.08)',
+        display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <span style={{fontSize:12,fontWeight:700,color:'#c4b5fd'}}>
+          Bon de commande détecté — Type {bc.formatType}
+        </span>
+        <span style={{fontSize:11,color:'rgba(255,255,255,.5)'}}>{bc.sites.length} ligne(s)</span>
+      </div>
+
+      <div style={{maxHeight:200,overflowY:'auto',padding:'8px 14px'}}>
+        {bc.sites.slice(0,8).map((s,i)=>(
+          <div key={i} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',
+            borderBottom:'1px solid rgba(255,255,255,.05)',fontSize:12}}>
+            <span style={{color:'rgba(255,255,255,.85)'}}>{s.siteId||s.designation||('Ligne '+(i+1))}</span>
+            <span style={{color:'rgba(255,255,255,.6)',fontWeight:600}}>
+              {Number(s.budgetTotal||0).toLocaleString('fr-FR')} F
+            </span>
+          </div>
+        ))}
+        {bc.sites.length>8 && <div style={{fontSize:11,color:'rgba(255,255,255,.4)',padding:'5px 0'}}>+{bc.sites.length-8} autre(s)...</div>}
+      </div>
+
+      {bc.needsReview && (
+        <div style={{padding:'8px 14px',background:'rgba(251,191,36,.1)',borderTop:'1px solid rgba(251,191,36,.2)'}}>
+          <span style={{fontSize:11,color:'#fbbf24'}}>⚠ {bc.reviewQuestion||'Certaines données nécessitent une vérification manuelle'}</span>
+        </div>
+      )}
+
+      {bc.formatType==='A' && (
+        <div style={{padding:'8px 14px',display:'flex',gap:6,alignItems:'center',borderTop:'1px solid rgba(255,255,255,.05)'}}>
+          <span style={{fontSize:11,color:'rgba(255,255,255,.5)'}}>Paiements :</span>
+          <button onClick={()=>setPaymentMode('grouped')} style={{fontSize:10,padding:'3px 8px',borderRadius:6,border:'none',cursor:'pointer',
+            background:paymentMode==='grouped'?'rgba(139,92,246,.4)':'rgba(255,255,255,.08)',color:'#fff'}}>Groupé</button>
+          <button onClick={()=>setPaymentMode('per-payment')} style={{fontSize:10,padding:'3px 8px',borderRadius:6,border:'none',cursor:'pointer',
+            background:paymentMode==='per-payment'?'rgba(139,92,246,.4)':'rgba(255,255,255,.08)',color:'#fff'}}>Par paiement (P1/P2/P3)</button>
+        </div>
+      )}
+
+      {error && <div style={{padding:'8px 14px',fontSize:11,color:'#f87171'}}>Erreur : {error}</div>}
+
+      <div style={{padding:'10px 14px',borderTop:'1px solid rgba(255,255,255,.08)'}}>
+        <button onClick={importBC} disabled={importing} style={{width:'100%',padding:'8px',borderRadius:8,border:'none',
+          background:importing?'rgba(139,92,246,.3)':'linear-gradient(135deg,#7c3aed,#4f46e5)',color:'#fff',
+          fontSize:12,fontWeight:700,cursor:importing?'default':'pointer'}}>
+          {importing?'Importation en cours...':'Confirmer et importer'}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export default function ChaCha() {
   const navigate   = useNavigate();
+  const user = getUser();
   const [open,     setOpen]     = useState(false);
   const [msgs,     setMsgs]     = useState(loadHistory);
   const [input,    setInput]    = useState('');
@@ -60,6 +238,8 @@ export default function ChaCha() {
 
   const endRef    = useRef(null);
   const inputRef  = useRef(null);
+  const fileInputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
   const synthRef  = useRef(window.speechSynthesis);
   const wakeRef   = useRef(null);
   const recRef    = useRef(null);
@@ -68,8 +248,10 @@ export default function ChaCha() {
   useEffect(()=>saveHistory(msgs),[msgs]);
   useEffect(()=>{ endRef.current?.scrollIntoView({behavior:'smooth'}); },[msgs,open]);
 
-  // Wake word continu
-  useEffect(()=>{ startWake(); return()=>wakeRef.current?.abort?.(); },[]);
+  // Wake word DÉSACTIVÉ — un micro continu en arrière-plan sur toute l'app
+  // causait des activations Chrome intempestives et des comportements erratiques.
+  // ChaCha s'ouvre désormais uniquement via clic manuel sur la bulle.
+  // useEffect(()=>{ startWake(); return()=>wakeRef.current?.abort?.(); },[]);
 
   const startWake = useCallback(()=>{
     const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -187,11 +369,164 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
     if(music) window.open(`https://www.youtube.com/results?search_query=${encodeURIComponent(music[1])}`, '_blank');
   },[navigate]);
 
+  // ===== LIRE DONNÉES SYSTÈME DEPUIS API =====
+  const lireSysteme = async (module) => {
+    const token = localStorage.getItem('token');
+    const h = {'Authorization':'Bearer '+token};
+    try {
+      switch(module) {
+        case 'techniciens':
+        case 'users': {
+          const data = await fetch(BASE_API+'/users',{headers:h}).then(r=>r.json()).catch(()=>[]);
+          const techs = Array.isArray(data)?data.filter(u=>['technician','project_manager','bureau','admin'].includes(u.role)):[];
+          return JSON.stringify(techs.map(u=>({id:u.id,nom:`${u.firstName||''} ${u.lastName||''}`.trim(),role:u.role,email:u.email,statut:u.isActive?'actif':'inactif'})));
+        }
+        case 'missions': {
+          const data = await fetch(BASE_API+'/missions',{headers:h}).then(r=>r.json()).catch(()=>[]);
+          return JSON.stringify(Array.isArray(data)?data.slice(0,20):[]);
+        }
+        case 'planning': {
+          const today = new Date().toISOString().split('T')[0];
+          const end = new Date(Date.now()+30*86400000).toISOString().split('T')[0];
+          const data = await fetch(`${BASE_API}/planning/events?start=${today}&end=${end}`,{headers:h}).then(r=>r.json()).catch(()=>[]);
+          return JSON.stringify(Array.isArray(data)?data.slice(0,30).map(e=>({id:e.id,titre:e.title,date:e.start_date,heure:e.all_day?'journée':e.start_hour+'h-'+e.end_hour+'h',type:e.type})):[]);
+        }
+        case 'approvals': {
+          const data = await fetch(BASE_API+'/approvals',{headers:h}).then(r=>r.json()).catch(()=>[]);
+          return JSON.stringify(Array.isArray(data)?data.slice(0,20):[]);
+        }
+        case 'projets':
+        case 'projects': {
+          const data = await fetch(BASE_API+'/projects',{headers:h}).then(r=>r.json()).catch(()=>[]);
+          return JSON.stringify(Array.isArray(data)?data.slice(0,20):[]);
+        }
+        case 'bons_commande': {
+          const data = await fetch(BASE_API+'/bons-commande',{headers:h}).then(r=>r.json()).catch(()=>[]);
+          return JSON.stringify(Array.isArray(data)?data.slice(0,10):[]);
+        }
+        case 'employes':
+        case 'rh': {
+          const data = await fetch(BASE_API+'/users',{headers:h}).then(r=>r.json()).catch(()=>[]);
+          return JSON.stringify(Array.isArray(data)?data.map(u=>({id:u.id,nom:`${u.firstName||''} ${u.lastName||''}`.trim(),role:u.role,dept:u.department,statut:u.isActive?'actif':'inactif'})):[]);
+        }
+        default:
+          return JSON.stringify({message:`Module "${module}" non reconnu. Modules disponibles: techniciens, missions, planning, approvals, projets, bons_commande, employes`});
+      }
+    } catch(e) {
+      return JSON.stringify({erreur:`Impossible de charger ${module}: ${e.message}`});
+    }
+  };
+
+  // ===== UPLOAD BON DE COMMANDE =====
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if(!file) return;
+    setUploading(true);
+    const userMsg = {role:'user', content:`📎 Fichier importé: ${file.name}`, ts:Date.now()};
+    setMsgs(p=>[...p, userMsg]);
+    try {
+      const token = localStorage.getItem('token');
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await fetch(BASE_API+'/bons-commande/analyze', {method:'POST', headers:{'Authorization':'Bearer '+token}, body:fd});
+      const data = await r.json();
+      if(!r.ok) throw new Error(data.message||'Erreur analyse fichier');
+
+      let extractedText = '';
+      if(data.type === 'excel') {
+        extractedText = data.sheets.map(s => `Feuille "${s.name}":\n` + s.rows.map(row => row.filter(v=>v!==null).join(' | ')).join('\n')).join('\n\n');
+      } else if(data.type === 'pdf') {
+        if(data.warning) {
+          setUploading(false);
+          setMsgs(p=>[...p, {role:'assistant', content:`⚠ ${data.warning}\n\nVous pouvez essayer d'exporter ce document en Excel/CSV depuis votre logiciel, ou me décrire les informations principales (sites, montants, dates) directement dans le chat.`, ts:Date.now()}]);
+          e.target.value = '';
+          return;
+        }
+        extractedText = data.text || '';
+      }
+
+      // Envoyer le contenu extrait à ChaCha pour structuration
+      const prompt = `J'ai importé un Bon de Commande (fichier: ${file.name}). Voici le contenu brut extrait:\n\n${extractedText.slice(0,6000)}\n\nAnalyse ce BC : détecte le format (Type A planning-projet avec budgets/dates, ou Type B classique avec qté×prix), extrais les données structurées, et utilise l'outil analyser_bon_commande. Si une donnée est ambiguë, pose-moi la question avant de continuer.`;
+      setUploading(false);
+      await send(prompt);
+    } catch(err) {
+      setUploading(false);
+      setMsgs(p=>[...p, {role:'assistant', content:`Erreur lors de l'import: ${err.message}`, ts:Date.now()}]);
+    }
+    e.target.value = '';
+  };
+
+  // ===== FALLBACK GEMINI — convertit les outils format OpenAI/Groq vers le format Gemini =====
+  const toGeminiTools = (tools) => [{
+    functionDeclarations: tools.map(t => ({
+      name: t.function.name,
+      description: t.function.description,
+      parameters: t.function.parameters,
+    }))
+  }];
+
+  // Convertit l'historique de messages format OpenAI (role/content/tool_calls) vers le format Gemini (role/parts)
+  const toGeminiContents = (sysPrompt, msgs) => {
+    const contents = [];
+    for (const m of msgs) {
+      if (m.role === 'system') continue; // géré séparément via systemInstruction
+      if (m.role === 'user') {
+        contents.push({ role: 'user', parts: [{ text: m.content }] });
+      } else if (m.role === 'assistant') {
+        if (m.tool_calls) {
+          contents.push({ role: 'model', parts: m.tool_calls.map(tc => ({
+            functionCall: { name: tc.function.name, args: JSON.parse(tc.function.arguments || '{}') }
+          })) });
+        } else {
+          contents.push({ role: 'model', parts: [{ text: m.content || '' }] });
+        }
+      } else if (m.role === 'tool') {
+        contents.push({ role: 'user', parts: [{ functionResponse: { name: m.name || 'resultat', response: { content: m.content } } }] });
+      }
+    }
+    return contents;
+  };
+
+  // Appelle Gemini avec les mêmes outils (via le proxy backend — la clé reste côté serveur). Retourne un objet normalisé { content, tool_calls } comme Groq/OpenAI.
+  const callGemini = async (sysPrompt, msgs, tools) => {
+    const tk = localStorage.getItem('token');
+    const body = {
+      systemInstruction: { parts: [{ text: sysPrompt }] },
+      contents: toGeminiContents(sysPrompt, msgs),
+      tools: toGeminiTools(tools),
+    };
+    const res = await fetch(BASE_API+'/chacha/gemini', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+tk },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) { const errData = await res.json().catch(()=>({})); throw new Error(`Gemini ${res.status}: ${errData.error?.message||errData.message||'erreur inconnue'}`); }
+    const data = await res.json();
+    const cand = data.candidates?.[0];
+    if (!cand) throw new Error('Gemini: réponse vide');
+    const parts = cand.content?.parts || [];
+    const funcCalls = parts.filter(p => p.functionCall);
+    if (funcCalls.length > 0) {
+      return {
+        finish_reason: 'tool_calls',
+        message: {
+          tool_calls: funcCalls.map((p, i) => ({
+            id: 'gemini_call_' + i,
+            function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args || {}) }
+          }))
+        }
+      };
+    }
+    const textPart = parts.find(p => p.text);
+    return { finish_reason: 'stop', message: { content: textPart?.text || '' } };
+  };
+
   // Envoi
   const send = useCallback(async(txt)=>{
     const msg=(txt||input).trim();
     if(!msg||loading) return;
     setInput('');
+    if(inputRef.current) inputRef.current.style.height='auto';
     setLoading(true);
     const userMsg={role:'user',content:msg,ts:Date.now()};
     setMsgs(p=>[...p,userMsg]);
@@ -200,29 +535,49 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
       const history=msgs.slice(-12).map(m=>({role:m.role,content:m.content}));
       history.push({role:'user',content:msg});
 
-      // ===== GROQ TOOL USE =====
-      const res = await fetch(GROQ_API, {
-        method: 'POST',
-        headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${GROQ_KEY}`},
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [{role:'system', content:SYSTEM}, ...history],
-          tools: CHACHA_TOOLS,
-          tool_choice: 'auto',
-          max_tokens: 800,
-          temperature: 0.3
-        })
-      });
+      // ===== GROQ TOOL USE (avec fallback Gemini si Groq échoue) — via proxy backend, clé jamais exposée =====
+      let choice, assistantMsg, usingGemini = false;
+      const tk = localStorage.getItem('token');
+      try {
+        const res = await fetch(BASE_API+'/chacha/groq', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${tk}`},
+          body: JSON.stringify({
+            model: 'openai/gpt-oss-120b',
+            messages: [{role:'system', content:SYSTEM}, ...history],
+            tools: CHACHA_TOOLS,
+            tool_choice: 'auto',
+            max_tokens: 800,
+            temperature: 0.3
+          })
+        });
+        if(!res.ok) throw new Error(`${res.status}`);
+        const data = await res.json();
+        if(!data.choices || !data.choices[0]) throw new Error('Réponse Groq invalide');
+        choice = data.choices[0];
+        assistantMsg = choice.message;
+      } catch(groqErr) {
+        console.warn('Groq indisponible, bascule sur Gemini:', groqErr.message);
+        usingGemini = true;
+        const gemResult = await callGemini(SYSTEM, history, CHACHA_TOOLS);
+        choice = gemResult;
+        assistantMsg = gemResult.message;
+      }
 
-      if(!res.ok) throw new Error(`${res.status}`);
-      const data = await res.json();
-      const choice = data.choices[0];
-      const assistantMsg = choice.message;
+      // ===== BOUCLE AGENTIQUE MULTI-ÉTAPES =====
+      // Permet à ChaCha d'enchaîner plusieurs actions (créer réunion PUIS envoyer email PUIS poster message...)
+      // au lieu de s'arrêter après le premier outil appelé.
+      let messages = [{role:'system', content:SYSTEM}, ...history];
+      let currentMsg = assistantMsg;
+      let currentChoice = choice;
+      let finalText = '';
+      let iterations = 0;
+      const MAX_ITERATIONS = 6;
 
-      // Gérer les tool calls
-      if(choice.finish_reason === 'tool_calls' && assistantMsg.tool_calls) {
+      while(currentChoice.finish_reason === 'tool_calls' && currentMsg.tool_calls && iterations < MAX_ITERATIONS) {
+        iterations++;
         const toolResults = [];
-        for(const tc of assistantMsg.tool_calls) {
+        for(const tc of currentMsg.tool_calls) {
           const args = JSON.parse(tc.function.arguments || '{}');
           let result = '';
 
@@ -232,30 +587,27 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
               result = `Navigation vers ${args.url} effectuée`;
               break;
             case 'lire_donnees_systeme':
-              result = lireSysteme(args.module);
+              result = await lireSysteme(args.module);
               break;
             case 'creer_approbation': {
-              const newApproval = {
-                id: 'APV-' + Date.now(),
-                title: args.titre,
-                type: args.type || 'payment_request',
-                amount: args.montant || 0,
-                beneficiaryName: args.beneficiaire || '',
-                site: args.site || '',
-                justification: args.justification || '',
-                status: 'pending',
-                submittedAt: new Date().toISOString(),
-                submittedBy: 'ChaCha IA'
-              };
               try {
-                const existing = JSON.parse(localStorage.getItem('cleanit_approvals_cache') || '[]');
-                localStorage.setItem('cleanit_approvals_cache', JSON.stringify([...existing, newApproval]));
-                result = JSON.stringify({succes: true, id: newApproval.id, message: 'Demande créée avec succès'});
-              } catch(e) { result = JSON.stringify({succes: false, erreur: e.message}); }
+                const tk = localStorage.getItem('token');
+                const r = await fetch(BASE_API+'/approvals', {
+                  method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+                  body: JSON.stringify({
+                    label: args.titre, type: args.type||'payment_request',
+                    amount: args.montant||0, beneficiaryName: args.beneficiaire||'',
+                    siteCode: args.site||'', detail: args.justification||'',
+                  })
+                }).then(r=>r.json());
+                result = r?.id
+                  ? JSON.stringify({succes:true, id:r.id, message:'Demande créée dans Approvals'})
+                  : JSON.stringify({succes:false, erreur:r?.message||'Erreur inconnue'});
+              } catch(e) { result = JSON.stringify({succes:false, erreur:e.message}); }
               break;
             }
             case 'chercher_technicien':
-              result = lireSysteme('techniciens');
+              result = await lireSysteme('techniciens');
               break;
             case 'generer_rapport':
               await doActions(`##EXCEL:${args.type}## ##WORD:${args.type}##`);
@@ -264,34 +616,115 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
             case 'afficher_alerte':
               result = `Alerte affichée: ${args.message}`;
               break;
+            case 'creer_evenement_planning': {
+              try {
+                const tk = localStorage.getItem('token');
+                const r = await fetch(BASE_API+'/planning/events', {
+                  method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+                  body: JSON.stringify({
+                    title: args.titre, type: args.type||'reunion_interne', dept: args.departement||'terrain',
+                    visibility: args.visibilite||'entreprise', startDate: args.dateDebut, endDate: args.dateFin||args.dateDebut,
+                    startHour: args.heureDebut, endHour: args.heureFin, allDay: args.journeeComplete||false,
+                    description: args.description||'', techIds: args.participantsIds||[],
+                  })
+                }).then(r=>r.json());
+                result = r?.id
+                  ? JSON.stringify({succes:true, id:r.id, message:'Événement créé dans Planning, visible pour tous les participants assignés'})
+                  : JSON.stringify({succes:false, erreur:r?.message||'Erreur inconnue'});
+              } catch(e) { result = JSON.stringify({succes:false, erreur:e.message}); }
+              break;
+            }
+            case 'envoyer_message_interne': {
+              try {
+                const tk = localStorage.getItem('token');
+                const r = await fetch(BASE_API+'/conversations', {
+                  method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+                  body: JSON.stringify({ participantId: args.destinataireId })
+                }).then(r=>r.json());
+                if(r?.id) {
+                  await fetch(BASE_API+'/messages', {
+                    method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+                    body: JSON.stringify({ conversationId: r.id, text: args.texte })
+                  });
+                  result = JSON.stringify({succes:true, message:'Message envoyé'});
+                } else result = JSON.stringify({succes:false, erreur:'Conversation introuvable'});
+              } catch(e) { result = JSON.stringify({succes:false, erreur:e.message}); }
+              break;
+            }
+            case 'analyser_bon_commande': {
+              const sitesCount = (args.sites||[]).length;
+              result = JSON.stringify({recu:true, formatType:args.formatType, sitesCount, needsReview:args.needsReview||false});
+              setMsgs(p=>[...p, {
+                role:'bcConfirm', ts:Date.now(),
+                bc: { formatType: args.formatType, sites: args.sites||[], needsReview: args.needsReview||false, reviewQuestion: args.reviewQuestion||'' }
+              }]);
+              break;
+            }
             default:
               result = 'Action exécutée';
           }
           toolResults.push({role: 'tool', tool_call_id: tc.id, content: result});
         }
 
-        // 2ème appel Groq avec les résultats des outils
-        const res2 = await fetch(GROQ_API, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${GROQ_KEY}`},
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [{role:'system', content:SYSTEM}, ...history, assistantMsg, ...toolResults],
-            max_tokens: 600,
-            temperature: 0.3
-          })
-        });
-        const data2 = await res2.json();
-        const finalText = data2.choices[0]?.message?.content || 'Action effectuée.';
-        setMsgs(p=>[...p, {role:'assistant', content:finalText, ts:Date.now()}]);
-        speak(finalText);
-      } else {
-        // Réponse texte directe
+        messages = [...messages, currentMsg, ...toolResults];
+
+        if(usingGemini) {
+          try {
+            const gemResult = await callGemini(SYSTEM, messages.filter(m=>m.role!=='system'), CHACHA_TOOLS);
+            currentChoice = gemResult;
+            currentMsg = gemResult.message;
+            finalText = currentMsg.content || '';
+          } catch(gemErr) {
+            finalText = 'Une partie des actions a été effectuée, mais une erreur est survenue en cours de route (' + gemErr.message + '). Vérifiez le résultat dans les modules concernés.';
+            break;
+          }
+        } else {
+          let resNext, dataNext;
+          try {
+            resNext = await fetch(GROQ_API, {
+              method: 'POST',
+              headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${GROQ_KEY}`},
+              body: JSON.stringify({
+                model: 'openai/gpt-oss-120b',
+                messages,
+                tools: CHACHA_TOOLS,
+                tool_choice: 'auto',
+                max_tokens: 800,
+                temperature: 0.3
+              })
+            });
+            dataNext = await resNext.json();
+            if(!resNext.ok || !dataNext.choices || !dataNext.choices[0]) throw new Error('Groq invalide en cours de boucle');
+            currentChoice = dataNext.choices[0];
+            currentMsg = currentChoice.message;
+            finalText = currentMsg.content || '';
+          } catch(groqLoopErr) {
+            console.warn('Groq indisponible en boucle, bascule sur Gemini:', groqLoopErr.message);
+            usingGemini = true;
+            try {
+              const gemResult = await callGemini(SYSTEM, messages.filter(m=>m.role!=='system'), CHACHA_TOOLS);
+              currentChoice = gemResult;
+              currentMsg = gemResult.message;
+              finalText = currentMsg.content || '';
+            } catch(gemErr) {
+              finalText = 'Une partie des actions a été effectuée, mais une erreur est survenue en cours de route (' + gemErr.message + '). Vérifiez le résultat dans les modules concernés.';
+              break;
+            }
+          }
+        }
+      }
+
+      if(iterations >= MAX_ITERATIONS && currentChoice.finish_reason === 'tool_calls') {
+        finalText = (finalText||'') + '\n\n(Certaines étapes supplémentaires nécessitent une vérification manuelle — limite de sécurité atteinte.)';
+      }
+      if(!finalText) finalText = 'Action effectuée.';
+      setMsgs(p=>[...p, {role:'assistant', content:finalText, ts:Date.now()}]);
+      speak(finalText);
+
+      if(choice.finish_reason !== 'tool_calls') {
+        // Réponse texte directe sans aucun outil — gérer les commandes ## (export Excel/Word etc.)
         const raw = assistantMsg.content || '';
         await doActions(raw);
-        const clean = raw.replace(/##[^#]+##/g,'').trim();
-        setMsgs(p=>[...p, {role:'assistant', content:clean, ts:Date.now()}]);
-        speak(clean);
       }
     } catch(e){
       console.error('ChaCha error:', e, 'KEY:', GROQ_KEY?.slice(0,10));
@@ -309,8 +742,8 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
     const r=new SR();
     r.lang='fr-FR'; r.continuous=false; r.interimResults=false;
     r.onstart=()=>setListening(true);
-    r.onend=()=>{ setListening(false); setTimeout(startWake,1000); };
-    r.onerror=()=>{ setListening(false); setTimeout(startWake,1000); };
+    r.onend=()=>{ setListening(false); };
+    r.onerror=()=>{ setListening(false); };
     r.onresult=(e)=>{ const t=e.results[0][0].transcript; setInput(t); setTimeout(()=>send(t),200); };
     r.start(); recRef.current=r;
   };
@@ -490,6 +923,7 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
             )}
 
             {msgs.map((m,i)=>{
+              if(m.role==='bcConfirm') return <BcConfirmCard key={i} bc={m.bc} onImported={()=>setMsgs(p=>p.map((mm,ii)=>ii===i?{...mm,bc:{...mm.bc,imported:true}}:mm))}/>;
               const isMe=m.role==='user';
               const time=new Date(m.ts).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
               return(
@@ -538,10 +972,23 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
           {/* Input */}
           <div style={{padding:'12px',borderTop:'1px solid rgba(255,255,255,.06)',background:'rgba(255,255,255,.02)',flexShrink:0}}>
             <div className="chacha-input" style={{display:'flex',alignItems:'flex-end',gap:8,background:'rgba(255,255,255,.06)',borderRadius:14,padding:'8px 10px 8px 14px',border:'1px solid rgba(255,255,255,.08)',transition:'all .15s'}}>
-              <textarea ref={inputRef} value={input} onChange={e=>setInput(e.target.value)} onKeyDown={handleKey}
+              <textarea ref={inputRef} value={input}
+                onChange={e=>{
+                  setInput(e.target.value);
+                  e.target.style.height='auto';
+                  e.target.style.height=Math.min(e.target.scrollHeight,90)+'px';
+                }}
+                onKeyDown={handleKey}
                 placeholder="Posez votre question..." rows={1}
                 style={{flex:1,background:'transparent',border:'none',outline:'none',color:'rgba(255,255,255,.9)',fontSize:13,fontFamily:'inherit',resize:'none',lineHeight:1.5,maxHeight:90,overflowY:'auto',paddingTop:2}}/>
               <div style={{display:'flex',gap:5,flexShrink:0}}>
+                <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.pdf" onChange={handleFileUpload} style={{display:'none'}}/>
+                <button onClick={()=>fileInputRef.current?.click()} disabled={uploading} title="Importer un Bon de Commande (Excel/PDF)"
+                  style={{width:34,height:34,borderRadius:11,border:'none',background:uploading?'rgba(139,92,246,.25)':'rgba(255,255,255,.08)',color:uploading?'#a78bfa':'rgba(255,255,255,.5)',cursor:uploading?'default':'pointer',display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s'}}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+                  </svg>
+                </button>
                 <button onClick={listening?()=>recRef.current?.stop():startListening} title="Parler"
                   style={{width:34,height:34,borderRadius:11,border:'none',background:listening?'rgba(239,68,68,.25)':'rgba(255,255,255,.08)',color:listening?'#ef4444':'rgba(255,255,255,.5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',transition:'all .15s',animation:listening?'chacha-pulse .8s infinite':'none'}}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
