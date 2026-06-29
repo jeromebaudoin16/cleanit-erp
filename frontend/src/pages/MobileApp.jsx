@@ -1416,6 +1416,12 @@ const ScreenMessages = () => {
   const [msgTab, setMsgTab] = useState('messages');
   const [contacts, setContacts] = useState([]);
   const [contactSearch, setContactSearch] = useState('');
+  const [calls, setCalls] = useState([]);
+  useEffect(()=>{
+    fetch(BASE+'/calls/history',{headers:{'Authorization':'Bearer '+token}})
+      .then(r=>r.json()).then(d=>{ if(Array.isArray(d)) setCalls(d); }).catch(()=>{});
+  },[]);
+  const missedCount = calls.filter(c=>c.status==='missed').length;
 
   useEffect(()=>{
     const fetchOnline = () => {
@@ -1674,10 +1680,13 @@ const ScreenMessages = () => {
         </div>
       }/>
       <div style={{display:'flex',padding:'8px 14px',gap:6,borderBottom:'1px solid '+C2.border}}>
-        {[['messages','Conversations'],['contacts','Contacts']].map(([id,lbl])=>(
+        {[['messages','Conversations'],['contacts','Contacts'],['appels','Appels']].map(([id,lbl])=>(
           <button key={id} onClick={()=>setMsgTab(id)}
-            style={{flex:1,padding:'7px',border:'none',borderRadius:8,background:msgTab===id?'#1B4F8A':'transparent',color:msgTab===id?'white':C2.text3,fontWeight:msgTab===id?600:400,fontSize:12,cursor:'pointer',fontFamily:FONT}}>
+            style={{flex:1,padding:'7px',border:'none',borderRadius:8,background:msgTab===id?'#1B4F8A':'transparent',color:msgTab===id?'white':C2.text3,fontWeight:msgTab===id?600:400,fontSize:12,cursor:'pointer',fontFamily:FONT,position:'relative'}}>
             {lbl}
+            {id==='appels' && missedCount>0 && (
+              <span style={{position:'absolute',top:2,right:6,background:'#dc2626',color:'white',fontSize:9,fontWeight:700,borderRadius:8,padding:'1px 5px',minWidth:14}}>{missedCount}</span>
+            )}
           </button>
         ))}
       </div>
@@ -1703,6 +1712,33 @@ const ScreenMessages = () => {
             </div>
           ))}
           {contacts.length===0&&<div style={{textAlign:'center',padding:24,color:C2.text3,fontSize:13}}>Chargement...</div>}
+        </div>
+      )}
+      {msgTab==='appels'&&(
+        <div style={{padding:'6px 14px'}}>
+          {calls.map(c=>{
+            const isMissed = c.status==='missed';
+            const isOutgoing = c.direction==='outgoing';
+            return (
+              <div key={c.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 6px',borderRadius:8,marginBottom:2}}>
+                <div style={{width:38,height:38,borderRadius:'50%',background:isMissed?'#fef2f2':'#f0fdf4',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isMissed?'#dc2626':'#16a34a'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {isOutgoing
+                      ? <path d="M7 17L17 7M9 7h8v8"/>
+                      : <path d="M17 7L7 17M15 17H7V9"/>}
+                  </svg>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:600,color:isMissed?'#dc2626':C2.text}}>{c.caller_display || c.caller_name || 'Inconnu'}</div>
+                  <div style={{fontSize:11,color:isMissed?'#dc2626':C2.text3}}>
+                    {isMissed ? 'Appel manqué' : isOutgoing ? 'Appel sortant' : 'Appel reçu'} · {c.type==='video'?'Vidéo':'Audio'}
+                  </div>
+                </div>
+                <span style={{fontSize:10,color:C2.text3}}>{new Date(c.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>
+              </div>
+            );
+          })}
+          {calls.length===0&&<div style={{textAlign:'center',padding:24,color:C2.text3,fontSize:13}}>Aucun appel pour l'instant</div>}
         </div>
       )}
       {msgTab==='messages'&&(
