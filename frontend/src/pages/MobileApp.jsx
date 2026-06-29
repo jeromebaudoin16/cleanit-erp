@@ -718,6 +718,33 @@ const ScreenFil = ({user,navigate}) => {
   const [posts, setPosts] = useState(FEED_POSTS);
   const [loadingFeed, setLoadingFeed] = useState(false);
   const [terrainUsers, setTerrainUsers] = useState([]);
+  const [commentsFor, setCommentsFor] = useState(null); // post actuellement ouvert pour commentaires
+  const [commentsList, setCommentsList] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [postingComment, setPostingComment] = useState(false);
+
+  const openComments = async (postId) => {
+    setCommentsFor(postId);
+    setLoadingComments(true);
+    try {
+      const data = await FeedAPI.getComments(postId);
+      setCommentsList(Array.isArray(data) ? data : []);
+    } catch { setCommentsList([]); }
+    setLoadingComments(false);
+  };
+
+  const submitComment = async () => {
+    if (!newComment.trim() || !commentsFor) return;
+    setPostingComment(true);
+    try {
+      const c = await FeedAPI.addComment(commentsFor, newComment.trim());
+      setCommentsList(prev => [...prev, c]);
+      setPosts(prev => prev.map(p => p.id === commentsFor ? { ...p, comments: (p.comments || 0) + 1 } : p));
+      setNewComment('');
+    } catch {}
+    setPostingComment(false);
+  };
   const [activeMissions, setActiveMissions] = useState([]);
   const touchStartY = useRef(0);
   const C2 = getC();
@@ -1066,7 +1093,8 @@ const ScreenFil = ({user,navigate}) => {
                   )}
                 </div>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C2.text}
-                  strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}>
+                  strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}
+                  onClick={()=>openComments(post.id)}>
                   <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
                 </svg>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C2.text}
@@ -1079,11 +1107,44 @@ const ScreenFil = ({user,navigate}) => {
                 <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
               </svg>
             </div>
-            {post.comments>0 && <div style={{fontSize:10,color:C2.text3,marginTop:4}}>Voir les {post.comments} commentaires</div>}
+            {post.comments>0 && <div onClick={()=>openComments(post.id)} style={{fontSize:10,color:C2.text3,marginTop:4,cursor:'pointer'}}>Voir les {post.comments} commentaires</div>}
             <div style={{fontSize:9,color:C2.text4,marginTop:2,textTransform:'uppercase',letterSpacing:.3}}>{post.time}</div>
           </div>
         </div>
       ))}
+
+      {commentsFor && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'flex-end'}} onClick={()=>setCommentsFor(null)}>
+          <div style={{background:C2.bg,width:'100%',maxHeight:'70vh',borderRadius:'16px 16px 0 0',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
+            <div style={{padding:'14px 16px',borderBottom:'1px solid '+C2.border,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div style={{fontSize:14,fontWeight:700,color:C2.text}}>Commentaires</div>
+              <button onClick={()=>setCommentsFor(null)} style={{background:'none',border:'none',fontSize:18,color:C2.text3,cursor:'pointer'}}>✕</button>
+            </div>
+            <div style={{flex:1,overflowY:'auto',padding:'10px 16px'}}>
+              {loadingComments && <div style={{textAlign:'center',color:C2.text3,fontSize:12,padding:20}}>Chargement...</div>}
+              {!loadingComments && commentsList.length===0 && (
+                <div style={{textAlign:'center',color:C2.text3,fontSize:12,padding:20}}>Aucun commentaire — sois le premier à réagir</div>
+              )}
+              {commentsList.map(c=>(
+                <div key={c.id} style={{marginBottom:12}}>
+                  <span style={{fontSize:12,fontWeight:700,color:C2.text}}>{c.user_name}</span>{' '}
+                  <span style={{fontSize:12,color:C2.text}}>{c.text}</span>
+                  <div style={{fontSize:9,color:C2.text4,marginTop:2}}>{new Date(c.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{display:'flex',gap:8,padding:'10px 16px',borderTop:'1px solid '+C2.border,paddingBottom:'max(10px, env(safe-area-inset-bottom))'}}>
+              <input value={newComment} onChange={e=>setNewComment(e.target.value)} placeholder="Écrire un commentaire..."
+                onKeyDown={e=>{if(e.key==='Enter') submitComment();}}
+                style={{flex:1,padding:'9px 12px',border:'1px solid '+C2.border,borderRadius:20,fontSize:13,outline:'none',fontFamily:FONT}}/>
+              <button onClick={submitComment} disabled={postingComment||!newComment.trim()}
+                style={{padding:'9px 16px',borderRadius:20,border:'none',background:newComment.trim()?'#1B4F8A':C2.border,color:'white',fontSize:13,fontWeight:600,cursor:newComment.trim()?'pointer':'default'}}>
+                Envoyer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

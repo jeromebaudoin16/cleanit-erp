@@ -491,6 +491,37 @@ app.post('/feed/:id/react', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 
+// ─── COMMENTAIRES FIL ──────────────────────────────────────
+app.get('/feed/:id/comments', auth, async (req, res) => {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS feed_comments (
+      id SERIAL PRIMARY KEY, post_id INTEGER NOT NULL, user_id INTEGER REFERENCES users(id),
+      user_name VARCHAR(100), text TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW()
+    )`).catch(()=>{});
+    const r = await pool.query('SELECT * FROM feed_comments WHERE post_id=$1 ORDER BY created_at ASC', [req.params.id]);
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
+});
+
+app.post('/feed/:id/comments', auth, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text?.trim()) return res.status(400).json({ message: 'Texte requis' });
+    await pool.query(`CREATE TABLE IF NOT EXISTS feed_comments (
+      id SERIAL PRIMARY KEY, post_id INTEGER NOT NULL, user_id INTEGER REFERENCES users(id),
+      user_name VARCHAR(100), text TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW()
+    )`).catch(()=>{});
+    const user = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1', [req.user.sub]);
+    const u = user.rows[0];
+    const r = await pool.query(
+      'INSERT INTO feed_comments (post_id,user_id,user_name,text) VALUES ($1,$2,$3,$4) RETURNING *',
+      [req.params.id, req.user.sub, u.firstName+' '+u.lastName, text.trim()]
+    );
+    await pool.query('UPDATE feed_posts SET comments_count = comments_count + 1 WHERE id=$1', [req.params.id]);
+    res.status(201).json(r.rows[0]);
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
 // ─── MISSIONS ROUTES ────────────────────────────────────────
 app.get('/missions', auth, async (req, res) => {
   try {

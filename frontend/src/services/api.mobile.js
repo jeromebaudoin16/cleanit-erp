@@ -28,6 +28,8 @@ export const FeedAPI = {
   getPosts: () => apiCall('GET', '/feed'),
   createPost: (data) => apiCall('POST', '/feed', data),
   react: (postId, emoji) => apiCall('POST', '/feed/' + postId + '/react', { emoji }),
+  getComments: (postId) => apiCall('GET', '/feed/' + postId + '/comments'),
+  addComment: (postId, text) => apiCall('POST', '/feed/' + postId + '/comments', { text }),
 };
 
 export const MissionsAPI = {
