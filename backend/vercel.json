@@ -7,8 +7,5 @@
       "config": { "maxLambdaSize": "10mb" }
     }
   ],
-  "routes": [{"src": "/(.*)", "dest": "api/index.js"}],
-  "functions": {
-    "api/index.js": { "maxDuration": 30 }
-  }
+  "routes": [{"src": "/(.*)", "dest": "api/index.js"}]
 }
