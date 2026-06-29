@@ -779,6 +779,23 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
   const [panelPos, setPanelPos] = useState(()=>{
     try{const p=JSON.parse(localStorage.getItem('chacha_panel_pos'));return p||{right:24,bottom:88};}catch{return {right:24,bottom:88};}
   });
+  const [panelSize, setPanelSize] = useState(()=>{
+    try{const s=JSON.parse(localStorage.getItem('chacha_panel_size'));return s||{width:360,height:560};}catch{return {width:360,height:560};}
+  });
+  const PANEL_MIN = {width:300,height:380};
+  const PANEL_MAX = {width:680,height:860};
+  const panelResizing = useRef(false);
+  const panelResizeStart = useRef({x:0,y:0,width:360,height:560});
+  const onResizeMouseDown = (e) => {
+    panelResizing.current = true;
+    panelResizeStart.current = {x:e.clientX, y:e.clientY, width:panelSize.width, height:panelSize.height};
+    e.preventDefault(); e.stopPropagation();
+  };
+  const onResizeTouchStart = (e) => {
+    panelResizing.current = true;
+    panelResizeStart.current = {x:e.touches[0].clientX, y:e.touches[0].clientY, width:panelSize.width, height:panelSize.height};
+    e.stopPropagation();
+  };
   const panelDragging = useRef(false);
   const panelDragOffset = useRef({x:0,y:0});
   const onPanelMouseDown = (e) => {
@@ -831,19 +848,30 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
       const dy = cy - panelDragOffset.current.y;
       panelDragOffset.current = {x:cx, y:cy};
       setPanelPos(p => {
-        const nr = Math.max(8, Math.min(window.innerWidth-380, (p.right||24) - dx));
-        const nb = Math.max(8, Math.min(window.innerHeight-580, (p.bottom||88) - dy));
+        const nr = Math.max(8, Math.min(window.innerWidth-panelSize.width-20, (p.right||24) - dx));
+        const nb = Math.max(8, Math.min(window.innerHeight-panelSize.height-20, (p.bottom||88) - dy));
         const np = {right:nr, bottom:nb};
         localStorage.setItem('chacha_panel_pos', JSON.stringify(np));
         return np;
       });
     };
-    const onMM = (e) => { move(e.clientX, e.clientY); movePanel(e.clientX, e.clientY); };
+    const resizePanel = (cx,cy) => {
+      if(!panelResizing.current) return;
+      const dx = cx - panelResizeStart.current.x;
+      const dy = cy - panelResizeStart.current.y;
+      const nw = Math.max(PANEL_MIN.width, Math.min(PANEL_MAX.width, panelResizeStart.current.width - dx));
+      const nh = Math.max(PANEL_MIN.height, Math.min(PANEL_MAX.height, panelResizeStart.current.height - dy));
+      const ns = {width:nw, height:nh};
+      setPanelSize(ns);
+      localStorage.setItem('chacha_panel_size', JSON.stringify(ns));
+    };
+    const onMM = (e) => { move(e.clientX, e.clientY); movePanel(e.clientX, e.clientY); resizePanel(e.clientX, e.clientY); };
     const onTM = (e) => {
       move(e.touches[0].clientX, e.touches[0].clientY);
       movePanel(e.touches[0].clientX, e.touches[0].clientY);
+      resizePanel(e.touches[0].clientX, e.touches[0].clientY);
     };
-    const stop = () => { dragging.current = false; panelDragging.current = false; };
+    const stop = () => { dragging.current = false; panelDragging.current = false; panelResizing.current = false; };
     window.addEventListener('mousemove', onMM);
     window.addEventListener('mouseup', stop);
     window.addEventListener('touchmove', onTM, {passive:true});
@@ -881,7 +909,13 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
 
       {/* Panel chat */}
       {open&&(
-        <div onMouseDown={onPanelMouseDown} onTouchStart={onPanelTouchStart} style={{position:'fixed',bottom:panelPos.bottom,right:panelPos.right,width:360,height:560,zIndex:10000,cursor:'default',display:'flex',flexDirection:'column',borderRadius:20,overflow:'hidden',boxShadow:'0 32px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06)',animation:'chacha-appear .25s ease',background:'#0d0f17'}}>
+        <div onMouseDown={onPanelMouseDown} onTouchStart={onPanelTouchStart} style={{position:'fixed',bottom:panelPos.bottom,right:panelPos.right,width:panelSize.width,height:panelSize.height,zIndex:10000,cursor:'default',display:'flex',flexDirection:'column',borderRadius:20,overflow:'hidden',boxShadow:'0 32px 80px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06)',animation:'chacha-appear .25s ease',background:'#0d0f17'}}>
+          <div onMouseDown={onResizeMouseDown} onTouchStart={onResizeTouchStart} title="Redimensionner"
+            style={{position:'absolute',top:0,left:0,width:18,height:18,cursor:'nwse-resize',zIndex:10002,display:'flex',alignItems:'flex-start',justifyContent:'flex-start',padding:3}}>
+            <svg width="11" height="11" viewBox="0 0 11 11" style={{opacity:.45}}>
+              <path d="M1 10 L10 1 M4.5 10 L10 4.5 M8 10 L10 8" stroke="white" strokeWidth="1.3" strokeLinecap="round"/>
+            </svg>
+          </div>
 
           {/* Header */}
           <div style={{padding:'14px 16px',background:'linear-gradient(135deg,#13111e,#1a1535)',display:'flex',alignItems:'center',gap:10,flexShrink:0,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
@@ -901,6 +935,15 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
               </div>
             </div>
             <div style={{display:'flex',gap:4}}>
+              <button onClick={()=>{
+                  const presets=[{width:360,height:560},{width:480,height:680},{width:620,height:800}];
+                  const curIdx=presets.findIndex(p=>Math.abs(p.width-panelSize.width)<20);
+                  const next=presets[(curIdx+1)%presets.length]||presets[0];
+                  setPanelSize(next); localStorage.setItem('chacha_panel_size', JSON.stringify(next));
+                }} title="Agrandir / réduire la fenêtre"
+                style={{width:30,height:30,borderRadius:9,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.08)',color:'rgba(255,255,255,.5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              </button>
               <button onClick={()=>setVoiceOn(p=>!p)} title={voiceOn?'Désactiver la voix':'Activer la voix'} style={{width:30,height:30,borderRadius:9,background:voiceOn?'rgba(139,92,246,.3)':'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.08)',color:voiceOn?'#a78bfa':'rgba(255,255,255,.3)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700}}>{voiceOn?'VON':'VOFF'}</button>
               <button onClick={()=>synthRef.current?.cancel()} title="Couper le son"
                 style={{width:30,height:30,borderRadius:9,background:'rgba(255,255,255,.06)',border:'1px solid rgba(255,255,255,.08)',color:'rgba(255,255,255,.5)',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12}}>

@@ -1145,7 +1145,7 @@ app.post('/calls/initiate', auth, async (req, res) => {
         const payload = JSON.stringify({
           title: (type==='audio'?'📞 ':'📹 ') + callerName,
           body: `${type==='audio'?'Appel audio':'Appel vidéo'} entrant — répondez dans CleanIT Comm`,
-          url: '/cleanitcomm',
+          url: '/mobile',
           icon: '/icons/icon-192.png',
           badge: '/icons/icon-72.png',
           tag: 'call-'+call.rows[0].id,
