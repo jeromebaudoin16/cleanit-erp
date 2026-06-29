@@ -495,11 +495,15 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
       contents: toGeminiContents(sysPrompt, msgs),
       tools: toGeminiTools(tools),
     };
+    const ctrl = new AbortController();
+    const timeoutId = setTimeout(()=>ctrl.abort(), 28000);
     const res = await fetch(BASE_API+'/chacha/gemini', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+tk },
+      signal: ctrl.signal,
       body: JSON.stringify(body),
     });
+    clearTimeout(timeoutId);
     if (!res.ok) { const errData = await res.json().catch(()=>({})); throw new Error(`Gemini ${res.status}: ${errData.error?.message||errData.message||'erreur inconnue'}`); }
     const data = await res.json();
     const cand = data.candidates?.[0];
@@ -539,9 +543,12 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
       let choice, assistantMsg, usingGemini = false;
       const tk = localStorage.getItem('token');
       try {
+        const ctrl = new AbortController();
+        const timeoutId = setTimeout(()=>ctrl.abort(), 28000);
         const res = await fetch(BASE_API+'/chacha/groq', {
           method: 'POST',
           headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${tk}`},
+          signal: ctrl.signal,
           body: JSON.stringify({
             model: 'openai/gpt-oss-120b',
             messages: [{role:'system', content:SYSTEM}, ...history],
@@ -551,6 +558,7 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
             temperature: 0.3
           })
         });
+        clearTimeout(timeoutId);
         if(!res.ok) throw new Error(`${res.status}`);
         const data = await res.json();
         if(!data.choices || !data.choices[0]) throw new Error('Réponse Groq invalide');
@@ -681,9 +689,12 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
         } else {
           let resNext, dataNext;
           try {
-            resNext = await fetch(GROQ_API, {
+            const ctrl2 = new AbortController();
+            const timeoutId2 = setTimeout(()=>ctrl2.abort(), 28000);
+            resNext = await fetch(BASE_API+'/chacha/groq', {
               method: 'POST',
-              headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${GROQ_KEY}`},
+              headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${tk}`},
+              signal: ctrl2.signal,
               body: JSON.stringify({
                 model: 'openai/gpt-oss-120b',
                 messages,
@@ -693,6 +704,7 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
                 temperature: 0.3
               })
             });
+            clearTimeout(timeoutId2);
             dataNext = await resNext.json();
             if(!resNext.ok || !dataNext.choices || !dataNext.choices[0]) throw new Error('Groq invalide en cours de boucle');
             currentChoice = dataNext.choices[0];
@@ -727,11 +739,12 @@ type==='rapport'?`<h2>1. RÉSUMÉ EXÉCUTIF</h2><p>Période : _____________ | É
         await doActions(raw);
       }
     } catch(e){
-      console.error('ChaCha error:', e, 'KEY:', GROQ_KEY?.slice(0,10));
-      const err={role:'assistant',content:`Erreur: ${e.message||e} — Clé: ${GROQ_KEY?'OK ('+GROQ_KEY.slice(0,8)+'...)':'MANQUANTE'}`,ts:Date.now()};
+      console.error('ChaCha error:', e);
+      const err={role:'assistant',content:`Erreur: ${e.name==='AbortError'?'délai dépassé, réessaie':(e.message||e)}`,ts:Date.now()};
       setMsgs(p=>[...p,err]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   },[input,loading,msgs,doActions,speak]);
 
   // Micro manuel
