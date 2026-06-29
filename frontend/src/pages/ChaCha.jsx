@@ -420,9 +420,11 @@ export default function ChaCha() {
         contents.push({ role: 'user', parts: [{ text: m.content }] });
       } else if (m.role === 'assistant') {
         if (m.tool_calls) {
-          contents.push({ role: 'model', parts: m.tool_calls.map(tc => ({
-            functionCall: { name: tc.function.name, args: JSON.parse(tc.function.arguments || '{}') }
-          })) });
+          contents.push({ role: 'model', parts: m.tool_calls.map(tc => {
+            let parsedArgs = {};
+            try { parsedArgs = JSON.parse(tc.function.arguments || '{}'); } catch {}
+            return { functionCall: { name: tc.function.name, args: parsedArgs } };
+          }) });
         } else {
           contents.push({ role: 'model', parts: [{ text: m.content || '' }] });
         }
@@ -532,7 +534,9 @@ export default function ChaCha() {
         iterations++;
         const toolResults = [];
         for(const tc of currentMsg.tool_calls) {
-          const args = JSON.parse(tc.function.arguments || '{}');
+          let args = {};
+          try { args = JSON.parse(tc.function.arguments || '{}'); }
+          catch { toolResults.push({role:'tool', name:tc.function.name, tool_call_id:tc.id, content:'Erreur: arguments invalides reçus du modèle, réessaie ta demande différemment.'}); continue; }
           let result = '';
 
           switch(tc.function.name) {

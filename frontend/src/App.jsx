@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, Component } from 'react';
 
 // Redirection automatique vers /mobile sur smartphone — au chargement ET à chaque navigation arrière/avant
 function MobileRedirect() {
@@ -71,6 +71,15 @@ import Profile from './pages/Profile';
 import Evidence from './pages/Evidence';
 import Map from './pages/Map';
 import ChaCha from './pages/ChaCha';
+
+// Isole ChaCha du reste de l'app : si le widget plante (ex: réponse IA malformée),
+// seul ChaCha disparaît — plus jamais une page blanche sur tout le système.
+class ChaChaErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error) { console.error('ChaCha a planté, isolé du reste de l\'app:', error); }
+  render() { return this.state.hasError ? null : this.props.children; }
+}
 import Terrain from './pages/Terrain';
 import Reports from './pages/Reports';
 import OCRScanner from './pages/OCRScanner';
@@ -194,7 +203,7 @@ export default function App() {
         <Route path="/mobile/install" element={<MobileApp />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
-      <ChaCha/>
+      <ChaChaErrorBoundary><ChaCha/></ChaChaErrorBoundary>
       <MobileRedirect/>
     </BrowserRouter>
     </ApparenceProvider>
