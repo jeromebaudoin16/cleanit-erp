@@ -620,6 +620,13 @@ app.get('/whatsapp/status', auth, (req, res) => {
   });
 });
 
+app.get('/whatsapp/messages', auth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM wa_messages ORDER BY created_at DESC LIMIT 50');
+    res.json(r.rows);
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
 app.post('/whatsapp/send', auth, async (req, res) => {
   try {
     const { to, message } = req.body;
