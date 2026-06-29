@@ -3,15 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import loginIllustration from '../assets/login-illustration.png';
 
-const DEMO = [
-  { email:'jerome@cleanit.cm', password:'Jerome123!',   role:'Admin',        color:'#E05C5C', initials:'JB' },
-  { email:'dg@cleanit.cm',     password:'CleanIT2024!', role:'DG',           color:'#0F172A', initials:'DG' },
-  { email:'marie@cleanit.cm',  password:'CleanIT2024!', role:'Chef Projet',  color:'#7C3AED', initials:'MK' },
-  { email:'alice@cleanit.cm',  password:'CleanIT2024!', role:'RH',           color:'#059669', initials:'AR' },
-  { email:'jean@cleanit.cm',   password:'CleanIT2024!', role:'Chef Projet',  color:'#0066CC', initials:'JF' },
-  { email:'thomas@cleanit.cm', password:'CleanIT2024!', role:'Terrain',      color:'#EA580C', initials:'TN' },
-];
-
 const CleanITLogo = () => (
   <svg width="118" height="30" viewBox="0 0 128 32" fill="none">
     <circle cx="16" cy="16" r="11" stroke="#999" strokeWidth="1.3" fill="none"/>
@@ -33,7 +24,6 @@ export default function Login() {
   const [error, setError] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [focused, setFocused] = useState('');
-  const [showAll, setShowAll] = useState(false);
 
   const submit = async e => {
     e.preventDefault(); setLoading(true); setError('');
@@ -45,18 +35,6 @@ export default function Login() {
     } catch { setError('Email ou mot de passe incorrect.'); }
     finally { setLoading(false); }
   };
-
-  const loginAs = async acc => {
-    setLoading(true); setError('');
-    try {
-      const res = await api.post('/auth/login', { email: acc.email, password: acc.password });
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      nav('/dashboard');
-    } catch { setError('Compte non disponible.'); setLoading(false); }
-  };
-
-  const visibleDemo = showAll ? DEMO : DEMO.slice(0, 3);
 
   const inputStyle = k => ({
     width: '100%', padding: '8px 0', border: 'none', outline: 'none',
@@ -148,36 +126,6 @@ export default function Login() {
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>
         </form>
-
-        {/* Séparateur démo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <div style={{ flex: 1, height: 1, background: '#f4f4f4' }}/>
-          <span style={{ fontSize: 9, color: '#ddd', letterSpacing: .6, textTransform: 'uppercase' }}>accès démo</span>
-          <div style={{ flex: 1, height: 1, background: '#f4f4f4' }}/>
-        </div>
-
-        <div>
-          {visibleDemo.map(u => (
-            <button key={u.email} onClick={() => loginAs(u)} disabled={loading}
-              style={{ width: '100%', textAlign: 'left', padding: '8px 10px', border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5, fontFamily: 'inherit', transition: 'background .15s' }}
-              onMouseEnter={e => e.currentTarget.style.background = '#fafafa'}
-              onMouseLeave={e => e.currentTarget.style.background = '#fff'}>
-              <div style={{ width: 20, height: 20, borderRadius: '50%', background: u.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 7, fontWeight: 700, flexShrink: 0 }}>
-                {u.initials}
-              </div>
-              <span style={{ flex: 1, fontSize: 11, color: '#555' }}>{u.email.split('@')[0]}</span>
-              <span style={{ fontSize: 9, color: u.color, fontWeight: 700 }}>{u.role}</span>
-            </button>
-          ))}
-          <div style={{ textAlign: 'center', marginTop: 6 }}>
-            <button onClick={() => setShowAll(!showAll)}
-              style={{ background: 'none', border: 'none', fontSize: 10, color: '#ccc', cursor: 'pointer', fontFamily: 'inherit' }}
-              onMouseEnter={e => e.target.style.color = '#E05C5C'}
-              onMouseLeave={e => e.target.style.color = '#ccc'}>
-              {showAll ? '− réduire' : '+ voir tous les comptes'}
-            </button>
-          </div>
-        </div>
 
       </div>
     </div>

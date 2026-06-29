@@ -1,7 +1,6 @@
 const express = require('express');
 const multer = require('multer');
 const ExcelJS = require('exceljs');
-const pdfParse = require('pdf-parse');
 const upload = multer({storage: multer.memoryStorage(), limits:{fileSize:10*1024*1024}});
 const webpush = require('web-push');
 
@@ -19,19 +18,12 @@ const app = express();
 
 // ─── SÉCURITÉ ────────────────────────────────────────────────
 app.use(express.json({ limit: '10kb' }));
-const ALLOWED_ORIGINS = [
-  'https://cleanit-erp-frontend.vercel.app',
-  'https://frontend-rust-kappa-54.vercel.app',
-];
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  const origin = req.headers.origin;
-  if (origin && (ALLOWED_ORIGINS.includes(origin) || origin.endsWith('-cleanit-erp.vercel.app'))) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
+  res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -60,10 +52,7 @@ const pool = new Pool({
   connectionTimeoutMillis: 8000,
 });
 
-if (!process.env.JWT_SECRET) {
-  console.error('ERREUR CRITIQUE: JWT_SECRET non configuré. Définissez cette variable d\'environnement avant de démarrer.');
-}
-const JWT_SECRET = process.env.JWT_SECRET || require('crypto').randomBytes(32).toString('hex');
+const JWT_SECRET = process.env.JWT_SECRET || 'cleanit_secret';
 const sanitize = (str) => str ? String(str).replace(/[<>'"`;]/g, '').trim() : '';
 
 // ─── MIDDLEWARE AUTH ──────────────────────────────────────────
@@ -735,100 +724,6 @@ pool.query(`CREATE TABLE IF NOT EXISTS pointages (
   created_at TIMESTAMP DEFAULT NOW()
 )`).catch(console.error);
 
-// GET /sites — tous les sites réels avec coordonnées GPS (pour Map.jsx)
-app.get('/sites', auth, async (req, res) => {
-  try {
-    const r = await pool.query(`
-      SELECT id, code, name, duid, "poNumber", region, ville, technology, status,
-        latitude, longitude, "typeTravauxEnum"
-      FROM sites
-      WHERE latitude IS NOT NULL AND longitude IS NOT NULL
-      ORDER BY name`
-    );
-    res.json(r.rows);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-// Route ping pour maintenir last_seen actif depuis l'app mobile
-app.post('/ping', auth, async (req, res) => {
-  try {
-    await pool.query('UPDATE users SET last_seen=NOW(), "lastSeen"=NOW() WHERE id=$1', [req.user.sub]);
-    res.json({ ok: true, ts: new Date().toISOString() });
-  } catch(e) { res.json({ ok: false }); }
-});
-
-// ─── SUIVI GPS TECHNICIENS ─────────────────────────────────────
-pool.query(`CREATE TABLE IF NOT EXISTS tech_locations (
-  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  lat NUMERIC(10,7) NOT NULL,
-  lng NUMERIC(10,7) NOT NULL,
-  accuracy NUMERIC(8,2),
-  battery INTEGER,
-  status VARCHAR(30) DEFAULT 'disponible',
-  current_site_code VARCHAR(50),
-  updated_at TIMESTAMP DEFAULT NOW()
-)`).catch(console.error);
-
-pool.query(`CREATE TABLE IF NOT EXISTS tech_location_history (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  lat NUMERIC(10,7) NOT NULL,
-  lng NUMERIC(10,7) NOT NULL,
-  recorded_at TIMESTAMP DEFAULT NOW()
-)`).catch(console.error);
-
-// POST /location/update — l'app mobile envoie sa position en continu
-app.post('/location/update', auth, async (req, res) => {
-  try {
-    const { lat, lng, accuracy, battery, status, siteCode } = req.body;
-    if(lat==null || lng==null) return res.status(400).json({ message: 'lat et lng requis' });
-    await pool.query(`
-      INSERT INTO tech_locations (user_id, lat, lng, accuracy, battery, status, current_site_code, updated_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())
-      ON CONFLICT (user_id) DO UPDATE SET
-        lat=$2, lng=$3, accuracy=$4, battery=$5, status=COALESCE($6,tech_locations.status),
-        current_site_code=$7, updated_at=NOW()`,
-      [req.user.sub, lat, lng, accuracy||null, battery||null, status||null, siteCode||null]
-    );
-    // Historique léger (1 point toutes les ~5min suffit pour la trajectoire du jour)
-    const last = await pool.query(`SELECT recorded_at FROM tech_location_history WHERE user_id=$1 ORDER BY recorded_at DESC LIMIT 1`,[req.user.sub]);
-    const lastTime = last.rows[0]?.recorded_at;
-    if(!lastTime || (Date.now() - new Date(lastTime).getTime()) > 5*60*1000) {
-      await pool.query(`INSERT INTO tech_location_history (user_id, lat, lng) VALUES ($1,$2,$3)`,[req.user.sub, lat, lng]).catch(()=>{});
-    }
-    res.json({ ok: true });
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-// GET /location/all — positions actuelles de tous les techniciens (pour Map.jsx)
-app.get('/location/all', auth, async (req, res) => {
-  try {
-    const r = await pool.query(`
-      SELECT tl.user_id, tl.lat, tl.lng, tl.accuracy, tl.battery, tl.status, tl.current_site_code, tl.updated_at,
-        u."firstName", u."lastName", u.role, u.email,
-        CASE WHEN tl.updated_at > NOW()-INTERVAL '10 minutes' THEN true ELSE false END as is_live
-      FROM tech_locations tl
-      JOIN users u ON u.id = tl.user_id
-      WHERE u."isActive" IS NOT FALSE
-      ORDER BY tl.updated_at DESC`
-    );
-    res.json(r.rows);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-// GET /location/history/:userId — trajectoire du jour pour un technicien
-app.get('/location/history/:userId', auth, async (req, res) => {
-  try {
-    const r = await pool.query(`
-      SELECT lat, lng, recorded_at FROM tech_location_history
-      WHERE user_id=$1 AND recorded_at > NOW()-INTERVAL '24 hours'
-      ORDER BY recorded_at ASC`,
-      [req.params.userId]
-    );
-    res.json(r.rows);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
 // ─── GEOFENCING ──────────────────────────────────────────────
 const ZONES_BUREAU = [
   {code:'HUA-DLA',nom:'Huawei Douala Bonapriso',lat:4.021841,lng:9.698572,rayon:150},
@@ -872,20 +767,11 @@ async function checkGeofencingTerrain(userId,lat,lng){
 
 app.post('/pointages', auth, async (req, res) => {
   try {
-    const { siteCode, siteName, gpsLat, gpsLng } = req.body;
+    const { siteCode, siteName, type, gpsLat, gpsLng } = req.body;
     const userQ = await pool.query('SELECT "firstName","lastName",role FROM users WHERE id=$1',[req.user.sub]);
     const u = userQ.rows[0];
     const isTerrain = ['technician','terrain'].includes(u.role);
-
-    // Toggle automatique fiable — basé sur le dernier pointage du jour en DB, jamais sur un état client périmé
-    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-    const lastToday = await pool.query(
-      `SELECT type FROM pointages WHERE user_id=$1 AND created_at >= $2 ORDER BY created_at DESC LIMIT 1`,
-      [req.user.sub, todayStart.toISOString()]
-    );
-    const lastType = lastToday.rows[0]?.type;
-    const type = lastType==='arrivee' ? 'depart' : 'arrivee';
-
+    
     let geo;
     if(isTerrain){
       geo = await checkGeofencingTerrain(req.user.sub, gpsLat, gpsLng);
@@ -897,7 +783,7 @@ app.post('/pointages', auth, async (req, res) => {
       'INSERT INTO pointages (user_id,user_name,site_code,site_name,type,gps_lat,gps_lng,valide,distance_m,hors_zone,zone_nom) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *',
       [req.user.sub, u.firstName+' '+u.lastName,
        siteCode||geo.zone||'', siteName||geo.zone||'',
-       type, gpsLat||null, gpsLng||null,
+       type||'arrivee', gpsLat||null, gpsLng||null,
        geo.valide, geo.distance, geo.horsZone, geo.zone]
     );
     res.status(201).json({...result.rows[0], geofencing: geo});
@@ -961,20 +847,19 @@ pool.query(`CREATE TABLE IF NOT EXISTS push_subscriptions (
 )`).catch(console.error);
 
 // Sauvegarder subscription push
-app.post('/push/subscribe', auth, async (req, res) => {
+app.post('/push/subscribe', async (req, res) => {
   try {
     const { subscription } = req.body;
     if(!subscription) return res.status(400).json({ message: 'Subscription requise' });
-    // Utiliser l'userId depuis le token JWT (fiable) ou fallback sur le body
-    const userId = req.user?.sub || (req.body.userId && !isNaN(parseInt(req.body.userId)) ? parseInt(req.body.userId) : null);
-    if(!userId) return res.status(400).json({ message: 'Utilisateur non identifié' });
-    // Supprimer l'ancienne subscription de cet user
-    await pool.query('DELETE FROM push_subscriptions WHERE user_id=$1',[userId]).catch(()=>{});
+    // Supprimer ancienne subscription de cet user
+    const rawId = req.body.userId;
+    const userId = rawId && !isNaN(parseInt(rawId)) ? parseInt(rawId) : null;
+    if(userId) await pool.query('DELETE FROM push_subscriptions WHERE user_id=$1',[userId]).catch(()=>{});
     await pool.query(
       'INSERT INTO push_subscriptions (user_id,subscription) VALUES ($1,$2)',
       [userId, JSON.stringify(subscription)]
     );
-    res.json({ ok: true, message: 'Notification push activée', userId });
+    res.json({ ok: true, message: 'Notification push activée' });
   } catch(e) { res.status(500).json({ message: 'Erreur serveur', detail: e.message }); }
 });
 
@@ -1077,167 +962,7 @@ app.get('/notifications', auth, async (req, res) => {
   } catch(e) { res.json([]); }
 });
 
-// ─── APPELS AUDIO/VIDÉO — notification d'appel entrant ─────────
-pool.query(`CREATE TABLE IF NOT EXISTS calls (
-  id SERIAL PRIMARY KEY,
-  caller_id INTEGER REFERENCES users(id),
-  caller_name VARCHAR(100),
-  callee_id INTEGER REFERENCES users(id),
-  type VARCHAR(10) DEFAULT 'video',
-  room VARCHAR(200) NOT NULL,
-  status VARCHAR(20) DEFAULT 'ringing',
-  created_at TIMESTAMP DEFAULT NOW(),
-  responded_at TIMESTAMP
-)`).catch(console.error);
-
-// POST /calls/initiate — démarrer un appel et notifier le destinataire
-app.post('/calls/initiate', auth, async (req, res) => {
-  try {
-    const { calleeId, type, room } = req.body;
-    if(!calleeId || !room) return res.status(400).json({ message: 'calleeId et room requis' });
-    const u = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1',[req.user.sub]);
-    const callerName = u.rows[0] ? `${u.rows[0].firstName} ${u.rows[0].lastName}` : 'Quelqu\'un';
-    const call = await pool.query(
-      `INSERT INTO calls (caller_id, caller_name, callee_id, type, room, status)
-       VALUES ($1,$2,$3,$4,$5,'ringing') RETURNING *`,
-      [req.user.sub, callerName, calleeId, type||'video', room]
-    );
-    res.status(201).json(call.rows[0]);
-
-    // Notifier le destinataire (async, sans bloquer)
-    (async () => {
-      try {
-        const subs = await pool.query('SELECT id, subscription FROM push_subscriptions WHERE user_id=$1',[calleeId]);
-        const payload = JSON.stringify({
-          title: (type==='audio'?'📞 ':'📹 ') + callerName,
-          body: `${type==='audio'?'Appel audio':'Appel vidéo'} entrant — répondez dans CleanIT Comm`,
-          url: '/cleanitcomm',
-          icon: '/icons/icon-192.png',
-          badge: '/icons/icon-72.png',
-          tag: 'call-'+call.rows[0].id,
-          renotify: true,
-          data: { type:'call', callId: call.rows[0].id, room, callerName, callType: type },
-        });
-        for (const row of subs.rows) {
-          try { await webpush.sendNotification(JSON.parse(row.subscription), payload); }
-          catch(e) { if(e.statusCode===410||e.statusCode===404) await pool.query('DELETE FROM push_subscriptions WHERE id=$1',[row.id]).catch(()=>{}); }
-        }
-      } catch(e) { console.error('Call push error:', e.message); }
-    })();
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-// GET /calls/incoming — polling léger pour savoir si un appel arrive (fallback si push échoue)
-app.get('/calls/incoming', auth, async (req, res) => {
-  try {
-    const r = await pool.query(
-      `SELECT * FROM calls WHERE callee_id=$1 AND status='ringing' AND created_at > NOW()-INTERVAL '120 seconds' ORDER BY created_at DESC LIMIT 1`,
-      [req.user.sub]
-    );
-    res.json(r.rows[0]||null);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-// POST /calls/:id/respond — accepter ou refuser un appel
-app.post('/calls/:id/respond', auth, async (req, res) => {
-  try {
-    const { accepted } = req.body;
-    const r = await pool.query(
-      `UPDATE calls SET status=$1, responded_at=NOW() WHERE id=$2 RETURNING *`,
-      [accepted ? 'accepted' : 'declined', req.params.id]
-    );
-    res.json(r.rows[0]);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-// POST /calls/:id/end — marquer un appel terminé / manqué
-app.post('/calls/:id/end', auth, async (req, res) => {
-  try {
-    const call = await pool.query('SELECT status FROM calls WHERE id=$1',[req.params.id]);
-    const finalStatus = call.rows[0]?.status==='ringing' ? 'missed' : 'ended';
-    const r = await pool.query(`UPDATE calls SET status=$1 WHERE id=$2 RETURNING *`,[finalStatus, req.params.id]);
-    res.json(r.rows[0]);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-// GET /calls/history — historique des appels (passés, reçus, manqués) pour l'utilisateur connecté
-app.get('/calls/history', auth, async (req, res) => {
-  try {
-    const r = await pool.query(`
-      SELECT c.*,
-        CASE WHEN c.caller_id=$1 THEN cu."firstName"||' '||cu."lastName" ELSE c.caller_name END as caller_display,
-        CASE WHEN c.caller_id=$1 THEN 'outgoing' ELSE 'incoming' END as direction
-      FROM calls c
-      LEFT JOIN users cu ON cu.id = c.callee_id
-      WHERE c.caller_id=$1 OR c.callee_id=$1
-      ORDER BY c.created_at DESC LIMIT 50`,
-      [req.user.sub]
-    );
-    res.json(r.rows);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-// POST /calls/daily-room — créer (ou réutiliser) une room Daily.co pour un appel
-// La clé API reste côté serveur, jamais exposée au client
-app.post('/calls/daily-room', auth, async (req, res) => {
-  try {
-    const { roomName } = req.body;
-    if(!roomName) return res.status(400).json({ message: 'roomName requis' });
-    const TEAM_ID = process.env.DIGITALSAMBA_TEAM_ID;
-    const DEV_KEY = process.env.DIGITALSAMBA_DEV_KEY;
-    if(!TEAM_ID || !DEV_KEY) return res.status(500).json({ message: 'DIGITALSAMBA_TEAM_ID / DIGITALSAMBA_DEV_KEY non configurées côté serveur' });
-
-    const auth64 = Buffer.from(`${TEAM_ID}:${DEV_KEY}`).toString('base64');
-    const authHeader = { 'Authorization': 'Basic '+auth64, 'Content-Type': 'application/json' };
-
-    // Lister les rooms existantes pour réutiliser celle-ci si elle existe déjà
-    const listResp = await fetch(`https://api.digitalsamba.com/api/v1/rooms?limit=100`, { headers: authHeader });
-    if(listResp.ok) {
-      const listData = await listResp.json();
-      const existing = (listData.data||listData||[]).find(r => r.friendly_url === roomName || r.external_id === roomName);
-      if(existing) return res.json({ url: existing.room_url, name: roomName });
-    }
-
-    // Créer la room — auto-expire après inactivité, pas de moderation requise
-    const createResp = await fetch('https://api.digitalsamba.com/api/v1/rooms', {
-      method: 'POST',
-      headers: authHeader,
-      body: JSON.stringify({
-        privacy: 'public',
-        friendly_url: roomName,
-        external_id: roomName,
-        session_length: 60, // session max 60 min
-      })
-    });
-    const created = await createResp.json();
-    if(!createResp.ok) return res.status(500).json({ message: 'Erreur Digital Samba', error: created });
-    res.json({ url: created.room_url, name: roomName });
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-
 // ─── CONVERSATIONS & MESSAGES ─────────────────────────────────
-pool.query(`CREATE TABLE IF NOT EXISTS conversations (
-  id SERIAL PRIMARY KEY,
-  participant_1 INTEGER REFERENCES users(id),
-  participant_2 INTEGER REFERENCES users(id),
-  last_message TEXT,
-  last_message_at TIMESTAMP DEFAULT NOW(),
-  created_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(participant_1, participant_2)
-)`).catch(console.error);
-
-pool.query(`CREATE TABLE IF NOT EXISTS messages (
-  id SERIAL PRIMARY KEY,
-  conversation_id INTEGER REFERENCES conversations(id) ON DELETE CASCADE,
-  from_id INTEGER REFERENCES users(id),
-  from_name VARCHAR(100),
-  text TEXT,
-  photo_url TEXT,
-  read BOOLEAN DEFAULT false,
-  created_at TIMESTAMP DEFAULT NOW()
-)`).catch(console.error);
-
 app.get('/conversations', auth, async (req, res) => {
   try {
     const result = await pool.query(`
@@ -1251,27 +976,6 @@ app.get('/conversations', auth, async (req, res) => {
       WHERE c.participant_1=$1 OR c.participant_2=$1
       ORDER BY c.last_message_at DESC
     `, [req.user.sub]);
-    res.json(result.rows);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-// GET /conversations/list — liste des conversations avec nb messages non lus
-app.get('/conversations/list', auth, async (req, res) => {
-  try {
-    const myId = req.user.sub;
-    const result = await pool.query(`
-      SELECT c.id, c.participant_1, c.participant_2, c.last_message, c.last_message_at,
-        u."firstName", u."lastName", u.email, u.role, u.last_seen,
-        CASE WHEN u.last_seen > NOW()-INTERVAL '5 minutes' THEN 'online'
-             WHEN u.last_seen > NOW()-INTERVAL '30 minutes' THEN 'away'
-             ELSE 'offline' END as status,
-        (SELECT COUNT(*) FROM messages m
-         WHERE m.conversation_id=c.id AND m.from_id!=$1 AND m.read=false) as unread_count
-      FROM conversations c
-      JOIN users u ON u.id = CASE WHEN c.participant_1=$1 THEN c.participant_2 ELSE c.participant_1 END
-      WHERE c.participant_1=$1 OR c.participant_2=$1
-      ORDER BY c.last_message_at DESC NULLS LAST
-    `, [myId]);
     res.json(result.rows);
   } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
 });
@@ -1473,70 +1177,9 @@ app.get('/approvals/audit/project/:poNumber', auth, async (req, res) => {
   } catch(e){ res.status(500).json({message:'Erreur serveur',error:e.message}); }
 });
 
-// ─── WORKFLOWS D'APPROBATION — persistance configuration ──────
-pool.query(`CREATE TABLE IF NOT EXISTS approval_workflows (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR(150) NOT NULL,
-  types JSONB DEFAULT '[]',
-  steps JSONB DEFAULT '[]',
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-)`).then(async () => {
-  // Insérer les 2 workflows par défaut s'ils n'existent pas encore
-  const existing = await pool.query(`SELECT COUNT(*) FROM approval_workflows`).catch(()=>({rows:[{count:'1'}]}));
-  if(parseInt(existing.rows[0]?.count||'1') === 0) {
-    await pool.query(`INSERT INTO approval_workflows (name, types, steps) VALUES
-      ('Workflow par défaut',
-       '["achat_materiel","transport","paiement_prestataire","frais_mission","location_engin","frais_douane","hebergement","paiement_technicien","avance_salaire","formation","autre"]',
-       '[{"id":"n1","label":"Responsable direct (N1)","role":"project_manager","amtMin":0,"amtMax":null,"required":true},
-         {"id":"n2","label":"Directeur Général (DG)","role":"dg","amtMin":0,"amtMax":null,"required":true}]'),
-      ('Workflow Congés RH',
-       '["conge"]',
-       '[{"id":"n1","label":"RH Manager (N1)","role":"hr","amtMin":0,"amtMax":null,"required":true},
-         {"id":"n2","label":"Directeur Général (DG)","role":"dg","amtMin":500000,"amtMax":null,"required":false}]')
-    `).catch(console.error);
-  }
-}).catch(console.error);
-
-app.get('/approval-workflows', auth, async (req, res) => {
-  try {
-    const r = await pool.query('SELECT * FROM approval_workflows ORDER BY id ASC');
-    res.json(r.rows);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-app.post('/approval-workflows', auth, async (req, res) => {
-  try {
-    const { name, types, steps } = req.body;
-    const r = await pool.query(
-      'INSERT INTO approval_workflows (name, types, steps) VALUES ($1,$2,$3) RETURNING *',
-      [name||'Nouveau workflow', JSON.stringify(types||[]), JSON.stringify(steps||[])]
-    );
-    res.status(201).json(r.rows[0]);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-app.put('/approval-workflows/:id', auth, async (req, res) => {
-  try {
-    const { name, types, steps } = req.body;
-    const r = await pool.query(
-      `UPDATE approval_workflows SET
-        name=COALESCE($1,name), types=COALESCE($2,types), steps=COALESCE($3,steps), updated_at=NOW()
-       WHERE id=$4 RETURNING *`,
-      [name, types?JSON.stringify(types):null, steps?JSON.stringify(steps):null, req.params.id]
-    );
-    res.json(r.rows[0]);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-app.delete('/approval-workflows/:id', auth, async (req, res) => {
-  try {
-    await pool.query('DELETE FROM approval_workflows WHERE id=$1', [req.params.id]);
-    res.json({ ok: true });
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
 
 
+// ─── BONS DE COMMANDE ────────────────────────────────────────
 pool.query(`CREATE TABLE IF NOT EXISTS bons_commande (
   id SERIAL PRIMARY KEY,
   numero VARCHAR(100) NOT NULL,
@@ -1544,10 +1187,6 @@ pool.query(`CREATE TABLE IF NOT EXISTS bons_commande (
   site_code VARCHAR(50),
   duid VARCHAR(100),
   po_number VARCHAR(100),
-  project_code VARCHAR(100),
-  project_name VARCHAR(200),
-  site_id VARCHAR(100),
-  region VARCHAR(100),
   devise VARCHAR(10) DEFAULT 'FCFA',
   description TEXT,
   notes TEXT,
@@ -1558,11 +1197,6 @@ pool.query(`CREATE TABLE IF NOT EXISTS bons_commande (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 )`).catch(console.error);
-// Ajouter les colonnes manquantes si la table existait déjà avant cette mise à jour
-pool.query('ALTER TABLE bons_commande ADD COLUMN IF NOT EXISTS project_code VARCHAR(100)').catch(()=>{});
-pool.query('ALTER TABLE bons_commande ADD COLUMN IF NOT EXISTS project_name VARCHAR(200)').catch(()=>{});
-pool.query('ALTER TABLE bons_commande ADD COLUMN IF NOT EXISTS site_id VARCHAR(100)').catch(()=>{});
-pool.query('ALTER TABLE bons_commande ADD COLUMN IF NOT EXISTS region VARCHAR(100)').catch(()=>{});
 
 // Colonne last_seen pour statut en ligne
 pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP').catch(()=>{});
@@ -1570,7 +1204,7 @@ pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP').cat
 // Middleware last_seen
 app.use((req,res,next)=>{
   if(req.user?.sub){
-    pool.query('UPDATE users SET last_seen=NOW(), "lastSeen"=NOW() WHERE id=$1',[req.user.sub]).catch(()=>{});
+    pool.query('UPDATE users SET last_seen=NOW() WHERE id=$1',[req.user.sub]).catch(()=>{});
   }
   next();
 });
@@ -1695,68 +1329,7 @@ app.post('/approvals/:id/approve-final', auth, async (req,res)=>{
       ).catch(()=>{});
     }
     const updated = await pool.query('SELECT * FROM approvals WHERE id=$1',[req.params.id]);
-    const approved = updated.rows[0];
-
-    // ── Liaisons Planning automatiques selon le type de demande ──
-    (async () => {
-      try {
-        const siteCode = approved.site_code||approved.siteCode||'';
-        const today = new Date().toISOString().split('T')[0];
-        const reqType = approved.type||approved.request_type||'';
-
-        // Scénario 4 : toute approbation DG avec site_code → jalon Planning "Payé"
-        if(siteCode && Number(approved.amount)>0) {
-          await pool.query(`INSERT INTO planning_events
-            (title,type,dept,visibility,start_date,end_date,start_hour,end_hour,all_day,
-             description,link_module,link_detail,color,created_by,created_by_name,status)
-            VALUES ($1,'jalon','finance','entreprise',$2,$2,10,11,true,$3,'approvals',$4,'#6B21A8',$5,$6,'confirmed')`,
-            [`Paiement validé — ${approved.label||siteCode}`,
-             today,
-             `Montant: ${Number(approved.amount).toLocaleString('fr-FR')} ${approved.currency||'FCFA'} · Bénéficiaire: ${approved.beneficiary_name||approved.beneficiaryName||'—'}`,
-             `approval:${approved.id}`, req.user.sub, by]).catch(()=>{});
-        }
-
-        // Scénario 3 : congé approuvé → bloc Planning (indisponibilité technicien)
-        if(['conge','leave_request'].includes(reqType)) {
-          const startDate = approved.start_date||today;
-          const endDate   = approved.end_date||today;
-          await pool.query(`INSERT INTO planning_events
-            (title,type,dept,visibility,start_date,end_date,start_hour,end_hour,all_day,
-             description,link_module,link_detail,color,created_by,created_by_name,status,tech_ids)
-            VALUES ($1,'conge','rh','entreprise',$2,$3,8,17,true,$4,'approvals',$5,'#E76500',$6,$7,'confirmed',$8)`,
-            [`Congé — ${approved.user_name||'Employé'}`, startDate, endDate,
-             `Congé validé par ${by}. Technicien indisponible sur cette période.`,
-             `approval:${approved.id}`, req.user.sub, by,
-             JSON.stringify(approved.user_id?[String(approved.user_id)]:[])]).catch(()=>{});
-        }
-
-        // Scénario 5 : avance sur salaire → rappel Planning RH
-        if(['avance_salaire','advance_request'].includes(reqType)) {
-          await pool.query(`INSERT INTO planning_events
-            (title,type,dept,visibility,start_date,end_date,start_hour,end_hour,all_day,
-             description,link_module,link_detail,color,created_by,created_by_name,status)
-            VALUES ($1,'echeance','rh','equipe',$2,$2,9,10,false,$3,'approvals',$4,'#E76500',$5,$6,'confirmed')`,
-            [`Avance salaire — ${approved.user_name||'Employé'} (${Number(approved.amount||0).toLocaleString('fr-FR')} FCFA)`,
-             today, `Avance validée. À déduire du prochain bulletin de paie.`,
-             `approval:${approved.id}`, req.user.sub, by]).catch(()=>{});
-        }
-
-        // Scénario 6 : formation approuvée → event Planning
-        if(['formation','training_request'].includes(reqType)) {
-          const startDate = approved.start_date||today;
-          const endDate   = approved.end_date||startDate;
-          await pool.query(`INSERT INTO planning_events
-            (title,type,dept,visibility,start_date,end_date,start_hour,end_hour,all_day,
-             description,link_module,link_detail,color,created_by,created_by_name,status)
-            VALUES ($1,'formation','terrain','entreprise',$2,$3,8,17,true,$4,'approvals',$5,'#0F766E',$6,$7,'confirmed')`,
-            [`Formation — ${approved.label||'Formation approuvée'}`, startDate, endDate,
-             `Formation approuvée. Coût: ${Number(approved.amount||0).toLocaleString('fr-FR')} ${approved.currency||'FCFA'}`,
-             `approval:${approved.id}`, req.user.sub, by]).catch(()=>{});
-        }
-      } catch(e) { console.error('Planning auto-event error:', e.message); }
-    })();
-
-    res.json(approved);
+    res.json(updated.rows[0]);
   }catch(e){res.status(500).json({message:'Erreur serveur',error:e.message});}
 });
 
@@ -1866,10 +1439,10 @@ app.post('/purchase-orders/import', auth, upload.single('file'), async (req, res
       const ref = po||('BC-'+Date.now().toString().slice(-6));
       const r = await pool.query(
         `INSERT INTO bons_commande 
-         (numero,client,site_code,duid,po_number,project_code,project_name,site_id,region,description,lignes,montant_total,status,created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,0,'en_cours',$12) 
+         (numero,client,site_code,duid,po_number,description,lignes,montant_total,status,created_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,0,'en_cours',$8) 
          ON CONFLICT DO NOTHING RETURNING *`,
-        [ref, projectName||'MTN Cameroun', siteCode, siteCode, po, projectCode, projectName, siteId, region, description,
+        [ref, projectName||'MTN Cameroun', siteCode, siteCode, po, description,
          JSON.stringify([{description,requested,billed,due:requested-billed}]),
          req.user.sub]
       ).catch(()=>({rows:[]}));
@@ -1975,415 +1548,6 @@ app.put('/technicians/:id/certifications', auth, async (req, res) => {
 });
 
 // 404
-
-// ── JOURNAL CIB ──
-app.get('/api/cleanitbooks/journal', auth, async (req,res)=>{
-  try {
-    const r=await pool.query(`SELECT je.*,
-      COALESCE(json_agg(json_build_object('account',jl."accountCode",'accountNom',jl."accountNom",'debit',jl.debit,'credit',jl.credit,'libelle',jl.libelle)) FILTER (WHERE jl.id IS NOT NULL), '[]') as lines
-      FROM cib_journal_entries je
-      LEFT JOIN cib_journal_lines jl ON jl."entryId"=je.id
-      GROUP BY je.id ORDER BY je.date DESC LIMIT 200`);
-    res.json(r.rows);
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-app.post('/api/cleanitbooks/journal', auth, async (req,res)=>{
-  try {
-    const {date,libelle,journal,lines=[]}=req.body;
-    const je=await pool.query(`INSERT INTO cib_journal_entries(date,libelle,journal,"createdAt") VALUES($1,$2,$3,NOW()) RETURNING *`,[date,libelle,journal]);
-    const jeId=je.rows[0].id;
-    for(const l of lines){
-      await pool.query(`INSERT INTO cib_journal_lines("entryId","accountCode","accountNom",debit,credit,libelle) VALUES($1,$2,$3,$4,$5,$6)`,
-        [jeId,l.account,l.accountNom||'',l.debit||0,l.credit||0,l.libelle||l.memo||'']);
-    }
-    res.json(je.rows[0]);
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-app.get('/api/cleanitbooks/dashboard', auth, async (req,res)=>{
-  try {
-    const [inv,bills,jobs,cust]=await Promise.all([
-      pool.query('SELECT COUNT(*) as count,COALESCE(SUM(total),0) as total FROM cib_invoices'),
-      pool.query('SELECT COUNT(*) as count,COALESCE(SUM(total),0) as total FROM cib_bills'),
-      pool.query('SELECT COUNT(*) as count FROM cib_jobs'),
-      pool.query('SELECT COUNT(*) as count FROM cib_customers'),
-    ]);
-    res.json({
-      invoices:{count:parseInt(inv.rows[0].count),total:parseFloat(inv.rows[0].total)},
-      bills:{count:parseInt(bills.rows[0].count),total:parseFloat(bills.rows[0].total)},
-      jobs:parseInt(jobs.rows[0].count),
-      customers:parseInt(cust.rows[0].count),
-    });
-  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
-});
-
-
-// ════════════════════════════════════════════════════════════
-// PLANNING — événements, jalons, disponibilité techniciens
-// ════════════════════════════════════════════════════════════
-pool.query(`CREATE TABLE IF NOT EXISTS planning_events (
-  id SERIAL PRIMARY KEY,
-  title VARCHAR(200) NOT NULL,
-  type VARCHAR(50) DEFAULT 'reunion_interne',
-  dept VARCHAR(50) DEFAULT 'terrain',
-  visibility VARCHAR(20) DEFAULT 'entreprise',
-  start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
-  start_hour INTEGER DEFAULT 8,
-  end_hour INTEGER DEFAULT 10,
-  all_day BOOLEAN DEFAULT false,
-  description TEXT,
-  location VARCHAR(200),
-  mission_id INTEGER,
-  tech_ids JSONB DEFAULT '[]',
-  created_by INTEGER REFERENCES users(id),
-  created_by_name VARCHAR(100),
-  zoom_link VARCHAR(300),
-  comm_channel VARCHAR(100),
-  link_module VARCHAR(50),
-  link_detail VARCHAR(200),
-  status VARCHAR(20) DEFAULT 'confirmed',
-  color VARCHAR(20),
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-)`).catch(console.error);
-
-app.get('/planning/events', auth, async (req, res) => {
-  try {
-    const { start, end } = req.query;
-    let q = `SELECT e.*, u."firstName"||' '||u."lastName" as creator_name
-      FROM planning_events e LEFT JOIN users u ON e.created_by = u.id
-      WHERE (e.visibility='entreprise' OR e.visibility='equipe' OR e.created_by=$1)`;
-    const params = [req.user.sub];
-    if(start) { q += ` AND e.end_date >= $${params.length+1}`; params.push(start); }
-    if(end)   { q += ` AND e.start_date <= $${params.length+1}`; params.push(end); }
-    q += ` ORDER BY e.start_date ASC, e.start_hour ASC`;
-    const result = await pool.query(q, params);
-    res.json(result.rows);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-app.post('/planning/events', auth, async (req, res) => {
-  try {
-    const { title, type, dept, visibility, startDate, endDate, startHour, endHour,
-            allDay, description, location, missionId, techIds, zoomLink,
-            commChannel, linkModule, linkDetail, color } = req.body;
-    if(!title || !startDate) return res.status(400).json({ message: 'Titre et date requis' });
-    const u = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1', [req.user.sub]);
-    const name = u.rows[0] ? u.rows[0].firstName+' '+u.rows[0].lastName : 'Utilisateur';
-    const result = await pool.query(`
-      INSERT INTO planning_events
-        (title,type,dept,visibility,start_date,end_date,start_hour,end_hour,all_day,
-         description,location,mission_id,tech_ids,created_by,created_by_name,
-         zoom_link,comm_channel,link_module,link_detail,color)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
-      RETURNING *`,
-      [title, type||'reunion_interne', dept||'terrain', visibility||'entreprise',
-       startDate, endDate||startDate, startHour||8, endHour||10, allDay||false,
-       description||null, location||null, missionId||null,
-       JSON.stringify(techIds||[]), req.user.sub, name,
-       zoomLink||null, commChannel||null, linkModule||null, linkDetail||null, color||null]);
-    res.status(201).json(result.rows[0]);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-app.put('/planning/events/:id', auth, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { title, type, dept, visibility, startDate, endDate, startHour, endHour,
-            allDay, description, location, techIds, status, zoomLink, color } = req.body;
-    const result = await pool.query(`
-      UPDATE planning_events SET
-        title=COALESCE($1,title), type=COALESCE($2,type), dept=COALESCE($3,dept),
-        visibility=COALESCE($4,visibility), start_date=COALESCE($5,start_date),
-        end_date=COALESCE($6,end_date), start_hour=COALESCE($7,start_hour),
-        end_hour=COALESCE($8,end_hour), all_day=COALESCE($9,all_day),
-        description=COALESCE($10,description), location=COALESCE($11,location),
-        tech_ids=COALESCE($12,tech_ids), status=COALESCE($13,status),
-        zoom_link=COALESCE($14,zoom_link), color=COALESCE($15,color),
-        updated_at=NOW()
-      WHERE id=$16 RETURNING *`,
-      [title, type, dept, visibility, startDate, endDate, startHour, endHour,
-       allDay, description, location, techIds?JSON.stringify(techIds):null,
-       status, zoomLink, color, id]);
-    res.json(result.rows[0]);
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-app.delete('/planning/events/:id', auth, async (req, res) => {
-  try {
-    const roleQ = await pool.query('SELECT role FROM users WHERE id=$1',[req.user.sub]);
-    const isAdminUser = roleQ.rows[0]?.role==='admin';
-    await pool.query('DELETE FROM planning_events WHERE id=$1 AND (created_by=$2 OR $3=true)',
-      [req.params.id, req.user.sub, isAdminUser]);
-    res.json({ ok: true });
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-app.get('/planning/availability/:techId', auth, async (req, res) => {
-  try {
-    const { techId } = req.params;
-    const { startDate, endDate } = req.query;
-    const conflicts = await pool.query(`
-      SELECT id, title, start_date, end_date, start_hour, end_hour, type
-      FROM planning_events
-      WHERE tech_ids @> $1::jsonb AND status != 'cancelled'
-        AND start_date <= $3 AND end_date >= $2`,
-      [JSON.stringify([String(techId)]), startDate, endDate]);
-    res.json({ available: conflicts.rows.length === 0, conflicts: conflicts.rows });
-  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
-});
-
-// ════════════════════════════════════════════════════════════
-// BC SITES — lignes détaillées Bon de Commande type planning (Type A)
-// ════════════════════════════════════════════════════════════
-pool.query(`CREATE TABLE IF NOT EXISTS bc_sites (
-  id SERIAL PRIMARY KEY,
-  bc_id INTEGER REFERENCES bons_commande(id) ON DELETE CASCADE,
-  project_type VARCHAR(50),
-  site_id VARCHAR(50) NOT NULL,
-  site_name VARCHAR(150),
-  team_leader VARCHAR(100),
-  team_leader_id INTEGER REFERENCES users(id),
-  budget_transport NUMERIC(15,2) DEFAULT 0,
-  budget_materiel NUMERIC(15,2) DEFAULT 0,
-  budget_total NUMERIC(15,2) DEFAULT 0,
-  payment_1 NUMERIC(15,2) DEFAULT 0,
-  payment_2 NUMERIC(15,2) DEFAULT 0,
-  payment_3 NUMERIC(15,2) DEFAULT 0,
-  balance NUMERIC(15,2) DEFAULT 0,
-  request_amount NUMERIC(15,2) DEFAULT 0,
-  approval_status VARCHAR(30) DEFAULT 'pending',
-  approval_id INTEGER REFERENCES approvals(id) ON DELETE SET NULL,
-  outbound_date DATE,
-  mos_date DATE,
-  install_start_date DATE,
-  install_closed_date DATE,
-  qc_ran_date DATE,
-  qc_mw_date DATE,
-  remark TEXT,
-  planning_event_id INTEGER REFERENCES planning_events(id) ON DELETE SET NULL,
-  raw_columns JSONB DEFAULT '{}',
-  source_type VARCHAR(10) DEFAULT 'A',
-  needs_review BOOLEAN DEFAULT false,
-  review_note TEXT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-)`).catch(console.error);
-
-// ════════════════════════════════════════════════════════════
-// BC LINES — lignes classiques Type B (désignation/qté/prix)
-// ════════════════════════════════════════════════════════════
-pool.query(`CREATE TABLE IF NOT EXISTS bc_lines (
-  id SERIAL PRIMARY KEY,
-  bc_id INTEGER REFERENCES bons_commande(id) ON DELETE CASCADE,
-  reference VARCHAR(100),
-  designation VARCHAR(300) NOT NULL,
-  unite VARCHAR(30),
-  quantite NUMERIC(15,3) DEFAULT 0,
-  prix_unitaire NUMERIC(15,2) DEFAULT 0,
-  remise_pct NUMERIC(5,2) DEFAULT 0,
-  total_ht NUMERIC(15,2) DEFAULT 0,
-  tva_pct NUMERIC(5,2) DEFAULT 19.25,
-  total_ttc NUMERIC(15,2) DEFAULT 0,
-  is_forfait BOOLEAN DEFAULT false,
-  needs_review BOOLEAN DEFAULT false,
-  review_note TEXT,
-  created_at TIMESTAMP DEFAULT NOW()
-)`).catch(console.error);
-
-app.get('/bc-sites', auth, async (req,res)=>{
-  try{
-    const {bcId} = req.query;
-    const q = bcId
-      ? 'SELECT * FROM bc_sites WHERE bc_id=$1 ORDER BY project_type, site_id'
-      : 'SELECT * FROM bc_sites ORDER BY created_at DESC LIMIT 300';
-    const r = await pool.query(q, bcId?[bcId]:[]);
-    res.json(r.rows);
-  }catch(e){res.status(500).json({message:'Erreur serveur',error:e.message});}
-});
-
-app.get('/bc-lines', auth, async (req,res)=>{
-  try{
-    const {bcId} = req.query;
-    const q = bcId
-      ? 'SELECT * FROM bc_lines WHERE bc_id=$1 ORDER BY id'
-      : 'SELECT * FROM bc_lines ORDER BY created_at DESC LIMIT 300';
-    const r = await pool.query(q, bcId?[bcId]:[]);
-    res.json(r.rows);
-  }catch(e){res.status(500).json({message:'Erreur serveur',error:e.message});}
-});
-
-app.post('/bc-sites/bulk', auth, async (req,res)=>{
-  try{
-    const { bcId, sites } = req.body;
-    if(!bcId || !Array.isArray(sites) || !sites.length)
-      return res.status(400).json({message:'bcId et sites[] requis'});
-    const inserted = [];
-    for(const s of sites){
-      const r = await pool.query(`
-        INSERT INTO bc_sites
-          (bc_id,project_type,site_id,site_name,team_leader,team_leader_id,
-           budget_transport,budget_materiel,budget_total,payment_1,payment_2,payment_3,
-           balance,request_amount,outbound_date,mos_date,install_start_date,
-           install_closed_date,qc_ran_date,qc_mw_date,remark,raw_columns,source_type,
-           needs_review,review_note)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
-        RETURNING *`,
-        [bcId, s.projectType||null, s.siteId, s.siteName||null, s.teamLeader||null, s.teamLeaderId||null,
-         s.budgetTransport||0, s.budgetMateriel||0, s.budgetTotal||0,
-         s.payment1||0, s.payment2||0, s.payment3||0,
-         s.balance||0, s.requestAmount||s.budgetTotal||0,
-         s.outboundDate||null, s.mosDate||null, s.installStartDate||null,
-         s.installClosedDate||null, s.qcRanDate||null, s.qcMwDate||null, s.remark||null,
-         JSON.stringify(s.rawColumns||{}), s.sourceType||'A',
-         s.needsReview||false, s.reviewNote||null]
-      );
-      inserted.push(r.rows[0]);
-    }
-    res.status(201).json({inserted, count:inserted.length});
-  }catch(e){res.status(500).json({message:'Erreur serveur',error:e.message});}
-});
-
-app.post('/bc-lines/bulk', auth, async (req,res)=>{
-  try{
-    const { bcId, lines } = req.body;
-    if(!bcId || !Array.isArray(lines) || !lines.length)
-      return res.status(400).json({message:'bcId et lines[] requis'});
-    const inserted = [];
-    for(const l of lines){
-      const r = await pool.query(`
-        INSERT INTO bc_lines
-          (bc_id,reference,designation,unite,quantite,prix_unitaire,remise_pct,
-           total_ht,tva_pct,total_ttc,is_forfait,needs_review,review_note)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-        [bcId, l.reference||null, l.designation, l.unite||null,
-         l.quantite||0, l.prixUnitaire||0, l.remisePct||0,
-         l.totalHt||0, l.tvaPct||19.25, l.totalTtc||0,
-         l.isForfait||false, l.needsReview||false, l.reviewNote||null]
-      );
-      inserted.push(r.rows[0]);
-    }
-    res.status(201).json({inserted, count:inserted.length});
-  }catch(e){res.status(500).json({message:'Erreur serveur',error:e.message});}
-});
-
-app.put('/bc-sites/:id', auth, async (req,res)=>{
-  try{
-    const f = req.body;
-    const map = {
-      projectType:'project_type', siteId:'site_id', siteName:'site_name',
-      teamLeader:'team_leader', teamLeaderId:'team_leader_id',
-      budgetTransport:'budget_transport', budgetMateriel:'budget_materiel', budgetTotal:'budget_total',
-      payment1:'payment_1', payment2:'payment_2', payment3:'payment_3',
-      balance:'balance', requestAmount:'request_amount', approvalStatus:'approval_status',
-      outboundDate:'outbound_date', mosDate:'mos_date', installStartDate:'install_start_date',
-      installClosedDate:'install_closed_date', qcRanDate:'qc_ran_date', qcMwDate:'qc_mw_date',
-      remark:'remark', needsReview:'needs_review', reviewNote:'review_note',
-    };
-    const sets=[]; const vals=[];
-    for(const [k,col] of Object.entries(map)){
-      if(f[k]!==undefined){ sets.push(`${col}=$${vals.length+1}`); vals.push(f[k]); }
-    }
-    if(!sets.length) return res.status(400).json({message:'Rien à mettre à jour'});
-    sets.push('updated_at=NOW()');
-    vals.push(req.params.id);
-    const r = await pool.query(`UPDATE bc_sites SET ${sets.join(',')} WHERE id=$${vals.length} RETURNING *`, vals);
-    res.json(r.rows[0]);
-  }catch(e){res.status(500).json({message:'Erreur serveur',error:e.message});}
-});
-
-app.post('/bc-sites/:id/request-payment', auth, async (req,res)=>{
-  try{
-    const site = await pool.query('SELECT * FROM bc_sites WHERE id=$1',[req.params.id]);
-    if(!site.rows[0]) return res.status(404).json({message:'Site introuvable'});
-    const s = site.rows[0];
-    const { amount, paymentLabel } = req.body;
-    const amt = Number(amount)||Number(s.request_amount)||Number(s.budget_total)||0;
-    const bc = await pool.query('SELECT * FROM bons_commande WHERE id=$1',[s.bc_id]);
-    const uq = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1',[req.user.sub]);
-    const uname = uq.rows[0] ? `${uq.rows[0].firstName} ${uq.rows[0].lastName}` : 'Utilisateur';
-    const r = await pool.query(`
-      INSERT INTO approvals (type,label,detail,amount,site_code,beneficiary_name,user_id,user_name,status)
-      VALUES ('payment_request',$1,$2,$3,$4,$5,$6,$7,'pending') RETURNING *`,
-      [paymentLabel||`Paiement ${s.site_id} — ${s.site_name||''}`,
-       `Team Leader: ${s.team_leader||'—'} · Projet: ${bc.rows[0]?.client||''}`,
-       amt, s.site_id, s.team_leader||'', req.user.sub, uname]
-    );
-    await pool.query('UPDATE bc_sites SET approval_id=$1, approval_status=$2 WHERE id=$3',
-      [r.rows[0].id, 'submitted', s.id]);
-    res.status(201).json({approval:r.rows[0], message:'Demande de paiement créée'});
-  }catch(e){res.status(500).json({message:'Erreur serveur',error:e.message});}
-});
-
-app.post('/bc-sites/:id/create-jalon', auth, async (req,res)=>{
-  try{
-    const site = await pool.query('SELECT * FROM bc_sites WHERE id=$1',[req.params.id]);
-    if(!site.rows[0]) return res.status(404).json({message:'Site introuvable'});
-    const s = site.rows[0];
-    const u = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1',[req.user.sub]);
-    const name = u.rows[0] ? `${u.rows[0].firstName} ${u.rows[0].lastName}` : 'Utilisateur';
-    const start = s.outbound_date || s.install_start_date || new Date().toISOString().split('T')[0];
-    const end = s.install_closed_date || s.mos_date || start;
-    const r = await pool.query(`
-      INSERT INTO planning_events
-        (title,type,dept,visibility,start_date,end_date,start_hour,end_hour,all_day,
-         description,link_module,link_detail,color,created_by,created_by_name,status,tech_ids)
-      VALUES ($1,'mission','terrain','entreprise',$2,$3,8,17,true,$4,'bons_commande',$5,'#0A2D6E',$6,$7,'confirmed',$8)
-      RETURNING *`,
-      [`${s.site_id} — ${s.site_name||''}`, start, end,
-       `Team Leader: ${s.team_leader||'—'} · Budget: ${Number(s.budget_total||0).toLocaleString('fr-FR')} FCFA${s.remark?' · '+s.remark:''}`,
-       `bc_site:${s.id}`, req.user.sub, name,
-       JSON.stringify(s.team_leader_id?[String(s.team_leader_id)]:[])]
-    );
-    await pool.query('UPDATE bc_sites SET planning_event_id=$1 WHERE id=$2',[r.rows[0].id, s.id]);
-    res.status(201).json({event:r.rows[0], message:'Jalon Planning créé'});
-  }catch(e){res.status(500).json({message:'Erreur serveur',error:e.message});}
-});
-
-// POST /bons-commande/analyze — upload fichier brut (Excel/PDF), retourne texte/JSON brut pour ChaCha
-app.post('/bons-commande/analyze', auth, upload.single('file'), async (req, res) => {
-  try {
-    if(!req.file) return res.status(400).json({message:'Fichier requis'});
-    const ext = (req.file.originalname||'').toLowerCase();
-
-    if(ext.endsWith('.xlsx')||ext.endsWith('.xls')) {
-      const wb = new ExcelJS.Workbook();
-      await wb.xlsx.load(req.file.buffer);
-      const sheets = [];
-      wb.worksheets.forEach(ws => {
-        const rows = [];
-        ws.eachRow((row, rowNum) => {
-          const vals = [];
-          row.eachCell({includeEmpty:true}, (cell) => {
-            let v = cell.value;
-            if(v && typeof v === 'object' && v.result !== undefined) v = v.result; // formule résolue
-            if(v instanceof Date) v = v.toISOString().split('T')[0];
-            vals.push(v===null||v===undefined?null:v);
-          });
-          rows.push(vals);
-        });
-        sheets.push({ name: ws.name, rows });
-      });
-      return res.json({ type:'excel', sheets });
-    }
-
-    if(ext.endsWith('.pdf')) {
-      try {
-        const pdfData = await pdfParse(req.file.buffer);
-        return res.json({ type:'pdf', text: pdfData.text, pages: pdfData.numpages, filename: req.file.originalname });
-      } catch(pdfErr) {
-        // Si l'extraction échoue (PDF scanné/image), informer clairement plutôt que d'envoyer du texte vide
-        return res.json({ type:'pdf', text: '', pages: 0, filename: req.file.originalname,
-          warning: 'Ce PDF semble être un document scanné (image) sans texte extractible. L\'OCR n\'est pas encore disponible pour ce type de fichier.' });
-      }
-    }
-
-    res.status(400).json({message:'Format non supporté. Utilisez .xlsx, .xls ou .pdf'});
-  } catch(e) {
-    res.status(500).json({message:'Erreur analyse fichier', error:e.message});
-  }
-});
-
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 
 module.exports = app;

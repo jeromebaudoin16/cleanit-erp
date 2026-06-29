@@ -179,10 +179,11 @@ const AIBrief = ({user, role, dashData}) => {
         rh: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, brief pour ${userName} (Responsable RH) en 2-3 phrases. Parle-lui directement. Inclus: présences, demandes RH en attente, points RH du jour. ${context}`,
       };
 
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      const tk = localStorage.getItem('token');
+      const res = await fetch((import.meta.env.VITE_API_URL||'https://backend-cleanit-erp.vercel.app')+'/chacha/groq',{
         method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+import.meta.env.VITE_GROQ_API_KEY},
-        body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:100,messages:[{role:'user',content:rolePrompts[role.id]||rolePrompts.chef_proj}]})
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+        body:JSON.stringify({model:'openai/gpt-oss-120b',max_tokens:100,messages:[{role:'user',content:rolePrompts[role.id]||rolePrompts.chef_proj}]})
       });
       const d = await res.json();
       setBrief(d.choices?.[0]?.message?.content||'Données insuffisantes.');
@@ -659,39 +660,10 @@ const RHView = ({nav}) => {
 
 // ── VUE ADMIN SYSTÈME ─────────────────────────────────────────
 const AdminSysView = ({nav}) => {
-  const ACCOUNTS = [
-    {email:'jerome@cleanit.cm',  name:'Jérôme Bell',    role:'Directeur Général', pwd:'Jerome123!',  color:'#0052CC'},
-    {email:'finance@cleanit.cm', name:'Alice Finance',   role:'Comptable',         pwd:'Finance123!', color:'#006644'},
-    {email:'pm@cleanit.cm',      name:'Marie Kamga',     role:'Chef de Projet',    pwd:'PM123!',      color:'#403294'},
-    {email:'chef@cleanit.cm',    name:'Pierre Etoga',    role:'Chef de Projet',    pwd:'Chef123!',    color:'#403294'},
-    {email:'terrain@cleanit.cm', name:'Thomas Ngono',    role:'Chef Terrain',      pwd:'Terrain123!', color:'#00626E'},
-    {email:'tech@cleanit.cm',    name:'Thomas Ngono',    role:'Technicien',        pwd:'Tech123!',    color:'#00626E'},
-    {email:'hr@cleanit.cm',      name:'Clara RH',        role:'Responsable RH',    pwd:'HR123!',      color:'#974F0C'},
-  ];
   return (
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
-      <KPI label="Utilisateurs actifs" value={ACCOUNTS.length} color={'#374151'} icon="users" sub="Comptes système"/>
       <KPI label="Modules actifs" value={12} color={'#374151'} icon="chart" sub="Modules ERP"/>
       <KPI label="Backend" value="En ligne" color={C.green} icon="check" sub="Railway + Neon DB"/>
-      <div style={{gridColumn:'1/-1'}}>
-        <Card>
-          <CardHdr title="Comptes utilisateurs — Accès démo" icon="users" color={'#374151'}/>
-          <div style={{padding:'8px 0'}}>
-            {ACCOUNTS.map((acc,i)=>(
-              <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 18px',borderBottom:i<ACCOUNTS.length-1?`1px solid ${C.border2}`:'none'}}>
-                <div style={{width:36,height:36,borderRadius:'50%',background:acc.color+'18',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                  <Ic d={I.person} size={15} color={acc.color}/>
-                </div>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{acc.name}</div>
-                  <div style={{fontSize:11,color:C.text3}}>{acc.email} · Mot de passe: <strong style={{fontFamily:'monospace'}}>{acc.pwd}</strong></div>
-                </div>
-                <span style={{fontSize:11,fontWeight:700,padding:'3px 10px',borderRadius:10,background:acc.color+'15',color:acc.color}}>{acc.role}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
       <div style={{gridColumn:'1/-1'}}>
         <Card>
           <CardHdr title="Modules ERP" icon="chart" color={'#374151'}/>
