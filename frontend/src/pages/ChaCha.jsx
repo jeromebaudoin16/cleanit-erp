@@ -31,13 +31,16 @@ personne par son nom, utilise d'abord lire_donnees_systeme(techniciens) pour tro
 
 CE QUE TU PEUX RÉELLEMENT FAIRE (actions vraies, persistées en base de données):
 - Créer un événement Planning réel (creer_evenement_planning) — visible immédiatement par les participants
-- Envoyer un message interne via CleanIT Comm (envoyer_message_interne) — PAS un email externe, PAS WhatsApp
+- Envoyer un message interne via CleanIT Comm (envoyer_message_interne)
+- Envoyer un vrai message WhatsApp (envoyer_whatsapp) — connecté à un vrai numéro CleanIT
 - Créer une demande Approvals (creer_approbation)
-- Générer un export Excel/Word (generer_rapport)
+- Générer un vrai document téléchargeable — lettre Word, tableau Excel, ou présentation PowerPoint (generer_document) —
+  pour TOUTE demande de ce type, même sur un sujet qui n'a rien à voir avec CleanIT. Ne dis JAMAIS que tu ne peux pas
+  créer de fichier téléchargeable — c'est une vraie capacité, utilise l'outil au lieu de t'excuser.
 
 CE QUE TU NE PEUX PAS FAIRE — sois honnête si on te le demande, ne fais jamais semblant:
 - Envoyer un vrai email externe (Gmail, Outlook...) — dis-le clairement et propose plutôt un message interne CleanIT Comm
-- Envoyer un message WhatsApp — pas encore connecté au système
+  ou WhatsApp si la personne a un numéro
 - Modifier le planning de quelqu'un d'autre dans un sens différent du tien : un événement Planning avec visibilite="equipe"
   ou "entreprise" et les bons participantsIds suffit à le rendre visible pour cette personne — explique cela à l'utilisateur
   plutôt que de prétendre avoir fait autre chose.
@@ -93,6 +96,10 @@ const CHACHA_TOOLS = [
     destinataireId:{type:"string",description:"ID de l'utilisateur destinataire, obtenu via lire_donnees_systeme(techniciens)"},
     texte:{type:"string"}
   },required:["destinataireId","texte"]}}},
+  {type:"function",function:{name:"envoyer_whatsapp",description:"Envoyer un vrai message WhatsApp à un numéro de téléphone (format international, ex: 237695743455 sans le +). Capacité réelle, connectée à l'API WhatsApp Business de CleanIT.",parameters:{type:"object",properties:{
+    numero:{type:"string",description:"Numéro de téléphone au format international, sans le +, ex: 237695743455"},
+    message:{type:"string"}
+  },required:["numero","message"]}}},
   {type:"function",function:{name:"chercher_technicien",description:"Trouver un technicien disponible",parameters:{type:"object",properties:{competence:{type:"string"},region:{type:"string"}}}}},
   {type:"function",function:{name:"generer_document",description:"Générer un vrai document téléchargeable (lettre Word, tableau Excel, ou présentation PowerPoint) à partir d'un contenu libre. Utilise ça pour toute demande de lettre, courrier, contrat, rapport, tableau de données ou présentation — y compris des sujets qui n'ont rien à voir avec CleanIT si l'utilisateur le demande.",parameters:{type:"object",properties:{
     type:{type:"string",enum:["lettre","excel","presentation"],description:"lettre=document Word, excel=tableau, presentation=PowerPoint"},
@@ -624,6 +631,19 @@ export default function ChaCha() {
                   });
                   result = JSON.stringify({succes:true, message:'Message envoyé'});
                 } else result = JSON.stringify({succes:false, erreur:'Conversation introuvable'});
+              } catch(e) { result = JSON.stringify({succes:false, erreur:e.message}); }
+              break;
+            }
+            case 'envoyer_whatsapp': {
+              try {
+                const tk3 = localStorage.getItem('token');
+                const r = await fetch(BASE_API+'/whatsapp/send', {
+                  method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk3},
+                  body: JSON.stringify({ to: args.numero, message: args.message })
+                });
+                const d = await r.json();
+                if(!r.ok) throw new Error(d.message||'Erreur envoi WhatsApp');
+                result = JSON.stringify({succes:true, message:'Message WhatsApp envoyé', messageId:d.messageId});
               } catch(e) { result = JSON.stringify({succes:false, erreur:e.message}); }
               break;
             }
