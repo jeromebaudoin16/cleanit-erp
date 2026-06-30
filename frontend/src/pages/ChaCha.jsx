@@ -558,12 +558,14 @@ export default function ChaCha() {
 
       while(currentChoice.finish_reason === 'tool_calls' && currentMsg.tool_calls && iterations < MAX_ITERATIONS) {
         iterations++;
+        console.log(`[ChaCha diag] Itération ${iterations} — outils appelés:`, currentMsg.tool_calls.map(tc=>tc.function.name));
         const toolResults = [];
         for(const tc of currentMsg.tool_calls) {
           let args = {};
           try { args = JSON.parse(tc.function.arguments || '{}'); }
           catch { toolResults.push({role:'tool', name:tc.function.name, tool_call_id:tc.id, content:'Erreur: arguments invalides reçus du modèle, réessaie ta demande différemment.'}); continue; }
           let result = '';
+          console.log(`[ChaCha diag] -> ${tc.function.name}`, args);
 
           switch(tc.function.name) {
             case 'naviguer_module':
@@ -677,6 +679,7 @@ export default function ChaCha() {
             default:
               result = 'Action exécutée';
           }
+          console.log(`[ChaCha diag] <- ${tc.function.name} résultat:`, result);
           toolResults.push({role: 'tool', tool_call_id: tc.id, content: result});
         }
 
