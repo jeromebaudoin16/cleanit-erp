@@ -1,6 +1,18 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, Component } from 'react';
 
+// AUTO-RÉPARATION — s'exécute avant tout le reste : nettoie toute entrée localStorage
+// corrompue (ex: la chaîne littérale "undefined" stockée par erreur lors d'un ancien bug),
+// qui sinon ferait planter TOUT le bundle au chargement (avant même que React démarre),
+// peu importe la page visitée.
+(function healLocalStorage() {
+  ['user', 'cleanit_user', 'cit_mobile_user'].forEach(key => {
+    const v = localStorage.getItem(key);
+    if (v === 'undefined' || v === 'null') { localStorage.removeItem(key); return; }
+    if (v) { try { JSON.parse(v); } catch { localStorage.removeItem(key); } }
+  });
+})();
+
 // Redirection automatique vers /mobile sur smartphone — au chargement ET à chaque navigation arrière/avant
 function MobileRedirect() {
   useEffect(() => {

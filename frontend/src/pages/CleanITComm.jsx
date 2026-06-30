@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { getUser as getAuthUser } from '../utils/api';
 
 // ═══════════════════════════════════════════════════════════════════
 //  CLEANIT COMM — Style WeLink Huawei
@@ -97,7 +98,7 @@ const Icon = ({name, size=20, color='currentColor', active=false}) => {
 };
 
 // ── Données ─────────────────────────────────────────────────────────
-const ME = (()=>{ const u=JSON.parse(localStorage.getItem('user')||'{}'); return {id:String(u.id||'me'),nom:(u.firstName||'')+(u.lastName?' '+u.lastName:''),avatar:(u.firstName?.[0]||'?')+(u.lastName?.[0]||''),couleur:'#1B4F8A',poste:u.role==='admin'?'Administrateur':u.role==='project_manager'?'Project Manager':u.role==='hr'?'RH':'Technicien',email:u.email||''}; })();
+const ME = (()=>{ let u={}; try{u=(getAuthUser()||{})||{};}catch{u={};} return {id:String(u.id||'me'),nom:(u.firstName||'')+(u.lastName?' '+u.lastName:''),avatar:(u.firstName?.[0]||'?')+(u.lastName?.[0]||''),couleur:'#1B4F8A',poste:u.role==='admin'?'Administrateur':u.role==='project_manager'?'Project Manager':u.role==='hr'?'RH':'Technicien',email:u.email||''}; })();
 
 const CONTACTS = [
   // Utilisateurs chargés depuis l'API
@@ -328,7 +329,7 @@ const SectionChat = ({navigate, onUnreadChange}) => {
   const BASE = 'https://backend-cleanit-erp.vercel.app';
 
   const startCall = async (type, withUser) => {
-    const myId = JSON.parse(localStorage.getItem('user')||'{}').id;
+    const myId = (getAuthUser()||{}).id;
     const room = `CleanIT-dm-${[myId, withUser?.id].sort((a,b)=>a-b).join('-')}`;
     try {
       const r = await fetch(BASE+'/calls/initiate', {
@@ -370,7 +371,7 @@ const SectionChat = ({navigate, onUnreadChange}) => {
   useEffect(() => {
     const fetchConvs = async () => {
       const token = localStorage.getItem('token');
-      const myId = JSON.parse(localStorage.getItem('user')||'{}').id;
+      const myId = (getAuthUser()||{}).id;
       try {
         const data = await fetch(BASE+'/conversations/list', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[]);
         if(Array.isArray(data)) {
@@ -482,7 +483,7 @@ const SectionChat = ({navigate, onUnreadChange}) => {
   };
 
   const filtChannels = CHANNELS.filter(c=>!search||c.nom.includes(search.toLowerCase()));
-  const myId = JSON.parse(localStorage.getItem('user')||'{}').id;
+  const myId = (getAuthUser()||{}).id;
   const filtContacts = (realUsers.length > 0 ? realUsers
     .filter(u=>String(u.id)!==String(myId))
     .map(u=>({
@@ -680,8 +681,8 @@ const SectionChat = ({navigate, onUnreadChange}) => {
               </button>
             </div>
             <DailyCall
-              room={inCall.room || `CleanIT-dm-${[JSON.parse(localStorage.getItem('user')||'{}').id, inCall.withUser?.id].sort((a,b)=>a-b).join('-')}`}
-              displayName={JSON.parse(localStorage.getItem('user')||'{}').firstName||'Utilisateur'}
+              room={inCall.room || `CleanIT-dm-${[(getAuthUser()||{}).id, inCall.withUser?.id].sort((a,b)=>a-b).join('-')}`}
+              displayName={(getAuthUser()||{}).firstName||'Utilisateur'}
               audioOnly={inCall.type==='audio'}
               onClose={()=>setInCall(null)}/>
           </div>
@@ -696,7 +697,7 @@ const SectionChat = ({navigate, onUnreadChange}) => {
             </div>
           )}
           {msgs.map((msg,i)=>{
-            const meId = JSON.parse(localStorage.getItem('user')||'{}').id;
+            const meId = (getAuthUser()||{}).id;
             const isMe = isDM ? msg.from_id===meId : msg.uid==='u1';
             const isSys = msg.uid==='system';
             const user = isDM ? {nom:msg.from_name||'?',av:(msg.from_name||'?')[0],couleur:P.blue} : getUser(msg.uid);
@@ -1364,7 +1365,7 @@ const SectionContacts = ({navigate}) => {
   const [contacts, setContacts] = useState([]);
   const [search, setSearch] = useState('');
   const token = localStorage.getItem('token');
-  const meId = JSON.parse(localStorage.getItem('user')||'{}').id;
+  const meId = (getAuthUser()||{}).id;
 
   useEffect(() => {
     const fetchContacts = () => {

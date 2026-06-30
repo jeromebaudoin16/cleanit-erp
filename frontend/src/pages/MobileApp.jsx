@@ -3,6 +3,7 @@ import jsQR from 'jsqr';
 import QRCode from 'qrcode';
 import { AuthAPI, FeedAPI, MissionsAPI } from '../services/api.mobile.js';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { getUser } from '../utils/api';
 import { useInactivityLogout } from '../hooks/useInactivityLogout';
 
 class ErrorBoundary extends Component {
@@ -1466,7 +1467,7 @@ const ScreenMessages = () => {
   const [convos, setConvos] = useState([]);
   const [convId, setConvId] = useState(null);
   const pollRef = useRef(null);
-  const meId = JSON.parse(localStorage.getItem('user')||'{}').id;
+  const meId = (getUser()||{}).id;
   const token = localStorage.getItem('token');
   const BASE = 'https://backend-cleanit-erp.vercel.app';
 
@@ -1487,7 +1488,7 @@ const ScreenMessages = () => {
   useEffect(()=>{
     const fetchOnline = () => {
       const tk = localStorage.getItem('token');
-      const me = JSON.parse(localStorage.getItem('user')||'{}');
+      const me = (getUser()||{});
       fetch('https://backend-cleanit-erp.vercel.app/users/online',{headers:{'Authorization':'Bearer '+tk}})
         .then(r=>r.json()).then(users=>{
           if(!Array.isArray(users)) return;
@@ -1508,7 +1509,7 @@ const ScreenMessages = () => {
   const loadConvList = async () => {
     try {
       const tk = localStorage.getItem('token');
-      const me = JSON.parse(localStorage.getItem('user')||'{}');
+      const me = (getUser()||{});
       const users = await fetch(BASE+'/users/online',{headers:{'Authorization':'Bearer '+tk}}).then(r=>r.json()).catch(()=>[]);
       if(Array.isArray(users)) {
         setContacts(users.filter(u=>u.id!==me.id).map(u=>({
@@ -1579,7 +1580,7 @@ const ScreenMessages = () => {
         </div>
         <button onClick={async ()=>{
             const tk = localStorage.getItem('token');
-            const me = JSON.parse(localStorage.getItem('user')||'{}');
+            const me = (getUser()||{});
             const room = `CleanIT-dm-${[me.id, openConv.otherId].sort((a,b)=>a-b).join('-')}`;
             try {
               const r = await fetch('https://backend-cleanit-erp.vercel.app/calls/initiate',{
@@ -1597,7 +1598,7 @@ const ScreenMessages = () => {
         </button>
         <button onClick={async ()=>{
             const tk = localStorage.getItem('token');
-            const me = JSON.parse(localStorage.getItem('user')||'{}');
+            const me = (getUser()||{});
             const room = `CleanIT-dm-${[me.id, openConv.otherId].sort((a,b)=>a-b).join('-')}`;
             try {
               const r = await fetch('https://backend-cleanit-erp.vercel.app/calls/initiate',{
@@ -1627,7 +1628,7 @@ const ScreenMessages = () => {
       <div style={{flex:1,overflowY:'auto',padding:'12px 14px',
         display:'flex',flexDirection:'column',gap:8,paddingBottom:80}}>
         {chatMsgs.map((m,i)=>{
-          const meId = JSON.parse(localStorage.getItem('user')||'{}').id;
+          const meId = (getUser()||{}).id;
           const isMe = m.from_id ? Number(m.from_id)===Number(meId) : m.from==='me';
           const timeStr = m.created_at
             ? new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
@@ -1673,8 +1674,8 @@ const ScreenMessages = () => {
             </button>
           </div>
           <DailyFrame
-            room={inCall.room||`CleanIT-dm-${[JSON.parse(localStorage.getItem('user')||'{}').id, openConv.otherId].sort((a,b)=>a-b).join('-')}`}
-            displayName={JSON.parse(localStorage.getItem('user')||'{}').firstName}
+            room={inCall.room||`CleanIT-dm-${[(getUser()||{}).id, openConv.otherId].sort((a,b)=>a-b).join('-')}`}
+            displayName={(getUser()||{}).firstName}
             audioOnly={inCall.type==='audio'}/>
         </div>
       )}
@@ -2316,7 +2317,7 @@ const ScreenEquipe = ({user, navigate}) => {
 
   const callUser = async (otherId, type) => {
     const tk = localStorage.getItem('token');
-    const me = JSON.parse(localStorage.getItem('user')||'{}');
+    const me = (getUser()||{});
     const room = `CleanIT-dm-${[me.id, otherId].sort((a,b)=>a-b).join('-')}`;
     try {
       const r = await fetch('https://backend-cleanit-erp.vercel.app/calls/initiate',{
@@ -3018,7 +3019,8 @@ const ScreenProfil = ({user,onLogout}) => {
                   });
                   // Envoyer subscription au backend
                   const token = localStorage.getItem('token');
-                  const pushUser = JSON.parse(localStorage.getItem('user')||localStorage.getItem('cit_mobile_user')||'{}');
+                  let pushUser = {};
+                  try { pushUser = JSON.parse(localStorage.getItem('user')||localStorage.getItem('cit_mobile_user')||'{}'); } catch { pushUser = {}; }
                   await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
