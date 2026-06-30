@@ -350,11 +350,15 @@ export default function ChaCha() {
         }
         case 'projets':
         case 'projects': {
-          const data = await fetch(BASE_API+'/projects',{headers:h}).then(r=>r.json()).catch(()=>[]);
+          // /projects n'existe pas comme route de liste — le vrai tableau de suivi des projets (Planning >
+          // Tableau Projets) lit depuis /bc-sites, c'est la bonne source.
+          const data = await fetch(BASE_API+'/bc-sites',{headers:h}).then(r=>r.json()).catch(()=>[]);
           return JSON.stringify(Array.isArray(data)?data.slice(0,20):[]);
         }
         case 'bons_commande': {
-          const data = await fetch(BASE_API+'/bons-commande',{headers:h}).then(r=>r.json()).catch(()=>[]);
+          // /purchase-orders est le vrai module actif (lié à PurchaseOrders.jsx) — /bons-commande est une route
+          // morte d'un ancien fichier jamais routé dans l'interface, ne pas l'utiliser ici.
+          const data = await fetch(BASE_API+'/purchase-orders',{headers:h}).then(r=>r.json()).catch(()=>[]);
           return JSON.stringify(Array.isArray(data)?data.slice(0,10):[]);
         }
         case 'employes':
