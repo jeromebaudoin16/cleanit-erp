@@ -45,6 +45,10 @@ export default function Parametres(){
   };
 
   const toggleActive = async (u) => {
+    if (u.id === me?.id && u.isActive) {
+      showToast('Tu ne peux pas désactiver ton propre compte.', 'error');
+      return;
+    }
     try {
       await api.put(`/users/${u.id}`, { isActive: !u.isActive });
       showToast(u.isActive ? 'Compte désactivé' : 'Compte activé');
@@ -53,6 +57,10 @@ export default function Parametres(){
   };
 
   const saveEditing = async () => {
+    if (editing.id === me?.id && editing.role !== 'admin') {
+      showToast("Tu ne peux pas retirer ton propre rôle d'administrateur — ça te bloquerait hors de cette page. Demande à un autre admin de le faire si nécessaire.", 'error');
+      return;
+    }
     setSaving(true);
     try {
       await api.put(`/users/${editing.id}`, { role: editing.role, moduleAccess: editing.customAccess ? editing.moduleAccess : null });

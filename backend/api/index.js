@@ -359,7 +359,7 @@ app.post('/auth/register', rateLimit(3, 60000), async (req, res) => {
     const email = sanitize(req.body.email || '').toLowerCase();
     const firstName = sanitize(req.body.firstName || '');
     const lastName = sanitize(req.body.lastName || '');
-    const role = ['terrain', 'bureau', 'pm'].includes(req.body.role) ? req.body.role : 'bureau';
+    const role = ['technician', 'bureau', 'project_manager'].includes(req.body.role) ? req.body.role : 'bureau';
     const password = req.body.password || '';
     if (!email || !password || !firstName) return res.status(400).json({ message: 'Champs requis manquants' });
     if (password.length < 8) return res.status(400).json({ message: 'Mot de passe trop court (min 8 caractères)' });
@@ -421,6 +421,16 @@ app.put('/users/:id', auth, async (req, res) => {
     const uQ = await pool.query('SELECT role FROM users WHERE id=$1',[req.user.sub]);
     const isAdm = ['admin','hr'].includes(uQ.rows[0]?.role);
     if(!isAdm && String(req.user.sub)!==String(id)) return res.status(403).json({message:'Non autorisé'});
+    // Protection : un admin ne peut pas se retirer son propre rôle admin ni se désactiver lui-même
+    // (ça le bloquerait hors de Paramètres sans moyen simple de revenir en arrière).
+    if (String(req.user.sub) === String(id)) {
+      if (req.body.role !== undefined && req.body.role !== 'admin' && uQ.rows[0]?.role === 'admin') {
+        return res.status(400).json({ message: 'Tu ne peux pas retirer ton propre rôle administrateur' });
+      }
+      if (req.body.isActive === false) {
+        return res.status(400).json({ message: 'Tu ne peux pas désactiver ton propre compte' });
+      }
+    }
     const updates = [];
     const values = [];
     let idx = 1;
