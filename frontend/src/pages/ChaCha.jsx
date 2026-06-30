@@ -490,6 +490,54 @@ export default function ChaCha() {
     const userMsg={role:'user',content:msg,ts:Date.now()};
     setMsgs(p=>[...p,userMsg]);
 
+    // ===== GÉNÉRATION DE DOCUMENT — contournement direct, sans dépendre du tool-calling =====
+    // Le modèle (openai/gpt-oss-120b via Groq) répond parfois en texte libre au lieu d'appeler l'outil,
+    // même avec tool_choice forcé sur le nom exact de la fonction — comportement non fiable constaté en test.
+    // Pour cette action précise (création de fichier), on contourne entièrement la décision du modèle :
+    // on lui demande seulement de structurer le contenu en JSON (qu'il suit beaucoup plus fidèlement
+    // qu'un appel de fonction), puis on appelle nous-mêmes la vraie génération du document.
+    const wantsDocDirect = /(lettre|courrier|document|fichier|word|excel|tableau|powerpoint|présentation|diaporama)/i.test(msg)
+      && /(fais|écri|crée|cree|génère|genere|rédige|redige|prépare|prepare|téléchargeable|telechargeable)/i.test(msg);
+    if (wantsDocDirect) {
+      try {
+        const tk4 = localStorage.getItem('token');
+        const classifyPrompt = `Analyse cette demande et réponds UNIQUEMENT avec un objet JSON valide, sans aucun texte autour, sans balises markdown, exactement dans ce format:
+{"type":"lettre","titre":"...","paragraphes":["paragraphe 1","paragraphe 2"]}
+ou pour un tableau:
+{"type":"excel","titre":"...","tableau":{"headers":["col1","col2"],"lignes":[["val1","val2"]]}}
+ou pour une présentation:
+{"type":"presentation","titre":"...","diapositives":[{"titre":"...","points":["point 1","point 2"]}]}
+N'inclus QUE les champs pertinents au type choisi. Rédige un contenu complet et professionnel, pas un brouillon.
+Demande de l'utilisateur: "${msg}"`;
+        const res = await fetch(BASE_API+'/chacha/groq', {
+          method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk4},
+          body: JSON.stringify({ model:'openai/gpt-oss-120b', max_tokens:1200, temperature:0.4,
+            messages:[{role:'user', content: classifyPrompt}] })
+        });
+        const data = await res.json();
+        const raw = data.choices?.[0]?.message?.content || '';
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('Le modèle n\'a pas produit de contenu structuré, réessaie ta demande');
+        const parsed = JSON.parse(jsonMatch[0]);
+        const content = parsed.type==='lettre' ? (parsed.paragraphes||[])
+          : parsed.type==='excel' ? { headers: parsed.tableau?.headers||[], rows: parsed.tableau?.lignes||[] }
+          : (parsed.diapositives||[]).map(d=>({title:d.titre, bullets:d.points||[]}));
+        const r2 = await fetch(BASE_API+'/chacha/generate-document', {
+          method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk4},
+          body: JSON.stringify({ type: parsed.type, title: parsed.titre, content })
+        });
+        const docData = await r2.json();
+        if (!r2.ok) throw new Error(docData.message || 'Erreur de génération');
+        const finalMsg = `Voici votre document : [📄 ${docData.filename}](${docData.url})`;
+        setMsgs(p=>[...p, {role:'assistant', content: finalMsg, ts:Date.now()}]);
+        speak(finalMsg);
+      } catch(err) {
+        setMsgs(p=>[...p, {role:'assistant', content: `Erreur lors de la génération du document: ${err.message}. Réessaie en précisant un peu plus ta demande.`, ts:Date.now()}]);
+      }
+      setLoading(false);
+      return;
+    }
+
     // Détection d'intention par mots-clés : certains modèles (notamment les modèles open-weight
     // via Groq) ignorent parfois tool_choice:"auto" et répondent en texte au lieu d'appeler l'outil
     // pourtant évident. Pour les intentions sans ambiguïté, on force l'appel de la bonne fonction.
@@ -558,14 +606,12 @@ export default function ChaCha() {
 
       while(currentChoice.finish_reason === 'tool_calls' && currentMsg.tool_calls && iterations < MAX_ITERATIONS) {
         iterations++;
-        console.log(`[ChaCha diag] Itération ${iterations} — outils appelés:`, currentMsg.tool_calls.map(tc=>tc.function.name));
         const toolResults = [];
         for(const tc of currentMsg.tool_calls) {
           let args = {};
           try { args = JSON.parse(tc.function.arguments || '{}'); }
           catch { toolResults.push({role:'tool', name:tc.function.name, tool_call_id:tc.id, content:'Erreur: arguments invalides reçus du modèle, réessaie ta demande différemment.'}); continue; }
           let result = '';
-          console.log(`[ChaCha diag] -> ${tc.function.name}`, args);
 
           switch(tc.function.name) {
             case 'naviguer_module':
@@ -679,7 +725,6 @@ export default function ChaCha() {
             default:
               result = 'Action exécutée';
           }
-          console.log(`[ChaCha diag] <- ${tc.function.name} résultat:`, result);
           toolResults.push({role: 'tool', tool_call_id: tc.id, content: result});
         }
 
