@@ -98,7 +98,7 @@ const CHACHA_TOOLS = [
     type:{type:"string",enum:["lettre","excel","presentation"],description:"lettre=document Word, excel=tableau, presentation=PowerPoint"},
     titre:{type:"string",description:"Titre du document"},
     paragraphes:{type:"array",items:{type:"string"},description:"Pour type=lettre : un paragraphe par élément du tableau, dans l'ordre"},
-    tableau:{type:"object",properties:{headers:{type:"array",items:{type:"string"}},lignes:{type:"array",items:{type:"array"}}},description:"Pour type=excel : en-têtes de colonnes + lignes de données"},
+    tableau:{type:"object",properties:{headers:{type:"array",items:{type:"string"}},lignes:{type:"array",items:{type:"array",items:{type:"string"}}}},description:"Pour type=excel : en-têtes de colonnes + lignes de données (chaque ligne est un tableau de valeurs texte)"},
     diapositives:{type:"array",items:{type:"object",properties:{titre:{type:"string"},points:{type:"array",items:{type:"string"}}}},description:"Pour type=presentation : une diapositive par élément, avec son titre et ses puces"}
   },required:["type","titre"]}}},
   {type:"function",function:{name:"analyser_bon_commande",description:"Structurer les données extraites d'un Bon de Commande importé (Excel ou PDF) après que l'utilisateur a uploadé un fichier",parameters:{type:"object",properties:{
