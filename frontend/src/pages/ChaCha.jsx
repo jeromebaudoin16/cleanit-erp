@@ -529,6 +529,7 @@ export default function ChaCha() {
       let finalText = '';
       let iterations = 0;
       const MAX_ITERATIONS = 6;
+      const generatedDocs = []; // accumule les liens de documents générés, peu importe l'itération — au cas où le modèle ne les reformule pas dans sa réponse finale
 
       while(currentChoice.finish_reason === 'tool_calls' && currentMsg.tool_calls && iterations < MAX_ITERATIONS) {
         iterations++;
@@ -582,6 +583,7 @@ export default function ChaCha() {
                 const data = await r.json();
                 if (!r.ok) throw new Error(data.message || 'Erreur de génération');
                 result = `Document généré : [📄 ${data.filename}](${data.url})`;
+                generatedDocs.push(result);
               } catch (err) {
                 result = `Erreur lors de la génération du document: ${err.message}`;
               }
@@ -695,7 +697,12 @@ export default function ChaCha() {
       if(iterations >= MAX_ITERATIONS && currentChoice.finish_reason === 'tool_calls') {
         finalText = (finalText||'') + '\n\n(Certaines étapes supplémentaires nécessitent une vérification manuelle — limite de sécurité atteinte.)';
       }
-      if(!finalText) finalText = 'Action effectuée.';
+      if(!finalText && generatedDocs.length === 0) finalText = 'Action effectuée.';
+      // Filet de sécurité: si un document a été généré mais que le modèle ne l'a pas mentionné
+      // dans sa réponse finale, on l'ajoute quand même — l'utilisateur ne doit jamais perdre un lien valide.
+      for (const docLine of generatedDocs) {
+        if (!finalText.includes(docLine)) finalText += (finalText ? '\n\n' : '') + docLine;
+      }
       setMsgs(p=>[...p, {role:'assistant', content:finalText, ts:Date.now()}]);
       speak(finalText);
 
