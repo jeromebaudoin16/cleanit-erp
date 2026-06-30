@@ -30,15 +30,6 @@ const Badge = ({statut}) => {
   return <span style={{fontSize:11,padding:'3px 10px',borderRadius:20,background:ss.bg,color:ss.c,fontWeight:600}}>{statut==='Termine'?'Termine':statut}</span>;
 };
 
-const SEED = [
-  {id:1,name:'DLA-001 Tour MTN Bassa',client:'MTN Cameroun',region:'Douala',statut:'En cours',lastActivity:3,chefProjet:'Marie Kamga',respClient:'Alain Fouda (MTN)',chefTerrain:'Thomas Ngono',lat:4.0511,lng:9.7679,techs:[{n:'Ali Moussa',r:'Technicien fibre'},{n:'Jean Mbarga',r:'Electricien'}],materiels:[{nom:'Antennes 4G Huawei',qte:4,unite:'unites'},{nom:'Cables coaxiaux RG8',qte:120,unite:'m'},{nom:'Onduleur 5KVA',qte:1,unite:'unite'}],history:[{date:'2024-01-15',desc:'Maintenance preventive'},{date:'2023-06-10',desc:'Installation antennes 4G'},{date:'2022-11-03',desc:'Deploiement initial'}]},
-  {id:2,name:'YDE-001 Pylone Orange Essos',client:'Orange Cameroun',region:'Yaounde',statut:'En attente',lastActivity:20,chefProjet:'Pierre Etoga',respClient:'Claude Mvondo (Orange)',chefTerrain:'Pierre Etoga',lat:3.8480,lng:11.5021,techs:[{n:'Samuel Djomo',r:'Chef equipe'}],materiels:[{nom:'Cables fibre G657',qte:500,unite:'m'},{nom:'Boitiers jonction',qte:8,unite:'unites'}],history:[]},
-  {id:3,name:'KRI-001 Station CAMTEL Kribi',client:'CAMTEL',region:'Kribi',statut:'Termine',lastActivity:45,chefProjet:'Marie Kamga',respClient:'Ibrahim Sali (CAMTEL)',chefTerrain:'Thomas Ngono',lat:2.9395,lng:9.9062,techs:[{n:'Ali Moussa',r:'Technicien senior'},{n:'Samuel Djomo',r:'Technicien'}],materiels:[{nom:'Equipements Cisco',qte:3,unite:'unites'},{nom:'Cables fibre SM',qte:2000,unite:'m'}],history:[{date:'2024-03-20',desc:'Remplacement equipements'},{date:'2023-08-14',desc:'Extension reseau'},{date:'2022-11-01',desc:'Deploiement fibre'}]},
-  {id:4,name:'GRA-001 Tour MTN Garoua',client:'MTN Cameroun',region:'Garoua',statut:'En cours',lastActivity:1,chefProjet:'Pierre Etoga',respClient:'Alain Fouda (MTN)',chefTerrain:'Pierre Etoga',lat:9.3013,lng:13.3924,techs:[{n:'Jean Mbarga',r:'Technicien'}],materiels:[{nom:'Antennes directionnelles',qte:6,unite:'unites'},{nom:'Cables alimentation',qte:80,unite:'m'}],history:[{date:'2023-12-05',desc:'Installation initiale'}]},
-  {id:5,name:'DLA-002 Pylone Orange Akwa',client:'Orange Cameroun',region:'Douala',statut:'En cours',lastActivity:8,chefProjet:'Marie Kamga',respClient:'Claude Mvondo (Orange)',chefTerrain:'Thomas Ngono',lat:4.0478,lng:9.6952,techs:[{n:'Ali Moussa',r:'Technicien fibre'}],materiels:[{nom:'Cables ADSS',qte:300,unite:'m'},{nom:'Pinces ancrage',qte:12,unite:'unites'}],history:[{date:'2024-02-18',desc:'Maintenance corrective'}]},
-  {id:6,name:'BAF-001 Station CAMTEL Bafoussam',client:'CAMTEL',region:'Bafoussam',statut:'En attente',lastActivity:35,chefProjet:'Pierre Etoga',respClient:'Ibrahim Sali (CAMTEL)',chefTerrain:'',lat:5.4734,lng:10.4178,techs:[],materiels:[],history:[]},
-];
-
 const TABS = [
   {id:'infos',   label:'Informations', icon:'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'},
   {id:'techs',   label:'Techniciens',  icon:'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0'},
@@ -179,12 +170,8 @@ export default function Sites(){
     setLoading(true);
     try {
       const res = await api.get('/sites');
-      if(res.data&&res.data.length>0){
-        setSites(res.data);
-      } else {
-        setSites(SEED);
-      }
-    } catch { setSites(SEED); }
+      setSites(Array.isArray(res.data) ? res.data : []);
+    } catch { setSites([]); }
     setLoading(false);
   };
 

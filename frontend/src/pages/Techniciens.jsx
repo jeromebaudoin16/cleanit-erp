@@ -26,94 +26,6 @@ const CS = {
 const DI = { pdf:'PDF', xlsx:'XLS', zip:'ZIP', doc:'DOC' };
 const fN = n => new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
 
-const SEED = [
-  { id:1, initials:'AM', name:'Ali Moussa', role:'Technicien fibre', region:'Douala',
-    statut:'Disponible', phone:'655 001 122', email:'ali.moussa@cleanit.cm', missions:12, sites_count:3, debut:'Mars 2022',
-    pos:'DLA-001, Bassa — 4.0511N 9.7679E · Hier 17h32',
-    certs:[{n:'Travail en hauteur',e:'2024-12-15',s:'expire'},{n:'Habilitation H2B2',e:'2025-08-20',s:'ok'},{n:'Fibre FTTH',e:'2025-11-30',s:'ok'}],
-    sites:[
-      {n:'DLA-001 Tour MTN Bassa',cl:'MTN',role:'Tech. principal',p:450000,d:0,dt:'Jan 2024',
-       resp:{n:'Alain Fouda',r:'Resp. Réseau MTN',t:'679 000 001',em:'a.fouda@mtn.cm'},
-       pm:{n:'Marie Kamga',r:'Chef projet CleanIT'},ct:{n:'Thomas Ngono'},per:'15 Jan - 28 Jan 2024',reg:'Bassa, Douala',
-       docs:[{n:'Bon de commande MTN-DLA001',t:'pdf',s:'245 Ko',d:'12 Jan 2024'},{n:'Contrat signé',t:'pdf',s:'1.2 Mo',d:'13 Jan 2024'},{n:'PV réception',t:'pdf',s:'380 Ko',d:'28 Jan 2024'},{n:'Photos livraison',t:'zip',s:'8.4 Mo',d:'28 Jan 2024'}]},
-      {n:'KRI-001 Station CAMTEL Kribi',cl:'CAMTEL',role:'Tech. senior',p:380000,d:120000,dt:'Nov 2023',
-       resp:{n:'Ibrahim Sali',r:'Dir. Technique CAMTEL',t:'677 200 003',em:'i.sali@camtel.cm'},
-       pm:{n:'Marie Kamga',r:'Chef projet CleanIT'},ct:{n:'Thomas Ngono'},per:'01 Nov - 22 Nov 2023',reg:'Kribi',
-       docs:[{n:'Bon de commande CAMTEL-KRI001',t:'pdf',s:'198 Ko',d:'28 Oct 2023'},{n:'Contrat prestation',t:'pdf',s:'980 Ko',d:'30 Oct 2023'},{n:'PV réception partiel',t:'pdf',s:'290 Ko',d:'22 Nov 2023'}]},
-      {n:'DLA-002 Pylône Orange Akwa',cl:'Orange',role:'Tech. fibre',p:290000,d:0,dt:'Fév 2024',
-       resp:{n:'Claude Mvondo',r:'Chef projet Orange',t:'699 300 002',em:'c.mvondo@orange.cm'},
-       pm:{n:'Pierre Etoga',r:'Chef projet CleanIT'},ct:{n:'Pierre Etoga'},per:'10 Fév - 18 Fév 2024',reg:'Akwa, Douala',
-       docs:[{n:'Bon de commande Orange-DLA002',t:'pdf',s:'167 Ko',d:'08 Fév 2024'},{n:'Rapport technique',t:'pdf',s:'440 Ko',d:'18 Fév 2024'}]},
-    ],
-    feed:[
-      {ty:'photo',dt:'Aujourd\'hui 08:32',li:'DLA-001, Bassa — 4.0511N 9.7679E',tx:'Arrivée sur site — photos état initial',ph:3},
-      {ty:'msg',dt:'Hier 16:45',canal:'#DLA-001',tx:'Câbles posés au secteur Nord. En attente validation chef terrain.'},
-      {ty:'photo',dt:'Hier 09:10',li:'DLA-001, Bassa — 4.0511N 9.7679E',tx:'Installation antenne secteur Nord phase 2',ph:2},
-      {ty:'inter',dt:'12 mai 2025',tx:'Intervention terminée — DLA-001 phase 2',det:'Durée: 6h · Statut: Complet'},
-      {ty:'msg',dt:'11 mai 11:20',canal:'#general',tx:'Disponible demain matin pour renfort si besoin.'},
-      {ty:'checkin',dt:'10 mai 07:58',li:'DLA-002, Akwa — 4.0478N 9.6952E',tx:'Pointage arrivée sur site'},
-    ]},
-  { id:2, initials:'JM', name:'Jean Mbarga', role:'Électricien', region:'Douala',
-    statut:'En mission', phone:'677 334 455', email:'jean.mbarga@cleanit.cm', missions:8, sites_count:2, debut:'Juin 2023',
-    pos:'GRA-001, Garoua — 9.3013N 13.3924E · Aujourd\'hui 09h15',
-    certs:[{n:'Habilitation H2B2',e:'2025-03-10',s:'expire_soon'},{n:'CACES R386',e:'2026-01-15',s:'ok'}],
-    sites:[
-      {n:'DLA-001 Tour MTN Bassa',cl:'MTN',role:'Électricien',p:320000,d:80000,dt:'Jan 2024',
-       resp:{n:'Alain Fouda',r:'Resp. Réseau MTN',t:'679 000 001',em:'a.fouda@mtn.cm'},
-       pm:{n:'Marie Kamga',r:'Chef projet CleanIT'},ct:{n:'Thomas Ngono'},per:'15 Jan - 28 Jan 2024',reg:'Bassa, Douala',
-       docs:[{n:'Bon de commande MTN-DLA001',t:'pdf',s:'245 Ko',d:'12 Jan 2024'},{n:'PV réception',t:'pdf',s:'380 Ko',d:'28 Jan 2024'}]},
-      {n:'GRA-001 Tour MTN Garoua',cl:'MTN',role:'Électricien',p:410000,d:0,dt:'Déc 2023',
-       resp:{n:'Alain Fouda',r:'Resp. Réseau MTN',t:'679 000 001',em:'a.fouda@mtn.cm'},
-       pm:{n:'Pierre Etoga',r:'Chef projet CleanIT'},ct:{n:'Pierre Etoga'},per:'01 Déc - 20 Déc 2023',reg:'Garoua Nord',
-       docs:[{n:'Bon de commande MTN-GRA001',t:'pdf',s:'211 Ko',d:'28 Nov 2023'},{n:'Rapport intervention',t:'pdf',s:'410 Ko',d:'20 Déc 2023'}]},
-    ],
-    feed:[
-      {ty:'checkin',dt:'Aujourd\'hui 07:45',li:'GRA-001, Garoua — 9.3013N 13.3924E',tx:'Pointage arrivée sur site'},
-      {ty:'msg',dt:'Hier 18:00',canal:'#GRA-001',tx:'Coupure secteur détectée. Reprise travaux demain 6h.'},
-      {ty:'photo',dt:'Hier 14:20',li:'GRA-001, Garoua — 9.3013N 13.3924E',tx:'État câblage avant intervention',ph:2},
-      {ty:'inter',dt:'13 mai 2025',tx:'Remplacement transformateur — en cours',det:'Durée estimée: 2 jours · En cours'},
-    ]},
-  { id:3, initials:'SD', name:'Samuel Djomo', role:'Chef équipe', region:'Yaoundé',
-    statut:'Disponible', phone:'699 887 766', email:'samuel.djomo@cleanit.cm', missions:15, sites_count:2, debut:'Jan 2022',
-    pos:'Siège CleanIT, Yaoundé — 3.8667N 11.5167E · Aujourd\'hui 08h00',
-    certs:[{n:'Management chantier',e:'2026-06-01',s:'ok'},{n:'Travail en hauteur',e:'2025-07-30',s:'ok'},{n:'Habilitation électrique',e:'2025-02-28',s:'expire'}],
-    sites:[
-      {n:'YDE-001 Pylône Orange Essos',cl:'Orange',role:'Chef équipe',p:550000,d:0,dt:'Mar 2024',
-       resp:{n:'Claude Mvondo',r:'Chef projet Orange',t:'699 300 002',em:'c.mvondo@orange.cm'},
-       pm:{n:'Marie Kamga',r:'Chef projet CleanIT'},ct:{n:'Samuel Djomo'},per:'01 Mar - 25 Mar 2024',reg:'Essos, Yaoundé',
-       docs:[{n:'Bon de commande Orange-YDE001',t:'pdf',s:'178 Ko',d:'27 Fév 2024'},{n:'PV livraison final',t:'pdf',s:'310 Ko',d:'25 Mar 2024'}]},
-      {n:'KRI-001 Station CAMTEL Kribi',cl:'CAMTEL',role:'Chef équipe',p:620000,d:0,dt:'Nov 2022',
-       resp:{n:'Ibrahim Sali',r:'Dir. Technique CAMTEL',t:'677 200 003',em:'i.sali@camtel.cm'},
-       pm:{n:'Marie Kamga',r:'Chef projet CleanIT'},ct:{n:'Samuel Djomo'},per:'01 Nov - 30 Nov 2022',reg:'Kribi',
-       docs:[{n:'Bon de commande CAMTEL-KRI001',t:'pdf',s:'195 Ko',d:'28 Oct 2022'},{n:'Rapport final',t:'pdf',s:'520 Ko',d:'30 Nov 2022'}]},
-    ],
-    feed:[
-      {ty:'msg',dt:'Aujourd\'hui 09:00',canal:'#general',tx:'Disponible cette semaine pour nouvelles missions.'},
-      {ty:'inter',dt:'8 mai 2025',tx:'Mission YDE-001 terminée et validée',det:'Durée: 14 jours · Livraison acceptée'},
-      {ty:'photo',dt:'7 mai 16:30',li:'YDE-001, Essos — 3.848N 11.502E',tx:'Photos finales livraison site',ph:3},
-      {ty:'msg',dt:'6 mai 11:00',canal:'#YDE-001',tx:'Dernier câble raccordé. Test signal en cours.'},
-    ]},
-  { id:4, initials:'PE', name:'Pierre Etoga', role:'Chef terrain', region:'Douala',
-    statut:'Disponible', phone:'677 112 233', email:'pierre.etoga@cleanit.cm', missions:20, sites_count:3, debut:'Sep 2021',
-    pos:'Siège CleanIT, Douala — 4.0511N 9.7679E · Aujourd\'hui 07h30',
-    certs:[{n:'Chef chantier télécom',e:'2026-03-15',s:'ok'},{n:'CACES R482',e:'2025-09-20',s:'ok'},{n:'Travail en hauteur',e:'2025-12-10',s:'ok'}],
-    sites:[
-      {n:'GRA-001 Tour MTN Garoua',cl:'MTN',role:'Chef terrain',p:780000,d:200000,dt:'Déc 2023',
-       resp:{n:'Alain Fouda',r:'Resp. Réseau MTN',t:'679 000 001',em:'a.fouda@mtn.cm'},
-       pm:{n:'Pierre Etoga',r:'Chef projet CleanIT'},ct:{n:'Pierre Etoga'},per:'01 Déc - 20 Déc 2023',reg:'Garoua Nord',
-       docs:[{n:'Bon de commande MTN-GRA001',t:'pdf',s:'211 Ko',d:'28 Nov 2023'},{n:'Contrat',t:'pdf',s:'870 Ko',d:'29 Nov 2023'}]},
-      {n:'DLA-002 Pylône Orange Akwa',cl:'Orange',role:'Chef terrain',p:450000,d:0,dt:'Fév 2024',
-       resp:{n:'Claude Mvondo',r:'Chef projet Orange',t:'699 300 002',em:'c.mvondo@orange.cm'},
-       pm:{n:'Pierre Etoga',r:'Chef projet CleanIT'},ct:{n:'Pierre Etoga'},per:'10 Fév - 18 Fév 2024',reg:'Akwa, Douala',
-       docs:[{n:'Bon de commande',t:'pdf',s:'167 Ko',d:'08 Fév 2024'},{n:'Rapport final',t:'pdf',s:'440 Ko',d:'18 Fév 2024'}]},
-    ],
-    feed:[
-      {ty:'msg',dt:'Hier 14:30',canal:'#chefs-terrain',tx:'Planning semaine 21 confirmé. Départ BAF-001 lundi 06h.'},
-      {ty:'checkin',dt:'12 mai 08:00',li:'BAF-001, Bafoussam — 5.4734N 10.4178E',tx:'Inspection pré-chantier BAF-001'},
-      {ty:'photo',dt:'10 mai 09:45',li:'BAF-001, Bafoussam — 5.4734N 10.4178E',tx:'État initial du site avant travaux',ph:3},
-      {ty:'msg',dt:'9 mai 17:00',canal:'#general',tx:'Rapport journalier envoyé. Avancement conforme.'},
-    ]},
-];
 
 function SiteSheet({ site, tech, onBack }) {
   return (
@@ -193,7 +105,8 @@ function DetailPage({ tech, onBack, showAddCert=false, setShowAddCert=()=>{}, ne
 
   const tp = (tech.sites||[]).reduce((s,x)=>s+x.p,0);
   const td = (tech.sites||[]).reduce((s,x)=>s+x.d,0);
-  const approvalsPay = React.useMemo(()=>loadApprovalsPaiements(tech.name),[tech.name]);
+  const [approvalsPay, setApprovalsPay] = React.useState([]);
+  React.useEffect(() => { loadApprovalsPaiements(tech.name).then(setApprovalsPay); }, [tech.name]);
   const aPaid = approvalsPay.filter(i=>i.status==='paid').reduce((s,i)=>s+(i.amount||0),0);
   const aPending = approvalsPay.filter(i=>['pending','approved'].includes(i.status)).reduce((s,i)=>s+(i.amount||0),0);
   const totalPercu = tp + aPaid;
@@ -454,27 +367,22 @@ function DetailPage({ tech, onBack, showAddCert=false, setShowAddCert=()=>{}, ne
 }
 
 
-// Charger les paiements Approvals pour un technicien depuis localStorage
-const APPROVALS_SEED=[
-  {id:'APV-001',title:'T46 — Installation 5G Phase 1',beneficiaryName:'Thomas Ngono',amount:18500000,status:'paid',type:'payment_request',site:'T46',project:'DWDM',bcPo:'416121376123-2',submittedAt:'2025-05-12T09:00:00',paidAt:'2025-05-15T14:00:00',paymentRef:'VIR-2025-042'},
-  {id:'APV-002',title:'T181 — IP Core Switch',beneficiaryName:'Thomas Ngono',amount:6200000,status:'approved',type:'payment_request',site:'T181',project:'IP CORE',bcPo:'416121016354-58',submittedAt:'2025-05-18T10:00:00'},
-  {id:'APV-003',title:'T265 — MW Link Installation',beneficiaryName:'Pierre Etoga',amount:8500000,status:'paid',type:'payment_request',site:'T265',project:'MPBN',bcPo:'4161HG3336731-43',submittedAt:'2025-05-10T09:00:00',paidAt:'2025-05-14T11:00:00',paymentRef:'VIR-2025-038'},
-  {id:'APV-004',title:'GRA-001 — Maintenance',beneficiaryName:'Samuel Djomo',amount:5500000,status:'pending',type:'payment_request',site:'GRA-001',project:'OSS',submittedAt:'2025-05-20T08:00:00'},
-  {id:'APV-005',title:'T265 — Extra travaux',beneficiaryName:'Thomas Ngono',amount:2000000,status:'rejected',type:'payment_request',site:'T265',project:'MPBN',submittedAt:'2025-05-16T14:00:00'},
-  {id:'APV-006',title:'T46 — Transport matériel',beneficiaryName:'Pierre Etoga',amount:1200000,status:'approved',type:'payment_request',site:'T46',project:'DWDM',submittedAt:'2025-05-19T10:00:00'},
-  {id:'APV-007',title:'T003 — Far North déplacement',beneficiaryName:'Samuel Djomo',amount:3200000,status:'paid',type:'payment_request',site:'T003',project:'OSS',submittedAt:'2025-05-05T09:00:00',paidAt:'2025-05-08T16:00:00',paymentRef:'VIR-2025-031'},
-];
-function loadApprovalsPaiements(techName) {
+// Charger l'historique réel des demandes de paiement Approvals pour un technicien, depuis le backend
+async function loadApprovalsPaiements(techName) {
   try {
-    const stored = localStorage.getItem('cleanit_approvals_cache');
-    const items = stored ? JSON.parse(stored) : APPROVALS_SEED;
-    const merged = [...APPROVALS_SEED, ...(items.filter(i=>!APPROVALS_SEED.find(s=>s.id===i.id)))];
-    return merged.filter(i => i.type === 'payment_request' && i.beneficiaryName === techName);
-  } catch { return APPROVALS_SEED.filter(i=>i.beneficiaryName===techName); }
+    const token = localStorage.getItem('token');
+    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    const res = await fetch(base + '/approvals', { headers: { 'Authorization': 'Bearer ' + token } });
+    const rows = await res.json();
+    if (!Array.isArray(rows)) return [];
+    return rows
+      .filter(r => r.type === 'payment_request' && r.beneficiary_name === techName)
+      .map(r => ({ id: r.id, status: r.status, amount: parseFloat(r.amount) || 0 }));
+  } catch { return []; }
 }
 
 export default function Techniciens() {
-  const [techs, setTechs] = useState(SEED);
+  const [techs, setTechs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
   const [showAddCert, setShowAddCert] = useState(false);
@@ -491,9 +399,10 @@ export default function Techniciens() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    setLoading(true);
     api.get('/technicians').then(res => {
-      if(Array.isArray(res.data) && res.data.length > 0) setTechs(res.data);
-    }).catch(() => {});
+      setTechs(Array.isArray(res.data) ? res.data : []);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const saveCert = async (techId, certs) => {
