@@ -490,9 +490,27 @@ export default function ChaCha() {
     const userMsg={role:'user',content:msg,ts:Date.now()};
     setMsgs(p=>[...p,userMsg]);
 
+    // Détection d'intention par mots-clés : certains modèles (notamment les modèles open-weight
+    // via Groq) ignorent parfois tool_choice:"auto" et répondent en texte au lieu d'appeler l'outil
+    // pourtant évident. Pour les intentions sans ambiguïté, on force l'appel de la bonne fonction.
+    const detectForcedTool = (text) => {
+      const t = text.toLowerCase();
+      const wantsDoc = /(lettre|courrier|document|fichier|word|excel|tableau|powerpoint|présentation|diaporama)/.test(t)
+        && /(fais|écri|crée|génère|rédige|prépare|téléchargeable)/.test(t);
+      if (wantsDoc) return { type: 'function', function: { name: 'generer_document' } };
+      // WhatsApp : on ne force l'outil QUE si un vrai numéro (8 chiffres ou plus) est présent dans le
+      // message — sinon le modèle, forcé d'appeler l'outil, inventerait un numéro pour remplir le champ
+      // obligatoire, ce qui enverrait un vrai message à un faux destinataire.
+      const hasPhoneNumber = /\d{8,}/.test(t.replace(/[\s\-().]/g, ''));
+      const wantsWhatsapp = /whatsapp/.test(t) && /(envoi|envoie|message)/.test(t) && hasPhoneNumber;
+      if (wantsWhatsapp) return { type: 'function', function: { name: 'envoyer_whatsapp' } };
+      return 'auto';
+    };
+
     try {
       const history=msgs.slice(-12).map(m=>({role:m.role,content:m.content}));
       history.push({role:'user',content:msg});
+      const forcedChoice = detectForcedTool(msg);
 
       // ===== GROQ TOOL USE (avec fallback Gemini si Groq échoue) — via proxy backend, clé jamais exposée =====
       let choice, assistantMsg, usingGemini = false;
@@ -508,7 +526,7 @@ export default function ChaCha() {
             model: 'openai/gpt-oss-120b',
             messages: [{role:'system', content:SYSTEM}, ...history],
             tools: CHACHA_TOOLS,
-            tool_choice: 'auto',
+            tool_choice: forcedChoice,
             max_tokens: 800,
             temperature: 0.3
           })
