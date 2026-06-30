@@ -8,40 +8,47 @@ const fD=d=>d?new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short
 const Icon=({d,size=16,color='currentColor'})=>(<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>{d.split(' M').map((s,i)=><path key={i} d={i===0?s:`M ${s}`}/>)}</svg>);
 const IC={cash:'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1 M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',audit:'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2 M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2 M12 12h4 M12 16h4 M8 12h.01 M8 16h.01',encaisse:'M3 10h18 M7 15h1m4 0h1m-7 4h12a3 3 0 0 0 3-3V8a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3z',tva:'M9 14l6-6m-5.5.5h.01m4.99 5h.01 M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z',export:'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3',check:'M20 6 9 17l-5-5',up:'M7 17l9.2-9.2 M17 17V7H7',down:'M17 7l-9.2 9.2 M7 7v10h10',bell:'M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9 M13.73 21a2 2 0 0 1-3.46 0'};
 const STATUT={pending:{label:'En attente',bg:C.orange_l,c:C.orange},approved:{label:'Approuvé',bg:C.blue_l,c:C.blue_d},paid:{label:'Payé ✓',bg:C.green_l,c:C.green},rejected:{label:'Rejeté',bg:C.red_l,c:C.red},draft:{label:'Brouillon',bg:C.border2,c:C.text3}};
-const TRDATA=[{m:'Jan',e:45000000,s:32000000},{m:'Fév',e:52000000,s:38000000},{m:'Mar',e:38000000,s:41000000},{m:'Avr',e:65000000,s:44000000},{m:'Mai',e:58000000,s:35000000},{m:'Jun',e:72000000,s:48000000}];
-const SEED=[
-  {id:'APV-001',title:'T46 — Installation 5G Phase 1',beneficiaryName:'Thomas Ngono',beneficiaryType:'collab',beneficiaryBank:'BICEC',beneficiaryAccount:'CM21 1001 2345',amount:18500000,status:'paid',type:'payment_request',site:'T46',project:'DWDM',bcPo:'416121376123-2',bcDuid:'ON-OSN9800-T46-031',submittedBy:'Marie Kamga',submittedAt:'2025-05-12T09:00:00',paidAt:'2025-05-15T14:00:00',paymentRef:'VIR-2025-042'},
-  {id:'APV-002',title:'T181 — IP Core Switch',beneficiaryName:'Thomas Ngono',beneficiaryType:'collab',beneficiaryBank:'BICEC',beneficiaryAccount:'CM21 1001 2345',amount:6200000,status:'approved',type:'payment_request',site:'T181',project:'IP CORE',bcPo:'416121016354-58',submittedBy:'Marie Kamga',submittedAt:'2025-05-18T10:00:00'},
-  {id:'APV-003',title:'T265 — MW Link Installation',beneficiaryName:'Pierre Etoga',beneficiaryType:'collab',beneficiaryBank:'SGC',beneficiaryAccount:'CM21 2002 6789',amount:8500000,status:'paid',type:'payment_request',site:'T265',project:'MPBN',bcPo:'4161HG3336731-43',submittedBy:'Marie Kamga',submittedAt:'2025-05-10T09:00:00',paidAt:'2025-05-14T11:00:00',paymentRef:'VIR-2025-038'},
-  {id:'APV-004',title:'GRA-001 — Maintenance préventive',beneficiaryName:'Samuel Djomo',beneficiaryType:'collab',beneficiaryBank:'Afriland',beneficiaryAccount:'CM21 3003 4567',amount:5500000,status:'pending',type:'payment_request',site:'GRA-001',project:'OSS',submittedBy:'Thomas Ngono',submittedAt:'2025-05-20T08:00:00'},
-  {id:'APV-005',title:'T265 — Extra travaux',beneficiaryName:'Thomas Ngono',beneficiaryType:'collab',amount:2000000,status:'rejected',type:'payment_request',site:'T265',project:'MPBN',submittedBy:'Marie Kamga',submittedAt:'2025-05-16T14:00:00'},
-  {id:'APV-006',title:'T46 — Transport matériel',beneficiaryName:'Pierre Etoga',beneficiaryType:'collab',beneficiaryBank:'SGC',amount:1200000,status:'approved',type:'payment_request',site:'T46',project:'DWDM',submittedBy:'Marie Kamga',submittedAt:'2025-05-19T10:00:00'},
-  {id:'APV-007',title:'T003 — Far North déplacement',beneficiaryName:'Samuel Djomo',beneficiaryType:'collab',beneficiaryBank:'Afriland',amount:3200000,status:'paid',type:'payment_request',site:'T003',project:'OSS',submittedBy:'Marie Kamga',submittedAt:'2025-05-05T09:00:00',paidAt:'2025-05-08T16:00:00',paymentRef:'VIR-2025-031'},
-  {id:'APV-008',title:'Loyer bureaux Douala — Mai',beneficiaryName:'SCI Immobilier Douala',beneficiaryType:'autre',amount:850000,status:'paid',type:'payment_request',submittedBy:'Finance',submittedAt:'2025-05-01T09:00:00',paidAt:'2025-05-02T10:00:00',paymentRef:'VIR-2025-028'},
-];
+function TabTresorerie({items}){
+  const pay = (items||[]).filter(i=>i.type==='payment_request');
+  const now = new Date();
+  const thisMonth = now.getMonth(), thisYear = now.getFullYear();
+  const inMonth = d => { if(!d) return false; const dt=new Date(d); return dt.getMonth()===thisMonth && dt.getFullYear()===thisYear; };
+  const sortiesMois = pay.filter(i=>i.status==='paid' && inMonth(i.paidAt||i.paid_at)).reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
+  const enAttenteVirement = pay.filter(i=>i.status==='approved').reduce((s,i)=>s+(parseFloat(i.amount)||0),0);
 
-function loadItems(){
-  try{const s=localStorage.getItem('cleanit_approvals_cache');if(s){const d=JSON.parse(s);if(d?.length>0)return d;}}catch{}
-  return SEED;
-}
+  // Tendance réelle des sorties (paiements effectués) sur les 6 derniers mois, calculée à partir des vraies données
+  const monthLabels = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+  const trend = [];
+  for(let i=5;i>=0;i--){
+    const d = new Date(thisYear, thisMonth-i, 1);
+    const sum = pay.filter(p=>{ const pd=p.paidAt||p.paid_at; if(!pd||p.status!=='paid') return false; const dt=new Date(pd); return dt.getMonth()===d.getMonth()&&dt.getFullYear()===d.getFullYear(); })
+      .reduce((s,p)=>s+(parseFloat(p.amount)||0),0);
+    trend.push({m: monthLabels[d.getMonth()], s: sum});
+  }
 
-function TabTresorerie(){
+  const KPI_CARDS = [
+    [null,'Solde du jour',C.green,IC.cash,'Non disponible — nécessite une connexion au compte bancaire réel'],
+    [fN(sortiesMois),'Sorties ce mois',C.orange,IC.down,'Paiements effectués (réel)'],
+    [fN(enAttenteVirement),'Paiements approuvés',C.purple,IC.audit,'En attente de virement (réel)'],
+    [null,'Entrées ce mois',C.blue,IC.up,'Non disponible — nécessite une connexion aux encaissements clients (CleanITBooks)'],
+  ];
+
   return (
     <div style={{padding:'14px 20px',display:'flex',flexDirection:'column',gap:14}}>
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
-        {[[fN(87500000),'Solde du jour',C.green,IC.cash,'Trésorerie disponible'],[fN(58000000),'Entrées ce mois',C.blue,IC.up,'Encaissements clients'],[fN(35000000),'Sorties ce mois',C.orange,IC.down,'Paiements effectués'],[fN(14900000),'Paiements approuvés',C.purple,IC.audit,'En attente virement']].map(([v,l,c,ic,sub])=>(
+        {KPI_CARDS.map(([v,l,c,ic,sub])=>(
           <div key={l} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:'12px 14px',borderTop:`2px solid ${c}`}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}><div style={{fontSize:11,color:C.text3,fontWeight:500}}>{l}</div><Icon d={ic} size={14} color={c}/></div>
-            <div style={{fontSize:16,fontWeight:600,color:c,marginBottom:2}}>{v}</div>
+            <div style={{fontSize:v===null?12:16,fontWeight:600,color:v===null?C.text3:c,marginBottom:2,fontStyle:v===null?'italic':'normal'}}>{v===null?'Non disponible':v}</div>
             <div style={{fontSize:10,color:C.text3}}>{sub}</div>
           </div>
         ))}
       </div>
       <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:12}}>
         <div style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:10,padding:'14px'}}>
-          <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>Flux de trésorerie — 6 mois</div>
+          <div style={{fontSize:13,fontWeight:600,marginBottom:12}}>Sorties (paiements effectués) — 6 mois</div>
           <ResponsiveContainer width="100%" height={190}>
-            <AreaChart data={TRDATA}>
+            <AreaChart data={trend}>
               <defs>
                 <linearGradient id="ge" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={C.green} stopOpacity={.1}/><stop offset="95%" stopColor={C.green} stopOpacity={0}/></linearGradient>
                 <linearGradient id="gs" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={C.red} stopOpacity={.1}/><stop offset="95%" stopColor={C.red} stopOpacity={0}/></linearGradient>
@@ -50,7 +57,6 @@ function TabTresorerie(){
               <XAxis dataKey="m" tick={{fontSize:11}}/><YAxis tick={{fontSize:10}} tickFormatter={v=>(v/1000000)+'M'}/>
               <Tooltip formatter={v=>fN(v)}/>
               <Legend wrapperStyle={{fontSize:11}}/>
-              <Area type="monotone" dataKey="e" name="Entrées" stroke={C.green} fill="url(#ge)" strokeWidth={2}/>
               <Area type="monotone" dataKey="s" name="Sorties" stroke={C.red} fill="url(#gs)" strokeWidth={2}/>
             </AreaChart>
           </ResponsiveContainer>
@@ -84,9 +90,7 @@ function TabAudit(){
   const [expanded,setExpanded]=useState(null);
 
   useEffect(()=>{
-    const data=loadItems();
-    setItems(data);
-    api.get('/approvals').then(r=>{if(Array.isArray(r.data)&&r.data.length>0){const m=[...SEED,...r.data.filter(a=>!SEED.find(s=>s.id===a.id))];setItems(m);try{localStorage.setItem('cleanit_approvals_cache',JSON.stringify(m));}catch{}}}).catch(()=>{});
+    api.get('/approvals').then(r=>{ setItems(Array.isArray(r.data) ? r.data : []); }).catch(()=>{ setItems([]); });
   },[]);
 
   const pay=items.filter(i=>i.type==='payment_request');
@@ -290,18 +294,6 @@ function TabTVA(){
 
 export default function Finance(){
 
-  // __FINANCE_API__ — Données financières réelles
-  const [realFinance, setRealFinance] = useState(null);
-  useEffect(() => {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    Promise.all([
-      fetch('https://backend-cleanit-erp.vercel.app/stats', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>null),
-      fetch('https://backend-cleanit-erp.vercel.app/journal', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[])
-    ]).then(([stats, journal]) => {
-      if(stats || journal.length > 0) setRealFinance({stats, journal: Array.isArray(journal) ? journal : []});
-    });
-  }, []);
-
   const [tab,setTab]=useState('tresorerie');
   const TABS=[['tresorerie','Trésorerie',IC.cash],['audit','Audit paiements',IC.audit],['encaissements','Encaissements clients',IC.encaisse],['tva','TVA & Fiscalité',IC.tva]];
   return (
@@ -317,7 +309,7 @@ export default function Finance(){
         </div>
       </div>
       <div style={{flex:1,overflow:'auto'}}>
-        {tab==='tresorerie'&&<TabTresorerie/>}
+        {tab==='tresorerie'&&<TabTresorerie items={items}/>}
         {tab==='audit'&&<TabAudit/>}
         {tab==='encaissements'&&<TabEncaissements/>}
         {tab==='tva'&&<TabTVA/>}

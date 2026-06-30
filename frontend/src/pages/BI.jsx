@@ -227,21 +227,6 @@ const Badge = ({label,color,bg}) => (
 
 // Section tab
 
-// ===== CHARGEMENT DONNÉES RÉELLES =====
-const loadRealData = () => {
-  const result = {
-    approvals: [], users: [], technicians: [], bcSites: [],
-    hasRealData: false
-  };
-  try {
-    const ap = localStorage.getItem('cleanit_approvals_cache');
-    if(ap) { result.approvals = JSON.parse(ap); result.hasRealData = true; }
-    const bc = localStorage.getItem('cleanit_bc_sites');
-    if(bc) { result.bcSites = JSON.parse(bc); }
-  } catch(e) {}
-  return result;
-};
-
 // Calcul KPIs depuis données réelles
 const calcKPIsFromReal = (approvals, users, techs) => {
   const payments = approvals.filter(a => a.type === 'payment_request');
@@ -911,28 +896,31 @@ export default function BI() {
   const [tab,setTab] = useState("global");
   const [periode,setPeriode] = useState("mois");
   const [realData,setRealData] = useState({approvals:[],users:[],technicians:[],bcSites:[],hasRealData:false});
-  const [kpis,setKpis] = useState({totalPaid:33.2,totalPending:7.7,nbTechs:5,nbUsers:6,masseSalariale:34.2});
+  const [kpis,setKpis] = useState({totalPaid:0,totalPending:0,nbTechs:0,nbUsers:0,masseSalariale:0});
   const [alerts,setAlerts] = useState([]);
   const [showAlerts,setShowAlerts] = useState(false);
   const [chachaInsight,setChachaInsight] = useState('');
   const [loadingAI,setLoadingAI] = useState(false);
 
   useEffect(() => {
-    const rd = loadRealData();
-    setRealData(rd);
-    if(rd.hasRealData) {
+    const token = localStorage.getItem('token');
+    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    Promise.all([
+      fetch(base+'/approvals', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[]),
+      fetch(base+'/users', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[]),
+      fetch(base+'/technicians', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[]),
+    ]).then(([approvals, users, technicians]) => {
+      const rd = {
+        approvals: Array.isArray(approvals) ? approvals : [],
+        users: Array.isArray(users) ? users : [],
+        technicians: Array.isArray(technicians) ? technicians : [],
+        bcSites: [], hasRealData: true,
+      };
+      setRealData(rd);
       const k = calcKPIsFromReal(rd.approvals, rd.users, rd.technicians);
       setKpis(k);
       setAlerts(checkAlerts(k, rd.approvals));
-    }
-    // Charger users depuis API
-    fetch('/api/users').then(r=>r.json()).then(d=>{
-      if(Array.isArray(d)&&d.length>0) {
-        setRealData(p=>({...p,users:d}));
-        const k = calcKPIsFromReal(realData.approvals, d, realData.technicians);
-        setKpis(k);
-      }
-    }).catch(()=>{});
+    });
   }, []);
 
   const getChachaInsight = async () => {
