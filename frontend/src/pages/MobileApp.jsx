@@ -1236,7 +1236,7 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
     }
   }, [gps?.lat, gps?.lng]);
 
-  const shoot = () => {
+  const shoot = async () => {
     if(!siteInput.trim()){
       toast('Indiquez le code du site avant de prendre la photo','error');
       return;
@@ -1278,12 +1278,42 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
     setLast(url);
     setFlash(true);
     setTimeout(() => setFlash(false), 150);
-    // Sauvegarder automatiquement dans le telephone
+    // Sauvegarder en local sur le téléphone
     const link = document.createElement('a');
     link.href = url;
     link.download = 'CleanIT-'+user.name.replace(' ','-')+'-'+new Date().toISOString().slice(0,10)+'-'+photoId+'.jpg';
     link.click();
-    toast('Photo sauvegardee dans Telechargements');
+    toast('Photo sauvegardée — publication dans le Fil en cours...');
+
+    // Publier dans le Fil pour que le PM et l'équipe voient la photo en temps réel
+    try {
+      const token = localStorage.getItem('token');
+      // 1. Convertir dataUrl en Blob pour l'upload
+      const blob = await (await fetch(url)).blob();
+      const form = new FormData();
+      form.append('file', blob, 'cleanitcam-'+photoId+'.jpg');
+      // 2. Uploader vers Blob Storage via le backend
+      const uploadRes = await fetch('https://backend-cleanit-erp.vercel.app/upload/photo', {
+        method: 'POST',
+        headers: {'Authorization': 'Bearer '+token},
+        body: form,
+      });
+      const uploadData = await uploadRes.json();
+      const photoUrl = uploadData.url;
+      // 3. Publier dans le Fil avec l'URL publique de la photo
+      await FeedAPI.createPost({
+        text: `📸 Photo terrain — Site: ${siteInput||'Non renseigné'}${gps?.lat ? ` | GPS: ${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)}` : ''}`,
+        site: siteInput,
+        siteName: siteInput,
+        photoUrl,
+        gpsLat: gps?.lat?.toString(),
+        gpsLng: gps?.lng?.toString(),
+        type: 'photo',
+      });
+      toast('Photo publiée dans le Fil ✓');
+    } catch(e) {
+      toast('Photo sauvegardée localement (Fil indisponible: '+e.message+')');
+    }
   };
 
   useEffect(() => () => stopCam(), []);
