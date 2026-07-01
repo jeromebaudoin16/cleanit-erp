@@ -388,10 +388,12 @@ app.get('/auth/me', auth, async (req, res) => {
 // ─── USERS ROUTES ─────────────────────────────────────────────
 app.get('/users', auth, async (req, res) => {
   try {
-    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS module_access JSONB').catch(()=>{});
-    const result = await pool.query('SELECT id, email, "firstName", "lastName", role, "isActive", "lastSeen", "createdAt", module_access FROM users ORDER BY "createdAt" DESC');
-    res.json(result.rows);
-  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
+    const result = await pool.query('SELECT id, email, "firstName", "lastName", role, "isActive", "lastSeen", "createdAt", module_access FROM users ORDER BY "createdAt" DESC').catch(async () => await pool.query('SELECT id, email, "firstName", "lastName", role, "isActive", "lastSeen", "createdAt" FROM users ORDER BY "createdAt" DESC'));
+    res.json((result.rows||[]).map(r => ({...r, module_access: r.module_access||null})));
+  } catch (e) {
+    console.error('GET /users error:', e.message);
+    res.status(500).json({ message: 'Erreur chargement utilisateurs: ' + e.message });
+  }
 });
 
 app.post('/users', auth, isAdmin, async (req, res) => {
@@ -416,16 +418,6 @@ app.post('/users', auth, isAdmin, async (req, res) => {
   }
 });
     if (!email || !firstName) return res.status(400).json({ message: 'Email et prénom requis' });
-    const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (exists.rows[0]) return res.status(409).json({ message: 'Email déjà utilisé' });
-    const hash = await bcrypt.hash(password, 12);
-    const result = await pool.query(
-      'INSERT INTO users (email, password, "firstName", "lastName", role, "isActive", "createdAt") VALUES ($1,$2,$3,$4,$5,true,NOW()) RETURNING id, email, "firstName", "lastName", role, "isActive"',
-      [email, hash, firstName, lastName, role]
-    );
-    res.status(201).json(result.rows[0]);
-  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
-});
 
 app.put('/users/:id', auth, async (req, res) => {
   try {
