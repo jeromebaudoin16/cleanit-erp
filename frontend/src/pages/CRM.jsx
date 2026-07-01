@@ -179,23 +179,9 @@ const Table = ({cols,rows,onRow,empty="Aucune donnée"}) => (
 );
 
 // ===== DATA =====
-const CONTACTS = [
-  {id:"CT001",name:"Jean-Paul Biya",company:"MTN Cameroun",title:"Directeur Technique",email:"jp.biya@mtn.cm",phone:"+237 677 500 001",status:"actif",lead:"chaud",owner:"Marie Kamga",lastContact:"2024-03-12",created:"2020-01-15",deals:2,notes:"Contact prioritaire. Décideur technique principal MTN."},
-  {id:"CT002",name:"Marie Essama",company:"MTN Cameroun",title:"Responsable Achats",email:"m.essama@mtn.cm",phone:"+237 677 500 002",status:"actif",lead:"chaud",owner:"Marie Kamga",lastContact:"2024-03-10",created:"2020-01-15",deals:1,notes:""},
-  {id:"CT003",name:"Paul Ndongo",company:"Orange Cameroun",title:"DSI",email:"p.ndongo@orange.cm",phone:"+237 677 600 001",status:"actif",lead:"chaud",owner:"Jean Fouda",lastContact:"2024-03-10",created:"2020-03-01",deals:1,notes:"Décideur final Orange."},
-  {id:"CT004",name:"Alice Foé",company:"Orange Cameroun",title:"Chef de Projet",email:"a.foe@orange.cm",phone:"+237 677 600 002",status:"actif",lead:"tiede",owner:"Jean Fouda",lastContact:"2024-02-28",created:"2020-03-01",deals:1,notes:""},
-  {id:"CT005",name:"Wang Lei",company:"Client OEM",title:"Country Manager",email:"wang.lei@client.com",phone:"+237 677 700 001",status:"actif",lead:"tiede",owner:"Pierre Etoga",lastContact:"2024-02-28",created:"2021-06-01",deals:1,notes:"Partenaire clé Client."},
-  {id:"CT006",name:"Amina Diallo",company:"Nexttel Cameroun",title:"DG Adjointe",email:"a.diallo@nexttel.cm",phone:"+237 677 800 001",status:"inactif",lead:"froid",owner:"Jean Fouda",lastContact:"2024-02-15",created:"2022-01-10",deals:0,notes:"En attente décision budget."},
-];
+const CONTACTS = []; // Données réelles — à saisir dans le CRM
 
-const COMPANIES = [
-  {id:"CO001",name:"MTN Cameroun",sector:"Télécommunications",type:"Grands comptes",city:"Douala",phone:"+237 222 500 500",website:"mtn.cm",ca:450000000,deals:3,contacts:2,owner:"Marie Kamga",lead:"chaud",logo:"MTN",logoColor:"#FFCC00",logoText:"#000000"},
-  {id:"CO002",name:"Orange Cameroun",sector:"Télécommunications",type:"Grands comptes",city:"Yaoundé",phone:"+237 222 600 600",website:"orange.cm",ca:320000000,deals:2,contacts:2,owner:"Jean Fouda",lead:"chaud",logo:"ORA",logoColor:"#FF7900",logoText:"#FFFFFF"},
-  {id:"CO003",name:"Client OEM",sector:"Technologies",type:"Grands comptes",city:"Douala",phone:"+237 222 700 700",website:"client.com",ca:280000000,deals:1,contacts:2,owner:"Pierre Etoga",lead:"tiede",logo:"HUA",logoColor:"#CF0A2C",logoText:"#FFFFFF"},
-  {id:"CO004",name:"Nexttel Cameroun",sector:"Télécommunications",type:"Intermédiaires",city:"Douala",phone:"+237 222 800 800",website:"nexttel.cm",ca:120000000,deals:1,contacts:1,owner:"Jean Fouda",lead:"froid",logo:"NXT",logoColor:"#E31E24",logoText:"#FFFFFF"},
-  {id:"CO005",name:"CAMTEL",sector:"Télécommunications",type:"Secteur public",city:"Yaoundé",phone:"+237 222 223 000",website:"camtel.cm",ca:95000000,deals:1,contacts:1,owner:"Marie Kamga",lead:"chaud",logo:"CAM",logoColor:"#006B3F",logoText:"#FFFFFF"},
-  {id:"CO006",name:"Ministère des Postes",sector:"Administration",type:"Secteur public",city:"Yaoundé",phone:"+237 222 234 000",website:"minpostel.cm",ca:65000000,deals:1,contacts:1,owner:"David Mballa",lead:"froid",logo:"MIN",logoColor:"#2D3E50",logoText:"#FFFFFF"},
-];
+const COMPANIES = []; // Données réelles — à saisir dans le CRM
 
 const DEALS_SEED = []; // Données réelles depuis API
 
