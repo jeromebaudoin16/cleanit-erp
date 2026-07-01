@@ -107,70 +107,12 @@ const CONTACTS = [
 const CHANNELS = []; // Canaux depuis API
 
 
-const CROSS_NOTIFS = [
-  {id:'n1',module:'Approvals',color:'#0F7B3C',msg:'Paiement APV-002 approuvé — Thomas Ngono 6.2M FCFA',ts:Date.now()-1800000,read:false},
-  {id:'n2',module:'Pointage', color:'#D97706',msg:'Ali Moussa hors zone GAR-001 depuis 2h',ts:Date.now()-3600000,read:false},
-  {id:'n3',module:'Finance',  color:'#185FA5',msg:'Virement VIR-2025-042 effectué — 18.5M FCFA',ts:Date.now()-7200000,read:true},
-  {id:'n4',module:'Planning', color:'#6D28D9',msg:'Mission T181 planifiée — Thomas Ngono 19 mai 08h',ts:Date.now()-14400000,read:true},
-  {id:'n5',module:'CRM',      color:'#D97706',msg:'Deal MTN Small Cells marqué Gagné — 95M FCFA',ts:Date.now()-86400000,read:true},
-];
+const CROSS_NOTIFS = []; // Données réelles depuis API (non implémenté)
 
 const NOW = Date.now();
-const MSGS = {
-  ch1_old:[
-    {id:'m1',uid:'u2',text:'Bonjour équipe ! Réunion de suivi DLA-001 à 10h ce matin.',ts:NOW-7200000,files:[]},
-    {id:'m2',uid:'u5',text:'Les équipements 5G sont arrivés sur site. On commence l\'installation ce matin.',ts:NOW-7100000,files:[]},
-    {id:'m3',uid:'u1',text:'Parfait Pierre. N\'oubliez pas le rapport photo pour le client Huawei.',ts:NOW-7000000,files:[]},
-    {id:'m4',uid:'u8',text:'Selfie de présence envoyé via CleanITCam — vérifiée',ts:NOW-3600000,files:[]},
-    {id:'m5',uid:'u3',text:'La facture INV-2024-003 a été partiellement payée. Solde restant : 22.4M FCFA.',ts:NOW-1800000,files:[{name:'INV-2024-003.pdf',size:'890 KB',type:'pdf'}]},
-    {id:'m6',uid:'u1',text:'Merci Alice. Je relance le client aujourd\'hui.',ts:NOW-900000,files:[]},
-  ],
-  ch5:[
-    {id:'a1',uid:'system',text:'[ALERTE] Ali Moussa est hors zone sur GAR-001 — Distance: 650m du périmètre autorisé',ts:NOW-7200000,type:'alert',alertType:'danger',files:[]},
-    {id:'a2',uid:'system',text:'[BATTERIE] Batterie critique (23%) — Ali Moussa · Site Garoua',ts:NOW-3600000,type:'alert',alertType:'warning',files:[]},
-    {id:'a3',uid:'u1',text:'Ali contacté par téléphone. Il retourne dans la zone.',ts:NOW-3000000,files:[]},
-    {id:'a4',uid:'system',text:'[RÉSOLU] Ali Moussa est revenu dans la zone autorisée',ts:NOW-2400000,type:'alert',alertType:'success',files:[]},
-    {id:'a5',uid:'system',text:'[ALERTE] Thomas Ngono — Sortie momentanée DLA-001 · 45m hors périmètre',ts:NOW-600000,type:'alert',alertType:'warning',files:[]},
-  ],
-  ch2:[
-    {id:'t1',uid:'u8',text:'Arrivé sur site DLA-001. Équipe de 3 présente, météo favorable.',ts:NOW-18000000,files:[]},
-    {id:'t2',uid:'u5',text:'Commencé l\'installation BBU 5900. Tout se passe bien.',ts:NOW-14400000,files:[{name:'Photo_BBU_Installation.jpg',size:'2.4 MB',type:'img'}]},
-    {id:'t3',uid:'u1',text:'Super ! Continuez. Prenez des photos de chaque étape pour le rapport Huawei.',ts:NOW-10800000,files:[]},
-  ],
-  ch3:[
-    {id:'f1',uid:'u3',text:'La facture INV-2024-002 d\'Orange Cameroun est en retard de 43 jours.',ts:NOW-86400000,files:[]},
-    {id:'f2',uid:'u1',text:'Je vais appeler le service comptable Orange demain matin.',ts:NOW-82800000,files:[]},
-    {id:'f3',uid:'u3',text:'INV-2024-003 partiellement payée ce matin — 9.6M FCFA reçus.',ts:NOW-1800000,files:[{name:'Virement_TRESOR_001.pdf',size:'340 KB',type:'pdf'}]},
-  ],
-};
-
-const DRIVE_FILES = {
-  ch1:[
-    {id:'d1',name:'Rapport_DLA001_Phase1.pdf',  size:'2.4 MB',type:'pdf',  date:NOW-86400000, owner:'u1'},
-    {id:'d2',name:'Planning_Mai2024.xlsx',        size:'1.2 MB',type:'excel',date:NOW-172800000,owner:'u2'},
-    {id:'d3',name:'Photos_Installation_5G.zip',  size:'45 MB', type:'zip',  date:NOW-259200000,owner:'u8'},
-    {id:'d4',name:'BC-2024-143_Confidentiel.pdf',size:'4.1 MB',type:'pdf',  date:NOW-345600000,owner:'u1'},
-  ],
-  ch5:[
-    {id:'d5',name:'Rapport_Hors_Zone_GAR001.pdf',size:'890 KB',type:'pdf',date:NOW-7200000,owner:'system'},
-    {id:'d6',name:'Tracé_GPS_Ali_20240507.kml',  size:'45 KB', type:'file',date:NOW-3600000,owner:'system'},
-  ],
-  ch2:[
-    {id:'d7',name:'Photo_BBU_Installation.jpg',  size:'2.4 MB',type:'img', date:NOW-14400000,owner:'u8'},
-    {id:'d8',name:'Rapport_Site_DLA001.pdf',     size:'1.8 MB',type:'pdf', date:NOW-18000000,owner:'u5'},
-  ],
-  ch3:[
-    {id:'d9',name:'Facture_INV-2024-002.pdf',    size:'890 KB',type:'pdf', date:NOW-86400000,owner:'u3'},
-    {id:'d10',name:'Virement_TRESOR_001.pdf',    size:'340 KB',type:'pdf', date:NOW-1800000, owner:'u3'},
-  ],
-};
-
-const MEETINGS = [
-  {id:'m1',titre:'Suivi DLA-001',   date:'2024-05-08',heure:'10:00',duree:60, participants:['u1','u2','u5'],statut:'today',   room:'cleanit-dla-001'},
-  {id:'m2',titre:'Point Finance',   date:'2024-05-08',heure:'14:00',duree:30, participants:['u1','u3','u4'],statut:'today',   room:'cleanit-finance'},
-  {id:'m3',titre:'Review MTN',      date:'2024-05-09',heure:'09:00',duree:90, participants:['u1','u2','u3'],statut:'upcoming',room:'cleanit-mtn'},
-  {id:'m4',titre:'Briefing Garoua', date:'2024-05-09',heure:'07:00',duree:20, participants:['u1','u8'],     statut:'upcoming',room:'cleanit-garoua'},
-];
+const MSGS = {}; // Messages réels depuis API (historique de chat non encore persisté côté serveur)
+const DRIVE_FILES = {}; // Fichiers réels depuis API (non implémenté)
+const MEETINGS = []; // Réunions réelles depuis API (non implémenté)
 
 const EMAILS_DATA = []; // Données réelles depuis API
 
