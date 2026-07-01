@@ -167,6 +167,24 @@ app.post('/chacha/gemini', auth, async (req, res) => {
 // ─── GÉNÉRATION DE DOCUMENTS (ChaCha) ──────────────────────────
 // ChaCha peut générer une lettre Word, un tableau Excel, ou une présentation PowerPoint
 // à la demande, et renvoie un lien de téléchargement (stocké sur Vercel Blob).
+// ─── UPLOAD PHOTO (CleanCam) ────────────────────────────────────
+// Stocke une photo terrain sur Vercel Blob et renvoie l'URL publique pour le Fil.
+app.post('/upload/photo', auth, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'Aucun fichier reçu' });
+    if (!process.env.BLOB_READ_WRITE_TOKEN) return res.status(500).json({ message: 'BLOB_READ_WRITE_TOKEN non configuré' });
+    const { put } = require('@vercel/blob');
+    const filename = `photos/cleanitcam-${req.user.sub}-${Date.now()}.jpg`;
+    const blob = await put(filename, req.file.buffer, {
+      access: 'public', contentType: req.file.mimetype || 'image/jpeg', addRandomSuffix: false,
+    });
+    res.json({ url: blob.url });
+  } catch (e) {
+    console.error('upload/photo error:', e);
+    res.status(500).json({ message: 'Erreur upload photo', error: e.message });
+  }
+});
+
 app.post('/chacha/generate-document', auth, async (req, res) => {
   try {
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
