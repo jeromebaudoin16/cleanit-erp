@@ -55,8 +55,8 @@ export default function Interventions() {
     try {
       const r = await api.get('/interventions');
       const data = Array.isArray(r.data) ? r.data : [];
-      setItems(data.length > 0 ? data : SEED);
-    } catch { setItems(SEED); }
+      setItems(Array.isArray(r.data) ? r.data : []);
+    } catch { setItems([]); }
     finally { setLoading(false); }
   };
 

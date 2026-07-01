@@ -61,8 +61,8 @@ export default function Tickets() {
     try {
       const r = await api.get('/tickets');
       const data = Array.isArray(r.data) ? r.data : [];
-      setTickets(data.length > 0 ? data : SEED);
-    } catch { setTickets(SEED); }
+      setTickets(Array.isArray(r.data) ? r.data : []);
+    } catch { setTickets([]); }
     finally { setLoading(false); }
   };
 
