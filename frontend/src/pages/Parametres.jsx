@@ -1,55 +1,35 @@
 import { useState, useEffect, useRef } from 'react';
+import QRCodeLib from 'qrcode';
 import { api, getUser } from '../utils/api';
 import { MODULES, ALL_MODULE_PATHS, ROLE_LABELS } from '../navConfig';
 
 const C = { bg:'#f5f7fa', card:'#fff', border:'#e2e8f0', text:'#1e293b', text2:'#64748b', blue:'#2563eb', green:'#16a34a', red:'#dc2626', amber:'#d97706' };
 
-// Génère un QR code SVG basique sans dépendance externe (encodage Data Matrix simplifié)
-// Pour un rendu plus précis, utiliser la lib qrcode.js — ici on affiche le contenu textuel
 const QRModal = ({user, onClose}) => {
   const canvasRef = useRef(null);
-  const qrData = JSON.stringify({ id: user.id, email: user.email, name: `${user.firstName} ${user.lastName}`, role: user.role });
-
+  const [dataUrl, setDataUrl] = useState('');
+  const qrData = JSON.stringify({ id: user.id, email: user.email, name: `${user.firstName||''} ${user.lastName||''}`.trim(), role: user.role });
   useEffect(() => {
-    // Charge qrcode.js depuis CDN et génère le QR
-    if (window.QRCode) {
-      renderQR();
-    } else {
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-      script.onload = renderQR;
-      document.head.appendChild(script);
-    }
-  }, []);
-
-  const renderQR = () => {
-    if (!canvasRef.current || !window.QRCode) return;
-    canvasRef.current.innerHTML = '';
-    new window.QRCode(canvasRef.current, {
-      text: qrData, width: 220, height: 220,
-      colorDark: '#1e293b', colorLight: '#ffffff',
-      correctLevel: window.QRCode.CorrectLevel.H,
+    if (!canvasRef.current) return;
+    QRCodeLib.toCanvas(canvasRef.current, qrData, { width: 220, margin: 2, color: { dark: '#1e293b', light: '#ffffff' } }, (err) => {
+      if (!err && canvasRef.current) setDataUrl(canvasRef.current.toDataURL('image/png'));
     });
-  };
-
+  }, [qrData]);
   const download = () => {
-    const canvas = canvasRef.current?.querySelector('canvas');
-    if (!canvas) return;
+    if (!dataUrl) return;
     const a = document.createElement('a');
-    a.download = `QR_${user.firstName}_${user.lastName}_CleanIT.png`;
-    a.href = canvas.toDataURL('image/png');
-    a.click();
+    a.download = `QR_${(user.firstName||'').replace(/\s/g,'_')}_${(user.lastName||'').replace(/\s/g,'_')}_CleanIT.png`;
+    a.href = dataUrl; a.click();
   };
-
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={onClose}>
-      <div style={{background:'white',borderRadius:14,padding:28,maxWidth:320,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,0.25)',textAlign:'center'}} onClick={e=>e.stopPropagation()}>
-        <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:4}}>{user.firstName} {user.lastName}</div>
-        <div style={{fontSize:12,color:C.text2,marginBottom:16}}>{ROLE_LABELS[user.role]||user.role} · ID #{user.id}</div>
-        <div ref={canvasRef} style={{display:'flex',justifyContent:'center',marginBottom:16}}/>
-        <div style={{fontSize:10,color:C.text2,marginBottom:16,wordBreak:'break-all',background:'#f8fafc',borderRadius:6,padding:8,textAlign:'left'}}>{qrData}</div>
+      <div style={{background:'white',borderRadius:14,padding:28,maxWidth:300,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,0.25)',textAlign:'center'}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:2}}>{user.firstName} {user.lastName}</div>
+        <div style={{fontSize:12,color:C.text2,marginBottom:14}}>{ROLE_LABELS[user.role]||user.role} · ID #{user.id}</div>
+        <canvas ref={canvasRef} style={{display:'block',margin:'0 auto 14px'}}/>
+        <div style={{fontSize:9,color:C.text2,marginBottom:14,wordBreak:'break-all',background:'#f8fafc',borderRadius:6,padding:8,textAlign:'left'}}>{qrData}</div>
         <div style={{display:'flex',gap:8}}>
-          <button onClick={download} style={{flex:2,padding:'10px',borderRadius:8,border:'none',background:C.blue,color:'white',fontSize:13,fontWeight:600,cursor:'pointer'}}>⬇ Télécharger PNG</button>
+          <button onClick={download} disabled={!dataUrl} style={{flex:2,padding:'10px',borderRadius:8,border:'none',background:dataUrl?C.blue:'#ccc',color:'white',fontSize:13,fontWeight:600,cursor:dataUrl?'pointer':'default'}}>⬇ Télécharger PNG</button>
           <button onClick={onClose} style={{flex:1,padding:'10px',borderRadius:8,border:`1px solid ${C.border}`,background:'white',fontSize:13,cursor:'pointer'}}>Fermer</button>
         </div>
       </div>
@@ -99,10 +79,8 @@ export default function Parametres(){
   };
 
   const toggleActive = async (u) => {
-    if (u.id === me?.id && u.isActive) {
-      showToast('Tu ne peux pas désactiver ton propre compte.', 'error');
-      return;
-    }
+    const me = getUser();
+    if (u.id === me?.id && u.isActive) return showToast('Tu ne peux pas désactiver ton propre compte', 'error');
     try {
       await api.put(`/users/${u.id}`, { isActive: !u.isActive });
       showToast(u.isActive ? 'Compte désactivé' : 'Compte activé');
@@ -111,10 +89,8 @@ export default function Parametres(){
   };
 
   const saveEditing = async () => {
-    if (editing.id === me?.id && editing.role !== 'admin') {
-      showToast("Tu ne peux pas retirer ton propre rôle d'administrateur — ça te bloquerait hors de cette page. Demande à un autre admin de le faire si nécessaire.", 'error');
-      return;
-    }
+    const me = getUser();
+    if (editing.id === me?.id && editing.role !== 'admin') return showToast('Tu ne peux pas retirer ton propre rôle administrateur', 'error');
     setSaving(true);
     try {
       await api.put(`/users/${editing.id}`, { role: editing.role, moduleAccess: editing.customAccess ? editing.moduleAccess : null });
