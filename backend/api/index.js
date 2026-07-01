@@ -2302,6 +2302,113 @@ app.put('/technicians/:id/certifications', auth, async (req, res) => {
 
 // 404
 
+// ── MODULE SUIVI DE PROJETS ──────────────────────────────────────────
+pool.query(`CREATE TABLE IF NOT EXISTS projects (
+  id SERIAL PRIMARY KEY, code VARCHAR(100) NOT NULL UNIQUE, name VARCHAR(200) NOT NULL,
+  client VARCHAR(200), type VARCHAR(80), po_reference VARCHAR(200),
+  chef_projet_id INTEGER REFERENCES users(id), status VARCHAR(30) DEFAULT 'en_cours',
+  start_date DATE, target_date DATE, description TEXT,
+  budget NUMERIC(15,2) DEFAULT 0, currency VARCHAR(10) DEFAULT 'FCFA',
+  created_by INTEGER REFERENCES users(id), created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+
+pool.query(`CREATE TABLE IF NOT EXISTS project_sites (
+  id SERIAL PRIMARY KEY, project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+  site_code VARCHAR(50), site_name VARCHAR(200), region VARCHAR(100),
+  status VARCHAR(30) DEFAULT 'pending', progress INTEGER DEFAULT 0,
+  notes TEXT, added_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+
+pool.query(`CREATE TABLE IF NOT EXISTS project_steps (
+  id SERIAL PRIMARY KEY, project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+  label VARCHAR(200) NOT NULL, status VARCHAR(20) DEFAULT 'pending',
+  responsible_id INTEGER REFERENCES users(id), target_date DATE,
+  completed_at TIMESTAMP, order_index INTEGER DEFAULT 0, notes TEXT
+)`).catch(console.error);
+
+app.get('/projects-list', auth, async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT p.*, u."firstName"||' '||u."lastName" as chef_nom,
+      COUNT(DISTINCT ps.id)::int as sites_count, ROUND(COALESCE(AVG(ps.progress),0))::int as avg_progress
+      FROM projects p LEFT JOIN users u ON u.id=p.chef_projet_id
+      LEFT JOIN project_sites ps ON ps.project_id=p.id
+      GROUP BY p.id, u."firstName", u."lastName" ORDER BY p.created_at DESC`);
+    res.json(r.rows);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.get('/projects-list/:id', auth, async (req, res) => {
+  try {
+    const [proj, sites, steps, missions] = await Promise.all([
+      pool.query(`SELECT p.*, u."firstName"||' '||u."lastName" as chef_nom FROM projects p LEFT JOIN users u ON u.id=p.chef_projet_id WHERE p.id=$1`,[req.params.id]),
+      pool.query('SELECT * FROM project_sites WHERE project_id=$1 ORDER BY added_at ASC',[req.params.id]),
+      pool.query(`SELECT ps.*, u."firstName"||' '||u."lastName" as responsible_nom FROM project_steps ps LEFT JOIN users u ON u.id=ps.responsible_id WHERE ps.project_id=$1 ORDER BY order_index ASC`,[req.params.id]),
+      pool.query('SELECT * FROM missions WHERE site IN (SELECT site_code FROM project_sites WHERE project_id=$1) ORDER BY created_at DESC LIMIT 20',[req.params.id]),
+    ]);
+    if(!proj.rows[0]) return res.status(404).json({message:'Projet introuvable'});
+    res.json({...proj.rows[0], sites:sites.rows, steps:steps.rows, missions:missions.rows});
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.post('/projects-list', auth, async (req, res) => {
+  try {
+    const {code,name,client,type,po_reference,chef_projet_id,status,start_date,target_date,description,budget,currency,sites} = req.body;
+    if(!name) return res.status(400).json({message:'Nom requis'});
+    const autoCode = code||('PRJ-'+Date.now().toString().slice(-6));
+    const r = await pool.query(
+      `INSERT INTO projects (code,name,client,type,po_reference,chef_projet_id,status,start_date,target_date,description,budget,currency,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [autoCode,name,client||'',type||'',po_reference||'',chef_projet_id||null,status||'en_cours',start_date||null,target_date||null,description||'',budget||0,currency||'FCFA',req.user.sub]
+    );
+    const proj = r.rows[0];
+    for(const s of (sites||[])) await pool.query('INSERT INTO project_sites (project_id,site_code,site_name,region,status) VALUES ($1,$2,$3,$4,$5)',[proj.id,s.site_code||'',s.site_name||'',s.region||'',s.status||'pending']);
+    res.status(201).json(proj);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.put('/projects-list/:id', auth, async (req, res) => {
+  try {
+    const {name,client,type,po_reference,chef_projet_id,status,start_date,target_date,description,budget} = req.body;
+    const r = await pool.query(
+      `UPDATE projects SET name=COALESCE($1,name),client=COALESCE($2,client),type=COALESCE($3,type),po_reference=COALESCE($4,po_reference),chef_projet_id=COALESCE($5,chef_projet_id),status=COALESCE($6,status),start_date=COALESCE($7,start_date),target_date=COALESCE($8,target_date),description=COALESCE($9,description),budget=COALESCE($10,budget),updated_at=NOW() WHERE id=$11 RETURNING *`,
+      [name,client,type,po_reference,chef_projet_id,status,start_date,target_date,description,budget,req.params.id]
+    );
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.post('/projects-list/:id/sites', auth, async (req, res) => {
+  try {
+    const {site_code,site_name,region,status,progress,notes} = req.body;
+    const r = await pool.query('INSERT INTO project_sites (project_id,site_code,site_name,region,status,progress,notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',[req.params.id,site_code||'',site_name||'',region||'',status||'pending',progress||0,notes||'']);
+    res.status(201).json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.put('/projects-list/:id/sites/:siteId', auth, async (req, res) => {
+  try {
+    const {status,progress,notes} = req.body;
+    const r = await pool.query('UPDATE project_sites SET status=COALESCE($1,status),progress=COALESCE($2,progress),notes=COALESCE($3,notes) WHERE id=$4 AND project_id=$5 RETURNING *',[status,progress,notes,req.params.siteId,req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.post('/projects-list/:id/steps', auth, async (req, res) => {
+  try {
+    const {label,status,responsible_id,target_date,order_index,notes} = req.body;
+    const r = await pool.query('INSERT INTO project_steps (project_id,label,status,responsible_id,target_date,order_index,notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',[req.params.id,label,status||'pending',responsible_id||null,target_date||null,order_index||0,notes||'']);
+    res.status(201).json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.put('/projects-list/:id/steps/:stepId', auth, async (req, res) => {
+  try {
+    const {status,notes,target_date} = req.body;
+    const completedAt = status==='done'?new Date().toISOString():null;
+    const r = await pool.query('UPDATE project_steps SET status=COALESCE($1,status),notes=COALESCE($2,notes),target_date=COALESCE($3,target_date),completed_at=COALESCE($4,completed_at) WHERE id=$5 AND project_id=$6 RETURNING *',[status,notes,target_date,completedAt,req.params.stepId,req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
 // ── CLEANITBOOKS — ROUTES MANQUANTES ────────────────────────────
 // Ces tables existent en base (cib_invoices, cib_customers, cib_jobs, cib_bills, cib_vendors)
 // mais n'avaient aucune route API exposée — d'où les 404 dans la console.

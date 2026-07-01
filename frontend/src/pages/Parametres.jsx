@@ -1,8 +1,61 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api, getUser } from '../utils/api';
 import { MODULES, ALL_MODULE_PATHS, ROLE_LABELS } from '../navConfig';
 
 const C = { bg:'#f5f7fa', card:'#fff', border:'#e2e8f0', text:'#1e293b', text2:'#64748b', blue:'#2563eb', green:'#16a34a', red:'#dc2626', amber:'#d97706' };
+
+// Génère un QR code SVG basique sans dépendance externe (encodage Data Matrix simplifié)
+// Pour un rendu plus précis, utiliser la lib qrcode.js — ici on affiche le contenu textuel
+const QRModal = ({user, onClose}) => {
+  const canvasRef = useRef(null);
+  const qrData = JSON.stringify({ id: user.id, email: user.email, name: `${user.firstName} ${user.lastName}`, role: user.role });
+
+  useEffect(() => {
+    // Charge qrcode.js depuis CDN et génère le QR
+    if (window.QRCode) {
+      renderQR();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+      script.onload = renderQR;
+      document.head.appendChild(script);
+    }
+  }, []);
+
+  const renderQR = () => {
+    if (!canvasRef.current || !window.QRCode) return;
+    canvasRef.current.innerHTML = '';
+    new window.QRCode(canvasRef.current, {
+      text: qrData, width: 220, height: 220,
+      colorDark: '#1e293b', colorLight: '#ffffff',
+      correctLevel: window.QRCode.CorrectLevel.H,
+    });
+  };
+
+  const download = () => {
+    const canvas = canvasRef.current?.querySelector('canvas');
+    if (!canvas) return;
+    const a = document.createElement('a');
+    a.download = `QR_${user.firstName}_${user.lastName}_CleanIT.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  };
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={onClose}>
+      <div style={{background:'white',borderRadius:14,padding:28,maxWidth:320,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,0.25)',textAlign:'center'}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:4}}>{user.firstName} {user.lastName}</div>
+        <div style={{fontSize:12,color:C.text2,marginBottom:16}}>{ROLE_LABELS[user.role]||user.role} · ID #{user.id}</div>
+        <div ref={canvasRef} style={{display:'flex',justifyContent:'center',marginBottom:16}}/>
+        <div style={{fontSize:10,color:C.text2,marginBottom:16,wordBreak:'break-all',background:'#f8fafc',borderRadius:6,padding:8,textAlign:'left'}}>{qrData}</div>
+        <div style={{display:'flex',gap:8}}>
+          <button onClick={download} style={{flex:2,padding:'10px',borderRadius:8,border:'none',background:C.blue,color:'white',fontSize:13,fontWeight:600,cursor:'pointer'}}>⬇ Télécharger PNG</button>
+          <button onClick={onClose} style={{flex:1,padding:'10px',borderRadius:8,border:`1px solid ${C.border}`,background:'white',fontSize:13,cursor:'pointer'}}>Fermer</button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const RoleBadge = ({role}) => {
   const colors = { admin:C.red, project_manager:C.blue, hr:'#9333ea', technician:C.amber, bureau:C.text2 };
@@ -14,6 +67,7 @@ export default function Parametres(){
   const me = getUser();
   const [tab, setTab] = useState('utilisateurs');
   const [users, setUsers] = useState([]);
+  const [qrUser, setQrUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState(null); // user en cours d'édition (permissions/rôle)
@@ -136,6 +190,7 @@ export default function Parametres(){
                     </td>
                     <td style={{padding:'10px 14px',fontSize:12,color:C.text2}}>{u.lastSeen ? new Date(u.lastSeen).toLocaleDateString('fr-FR') : '—'}</td>
                     <td style={{padding:'10px 14px',textAlign:'right',whiteSpace:'nowrap'}}>
+                      <button onClick={()=>setQrUser(u)} style={{padding:'5px 10px',borderRadius:6,border:`1px solid ${C.border}`,background:'white',fontSize:11,fontWeight:600,cursor:'pointer',marginRight:6}}>QR Code</button>
                       <button onClick={()=>openEdit(u)} style={{padding:'5px 10px',borderRadius:6,border:`1px solid ${C.border}`,background:'white',fontSize:11,fontWeight:600,cursor:'pointer',marginRight:6}}>Permissions</button>
                       <button onClick={()=>toggleActive(u)} style={{padding:'5px 10px',borderRadius:6,border:`1px solid ${C.border}`,background:'white',fontSize:11,fontWeight:600,cursor:'pointer',color:u.isActive?C.red:C.green}}>
                         {u.isActive?'Désactiver':'Activer'}
@@ -238,6 +293,7 @@ export default function Parametres(){
           {toast.msg}
         </div>
       )}
+      {qrUser && <QRModal user={qrUser} onClose={()=>setQrUser(null)}/>}
     </div>
   );
 }
