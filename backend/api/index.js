@@ -167,6 +167,24 @@ app.post('/chacha/gemini', auth, async (req, res) => {
 // ─── GÉNÉRATION DE DOCUMENTS (ChaCha) ──────────────────────────
 // ChaCha peut générer une lettre Word, un tableau Excel, ou une présentation PowerPoint
 // à la demande, et renvoie un lien de téléchargement (stocké sur Vercel Blob).
+// ─── UPLOAD PHOTO (CleanCam) ────────────────────────────────────
+// Stocke une photo terrain sur Vercel Blob et renvoie l'URL publique pour le Fil.
+app.post('/upload/photo', auth, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'Aucun fichier reçu' });
+    if (!process.env.BLOB_READ_WRITE_TOKEN) return res.status(500).json({ message: 'BLOB_READ_WRITE_TOKEN non configuré' });
+    const { put } = require('@vercel/blob');
+    const filename = `photos/cleanitcam-${req.user.sub}-${Date.now()}.jpg`;
+    const blob = await put(filename, req.file.buffer, {
+      access: 'public', contentType: req.file.mimetype || 'image/jpeg', addRandomSuffix: false,
+    });
+    res.json({ url: blob.url });
+  } catch (e) {
+    console.error('upload/photo error:', e);
+    res.status(500).json({ message: 'Erreur upload photo', error: e.message });
+  }
+});
+
 app.post('/chacha/generate-document', auth, async (req, res) => {
   try {
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
@@ -359,7 +377,7 @@ app.post('/auth/register', rateLimit(3, 60000), async (req, res) => {
     const email = sanitize(req.body.email || '').toLowerCase();
     const firstName = sanitize(req.body.firstName || '');
     const lastName = sanitize(req.body.lastName || '');
-    const role = ['terrain', 'bureau', 'pm'].includes(req.body.role) ? req.body.role : 'bureau';
+    const role = ['technician', 'bureau', 'project_manager'].includes(req.body.role) ? req.body.role : 'bureau';
     const password = req.body.password || '';
     if (!email || !password || !firstName) return res.status(400).json({ message: 'Champs requis manquants' });
     if (password.length < 8) return res.status(400).json({ message: 'Mot de passe trop court (min 8 caractères)' });
@@ -388,8 +406,13 @@ app.get('/auth/me', auth, async (req, res) => {
 // ─── USERS ROUTES ─────────────────────────────────────────────
 app.get('/users', auth, async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, email, "firstName", "lastName", role, "isActive", "lastSeen", "createdAt", module_access FROM users ORDER BY "createdAt" DESC').catch(async () => await pool.query('SELECT id, email, "firstName", "lastName", role, "isActive", "lastSeen", "createdAt" FROM users ORDER BY "createdAt" DESC'));
-    res.json((result.rows||[]).map(r => ({...r, module_access: r.module_access||null})));
+    // Essaie d'abord avec module_access, repli sans si la colonne n'existe pas
+    const result = await pool.query(
+      'SELECT id, email, "firstName", "lastName", role, "isActive", "lastSeen", "createdAt", module_access FROM users ORDER BY "createdAt" DESC'
+    ).catch(() => pool.query(
+      'SELECT id, email, "firstName", "lastName", role, "isActive", "lastSeen", "createdAt" FROM users ORDER BY "createdAt" DESC'
+    ));
+    res.json((result.rows || []).map(r => ({ ...r, module_access: r.module_access || null })));
   } catch (e) {
     console.error('GET /users error:', e.message);
     res.status(500).json({ message: 'Erreur chargement utilisateurs: ' + e.message });
@@ -405,19 +428,15 @@ app.post('/users', auth, isAdmin, async (req, res) => {
     const password = req.body.password || 'CleanIT2024!';
     if (!email || !firstName) return res.status(400).json({ message: 'Email et prénom requis' });
     const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (exists.rows[0]) return res.status(409).json({ message: 'Cet email est déjà utilisé par un autre compte' });
+    if (exists.rows[0]) return res.status(409).json({ message: 'Email déjà utilisé' });
     const hash = await bcrypt.hash(password, 12);
     const result = await pool.query(
       'INSERT INTO users (email, password, "firstName", "lastName", role, "isActive", "createdAt") VALUES ($1,$2,$3,$4,$5,true,NOW()) RETURNING id, email, "firstName", "lastName", role, "isActive"',
       [email, hash, firstName, lastName, role]
     );
     res.status(201).json(result.rows[0]);
-  } catch (e) {
-    console.error('POST /users error:', e.message, e.detail || '');
-    res.status(500).json({ message: 'Erreur serveur: ' + (e.detail || e.message) });
-  }
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
-    if (!email || !firstName) return res.status(400).json({ message: 'Email et prénom requis' });
 
 app.put('/users/:id', auth, async (req, res) => {
   try {
@@ -427,6 +446,16 @@ app.put('/users/:id', auth, async (req, res) => {
     const uQ = await pool.query('SELECT role FROM users WHERE id=$1',[req.user.sub]);
     const isAdm = ['admin','hr'].includes(uQ.rows[0]?.role);
     if(!isAdm && String(req.user.sub)!==String(id)) return res.status(403).json({message:'Non autorisé'});
+    // Protection : un admin ne peut pas se retirer son propre rôle admin ni se désactiver lui-même
+    // (ça le bloquerait hors de Paramètres sans moyen simple de revenir en arrière).
+    if (String(req.user.sub) === String(id)) {
+      if (req.body.role !== undefined && req.body.role !== 'admin' && uQ.rows[0]?.role === 'admin') {
+        return res.status(400).json({ message: 'Tu ne peux pas retirer ton propre rôle administrateur' });
+      }
+      if (req.body.isActive === false) {
+        return res.status(400).json({ message: 'Tu ne peux pas désactiver ton propre compte' });
+      }
+    }
     const updates = [];
     const values = [];
     let idx = 1;
@@ -2279,6 +2308,257 @@ app.put('/technicians/:id/certifications', auth, async (req, res) => {
 });
 
 // 404
+
+// ── MODULE SUIVI DE PROJETS ──────────────────────────────────────────
+pool.query(`CREATE TABLE IF NOT EXISTS projects (
+  id SERIAL PRIMARY KEY, code VARCHAR(100) NOT NULL UNIQUE, name VARCHAR(200) NOT NULL,
+  client VARCHAR(200), type VARCHAR(80), po_reference VARCHAR(200),
+  chef_projet_id INTEGER REFERENCES users(id), status VARCHAR(30) DEFAULT 'en_cours',
+  start_date DATE, target_date DATE, description TEXT,
+  budget NUMERIC(15,2) DEFAULT 0, currency VARCHAR(10) DEFAULT 'FCFA',
+  created_by INTEGER REFERENCES users(id), created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+
+pool.query(`CREATE TABLE IF NOT EXISTS project_sites (
+  id SERIAL PRIMARY KEY, project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+  site_code VARCHAR(50), site_name VARCHAR(200), region VARCHAR(100),
+  status VARCHAR(30) DEFAULT 'pending', progress INTEGER DEFAULT 0,
+  notes TEXT, added_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+
+pool.query(`CREATE TABLE IF NOT EXISTS project_steps (
+  id SERIAL PRIMARY KEY, project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+  label VARCHAR(200) NOT NULL, status VARCHAR(20) DEFAULT 'pending',
+  responsible_id INTEGER REFERENCES users(id), target_date DATE,
+  completed_at TIMESTAMP, order_index INTEGER DEFAULT 0, notes TEXT
+)`).catch(console.error);
+
+app.get('/projects-list', auth, async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT p.*, u."firstName"||' '||u."lastName" as chef_nom,
+      COUNT(DISTINCT ps.id)::int as sites_count, ROUND(COALESCE(AVG(ps.progress),0))::int as avg_progress
+      FROM projects p LEFT JOIN users u ON u.id=p.chef_projet_id
+      LEFT JOIN project_sites ps ON ps.project_id=p.id
+      GROUP BY p.id, u."firstName", u."lastName" ORDER BY p.created_at DESC`);
+    res.json(r.rows);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.get('/projects-list/:id', auth, async (req, res) => {
+  try {
+    const [proj, sites, steps, missions] = await Promise.all([
+      pool.query(`SELECT p.*, u."firstName"||' '||u."lastName" as chef_nom FROM projects p LEFT JOIN users u ON u.id=p.chef_projet_id WHERE p.id=$1`,[req.params.id]),
+      pool.query('SELECT * FROM project_sites WHERE project_id=$1 ORDER BY added_at ASC',[req.params.id]),
+      pool.query(`SELECT ps.*, u."firstName"||' '||u."lastName" as responsible_nom FROM project_steps ps LEFT JOIN users u ON u.id=ps.responsible_id WHERE ps.project_id=$1 ORDER BY order_index ASC`,[req.params.id]),
+      pool.query('SELECT * FROM missions WHERE site IN (SELECT site_code FROM project_sites WHERE project_id=$1) ORDER BY created_at DESC LIMIT 20',[req.params.id]),
+    ]);
+    if(!proj.rows[0]) return res.status(404).json({message:'Projet introuvable'});
+    res.json({...proj.rows[0], sites:sites.rows, steps:steps.rows, missions:missions.rows});
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.post('/projects-list', auth, async (req, res) => {
+  try {
+    const {code,name,client,type,po_reference,chef_projet_id,status,start_date,target_date,description,budget,currency,sites} = req.body;
+    if(!name) return res.status(400).json({message:'Nom requis'});
+    const autoCode = code||('PRJ-'+Date.now().toString().slice(-6));
+    const r = await pool.query(
+      `INSERT INTO projects (code,name,client,type,po_reference,chef_projet_id,status,start_date,target_date,description,budget,currency,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [autoCode,name,client||'',type||'',po_reference||'',chef_projet_id||null,status||'en_cours',start_date||null,target_date||null,description||'',budget||0,currency||'FCFA',req.user.sub]
+    );
+    const proj = r.rows[0];
+    for(const s of (sites||[])) await pool.query('INSERT INTO project_sites (project_id,site_code,site_name,region,status) VALUES ($1,$2,$3,$4,$5)',[proj.id,s.site_code||'',s.site_name||'',s.region||'',s.status||'pending']);
+    res.status(201).json(proj);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.put('/projects-list/:id', auth, async (req, res) => {
+  try {
+    const {name,client,type,po_reference,chef_projet_id,status,start_date,target_date,description,budget} = req.body;
+    const r = await pool.query(
+      `UPDATE projects SET name=COALESCE($1,name),client=COALESCE($2,client),type=COALESCE($3,type),po_reference=COALESCE($4,po_reference),chef_projet_id=COALESCE($5,chef_projet_id),status=COALESCE($6,status),start_date=COALESCE($7,start_date),target_date=COALESCE($8,target_date),description=COALESCE($9,description),budget=COALESCE($10,budget),updated_at=NOW() WHERE id=$11 RETURNING *`,
+      [name,client,type,po_reference,chef_projet_id,status,start_date,target_date,description,budget,req.params.id]
+    );
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.post('/projects-list/:id/sites', auth, async (req, res) => {
+  try {
+    const {site_code,site_name,region,status,progress,notes} = req.body;
+    const r = await pool.query('INSERT INTO project_sites (project_id,site_code,site_name,region,status,progress,notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',[req.params.id,site_code||'',site_name||'',region||'',status||'pending',progress||0,notes||'']);
+    res.status(201).json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.put('/projects-list/:id/sites/:siteId', auth, async (req, res) => {
+  try {
+    const {status,progress,notes} = req.body;
+    const r = await pool.query('UPDATE project_sites SET status=COALESCE($1,status),progress=COALESCE($2,progress),notes=COALESCE($3,notes) WHERE id=$4 AND project_id=$5 RETURNING *',[status,progress,notes,req.params.siteId,req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.post('/projects-list/:id/steps', auth, async (req, res) => {
+  try {
+    const {label,status,responsible_id,target_date,order_index,notes} = req.body;
+    const r = await pool.query('INSERT INTO project_steps (project_id,label,status,responsible_id,target_date,order_index,notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',[req.params.id,label,status||'pending',responsible_id||null,target_date||null,order_index||0,notes||'']);
+    res.status(201).json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.put('/projects-list/:id/steps/:stepId', auth, async (req, res) => {
+  try {
+    const {status,notes,target_date} = req.body;
+    const completedAt = status==='done'?new Date().toISOString():null;
+    const r = await pool.query('UPDATE project_steps SET status=COALESCE($1,status),notes=COALESCE($2,notes),target_date=COALESCE($3,target_date),completed_at=COALESCE($4,completed_at) WHERE id=$5 AND project_id=$6 RETURNING *',[status,notes,target_date,completedAt,req.params.stepId,req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// ── CLEANITBOOKS — ROUTES MANQUANTES ────────────────────────────
+// Ces tables existent en base (cib_invoices, cib_customers, cib_jobs, cib_bills, cib_vendors)
+// mais n'avaient aucune route API exposée — d'où les 404 dans la console.
+
+// CUSTOMERS
+app.get('/api/cleanitbooks/customers', auth, async (req,res)=>{
+  try { const r=await pool.query('SELECT * FROM cib_customers ORDER BY id DESC'); res.json(r.rows); }
+  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.post('/api/cleanitbooks/customers', auth, async (req,res)=>{
+  try {
+    const {name,email,phone,address,country,taxId} = req.body;
+    const r=await pool.query('INSERT INTO cib_customers (name,email,phone,address,country,"taxId") VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',[name,email||null,phone||null,address||null,country||'CM',taxId||null]);
+    res.status(201).json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.put('/api/cleanitbooks/customers/:id', auth, async (req,res)=>{
+  try {
+    const {name,email,phone,address,country,taxId} = req.body;
+    const r=await pool.query('UPDATE cib_customers SET name=$1,email=$2,phone=$3,address=$4,country=$5,"taxId"=$6 WHERE id=$7 RETURNING *',[name,email||null,phone||null,address||null,country||'CM',taxId||null,req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.delete('/api/cleanitbooks/customers/:id', auth, async (req,res)=>{
+  try { await pool.query('DELETE FROM cib_customers WHERE id=$1',[req.params.id]); res.json({ok:true}); }
+  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// VENDORS
+app.get('/api/cleanitbooks/vendors', auth, async (req,res)=>{
+  try { const r=await pool.query('SELECT * FROM cib_vendors ORDER BY id DESC'); res.json(r.rows); }
+  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.post('/api/cleanitbooks/vendors', auth, async (req,res)=>{
+  try {
+    const {name,email,phone,address,country,taxId} = req.body;
+    const r=await pool.query('INSERT INTO cib_vendors (name,email,phone,address,country,"taxId") VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',[name,email||null,phone||null,address||null,country||'CM',taxId||null]);
+    res.status(201).json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.put('/api/cleanitbooks/vendors/:id', auth, async (req,res)=>{
+  try {
+    const {name,email,phone,address,country,taxId} = req.body;
+    const r=await pool.query('UPDATE cib_vendors SET name=$1,email=$2,phone=$3,address=$4,country=$5,"taxId"=$6 WHERE id=$7 RETURNING *',[name,email||null,phone||null,address||null,country||'CM',taxId||null,req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// INVOICES
+app.get('/api/cleanitbooks/invoices', auth, async (req,res)=>{
+  try { const r=await pool.query('SELECT * FROM cib_invoices ORDER BY id DESC'); res.json(r.rows); }
+  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.get('/api/cleanitbooks/invoices/:id', auth, async (req,res)=>{
+  try {
+    const inv=await pool.query('SELECT * FROM cib_invoices WHERE id=$1',[req.params.id]);
+    if(!inv.rows[0]) return res.status(404).json({message:'Facture introuvable'});
+    const lines=await pool.query('SELECT * FROM cib_invoice_lines WHERE "invoiceId"=$1',[req.params.id]);
+    res.json({...inv.rows[0], lines: lines.rows});
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.post('/api/cleanitbooks/invoices', auth, async (req,res)=>{
+  try {
+    const {customerId,number,date,dueDate,currency,status,lines,notes} = req.body;
+    const total=(lines||[]).reduce((s,l)=>s+(parseFloat(l.qty||0)*parseFloat(l.unitPrice||0)),0);
+    const r=await pool.query('INSERT INTO cib_invoices ("customerId",number,date,"dueDate",currency,status,total,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',[customerId,number,date,dueDate,currency||'FCFA',status||'draft',total,notes||null]);
+    const inv=r.rows[0];
+    for(const l of (lines||[])){
+      await pool.query('INSERT INTO cib_invoice_lines ("invoiceId",description,qty,"unitPrice","taxRate") VALUES ($1,$2,$3,$4,$5)',[inv.id,l.description,l.qty||1,l.unitPrice||0,l.taxRate||0]);
+    }
+    res.status(201).json(inv);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.put('/api/cleanitbooks/invoices/:id', auth, async (req,res)=>{
+  try {
+    const {status,notes,dueDate} = req.body;
+    const r=await pool.query('UPDATE cib_invoices SET status=COALESCE($1,status),notes=COALESCE($2,notes),"dueDate"=COALESCE($3,"dueDate") WHERE id=$4 RETURNING *',[status,notes,dueDate,req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// BILLS (fournisseurs)
+app.get('/api/cleanitbooks/bills', auth, async (req,res)=>{
+  try { const r=await pool.query('SELECT * FROM cib_bills ORDER BY id DESC'); res.json(r.rows); }
+  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.post('/api/cleanitbooks/bills', auth, async (req,res)=>{
+  try {
+    const {vendorId,number,date,dueDate,currency,status,total,notes} = req.body;
+    const r=await pool.query('INSERT INTO cib_bills ("vendorId",number,date,"dueDate",currency,status,total,notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',[vendorId,number,date,dueDate,currency||'FCFA',status||'draft',total||0,notes||null]);
+    res.status(201).json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.put('/api/cleanitbooks/bills/:id', auth, async (req,res)=>{
+  try {
+    const {status,notes} = req.body;
+    const r=await pool.query('UPDATE cib_bills SET status=COALESCE($1,status),notes=COALESCE($2,notes) WHERE id=$3 RETURNING *',[status,notes,req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// JOBS (projets / chantiers CIB)
+app.get('/api/cleanitbooks/jobs', auth, async (req,res)=>{
+  try { const r=await pool.query('SELECT * FROM cib_jobs ORDER BY id DESC'); res.json(r.rows); }
+  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.get('/api/cleanitbooks/jobs/:id', auth, async (req,res)=>{
+  try { const r=await pool.query('SELECT * FROM cib_jobs WHERE id=$1',[req.params.id]); res.json(r.rows[0]||null); }
+  catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.post('/api/cleanitbooks/jobs', auth, async (req,res)=>{
+  try {
+    const {name,customerId,budget,currency,status,startDate,endDate,description} = req.body;
+    const r=await pool.query('INSERT INTO cib_jobs (name,"customerId",budget,currency,status,"startDate","endDate",description) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',[name,customerId,budget||0,currency||'FCFA',status||'active',startDate||null,endDate||null,description||null]);
+    res.status(201).json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.put('/api/cleanitbooks/jobs/:id', auth, async (req,res)=>{
+  try {
+    const {name,status,budget,endDate,description} = req.body;
+    const r=await pool.query('UPDATE cib_jobs SET name=COALESCE($1,name),status=COALESCE($2,status),budget=COALESCE($3,budget),"endDate"=COALESCE($4,"endDate"),description=COALESCE($5,description) WHERE id=$6 RETURNING *',[name,status,budget,endDate,description,req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// P&L et BALANCE (calculs depuis les vraies données)
+app.get('/api/cleanitbooks/pl', auth, async (req,res)=>{
+  try {
+    const [inv, bil] = await Promise.all([
+      pool.query('SELECT COALESCE(SUM(total),0) as total FROM cib_invoices WHERE status IN (\'paid\',\'partial\')'),
+      pool.query('SELECT COALESCE(SUM(total),0) as total FROM cib_bills WHERE status IN (\'paid\',\'partial\')'),
+    ]);
+    const revenue = parseFloat(inv.rows[0].total)||0;
+    const expenses = parseFloat(bil.rows[0].total)||0;
+    res.json({ revenue, expenses, profit: revenue-expenses });
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
+app.get('/api/cleanitbooks/balance', auth, async (req,res)=>{
+  try {
+    const r=await pool.query('SELECT * FROM cib_accounts ORDER BY "accountCode" ASC');
+    res.json(r.rows);
+  } catch(e){ res.status(500).json({message:'Erreur',error:e.message}); }
+});
 
 // ── JOURNAL CIB ──
 app.get('/api/cleanitbooks/journal', auth, async (req,res)=>{
