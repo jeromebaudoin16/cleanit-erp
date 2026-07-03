@@ -2315,22 +2315,38 @@ pool.query(`CREATE TABLE IF NOT EXISTS projects (
   client VARCHAR(200), type VARCHAR(80), po_reference VARCHAR(200),
   chef_projet_id INTEGER REFERENCES users(id), status VARCHAR(30) DEFAULT 'en_cours',
   start_date DATE, target_date DATE, description TEXT,
+  methodology TEXT,
   budget NUMERIC(15,2) DEFAULT 0, currency VARCHAR(10) DEFAULT 'FCFA',
   created_by INTEGER REFERENCES users(id), created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
 )`).catch(console.error);
+
+pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS methodology TEXT`).catch(()=>{});
 
 pool.query(`CREATE TABLE IF NOT EXISTS project_sites (
   id SERIAL PRIMARY KEY, project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
   site_code VARCHAR(50), site_name VARCHAR(200), region VARCHAR(100),
   status VARCHAR(30) DEFAULT 'pending', progress INTEGER DEFAULT 0,
-  notes TEXT, added_at TIMESTAMP DEFAULT NOW()
+  context TEXT, notes TEXT, added_at TIMESTAMP DEFAULT NOW()
 )`).catch(console.error);
+
+pool.query(`ALTER TABLE project_sites ADD COLUMN IF NOT EXISTS context TEXT`).catch(()=>{});
 
 pool.query(`CREATE TABLE IF NOT EXISTS project_steps (
   id SERIAL PRIMARY KEY, project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
   label VARCHAR(200) NOT NULL, status VARCHAR(20) DEFAULT 'pending',
   responsible_id INTEGER REFERENCES users(id), target_date DATE,
   completed_at TIMESTAMP, order_index INTEGER DEFAULT 0, notes TEXT
+)`).catch(console.error);
+
+pool.query(`CREATE TABLE IF NOT EXISTS project_site_phases (
+  id SERIAL PRIMARY KEY,
+  project_site_id INTEGER REFERENCES project_sites(id) ON DELETE CASCADE,
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+  status VARCHAR(20) DEFAULT 'pending',
+  order_index INTEGER DEFAULT 0,
+  photo_urls JSONB DEFAULT '[]',
+  created_at TIMESTAMP DEFAULT NOW()
 )`).catch(console.error);
 
 app.get('/projects-list', auth, async (req, res) => {
@@ -2353,7 +2369,20 @@ app.get('/projects-list/:id', auth, async (req, res) => {
       pool.query('SELECT * FROM missions WHERE site IN (SELECT site_code FROM project_sites WHERE project_id=$1) ORDER BY created_at DESC LIMIT 20',[req.params.id]),
     ]);
     if(!proj.rows[0]) return res.status(404).json({message:'Projet introuvable'});
-    res.json({...proj.rows[0], sites:sites.rows, steps:steps.rows, missions:missions.rows});
+    // Charger les phases pour chaque site
+    const sitesWithPhases = await Promise.all(sites.rows.map(async site => {
+      const phases = await pool.query(
+        'SELECT * FROM project_site_phases WHERE project_site_id=$1 ORDER BY order_index ASC',
+        [site.id]
+      ).catch(()=>({rows:[]}));
+      // Photos CleanCam du Fil liées à ce site
+      const photos = await pool.query(
+        `SELECT photo_url, content, created_at FROM feed_posts WHERE site=$1 AND photo_url IS NOT NULL ORDER BY created_at DESC LIMIT 20`,
+        [site.site_code]
+      ).catch(()=>({rows:[]}));
+      return {...site, phases: phases.rows, photos: photos.rows};
+    }));
+    res.json({...proj.rows[0], sites: sitesWithPhases, steps: steps.rows, missions: missions.rows});
   } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
 });
 
@@ -2413,6 +2442,242 @@ app.put('/projects-list/:id/steps/:stepId', auth, async (req, res) => {
     const completedAt = status==='done'?new Date().toISOString():null;
     const r = await pool.query('UPDATE project_steps SET status=COALESCE($1,status),notes=COALESCE($2,notes),target_date=COALESCE($3,target_date),completed_at=COALESCE($4,completed_at) WHERE id=$5 AND project_id=$6 RETURNING *',[status,notes,target_date,completedAt,req.params.stepId,req.params.id]);
     res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// Mettre à jour la méthodologie commune d'un projet
+app.put('/projects-list/:id/methodology', auth, async (req, res) => {
+  try {
+    const {methodology} = req.body;
+    const r = await pool.query('UPDATE projects SET methodology=$1, updated_at=NOW() WHERE id=$2 RETURNING *',[methodology, req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// Mettre à jour le contexte d'un site
+app.put('/projects-list/:id/sites/:siteId', auth, async (req, res) => {
+  try {
+    const {status,progress,notes,context} = req.body;
+    const r = await pool.query('UPDATE project_sites SET status=COALESCE($1,status),progress=COALESCE($2,progress),notes=COALESCE($3,notes),context=COALESCE($4,context) WHERE id=$5 AND project_id=$6 RETURNING *',[status,progress,notes,context,req.params.siteId,req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// Phases d'un site spécifique
+app.get('/project-sites/:siteId/phases', auth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM project_site_phases WHERE project_site_id=$1 ORDER BY order_index ASC',[req.params.siteId]);
+    res.json(r.rows);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.post('/project-sites/:siteId/phases', auth, async (req, res) => {
+  try {
+    const {title, description, status, order_index} = req.body;
+    if(!title) return res.status(400).json({message:'Titre de phase requis'});
+    const r = await pool.query(
+      'INSERT INTO project_site_phases (project_site_id,title,description,status,order_index) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [req.params.siteId, title, description||'', status||'pending', order_index||0]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.put('/project-sites/:siteId/phases/:phaseId', auth, async (req, res) => {
+  try {
+    const {title, description, status, photo_urls} = req.body;
+    const r = await pool.query(
+      `UPDATE project_site_phases SET
+        title=COALESCE($1,title), description=COALESCE($2,description),
+        status=COALESCE($3,status), photo_urls=COALESCE($4::jsonb,photo_urls)
+       WHERE id=$5 AND project_site_id=$6 RETURNING *`,
+      [title, description, status, photo_urls?JSON.stringify(photo_urls):null, req.params.phaseId, req.params.siteId]
+    );
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.delete('/project-sites/:siteId/phases/:phaseId', auth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM project_site_phases WHERE id=$1 AND project_site_id=$2',[req.params.phaseId,req.params.siteId]);
+    res.json({ok:true});
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// ── CATALOGUE DES TYPES DE PROJETS ───────────────────────────────────
+// Chaque type de projet (IP Core, Rural Start, MPBN, DWDM...) a une définition,
+// une liste de phases ordonnées, et des photos illustratives pour chaque phase.
+// Ce module est une base de connaissance opérationnelle de CleanIT SARL.
+
+pool.query(`CREATE TABLE IF NOT EXISTS project_type_catalogue (
+  id SERIAL PRIMARY KEY,
+  code VARCHAR(50) UNIQUE NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  category VARCHAR(100),
+  description TEXT,
+  context TEXT,
+  color VARCHAR(20) DEFAULT '#1B4F8A',
+  icon VARCHAR(50) DEFAULT 'network',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+
+pool.query(`CREATE TABLE IF NOT EXISTS project_type_phases (
+  id SERIAL PRIMARY KEY,
+  project_type_id INTEGER REFERENCES project_type_catalogue(id) ON DELETE CASCADE,
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+  is_client_scope BOOLEAN DEFAULT FALSE,
+  order_index INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+
+pool.query(`CREATE TABLE IF NOT EXISTS project_phase_photos (
+  id SERIAL PRIMARY KEY,
+  phase_id INTEGER REFERENCES project_type_phases(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  caption TEXT,
+  uploaded_by INTEGER REFERENCES users(id),
+  uploaded_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+
+// Pré-remplir IP Core et Rural Start si le catalogue est vide
+(async () => {
+  try {
+    const existing = await pool.query('SELECT COUNT(*) FROM project_type_catalogue');
+    if (parseInt(existing.rows[0].count) > 0) return;
+
+    const ipCore = await pool.query(`INSERT INTO project_type_catalogue (code,name,category,description,context,color) VALUES ('ip_core','IP Core','Data Center & Réseau IP',
+      'Déploiement d''infrastructure réseau IP dans les data centers : racks, serveurs, switchs, câblage fibre et cuivre, alimentation et connexion.',
+      'Le projet IP Core est exclusivement dédié aux data centers. Il implique l''installation physique complète de l''infrastructure réseau : racks, serveurs, switchs, routeurs, câblage fibre et RJ45, alimentation et mise en service. CleanIT intervient jusqu''à la mise sous tension — la configuration logicielle est du ressort du client.',
+      '#0D9488') RETURNING id`);
+    const ipId = ipCore.rows[0].id;
+    const ipPhases = [
+      ['Appel d\'offre', 'Réception et analyse de l\'appel d\'offre du client. Étude du scope technique, chiffrage des prestations, soumission de l\'offre.', false, 0],
+      ['Mails de confirmation', 'Confirmation écrite de l\'attribution du contrat. Échange des documents contractuels, planning de démarrage, désignation des interlocuteurs.', false, 1],
+      ['Réception DN — Outbound matériel', 'Réception de la Delivery Note (DN) qui autorise la sortie du matériel du magasin client. Vérification des quantités et références sur le bon de livraison.', false, 2],
+      ['MOS — Matériel On Site', 'Transport et livraison du matériel sur le site. Déchargement, comptage physique et constat de l\'état du matériel à l\'arrivée sur site.', false, 3],
+      ['Réception LLD', 'Réception de la Low Level Design (LLD) : fiche technique indiquant les emplacements exacts des équipements, le passage des câbles power, fibre et RJ45 pour toutes les interconnexions.', false, 4],
+      ['Vérification matériel par l\'équipe', 'L\'équipe terrain contrôle et inventorie tout le matériel reçu. Vérification des références, des quantités, de l\'état et de la conformité avec la LLD.', false, 5],
+      ['Examination du scope sur site', 'Visite technique du site par l\'équipe. Compréhension du plan d\'implantation, identification des contraintes physiques, planification des accès et des zones de travail.', false, 6],
+      ['Dispatch des tâches entre l\'équipe', 'Répartition des responsabilités : recensement des sources d\'énergie (baies, voltage), installation hardware (racks, serveurs, switchs), préparation câblage fibre (labellisation provisoire) et RJ45 (sertissage). Travail en étroite collaboration avec le client qui peut apporter des modifications en cours d\'exécution.', false, 7],
+      ['Tests & vérification par le client', 'Le client inspecte et teste toutes les connexions réalisées par les équipes CleanIT. Vérification de la conformité avec la LLD et validation des points d\'interconnexion.', false, 8],
+      ['Power On — Mise en énergie', 'Mise sous tension progressive des équipements après validation par le client. Vérification des indicateurs (LEDs, logs) et confirmation du bon fonctionnement électrique.', false, 9],
+      ['Période d\'observation', 'Phase de surveillance post Power On. Monitoring de la stabilité des équipements sur plusieurs jours, détection et correction d\'éventuelles anomalies.', false, 10],
+      ['Configuration par le client', 'Le client procède à la configuration logicielle et réseau des équipements. Cette phase ne concerne pas CleanIT — nous restons disponibles pour support physique si nécessaire.', true, 11],
+      ['Labelling final + retour matériel', 'Étiquetage définitif de tous les câbles et équipements selon les normes du client. Retour du matériel restant (emballages, surplus) au magasin du client. Clôture du dossier.', false, 12],
+    ];
+    for (const [title, desc, client, idx] of ipPhases) {
+      await pool.query('INSERT INTO project_type_phases (project_type_id,title,description,is_client_scope,order_index) VALUES ($1,$2,$3,$4,$5)', [ipId, title, desc, client, idx]);
+    }
+
+    const rural = await pool.query(`INSERT INTO project_type_catalogue (code,name,category,description,context,color) VALUES ('rural_start','Rural Start','Radio / Microwave / Énergie Solaire',
+      'Déploiement en zone rurale : construction de pylônes, installation d''antennes microwave et wireless, alimentation par panneaux solaires et batteries.',
+      'Le Rural Start couvre le déploiement d''infrastructures télécoms en zone rurale ou hors réseau électrique. Il combine : construction mécanique (pylône), radiofréquences (antennes microwave, alignement), et énergie autonome (batteries, panneaux solaires). Chaque site implique un sous-traitant (SBC) sélectionné par appel d''offre.',
+      '#7C3AED') RETURNING id`);
+    const rId = rural.rows[0].id;
+    const ruralPhases = [
+      ['Appel d\'offre SBC', 'Lancement de l\'appel d\'offre auprès des sous-traitants (SBC — Sous-traitants en Bâtiment Civil). Sélection sur critères techniques et tarifaires pour chaque site.', false, 0],
+      ['Mail de confirmation des sites', 'Confirmation officielle des sites retenus et des SBC attributaires. Transmission des coordonnées GPS, des contacts client et du planning prévisionnel.', false, 1],
+      ['DCP Tests — Survey des sites', 'Reconnaissance terrain (survey) des sites. DCP tests (Displacement Capacity Probe) pour analyse du sol. Rapport technique sur la faisabilité mécanique et les contraintes d\'accès.', false, 2],
+      ['Réception DN — Outbound matériel', 'Réception de la Delivery Note autorisant la sortie du matériel. Contrôle des équipements radio, antennes, câbles, batteries et matériaux de construction.', false, 3],
+      ['Réception LLD + DCP Test', 'Réception de la Low Level Design validée intégrant les résultats des DCP tests. Document de référence pour l\'implantation exacte du pylône, des antennes et des équipements énergie.', false, 4],
+      ['Fouilles et délimitation du périmètre', 'Implantation et marquage du périmètre de travail. Creusement des fondations selon les spécifications de la LLD et les résultats DCP. Mise en place du coffrage béton.', false, 5],
+      ['Construction du pylône (tower)', 'Assemblage et levage des sections du pylône. Pose des haubans ou fixation selon le type de tower (autoportant, haubanné, monopole). Vérification de la verticalité et de la solidité.', false, 6],
+      ['Installation antennes + alignement far-end', 'Montage des antennes microwave et wireless sur le pylône. Alignement précis vers le site far-end (site le plus proche recevant le signal). Confirmation du paramètre XPD (Cross Polar Discrimination) avec le site distant.', false, 7],
+      ['Installation supports panneaux solaires', 'Pose et fixation des structures métalliques de support pour les panneaux solaires. Orientation optimale selon l\'ensoleillement local et l\'azimut calculé.', false, 8],
+      ['Installation des batteries', 'Mise en place des batteries (banks) dans l\'abri technique. Connexion des câbles de charge et de distribution selon le schéma électrique. Vérification des polarités et des protections.', false, 9],
+      ['Installation des panneaux solaires', 'Pose et fixation des panneaux photovoltaïques sur les supports. Câblage série/parallèle selon la tension et la capacité requises. Connexion au régulateur de charge.', false, 10],
+      ['Connexion et mise en service', 'Connexion finale de tous les systèmes : panneaux → régulateur → batteries → équipements radio. Tests de charge, vérification du bon fonctionnement de l\'ensemble. Remise du site au client avec documentation complète.', false, 11],
+    ];
+    for (const [title, desc, client, idx] of ruralPhases) {
+      await pool.query('INSERT INTO project_type_phases (project_type_id,title,description,is_client_scope,order_index) VALUES ($1,$2,$3,$4,$5)', [rId, title, desc, client, idx]);
+    }
+  } catch(e) { console.error('Catalogue init error:', e.message); }
+})();
+
+// Routes catalogue
+app.get('/project-catalogue', auth, async (req, res) => {
+  try {
+    const types = await pool.query('SELECT *, (SELECT COUNT(*) FROM project_type_phases WHERE project_type_id=pt.id)::int as phases_count FROM project_type_catalogue pt ORDER BY id ASC');
+    res.json(types.rows);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.get('/project-catalogue/:id', auth, async (req, res) => {
+  try {
+    const [pt, phases] = await Promise.all([
+      pool.query('SELECT * FROM project_type_catalogue WHERE id=$1', [req.params.id]),
+      pool.query(`SELECT ph.*, COALESCE(json_agg(json_build_object('id',pp.id,'url',pp.url,'caption',pp.caption,'uploaded_at',pp.uploaded_at) ORDER BY pp.uploaded_at) FILTER (WHERE pp.id IS NOT NULL), '[]') as photos
+        FROM project_type_phases ph LEFT JOIN project_phase_photos pp ON pp.phase_id=ph.id
+        WHERE ph.project_type_id=$1 GROUP BY ph.id ORDER BY ph.order_index ASC`, [req.params.id]),
+    ]);
+    if (!pt.rows[0]) return res.status(404).json({message:'Type introuvable'});
+    res.json({ ...pt.rows[0], phases: phases.rows });
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.post('/project-catalogue', auth, isAdmin, async (req, res) => {
+  try {
+    const {code, name, category, description, context, color, icon} = req.body;
+    if (!name || !code) return res.status(400).json({message:'Code et nom requis'});
+    const r = await pool.query('INSERT INTO project_type_catalogue (code,name,category,description,context,color,icon) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+      [code, name, category||'', description||'', context||'', color||'#1B4F8A', icon||'network']);
+    res.status(201).json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.put('/project-catalogue/:id', auth, isAdmin, async (req, res) => {
+  try {
+    const {name, category, description, context, color} = req.body;
+    const r = await pool.query('UPDATE project_type_catalogue SET name=COALESCE($1,name),category=COALESCE($2,category),description=COALESCE($3,description),context=COALESCE($4,context),color=COALESCE($5,color),updated_at=NOW() WHERE id=$6 RETURNING *',
+      [name, category, description, context, color, req.params.id]);
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.post('/project-catalogue/:id/phases', auth, async (req, res) => {
+  try {
+    const {title, description, is_client_scope, order_index} = req.body;
+    if (!title) return res.status(400).json({message:'Titre requis'});
+    const r = await pool.query('INSERT INTO project_type_phases (project_type_id,title,description,is_client_scope,order_index) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [req.params.id, title, description||'', is_client_scope||false, order_index||0]);
+    res.status(201).json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.put('/project-phases/:phaseId', auth, async (req, res) => {
+  try {
+    const {title, description, is_client_scope} = req.body;
+    const r = await pool.query('UPDATE project_type_phases SET title=COALESCE($1,title),description=COALESCE($2,description),is_client_scope=COALESCE($3,is_client_scope) WHERE id=$4 RETURNING *',
+      [title, description, is_client_scope, req.params.phaseId]);
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.delete('/project-phases/:phaseId', auth, isAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM project_type_phases WHERE id=$1', [req.params.phaseId]);
+    res.json({ok:true});
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+app.post('/project-phases/:phaseId/photos', auth, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({message:'Aucun fichier'});
+    if (!process.env.BLOB_READ_WRITE_TOKEN) return res.status(500).json({message:'Blob non configuré'});
+    const { put } = require('@vercel/blob');
+    const blob = await put(`project-phases/${req.params.phaseId}-${Date.now()}.jpg`, req.file.buffer, { access:'public', contentType:req.file.mimetype||'image/jpeg', addRandomSuffix:false });
+    const r = await pool.query('INSERT INTO project_phase_photos (phase_id,url,caption,uploaded_by) VALUES ($1,$2,$3,$4) RETURNING *',
+      [req.params.phaseId, blob.url, req.body.caption||'', req.user.sub]);
+    res.status(201).json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur photo',error:e.message}); }
+});
+
+app.delete('/project-phase-photos/:photoId', auth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM project_phase_photos WHERE id=$1', [req.params.photoId]);
+    res.json({ok:true});
   } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
 });
 
