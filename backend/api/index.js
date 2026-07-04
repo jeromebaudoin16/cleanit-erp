@@ -2681,6 +2681,177 @@ app.delete('/project-phase-photos/:photoId', auth, async (req, res) => {
   } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
 });
 
+// ── EXÉCUTION PAR SITE ────────────────────────────────────────────────
+// Un "site en cours" = une instance réelle d'un type de projet sur un site précis.
+// À la création, toutes les phases du template sont copiées automatiquement pour ce site.
+
+pool.query(`CREATE TABLE IF NOT EXISTS project_site_executions (
+  id SERIAL PRIMARY KEY,
+  project_type_id INTEGER REFERENCES project_type_catalogue(id) ON DELETE CASCADE,
+  site_code VARCHAR(50) NOT NULL,
+  site_name VARCHAR(200),
+  region VARCHAR(100),
+  client VARCHAR(200),
+  bc_reference VARCHAR(200),
+  chef_projet_id INTEGER REFERENCES users(id),
+  status VARCHAR(30) DEFAULT 'en_cours',
+  start_date DATE,
+  target_date DATE,
+  notes TEXT,
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+
+pool.query(`CREATE TABLE IF NOT EXISTS project_execution_phases (
+  id SERIAL PRIMARY KEY,
+  execution_id INTEGER REFERENCES project_site_executions(id) ON DELETE CASCADE,
+  template_phase_id INTEGER REFERENCES project_type_phases(id),
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+  is_client_scope BOOLEAN DEFAULT FALSE,
+  order_index INTEGER DEFAULT 0,
+  status VARCHAR(20) DEFAULT 'pending',
+  notes TEXT,
+  started_at TIMESTAMP,
+  completed_at TIMESTAMP
+)`).catch(console.error);
+
+pool.query(`CREATE TABLE IF NOT EXISTS project_execution_photos (
+  id SERIAL PRIMARY KEY,
+  execution_phase_id INTEGER REFERENCES project_execution_phases(id) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  caption TEXT,
+  uploaded_by INTEGER REFERENCES users(id),
+  uploaded_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+
+// Liste des sites en cours pour un type de projet
+app.get('/project-catalogue/:id/sites', auth, async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT pse.*,
+        u."firstName"||' '||u."lastName" as chef_nom,
+        COUNT(DISTINCT pep.id)::int as total_phases,
+        COUNT(DISTINCT CASE WHEN pep.status='done' THEN pep.id END)::int as done_phases
+      FROM project_site_executions pse
+      LEFT JOIN users u ON u.id = pse.chef_projet_id
+      LEFT JOIN project_execution_phases pep ON pep.execution_id = pse.id
+      WHERE pse.project_type_id = $1
+      GROUP BY pse.id, u."firstName", u."lastName"
+      ORDER BY pse.created_at DESC
+    `, [req.params.id]);
+    res.json(r.rows);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// Rattacher un site à un type de projet (copie automatique des phases du template)
+app.post('/project-catalogue/:id/sites', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const {site_code, site_name, region, client: clientName, bc_reference, chef_projet_id, status, start_date, target_date, notes} = req.body;
+    if (!site_code) return res.status(400).json({message:'Code site requis'});
+
+    // Créer l'exécution
+    const exec = await client.query(
+      `INSERT INTO project_site_executions (project_type_id,site_code,site_name,region,client,bc_reference,chef_projet_id,status,start_date,target_date,notes,created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [req.params.id, site_code, site_name||'', region||'', clientName||'', bc_reference||'', chef_projet_id||null, status||'en_cours', start_date||null, target_date||null, notes||'', req.user.sub]
+    );
+    const execId = exec.rows[0].id;
+
+    // Copier toutes les phases du template
+    const phases = await client.query('SELECT * FROM project_type_phases WHERE project_type_id=$1 ORDER BY order_index ASC', [req.params.id]);
+    for (const ph of phases.rows) {
+      await client.query(
+        `INSERT INTO project_execution_phases (execution_id,template_phase_id,title,description,is_client_scope,order_index,status)
+         VALUES ($1,$2,$3,$4,$5,$6,'pending')`,
+        [execId, ph.id, ph.title, ph.description, ph.is_client_scope, ph.order_index]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json(exec.rows[0]);
+  } catch(e) {
+    await client.query('ROLLBACK');
+    res.status(500).json({message:'Erreur',error:e.message});
+  } finally { client.release(); }
+});
+
+// Détail d'une exécution (site + ses phases + photos)
+app.get('/project-site-executions/:id', auth, async (req, res) => {
+  try {
+    const [exec, phases] = await Promise.all([
+      pool.query(`SELECT pse.*, u."firstName"||' '||u."lastName" as chef_nom,
+        pt.name as type_name, pt.color as type_color
+        FROM project_site_executions pse
+        LEFT JOIN users u ON u.id=pse.chef_projet_id
+        LEFT JOIN project_type_catalogue pt ON pt.id=pse.project_type_id
+        WHERE pse.id=$1`, [req.params.id]),
+      pool.query(`
+        SELECT pep.*,
+          COALESCE(json_agg(json_build_object('id',pp.id,'url',pp.url,'caption',pp.caption,'uploaded_at',pp.uploaded_at) ORDER BY pp.uploaded_at) FILTER (WHERE pp.id IS NOT NULL),'[]') as photos
+        FROM project_execution_phases pep
+        LEFT JOIN project_execution_photos pp ON pp.execution_phase_id=pep.id
+        WHERE pep.execution_id=$1
+        GROUP BY pep.id ORDER BY pep.order_index ASC
+      `, [req.params.id]),
+    ]);
+    if (!exec.rows[0]) return res.status(404).json({message:'Exécution introuvable'});
+    res.json({...exec.rows[0], phases: phases.rows});
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// Mettre à jour le statut/notes d'une phase d'exécution
+app.put('/project-execution-phases/:id', auth, async (req, res) => {
+  try {
+    const {status, notes} = req.body;
+    const startedAt = status==='in_progress' ? new Date().toISOString() : null;
+    const completedAt = status==='done' ? new Date().toISOString() : null;
+    const r = await pool.query(
+      `UPDATE project_execution_phases SET
+        status=COALESCE($1,status), notes=COALESCE($2,notes),
+        started_at=COALESCE($3,started_at), completed_at=COALESCE($4,completed_at)
+       WHERE id=$5 RETURNING *`,
+      [status, notes, startedAt, completedAt, req.params.id]
+    );
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// Mettre à jour le statut global d'une exécution (site)
+app.put('/project-site-executions/:id', auth, async (req, res) => {
+  try {
+    const {status, notes, target_date} = req.body;
+    const r = await pool.query(
+      `UPDATE project_site_executions SET status=COALESCE($1,status),notes=COALESCE($2,notes),target_date=COALESCE($3,target_date),updated_at=NOW() WHERE id=$4 RETURNING *`,
+      [status, notes, target_date, req.params.id]
+    );
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
+// Upload photo sur une phase d'exécution
+app.post('/project-execution-phases/:id/photos', auth, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({message:'Aucun fichier'});
+    if (!process.env.BLOB_READ_WRITE_TOKEN) return res.status(500).json({message:'Blob non configuré'});
+    const {put} = require('@vercel/blob');
+    const blob = await put(`exec-phases/${req.params.id}-${Date.now()}.jpg`, req.file.buffer, {access:'public',contentType:req.file.mimetype||'image/jpeg',addRandomSuffix:false});
+    const r = await pool.query('INSERT INTO project_execution_photos (execution_phase_id,url,caption,uploaded_by) VALUES ($1,$2,$3,$4) RETURNING *',
+      [req.params.id, blob.url, req.body.caption||'', req.user.sub]);
+    res.status(201).json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:'Erreur photo',error:e.message}); }
+});
+
+app.delete('/project-execution-photos/:id', auth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM project_execution_photos WHERE id=$1',[req.params.id]);
+    res.json({ok:true});
+  } catch(e) { res.status(500).json({message:'Erreur',error:e.message}); }
+});
+
 // ── CLEANITBOOKS — ROUTES MANQUANTES ────────────────────────────
 // Ces tables existent en base (cib_invoices, cib_customers, cib_jobs, cib_bills, cib_vendors)
 // mais n'avaient aucune route API exposée — d'où les 404 dans la console.

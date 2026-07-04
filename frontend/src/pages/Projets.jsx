@@ -118,6 +118,9 @@ function TypeDetail({ typeId, onBack, isAdmin }) {
   const [editDesc, setEditDesc] = useState(false);
   const [descDraft, setDescDraft] = useState('');
   const [ctxDraft, setCtxDraft] = useState('');
+  const [tab, setTab] = useState('processus');
+  const [selectedSite, setSelectedSite] = useState(null);
+  const [showAttach, setShowAttach] = useState(false);
   const [showAddPhase, setShowAddPhase] = useState(false);
   const [newPhase, setNewPhase] = useState({ title: '', description: '', is_client_scope: false });
   const [expandedPhase, setExpandedPhase] = useState(null);
@@ -251,6 +254,40 @@ function TypeDetail({ typeId, onBack, isAdmin }) {
           )}
         </div>
       </Card>
+
+      {/* Onglets : Processus / Sites en cours */}
+      <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, marginBottom: 18, background: C.white, borderRadius: '10px 10px 0 0', border: C.cardBorder, boxShadow: C.cardShadow }}>
+        {[['processus', `Processus (${phases.length} phases)`], ['sites', 'Sites en cours']].map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)}
+            style={{ padding: '12px 20px', border: 'none', borderBottom: `2px solid ${tab === id ? (pt.color || C.blue) : 'transparent'}`, background: 'transparent', color: tab === id ? (pt.color || C.blue) : C.text3, fontWeight: tab === id ? 600 : 400, fontSize: 13, cursor: 'pointer', transition: 'all .12s' }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Vue Sites */}
+      {tab === 'sites' && !selectedSite && !showAttach && (
+        <SitesList typeId={typeId} typeColor={pt.color} isAdmin={isAdmin}
+          onSelectSite={id => setSelectedSite(id)}
+          onAttach={() => setShowAttach(true)} />
+      )}
+      {tab === 'sites' && showAttach && (
+        <AttachSiteForm typeId={typeId} typeName={pt.name} typeColor={pt.color}
+          onSave={id => { setSelectedSite(id); setShowAttach(false); setTab('sites'); }}
+          onCancel={() => setShowAttach(false)} />
+      )}
+      {tab === 'sites' && selectedSite && !showAttach && (
+        <div>
+          <button onClick={() => setSelectedSite(null)} style={{ padding: '7px 13px', borderRadius: 7, border: C.cardBorder, background: C.white, boxShadow: C.cardShadow, fontSize: 12, cursor: 'pointer', color: C.text3, marginBottom: 14 }}>
+            ← Tous les sites
+          </button>
+          <SiteDetail executionId={selectedSite} typeColor={pt.color} onBack={() => setSelectedSite(null)} />
+        </div>
+      )}
+
+      {/* Vue Processus */}
+      {tab === 'processus' && (
+        <div>
 
       {/* Phases */}
       <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -401,11 +438,452 @@ function TypeDetail({ typeId, onBack, isAdmin }) {
           Aucune phase définie — {isAdmin ? 'ajoutez les étapes du processus' : 'à remplir par l\'administrateur'}
         </div>
       )}
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── FORMULAIRE NOUVEAU TYPE ─────────────────────────────────────────────
+// ─── LISTE DES SITES EN COURS ─────────────────────────────────────────
+function SitesList({ typeId, typeColor, onSelectSite, onAttach, isAdmin }) {
+  const [sites, setSites] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const r = await api(`/project-catalogue/${typeId}/sites`).then(r => r.json()).catch(() => []);
+    setSites(Array.isArray(r) ? r : []);
+    setLoading(false);
+  }, [typeId]);
+  useEffect(() => { load(); }, [load]);
+
+  const STATUS_COLORS = {
+    en_cours:  { label: 'En cours',  color: '#2563EB', bg: '#EFF6FF' },
+    planifie:  { label: 'Planifié',  color: '#7C3AED', bg: '#F5F3FF' },
+    termine:   { label: 'Terminé',   color: '#16A34A', bg: '#F0FDF4' },
+    suspendu:  { label: 'Suspendu',  color: '#6B7280', bg: '#F3F4F6' },
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ fontSize: 12, color: C.text3 }}>
+          {sites.length} site{sites.length > 1 ? 's' : ''} rattaché{sites.length > 1 ? 's' : ''} à ce type de projet
+        </div>
+        <button onClick={onAttach}
+          style={{ padding: '7px 14px', borderRadius: 7, border: 'none', background: typeColor || C.blue, color: '#fff', fontSize: 11, fontWeight: 500, cursor: 'pointer' }}>
+          + Rattacher un site
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 32, textAlign: 'center', color: C.text4, fontSize: 12 }}>Chargement...</div>
+      ) : sites.length === 0 ? (
+        <div style={{ padding: 40, textAlign: 'center', background: C.bg, borderRadius: 10, border: C.cardBorder }}>
+          <div style={{ fontSize: 13, color: C.text4, marginBottom: 8 }}>Aucun site rattaché pour l'instant</div>
+          <div style={{ fontSize: 11, color: C.text4, marginBottom: 16 }}>Cliquez "+ Rattacher un site" pour démarrer le suivi d'une mission</div>
+          <button onClick={onAttach} style={{ padding: '8px 18px', borderRadius: 7, border: 'none', background: typeColor || C.blue, color: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+            + Rattacher un site
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+          {sites.map(site => {
+            const st = STATUS_COLORS[site.status] || STATUS_COLORS.en_cours;
+            const pct = site.total_phases > 0 ? Math.round((site.done_phases / site.total_phases) * 100) : 0;
+            return (
+              <Card key={site.id} onClick={() => onSelectSite(site.id)}>
+                <div style={{ padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: typeColor || C.blue, background: (typeColor || C.blue) + '14', padding: '2px 8px', borderRadius: 5, letterSpacing: '0.01em' }}>
+                          {site.site_code}
+                        </span>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: C.text }}>{site.site_name || site.site_code}</span>
+                        <Badge label={st.label} color={st.color} bg={st.bg} />
+                      </div>
+                      <div style={{ fontSize: 11, color: C.text4, marginBottom: 10 }}>
+                        {site.client && <span>{site.client}</span>}
+                        {site.bc_reference && <span style={{ marginLeft: 8 }}>· Réf. {site.bc_reference}</span>}
+                        {site.region && <span style={{ marginLeft: 8 }}>· {site.region}</span>}
+                        {site.chef_nom && <span style={{ marginLeft: 8 }}>· CDP: {site.chef_nom}</span>}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ flex: 1, maxWidth: 260 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <span style={{ fontSize: 10, color: C.text4 }}>{site.done_phases}/{site.total_phases} phases complétées</span>
+                            <span style={{ fontSize: 10, fontWeight: 600, color: pct >= 100 ? C.green : (typeColor || C.blue) }}>{pct}%</span>
+                          </div>
+                          <div style={{ height: 4, background: C.bg, borderRadius: 3, overflow: 'hidden', border: C.cardBorder }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? C.green : (typeColor || C.blue), borderRadius: 3, transition: 'width .4s' }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 14, color: C.text4 }}>›</span>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── FORMULAIRE RATTACHEMENT SITE ────────────────────────────────────────
+function AttachSiteForm({ typeId, typeName, typeColor, onSave, onCancel }) {
+  const [form, setForm] = useState({ site_code: '', site_name: '', region: '', client: '', bc_reference: '', status: 'en_cours', start_date: '', target_date: '', notes: '' });
+  const [saving, setSaving] = useState(false);
+  const [users, setUsers] = useState([]);
+
+  useEffect(() => {
+    api('/users').then(r => r.json()).then(d => setUsers(Array.isArray(d) ? d.filter(u => ['admin','project_manager'].includes(u.role)) : [])).catch(() => {});
+  }, []);
+
+  const save = async () => {
+    if (!form.site_code) return;
+    setSaving(true);
+    const r = await api(`/project-catalogue/${typeId}/sites`, {
+      json: true, method: 'POST',
+      body: JSON.stringify(form),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (r.ok) { const data = await r.json(); onSave(data.id); }
+    setSaving(false);
+  };
+
+  const inp = (f, p = {}) => (
+    <input value={form[f]} onChange={e => setForm(prev => ({ ...prev, [f]: e.target.value }))}
+      style={{ width: '100%', padding: '8px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, boxSizing: 'border-box', outline: 'none', color: C.text, background: C.white }} {...p} />
+  );
+
+  return (
+    <div style={{ padding: 24, background: C.bg, minHeight: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <button onClick={onCancel} style={{ padding: '7px 13px', borderRadius: 7, border: C.cardBorder, background: C.white, boxShadow: C.cardShadow, fontSize: 12, cursor: 'pointer', color: C.text3 }}>← Annuler</button>
+        <div>
+          <h1 style={{ fontSize: 17, fontWeight: 600, color: C.text, margin: 0 }}>Rattacher un site</h1>
+          <div style={{ fontSize: 11, color: typeColor || C.blue, marginTop: 2 }}>Type : {typeName}</div>
+        </div>
+      </div>
+
+      <Card>
+        <div style={{ padding: 22 }}>
+          <div style={{ background: (typeColor || C.blue) + '10', border: `1px solid ${(typeColor || C.blue)}25`, borderRadius: 8, padding: '10px 14px', marginBottom: 18, fontSize: 12, color: C.text2, lineHeight: 1.6 }}>
+            Les <strong>{typeName === 'IP Core' ? '13' : '12'} phases</strong> du processus <strong>{typeName}</strong> seront automatiquement copiées pour ce site. Il suffira ensuite de cocher chaque phase au fur et à mesure de l'exécution et d'ajouter les photos terrain.
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 13, marginBottom: 13 }}>
+            <div>
+              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Code site *</div>
+              {inp('site_code', { placeholder: 'ex: GAR-001' })}
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Nom du site</div>
+              {inp('site_name', { placeholder: 'ex: Tour MTN Garoua Centre' })}
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Client</div>
+              {inp('client', { placeholder: 'ex: MTN Cameroun' })}
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Référence BC / PO</div>
+              {inp('bc_reference', { placeholder: 'ex: 416121376123-2' })}
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Région</div>
+              {inp('region', { placeholder: 'ex: Nord Cameroun' })}
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Statut</div>
+              <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
+                style={{ width: '100%', padding: '8px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, background: C.white, color: C.text }}>
+                <option value="planifie">Planifié</option>
+                <option value="en_cours">En cours</option>
+                <option value="termine">Terminé</option>
+                <option value="suspendu">Suspendu</option>
+              </select>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Date de démarrage</div>
+              {inp('start_date', { type: 'date' })}
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Date cible de fin</div>
+              {inp('target_date', { type: 'date' })}
+            </div>
+            <div style={{ gridColumn: '1/-1' }}>
+              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Notes (contexte spécifique à ce site)</div>
+              <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} rows={3}
+                placeholder="Particularités de ce site : accès, contraintes, historique..."
+                style={{ width: '100%', padding: '8px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, resize: 'vertical', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', lineHeight: 1.6, color: C.text }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button onClick={onCancel} style={{ padding: '9px 18px', borderRadius: 8, border: C.cardBorder, background: 'white', fontSize: 12, cursor: 'pointer', color: C.text2 }}>Annuler</button>
+            <button onClick={save} disabled={saving || !form.site_code}
+              style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: form.site_code ? (typeColor || C.blue) : '#CBD5E1', color: 'white', fontSize: 12, fontWeight: 500, cursor: form.site_code ? 'pointer' : 'default' }}>
+              {saving ? 'Rattachement...' : 'Rattacher et créer les phases'}
+            </button>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ─── DÉTAIL D'UN SITE EN COURS ───────────────────────────────────────────
+function SiteDetail({ executionId, typeColor, onBack }) {
+  const [exec, setExec] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [expandedPhase, setExpandedPhase] = useState(null);
+  const [uploadingPhase, setUploadingPhase] = useState(null);
+  const [toast, setToast] = useState('');
+  const [editNotes, setEditNotes] = useState(null);
+  const [notesDraft, setNotesDraft] = useState('');
+
+  const showT = m => { setToast(m); setTimeout(() => setToast(''), 3000); };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const r = await api(`/project-site-executions/${executionId}`).then(r => r.json()).catch(() => null);
+    setExec(r);
+    setLoading(false);
+  }, [executionId]);
+  useEffect(() => { load(); }, [load]);
+
+  const updPhase = async (phaseId, updates) => {
+    await api(`/project-execution-phases/${phaseId}`, {
+      method: 'PUT', json: true,
+      body: JSON.stringify(updates),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    load();
+  };
+
+  const saveNotes = async (phaseId) => {
+    await updPhase(phaseId, { notes: notesDraft });
+    setEditNotes(null);
+    showT('Notes enregistrées ✓');
+  };
+
+  const uploadPhoto = async (phaseId) => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      setUploadingPhase(phaseId);
+      showT('Upload en cours...');
+      const form = new FormData();
+      form.append('file', file);
+      const r = await fetch(BASE + `/project-execution-phases/${phaseId}/photos`, {
+        method: 'POST', headers: { 'Authorization': 'Bearer ' + tk() }, body: form
+      }).then(r => r.json());
+      if (r.url) { showT('Photo ajoutée ✓'); load(); }
+      else showT('Erreur upload photo');
+      setUploadingPhase(null);
+    };
+    input.click();
+  };
+
+  const deletePhoto = async (photoId) => {
+    await api(`/project-execution-photos/${photoId}`, { method: 'DELETE', json: true, headers: { 'Content-Type': 'application/json' } });
+    showT('Photo supprimée');
+    load();
+  };
+
+  const STATUS_PHASE = {
+    pending:     { label: 'À faire',  color: '#6B7280', bg: '#F3F4F6' },
+    in_progress: { label: 'En cours', color: '#2563EB', bg: '#EFF6FF' },
+    done:        { label: 'Terminé',  color: '#16A34A', bg: '#F0FDF4' },
+    blocked:     { label: 'Bloqué',   color: '#DC2626', bg: '#FEF2F2' },
+  };
+
+  if (loading) return <div style={{ padding: 60, textAlign: 'center', color: C.text4 }}>Chargement...</div>;
+  if (!exec || exec.message) return <div style={{ padding: 60, textAlign: 'center', color: C.red }}>Exécution introuvable</div>;
+
+  const phases = exec.phases || [];
+  const donePhases = phases.filter(p => p.status === 'done').length;
+  const pct = phases.length > 0 ? Math.round((donePhases / phases.length) * 100) : 0;
+  const color = exec.type_color || typeColor || C.blue;
+
+  return (
+    <div style={{ padding: 24, background: C.bg, minHeight: '100%' }}>
+      <Toast msg={toast} />
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+        <button onClick={onBack} style={{ padding: '7px 13px', borderRadius: 7, border: C.cardBorder, background: C.white, boxShadow: C.cardShadow, fontSize: 12, cursor: 'pointer', color: C.text3 }}>
+          ← Sites
+        </button>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color, background: color + '14', padding: '2px 8px', borderRadius: 5 }}>{exec.site_code}</span>
+            <h1 style={{ fontSize: 17, fontWeight: 600, color: C.text, margin: 0 }}>{exec.site_name || exec.site_code}</h1>
+          </div>
+          <div style={{ fontSize: 11, color: C.text4 }}>
+            {exec.type_name && <span style={{ color, fontWeight: 500 }}>{exec.type_name}</span>}
+            {exec.client && <span style={{ marginLeft: 8 }}>· {exec.client}</span>}
+            {exec.bc_reference && <span style={{ marginLeft: 8 }}>· Réf. {exec.bc_reference}</span>}
+            {exec.region && <span style={{ marginLeft: 8 }}>· {exec.region}</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* Barre de progression globale */}
+      <Card style={{ marginBottom: 14, padding: '14px 18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 500, color: C.text }}>Avancement global</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: pct >= 100 ? C.green : color }}>{pct}%</span>
+            </div>
+            <div style={{ height: 6, background: C.bg, borderRadius: 4, overflow: 'hidden', border: C.cardBorder }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? C.green : color, borderRadius: 4, transition: 'width .5s' }} />
+            </div>
+            <div style={{ fontSize: 10, color: C.text4, marginTop: 4 }}>{donePhases} / {phases.length} phases complétées</div>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: pct >= 100 ? C.green : color, letterSpacing: '-0.03em' }}>{donePhases}/{phases.length}</div>
+            <div style={{ fontSize: 10, color: C.text4 }}>phases</div>
+          </div>
+        </div>
+        {exec.notes && (
+          <div style={{ marginTop: 12, fontSize: 12, color: C.text3, background: C.bg, borderRadius: 7, padding: '8px 11px', border: C.cardBorder }}>
+            {exec.notes}
+          </div>
+        )}
+      </Card>
+
+      {/* Phases d'exécution */}
+      <div style={{ fontSize: 13, fontWeight: 500, color: C.text, marginBottom: 12 }}>Suivi des phases</div>
+
+      <div style={{ position: 'relative' }}>
+        <div style={{ position: 'absolute', left: 19, top: 0, bottom: 0, width: 1.5, background: `linear-gradient(to bottom, ${color}55, transparent)` }} />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {phases.map((ph, idx) => {
+            const sph = STATUS_PHASE[ph.status] || STATUS_PHASE.pending;
+            const isExpanded = expandedPhase === ph.id;
+            const isClientScope = ph.is_client_scope;
+            const photos = Array.isArray(ph.photos) ? ph.photos : [];
+            const isDone = ph.status === 'done';
+
+            return (
+              <div key={ph.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                {/* Cercle numéroté */}
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: isDone ? color : (isClientScope ? '#F3F4F6' : C.white), border: `2px solid ${isDone ? color : (isClientScope ? '#D1D5DB' : (ph.status === 'in_progress' ? color : C.border))}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, zIndex: 1, fontSize: 13, fontWeight: 700, color: isDone ? '#fff' : (isClientScope ? '#9CA3AF' : color), boxShadow: C.cardShadow, transition: 'all .2s' }}>
+                  {isDone ? '✓' : (idx + 1)}
+                </div>
+
+                <Card style={{ flex: 1, cursor: 'default', opacity: isClientScope ? 0.75 : 1 }}>
+                  <div style={{ padding: '12px 15px' }}>
+                    {/* En-tête cliquable */}
+                    <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 8 }}
+                      onClick={() => setExpandedPhase(isExpanded ? null : ph.id)}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 12, fontWeight: 500, color: isClientScope ? C.text4 : C.text }}>{ph.title}</span>
+                          <Badge label={sph.label} color={sph.color} bg={sph.bg} />
+                          {isClientScope && <Badge label="Hors périmètre CleanIT" color="#9CA3AF" bg="#F3F4F6" />}
+                          {photos.length > 0 && <Badge label={`${photos.length} photo${photos.length > 1 ? 's' : ''}`} color={color} bg={color + '15'} />}
+                          {ph.notes && !isExpanded && <Badge label="Notes" color="#6B7280" bg="#F3F4F6" />}
+                        </div>
+                        {ph.completed_at && <div style={{ fontSize: 10, color: C.green, marginTop: 2 }}>Terminé le {new Date(ph.completed_at).toLocaleDateString('fr-FR')}</div>}
+                      </div>
+                      <span style={{ fontSize: 11, color: C.text4, flexShrink: 0 }}>{isExpanded ? '▲' : '▼'}</span>
+                    </div>
+
+                    {/* Contenu déplié */}
+                    {isExpanded && (
+                      <div style={{ marginTop: 12 }}>
+                        {ph.description && (
+                          <div style={{ background: C.bg, borderRadius: 8, padding: '11px 13px', border: C.cardBorder, marginBottom: 12 }}>
+                            <p style={{ fontSize: 12, color: C.text2, lineHeight: 1.7, margin: 0 }}>{ph.description}</p>
+                          </div>
+                        )}
+
+                        {/* Notes de l'équipe */}
+                        <div style={{ marginBottom: 12 }}>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Notes de l'équipe</div>
+                          {editNotes === ph.id ? (
+                            <div>
+                              <textarea value={notesDraft} onChange={e => setNotesDraft(e.target.value)} rows={3} autoFocus
+                                placeholder="Observations, problèmes rencontrés, modifications du client..."
+                                style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${color}`, borderRadius: 7, fontSize: 12, resize: 'vertical', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', lineHeight: 1.6 }} />
+                              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                                <button onClick={() => saveNotes(ph.id)} style={{ padding: '5px 14px', borderRadius: 6, border: 'none', background: C.green, color: '#fff', fontSize: 11, fontWeight: 500, cursor: 'pointer' }}>Enregistrer</button>
+                                <button onClick={() => setEditNotes(null)} style={{ padding: '5px 10px', borderRadius: 6, border: C.cardBorder, background: 'white', fontSize: 11, cursor: 'pointer' }}>Annuler</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div onClick={() => { setEditNotes(ph.id); setNotesDraft(ph.notes || ''); }}
+                              style={{ padding: '8px 10px', background: ph.notes ? C.bg : 'transparent', borderRadius: 7, border: C.cardBorder, fontSize: 12, color: ph.notes ? C.text2 : C.text4, cursor: 'pointer', lineHeight: 1.6, minHeight: 36, display: 'flex', alignItems: ph.notes ? 'flex-start' : 'center', fontStyle: ph.notes ? 'normal' : 'italic' }}>
+                              {ph.notes || 'Cliquer pour ajouter des notes...'}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Photos */}
+                        {photos.length > 0 && (
+                          <div style={{ marginBottom: 12 }}>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Photos terrain ({photos.length})</div>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              {photos.map(p => (
+                                <div key={p.id} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: C.cardBorder, boxShadow: C.cardShadow }}>
+                                  <img src={p.url} alt={p.caption || 'Photo terrain'}
+                                    style={{ width: 130, height: 95, objectFit: 'cover', display: 'block', cursor: 'pointer' }}
+                                    onClick={() => window.open(p.url, '_blank')} />
+                                  {p.caption && (
+                                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.55)', padding: '4px 7px', fontSize: 9, color: '#fff' }}>{p.caption}</div>
+                                  )}
+                                  <button onClick={() => deletePhoto(p.id)}
+                                    style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'rgba(220,38,38,0.85)', color: '#fff', fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Actions phase */}
+                        {!isClientScope && (
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <div style={{ fontSize: 10, color: C.text4, marginRight: 4 }}>Statut :</div>
+                            {['pending', 'in_progress', 'done', 'blocked'].map(s => (
+                              <button key={s} onClick={() => updPhase(ph.id, { status: s })}
+                                style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${ph.status === s ? STATUS_PHASE[s].color : C.border}`, background: ph.status === s ? STATUS_PHASE[s].color : C.white, color: ph.status === s ? '#fff' : C.text3, fontSize: 10, fontWeight: ph.status === s ? 600 : 400, cursor: 'pointer', transition: 'all .1s' }}>
+                                {STATUS_PHASE[s].label}
+                              </button>
+                            ))}
+                            <button onClick={() => uploadPhoto(ph.id)} disabled={uploadingPhase === ph.id}
+                              style={{ marginLeft: 'auto', padding: '4px 11px', borderRadius: 6, border: C.cardBorder, background: C.white, color: C.text3, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              📷 {uploadingPhase === ph.id ? 'Upload...' : 'Ajouter photo'}
+                            </button>
+                          </div>
+                        )}
+                        {isClientScope && (
+                          <div style={{ fontSize: 11, color: '#9CA3AF', fontStyle: 'italic' }}>
+                            Cette phase est gérée par le client — CleanIT n'intervient pas
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function NewTypeForm({ onSave, onCancel }) {
   const COLORS = ['#1B4F8A','#0D9488','#7C3AED','#EA580C','#16A34A','#D97706','#DC2626','#0891B2'];
   const [form, setForm] = useState({ code: '', name: '', category: '', description: '', context: '', color: '#1B4F8A' });
