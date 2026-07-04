@@ -50,7 +50,9 @@ export default function Parametres(){
   const [qrUser, setQrUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [editing, setEditing] = useState(null); // user en cours d'édition (permissions/rôle)
+  const [editing, setEditing] = useState(null); // permissions/rôle
+  const [editUser, setEditUser] = useState(null); // édition infos complètes
+  const [editUserSaving, setEditUserSaving] = useState(false);
   const [toast, setToast] = useState(null);
   const [createForm, setCreateForm] = useState({ email:'', firstName:'', lastName:'', role:'bureau', password:'' });
   const [saving, setSaving] = useState(false);
@@ -107,6 +109,23 @@ export default function Parametres(){
       customAccess: Array.isArray(u.module_access),
       moduleAccess: Array.isArray(u.module_access) ? u.module_access : ALL_MODULE_PATHS.filter(p => true),
     });
+  };
+
+  const saveEditUser = async () => {
+    if (!editUser) return;
+    setEditUserSaving(true);
+    try {
+      await api.put(`/users/${editUser.id}`, {
+        firstName: editUser.firstName,
+        lastName: editUser.lastName,
+        email: editUser.email,
+        role: editUser.role,
+      });
+      showToast('Utilisateur mis à jour ✓');
+      setEditUser(null);
+      load();
+    } catch(e) { showToast(e.response?.data?.message || 'Erreur mise à jour', 'error'); }
+    setEditUserSaving(false);
   };
 
   if (me?.role !== 'admin') {
@@ -166,6 +185,7 @@ export default function Parametres(){
                     </td>
                     <td style={{padding:'10px 14px',fontSize:12,color:C.text2}}>{u.lastSeen ? new Date(u.lastSeen).toLocaleDateString('fr-FR') : '—'}</td>
                     <td style={{padding:'10px 14px',textAlign:'right',whiteSpace:'nowrap'}}>
+                      <button onClick={()=>setEditUser({...u})} style={{padding:'5px 10px',borderRadius:6,border:`1px solid ${C.border}`,background:'white',fontSize:11,fontWeight:600,cursor:'pointer',marginRight:6,color:C.blue}}>Modifier</button>
                       <button onClick={()=>setQrUser(u)} style={{padding:'5px 10px',borderRadius:6,border:`1px solid ${C.border}`,background:'white',fontSize:11,fontWeight:600,cursor:'pointer',marginRight:6}}>QR Code</button>
                       <button onClick={()=>openEdit(u)} style={{padding:'5px 10px',borderRadius:6,border:`1px solid ${C.border}`,background:'white',fontSize:11,fontWeight:600,cursor:'pointer',marginRight:6}}>Permissions</button>
                       <button onClick={()=>toggleActive(u)} style={{padding:'5px 10px',borderRadius:6,border:`1px solid ${C.border}`,background:'white',fontSize:11,fontWeight:600,cursor:'pointer',color:u.isActive?C.red:C.green}}>
@@ -270,6 +290,41 @@ export default function Parametres(){
         </div>
       )}
       {qrUser && <QRModal user={qrUser} onClose={()=>setQrUser(null)}/>}
+
+      {/* Modal édition complète utilisateur */}
+      {editUser && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center'}} onClick={()=>setEditUser(null)}>
+          <div style={{background:'white',borderRadius:14,padding:28,maxWidth:420,width:'100%',boxShadow:'0 20px 60px rgba(0,0,0,0.25)'}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:4}}>Modifier l'utilisateur</div>
+            <div style={{fontSize:12,color:C.text2,marginBottom:20}}>#{editUser.id} · {editUser.email}</div>
+            {[['Prénom','firstName'],['Nom','lastName'],['Email','email']].map(([label, field]) => (
+              <div key={field} style={{marginBottom:14}}>
+                <div style={{fontSize:11,color:C.text2,marginBottom:4}}>{label}</div>
+                <input value={editUser[field]||''} onChange={e=>setEditUser(p=>({...p,[field]:e.target.value}))}
+                  style={{width:'100%',padding:'9px 12px',border:`1px solid ${C.border}`,borderRadius:8,fontSize:13,boxSizing:'border-box',outline:'none'}} />
+              </div>
+            ))}
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:11,color:C.text2,marginBottom:4}}>Rôle</div>
+              <select value={editUser.role||'bureau'} onChange={e=>setEditUser(p=>({...p,role:e.target.value}))}
+                style={{width:'100%',padding:'9px 12px',border:`1px solid ${C.border}`,borderRadius:8,fontSize:13,background:'white'}}>
+                <option value="admin">Administrateur</option>
+                <option value="project_manager">Chef de Projet</option>
+                <option value="hr">Responsable RH</option>
+                <option value="technician">Technicien</option>
+                <option value="bureau">Bureau</option>
+              </select>
+            </div>
+            <div style={{display:'flex',gap:10}}>
+              <button onClick={saveEditUser} disabled={editUserSaving}
+                style={{flex:2,padding:'10px',borderRadius:8,border:'none',background:C.blue,color:'white',fontSize:13,fontWeight:600,cursor:'pointer'}}>
+                {editUserSaving ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
+              <button onClick={()=>setEditUser(null)} style={{flex:1,padding:'10px',borderRadius:8,border:`1px solid ${C.border}`,background:'white',fontSize:13,cursor:'pointer'}}>Annuler</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

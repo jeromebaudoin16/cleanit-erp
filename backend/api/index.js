@@ -454,12 +454,24 @@ app.post('/users', auth, isAdmin, async (req, res) => {
     const password = req.body.password || 'CleanIT2024!';
     if (!email || !firstName) return res.status(400).json({ message: 'Email et prénom requis' });
     const exists = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (exists.rows[0]) return res.status(409).json({ message: 'Email déjà utilisé' });
+    if (exists.rows[0]) return res.status(409).json({ message: 'Cet email est déjà utilisé' });
     const hash = await bcrypt.hash(password, 12);
-    const result = await pool.query(
-      'INSERT INTO users (email, password, "firstName", "lastName", role, "isActive", "createdAt") VALUES ($1,$2,$3,$4,$5,true,NOW()) RETURNING id, email, "firstName", "lastName", role, "isActive"',
-      [email, hash, firstName, lastName, role]
-    );
+    let result;
+    try {
+      result = await pool.query(
+        'INSERT INTO users (email, password, "firstName", "lastName", role, "isActive", "createdAt") VALUES ($1,$2,$3,$4,$5,true,NOW()) RETURNING id, email, "firstName", "lastName", role, "isActive"',
+        [email, hash, firstName, lastName, role]
+      );
+    } catch (insertErr) {
+      // Si erreur ENUM (invalid input value for enum) → convertir la colonne en VARCHAR puis réessayer
+      if (insertErr.message && insertErr.message.includes('invalid input value for enum')) {
+        await pool.query(`ALTER TABLE users ALTER COLUMN role TYPE VARCHAR(50) USING role::text`).catch(() => {});
+        result = await pool.query(
+          'INSERT INTO users (email, password, "firstName", "lastName", role, "isActive", "createdAt") VALUES ($1,$2,$3,$4,$5,true,NOW()) RETURNING id, email, "firstName", "lastName", role, "isActive"',
+          [email, hash, firstName, lastName, role]
+        );
+      } else { throw insertErr; }
+    }
     res.status(201).json(result.rows[0]);
   } catch (e) {
     console.error('POST /users error:', e.message, e.detail||'');
