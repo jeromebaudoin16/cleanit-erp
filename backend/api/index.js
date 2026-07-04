@@ -2535,13 +2535,12 @@ pool.query(`CREATE TABLE IF NOT EXISTS project_phase_photos (
   uploaded_at TIMESTAMP DEFAULT NOW()
 )`).catch(console.error);
 
-// Pré-remplir IP Core et Rural Start si le catalogue est vide
+// Pré-remplir IP Core et Rural Start — vérification individuelle par code
 (async () => {
   try {
-    const existing = await pool.query('SELECT COUNT(*) FROM project_type_catalogue');
-    if (parseInt(existing.rows[0].count) > 0) return;
-
-    const ipCore = await pool.query(`INSERT INTO project_type_catalogue (code,name,category,description,context,color) VALUES ('ip_core','IP Core','Data Center & Réseau IP',
+    // IP Core
+    const ipExists = await pool.query("SELECT id FROM project_type_catalogue WHERE code='ip_core'");
+    if (!ipExists.rows[0]) {    const ipCore = await pool.query(`INSERT INTO project_type_catalogue (code,name,category,description,context,color) VALUES ('ip_core','IP Core','Data Center & Réseau IP',
       'Déploiement d''infrastructure réseau IP dans les data centers : racks, serveurs, switchs, câblage fibre et cuivre, alimentation et connexion.',
       'Le projet IP Core est exclusivement dédié aux data centers. Il implique l''installation physique complète de l''infrastructure réseau : racks, serveurs, switchs, routeurs, câblage fibre et RJ45, alimentation et mise en service. CleanIT intervient jusqu''à la mise sous tension — la configuration logicielle est du ressort du client.',
       '#0D9488') RETURNING id`);
@@ -2564,7 +2563,11 @@ pool.query(`CREATE TABLE IF NOT EXISTS project_phase_photos (
     for (const [title, desc, client, idx] of ipPhases) {
       await pool.query('INSERT INTO project_type_phases (project_type_id,title,description,is_client_scope,order_index) VALUES ($1,$2,$3,$4,$5)', [ipId, title, desc, client, idx]);
     }
+    } // fin if !ipExists
 
+    // Rural Start — inséré séparément, même si IP Core existait déjà
+    const ruralExists = await pool.query("SELECT id FROM project_type_catalogue WHERE code='rural_start'");
+    if (!ruralExists.rows[0]) {
     const rural = await pool.query(`INSERT INTO project_type_catalogue (code,name,category,description,context,color) VALUES ('rural_start','Rural Start','Radio / Microwave / Énergie Solaire',
       'Déploiement en zone rurale : construction de pylônes, installation d''antennes microwave et wireless, alimentation par panneaux solaires et batteries.',
       'Le Rural Start couvre le déploiement d''infrastructures télécoms en zone rurale ou hors réseau électrique. Il combine : construction mécanique (pylône), radiofréquences (antennes microwave, alignement), et énergie autonome (batteries, panneaux solaires). Chaque site implique un sous-traitant (SBC) sélectionné par appel d''offre.',
@@ -2587,6 +2590,7 @@ pool.query(`CREATE TABLE IF NOT EXISTS project_phase_photos (
     for (const [title, desc, client, idx] of ruralPhases) {
       await pool.query('INSERT INTO project_type_phases (project_type_id,title,description,is_client_scope,order_index) VALUES ($1,$2,$3,$4,$5)', [rId, title, desc, client, idx]);
     }
+    } // fin if !ruralExists
   } catch(e) { console.error('Catalogue init error:', e.message); }
 })();
 
