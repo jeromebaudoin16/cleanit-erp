@@ -54,7 +54,33 @@ const rateLimit = (max, windowMs) => (req, res, next) => {
   next();
 };
 
-// ─── BASE DE DONNÉES ─────────────────────────────────────────
+// ─── MIGRATION : étendre le type role si c'est un ENUM PostgreSQL ────────
+// Le rôle 'bureau' et d'autres peuvent manquer de l'enum si la table a été créée avec un type restreint.
+// On convertit en VARCHAR si nécessaire pour supporter tous les rôles métier CleanIT.
+(async () => {
+  try {
+    // Vérifier si la colonne role est un enum
+    const colInfo = await pool.query(`
+      SELECT data_type, udt_name FROM information_schema.columns
+      WHERE table_name='users' AND column_name='role'
+    `);
+    if (colInfo.rows[0] && colInfo.rows[0].data_type === 'USER-DEFINED') {
+      // C'est un ENUM — ajouter les valeurs manquantes
+      const enumName = colInfo.rows[0].udt_name;
+      const existingVals = await pool.query(`SELECT unnest(enum_range(NULL::${enumName}))::text as val`);
+      const existing = existingVals.rows.map(r => r.val);
+      const needed = ['admin','project_manager','hr','technician','bureau','chef_projet','chef_terrain','comptable','rh','admin_sys'];
+      for (const val of needed) {
+        if (!existing.includes(val)) {
+          await pool.query(`ALTER TYPE ${enumName} ADD VALUE IF NOT EXISTS '${val}'`).catch(() => {});
+        }
+      }
+      console.log('Role enum extended with:', needed.filter(v => !existing.includes(v)));
+    }
+  } catch(e) { console.error('Role enum migration error:', e.message); }
+})();
+
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
