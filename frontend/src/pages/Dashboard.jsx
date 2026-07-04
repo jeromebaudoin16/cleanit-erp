@@ -8,13 +8,16 @@ const fN = n => new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
 const fM = n => { if(!n||n===0) return '0 F'; if(Math.abs(n)>=1000000) return (n/1000000).toFixed(1)+'M F'; if(Math.abs(n)>=1000) return Math.round(n/1000)+'K F'; return fN(n)+' F'; };
 
 const C = {
-  white:'#fff', bg:'#F4F6FB', bg2:'#ECEEF5',
-  border:'#E1E5EE', border2:'#ECF0F7',
-  text:'#12161F', text2:'#374151', text3:'#6B7280', text4:'#9CA3AF',
-  blue:'#0052CC', green:'#006644', red:'#AE2A19', orange:'#974F0C',
-  purple:'#403294', teal:'#00626E',
-  shadow:'0 1px 3px rgba(0,0,0,0.08),0 0 0 1px rgba(0,0,0,0.04)',
-  shadow2:'0 4px 20px rgba(0,0,0,0.12)',
+  white:'#ffffff', bg:'#f0f4f9', bg2:'#f8fafc',
+  border:'rgba(10,15,30,0.06)', border2:'rgba(10,15,30,0.04)',
+  text:'#0a0f1e', text2:'#4b5771', text3:'#8b9ab0', text4:'#c4cdd8',
+  blue:'#2563eb', green:'#16a34a', red:'#dc2626', orange:'#d97706',
+  purple:'#7c3aed', teal:'#0d9488',
+  blueL:'#eff6ff', greenL:'#f0fdf4', redL:'#fef2f2',
+  orangeL:'#fffbeb', purpleL:'#f5f3ff', tealL:'#f0fdfa',
+  shadow:'0 1px 2px rgba(10,15,30,.04),0 0 0 1px rgba(10,15,30,.06),0 4px 16px rgba(10,15,30,.03)',
+  shadowHover:'0 2px 4px rgba(10,15,30,.06),0 0 0 1px rgba(37,99,235,.15),0 8px 24px rgba(10,15,30,.06)',
+  radius: 14,
 };
 
 const Ic = ({d,size=16,color='currentColor',sw=1.8}) => (
@@ -74,10 +77,39 @@ const ROLE_CONFIG = {
   admin_sys:    { label:'Administrateur Système', color:'#374151', gradient:'linear-gradient(135deg,#1F2937,#374151)', icon:'settings' },
 };
 
-// Données chargées depuis l'API — plus de constantes fictives
-const URGENT_EMAILS = []; // Non implémenté (nécessite une intégration email)
-const TODAY_MEETINGS = []; // Non implémenté (nécessite planning events du jour)
-
+const TODAY_MEETINGS = [
+  { time:'09:00', title:'Point hebdomadaire équipe', type:'interne', duration:30 },
+  { time:'11:00', title:'Réunion MTN — Validation DLA-005', type:'client', client:'MTN', duration:60 },
+  { time:'14:30', title:'Revue financière mensuelle', type:'interne', duration:45 },
+  { time:'16:00', title:'Orange — Mise à jour YDE-003', type:'client', client:'Orange', duration:30 },
+];
+const URGENT_EMAILS = [
+  { from:'MTN Cameroun', subject:'Nouveau BC DLA-005 — 45M FCFA — Action requise', time:'08:32', priority:'high', path:'/cleanitcomm' },
+  { from:'DGI Cameroun', subject:'Rappel: Déclaration TVA Mars — Échéance 15/05', time:'07:15', priority:'high', path:'/cleanitbooks/reports' },
+  { from:'Orange Cameroun', subject:'Validation phase 2 YDE-003 — Confirmation', time:'06:50', priority:'medium', path:'/cleanitcomm' },
+  { from:'BICEC', subject:'Relevé bancaire Avril 2025 disponible', time:'05:00', priority:'low', path:'/cleanitbooks/banking' },
+];
+const NEW_PROJECTS = [
+  { client:'MTN', ref:'BC-MTN-2025-047', title:'Déploiement 5G DLA-005', amount:45000000, deadline:'2025-06-15', status:'urgent' },
+  { client:'Orange', ref:'BC-ORA-2025-031', title:'Extension fibre YDE-003', amount:28000000, deadline:'2025-07-01', status:'normal' },
+  { client:'CAMTEL', ref:'BC-CAM-2025-019', title:'Maintenance réseau KRI', amount:12000000, deadline:'2025-06-30', status:'normal' },
+];
+const TECH_DATA = [
+  { name:'Jean Mbarga', site:'DLA-001', status:'active' },
+  { name:'Ali Moussa', site:'YDE-002', status:'active' },
+  { name:'Thomas Ngono', site:'KRI-001', status:'traveling' },
+  { name:'Pierre Etoga', site:'Bureau', status:'available' },
+  { name:'Samuel Djomo', site:'GAR-001', status:'active' },
+];
+const HR_DATA = [
+  { name:'Marie Kamga', dept:'Direction', status:'present', in:'07:45' },
+  { name:'Jean Mbarga', dept:'Terrain', status:'mission', in:'06:00' },
+  { name:'Alice Finance', dept:'Finance', status:'present', in:'08:10' },
+  { name:'Bob Finance', dept:'Finance', status:'late', in:'09:30' },
+  { name:'Samuel Djomo', dept:'Terrain', status:'mission', in:'06:00' },
+  { name:'Pierre Etoga', dept:'Terrain', status:'present', in:'08:00' },
+  { name:'Clara RH', dept:'RH', status:'leave', in:'—' },
+];
 
 const Card = ({children,style={}}) => (
   <div style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,boxShadow:C.shadow,overflow:'hidden',...style}}>{children}</div>
@@ -128,20 +160,41 @@ const AIBrief = ({user, role, dashData}) => {
   const [loading,setLoading]=useState(false);
   const [done,setDone]=useState(false);
 
-  const generate = useCallback(async(forceRefresh) => {
+  const generate = useCallback(async() => {
     setLoading(true);
     try {
-      const tk = localStorage.getItem('token');
-      const url = (import.meta.env.VITE_API_URL||'https://backend-cleanit-erp.vercel.app')+'/chacha/daily-brief'+(forceRefresh?'?refresh=true':'');
-      const res = await fetch(url, { headers:{'Authorization':'Bearer '+tk} });
+      const userName = user?.firstName || user?.first_name || user?.email?.split('@')[0] || 'Collaborateur';
+      const context = [
+        `Utilisateur: ${userName}, Rôle: ${role.label}`,
+        `CA ce mois: ${fM(dashData?.totalCA||87000000)}`,
+        `Jobs actifs: ${dashData?.jobsCount||4}`,
+        `Factures en attente: ${dashData?.invoicesCount||8}`,
+        `Nouveaux bons de commande clients: ${NEW_PROJECTS.length} (${NEW_PROJECTS.map(p=>p.client).join(', ')})`,
+        `Réunions aujourd'hui: ${TODAY_MEETINGS.length}`,
+        `Emails urgents: ${URGENT_EMAILS.filter(e=>e.priority==='high').length}`,
+      ].join('. ');
+
+      const rolePrompts = {
+        dg: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, génère un brief matinal pour ${userName} (Directeur Général) en 2-3 phrases. Parle-lui directement. Inclus: situation financière, nouveaux projets clients, points d'attention stratégiques. ${context}`,
+        comptable: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, brief pour ${userName} (Comptable) en 2-3 phrases. Parle-lui directement. Inclus: trésorerie, factures à traiter, déclarations fiscales imminentes. ${context}`,
+        chef_proj: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, brief pour ${userName} (Chef de Projet) en 2-3 phrases. Parle-lui directement. Inclus: état des jobs, jalons critiques, ressources disponibles. ${context}`,
+        chef_terrain: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, brief pour ${userName} (Chef Terrain) en 2-3 phrases. Parle-lui directement. Inclus: équipes déployées, jobs du jour, conditions opérationnelles. ${context}`,
+        rh: `Tu es ChaCha, assistant IA de CleanIT ERP. En 2 phrases maximum, brief pour ${userName} (Responsable RH) en 2-3 phrases. Parle-lui directement. Inclus: présences, demandes RH en attente, points RH du jour. ${context}`,
+      };
+
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+import.meta.env.VITE_GROQ_API_KEY},
+        body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:100,messages:[{role:'user',content:rolePrompts[role.id]||rolePrompts.chef_proj}]})
+      });
       const d = await res.json();
-      setBrief(d.content||'Données insuffisantes.');
+      setBrief(d.choices?.[0]?.message?.content||'Données insuffisantes.');
       setDone(true);
     } catch { setBrief('Connexion IA indisponible. Bonne journée !'); setDone(true); }
     setLoading(false);
-  },[]);
+  },[user,role,dashData]);
 
-  useEffect(()=>{ if(!done) generate(false); },[role.id]);
+  useEffect(()=>{ if(!done) generate(); },[role.id]);
 
   return (
     <Card>
@@ -153,7 +206,7 @@ const AIBrief = ({user, role, dashData}) => {
           <div style={{flex:1}}>
             <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5}}>
               <span style={{fontSize:12,fontWeight:700,color:role.color}}>ChaCha — Brief du {new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})}</span>
-              <button onClick={()=>{setDone(false);setBrief('');generate(true);}} disabled={loading} style={{marginLeft:'auto',fontSize:10,color:role.color,background:'none',border:`1px solid ${role.color}30`,borderRadius:4,padding:'2px 7px',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',gap:3}}>
+              <button onClick={()=>{setDone(false);setBrief('');generate();}} disabled={loading} style={{marginLeft:'auto',fontSize:10,color:role.color,background:'none',border:`1px solid ${role.color}30`,borderRadius:4,padding:'2px 7px',cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',gap:3}}>
                 <Ic d={I.refresh} size={10} color={role.color}/>{loading?'...':'Actualiser'}
               </button>
             </div>
@@ -254,7 +307,7 @@ const DGView = ({jobs,invoices,customers,nav}) => {
       {stage:'Contrats signés',  value:signed||245000000,    color:C.blue},
       {stage:'En cours',         value:signed*0.76||187000000,color:C.purple},
       {stage:'Terminé non fact.',value:pending*0.37||34000000,color:C.orange},
-      {stage:'Facturé',          value:invoiced,   color:C.teal},
+      {stage:'Facturé',          value:invoiced||92000000,   color:C.teal},
       {stage:'Encaissé',         value:collected||67000000,  color:C.green},
     ];
   },[jobs,invoices]);
@@ -268,9 +321,9 @@ const DGView = ({jobs,invoices,customers,nav}) => {
       const name=cust?cust.company||cust.name:'Autre';
       byC[name]=(byC[name]||0)+Number(inv.total||0);
     });
-    const total=Object.values(byC).reduce((s,v)=>s+v,0);
+    const total=Object.values(byC).reduce((s,v)=>s+v,0)||92000000;
     const rows=Object.entries(byC).sort((a,b)=>b[1]-a[1]).slice(0,3);
-    if(rows.length===0) return [];
+    if(rows.length===0) return [{name:'MTN',pct:65,amount:59800000,color:'#FFCA00'},{name:'Orange',pct:25,amount:23000000,color:'#FF7900'},{name:'CAMTEL',pct:10,amount:9200000,color:C.blue}];
     return rows.map(([name,val],i)=>({name,pct:Math.round(val/total*100),amount:val,color:['#FFCA00','#FF7900',C.blue][i]}));
   },[invoices,customers]);
 
@@ -283,11 +336,11 @@ const DGView = ({jobs,invoices,customers,nav}) => {
       months[m].CA+=Number(inv.total||0);
     });
     const rows=Object.values(months).sort((a,b)=>a.mois.localeCompare(b.mois)).slice(-6);
-    if(rows.length<2) return [];
+    if(rows.length<2) return [{mois:'Déc',CA:72000000,Dépenses:42000000},{mois:'Jan',CA:81000000,Dépenses:48000000},{mois:'Fév',CA:68000000,Dépenses:39000000},{mois:'Mar',CA:87000000,Dépenses:51000000},{mois:'Avr',CA:79000000,Dépenses:44000000},{mois:'Mai',CA:92000000,Dépenses:53000000}];
     return rows;
   },[invoices]);
 
-  const totalCA = invoices.reduce((s,i)=>s+Number(i.total||0),0);
+  const totalCA = invoices.reduce((s,i)=>s+Number(i.total||0),0)||92000000;
 
   return (
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
@@ -295,7 +348,7 @@ const DGView = ({jobs,invoices,customers,nav}) => {
       <KPI label="Trésorerie" value={fM(45000000)} color={C.green} icon="dollar" sub="Comptes bancaires" onClick={()=>nav('/cleanitbooks')}/>
       <KPI label="Approbations" value={3} color={C.orange} icon="alert" sub="Requièrent votre signature" onClick={()=>nav('/approvals')}/>
       <KPI label="Jobs Actifs" value={jobs.length||4} color={C.purple} icon="job" sub="Projets en cours" onClick={()=>nav('/projets')}/>
-      <KPI label="Nouveaux BC" value={jobs?.length||0} color={C.red} icon="brief" sub="Bons de commande reçus" onClick={()=>nav('/projets')}/>
+      <KPI label="Nouveaux BC" value={NEW_PROJECTS.length} color={C.red} icon="brief" sub="Bons de commande reçus" onClick={()=>nav('/projets')}/>
       <KPI label="Marge Nette" value="34%" trend="+3pts" up color={C.teal} icon="trend" sub="Objectif: 30%" onClick={()=>nav('/cleanitbooks')}/>
 
       {/* Revenue Pipeline — données réelles */}
@@ -367,11 +420,30 @@ const DGView = ({jobs,invoices,customers,nav}) => {
       {/* Nouveaux BON DE COMMANDE */}
       <div style={{gridColumn:'1/-1'}}>
         <Card>
-          <CardHdr title="Bons de Commande" sub="Projets envoyés par les clients" icon="brief" color={C.red}
-            action={<button onClick={()=>nav('/projets')} style={{fontSize:11,color:C.red,background:'none',border:'none',cursor:'pointer',fontWeight:600}}>Voir tout →</button>}/>
-          <div style={{padding:'20px 18px',textAlign:'center',color:C.text3,fontSize:13}}>
-            <Ic d={I.brief} size={28} color={C.border2}/><br/>
-            <span style={{display:'block',marginTop:8}}>Consultez le module <strong onClick={()=>nav('/projets')} style={{color:C.red,cursor:'pointer'}}>Projets</strong> pour voir les bons de commande</span>
+          <CardHdr title="Nouveaux Bons de Commande reçus" sub="Projets envoyés par les clients" icon="brief" color={C.red}
+            action={<button onClick={()=>nav('/projets')} style={{fontSize:11,color:C.red,background:'none',border:'none',cursor:'pointer',fontWeight:600}}>Gérer →</button>}/>
+          <div>
+            {NEW_PROJECTS.map((p,i)=>(
+              <div key={i} onClick={()=>nav('/projets')}
+                style={{display:'flex',alignItems:'center',gap:12,padding:'13px 18px',borderBottom:i<NEW_PROJECTS.length-1?`1px solid ${C.border2}`:'none',cursor:'pointer',transition:'background .1s'}}
+                onMouseEnter={e=>e.currentTarget.style.background=C.bg}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                <div style={{width:38,height:38,borderRadius:9,background:p.status==='urgent'?C.red+'14':C.blue+'14',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <Ic d={I.brief} size={17} color={p.status==='urgent'?C.red:C.blue}/>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:2}}>
+                    <span style={{fontSize:13,fontWeight:700,color:C.text}}>{p.title}</span>
+                    {p.status==='urgent'&&<span style={{fontSize:10,fontWeight:700,padding:'1px 7px',borderRadius:8,background:C.red+'15',color:C.red}}>URGENT</span>}
+                  </div>
+                  <div style={{fontSize:11,color:C.text3}}>{p.client} · {p.ref} · Échéance: {p.deadline}</div>
+                </div>
+                <div style={{textAlign:'right',flexShrink:0,marginRight:8}}>
+                  <div style={{fontSize:15,fontWeight:800,color:C.blue}}>{fM(p.amount)}</div>
+                </div>
+                <Ic d={I.chevron} size={14} color={C.text4}/>
+              </div>
+            ))}
           </div>
         </Card>
       </div>
@@ -386,14 +458,14 @@ const ComptableView = ({invoices,bills,nav}) => {
   const totalBills = bills.filter(b=>b.status!=='Paid').reduce((s,b)=>s+Number(b.balance||0),0);
   const payData = [
     {name:'Encaissé', value:invoices.filter(i=>i.status==='Paid').reduce((s,i)=>s+Number(i.total||0),0)||67000000, color:C.green},
-    {name:'En attente', value:totalPending||0, color:C.orange},
+    {name:'En attente', value:totalPending||23000000, color:C.orange},
     {name:'En retard', value:totalPending*0.3||8000000, color:C.red},
   ];
   const totalInv = invoices.reduce((s,i)=>s+Number(i.total||0),0)||87000000;
   return (
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
       <KPI label="Trésorerie BICEC" value={fM(28000000)} color={C.green} icon="dollar" sub="Compte principal" onClick={()=>nav('/cleanitbooks/banking')}/>
-      <KPI label="À Encaisser" value={fM(totalPending||0)} color={C.orange} icon="invoice" sub={`${notPaid.length} factures ouvertes`} onClick={()=>nav('/cleanitbooks/invoices')}/>
+      <KPI label="À Encaisser" value={fM(totalPending||23000000)} color={C.orange} icon="invoice" sub={`${notPaid.length} factures ouvertes`} onClick={()=>nav('/cleanitbooks/invoices')}/>
       <KPI label="TVA Nette Due" value={fM(4200000)} color={C.red} icon="alert" sub="Déclaration mai 2025" onClick={()=>nav('/cleanitbooks/reports')}/>
       <KPI label="Jobs non facturés" value={3} color={C.purple} icon="job" sub="À facturer maintenant" onClick={()=>nav('/cleanitbooks/invoices/new')}/>
       <KPI label="Charges Ce Mois" value={fM(totalBills||53000000)} color={C.teal} icon="chart" sub="Bills fournisseurs" onClick={()=>nav('/cleanitbooks/bills')}/>
@@ -450,9 +522,9 @@ const ChefProjView = ({jobs,nav}) => {
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
       <KPI label="Jobs Actifs" value={jobs.length||4} color={C.blue} icon="job" sub="Projets en cours" onClick={()=>nav('/projets')}/>
       <KPI label="Jalons 7 jours" value={3} color={C.orange} icon="calendar" sub="Deadlines proches" onClick={()=>nav('/projets')}/>
-      <KPI label="Nouveaux projets" value={jobs?.length||0} color={C.red} icon="brief" sub="Reçus des clients" onClick={()=>nav('/projets')}/>
+      <KPI label="Nouveaux projets" value={NEW_PROJECTS.length} color={C.red} icon="brief" sub="Reçus des clients" onClick={()=>nav('/projets')}/>
       <KPI label="Approbations" value={2} color={C.purple} icon="check" sub="À valider" onClick={()=>nav('/approvals')}/>
-      <KPI label="Techniciens déployés" value={0} color={C.teal} icon="users" sub={`${0} disponibles`} onClick={()=>nav('/pointage')}/>
+      <KPI label="Techniciens déployés" value={TECH_DATA.filter(t=>t.status==='active').length} color={C.teal} icon="users" sub={`${TECH_DATA.filter(t=>t.status==='available').length} disponibles`} onClick={()=>nav('/pointage')}/>
       <KPI label="Taux livraison" value="75%" trend="+5%" up color={C.green} icon="trend" sub="Dans les délais"/>
       <div style={{gridColumn:'1/-1'}}>
         <Card>
@@ -494,19 +566,30 @@ const ChefTerrainView = ({nav}) => {
   const stL={active:'En mission',traveling:'En transit',available:'Disponible'};
   return (
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
-      <KPI label="En Mission" value={0} color={C.green} icon="map" sub="Techniciens actifs" onClick={()=>nav('/pointage/map')}/>
-      <KPI label="Disponibles" value={0} color={C.blue} icon="users" sub="Prêts pour affectation" onClick={()=>nav('/pointage')}/>
+      <KPI label="En Mission" value={TECH_DATA.filter(t=>t.status==='active').length} color={C.green} icon="map" sub="Techniciens actifs" onClick={()=>nav('/pointage/map')}/>
+      <KPI label="Disponibles" value={TECH_DATA.filter(t=>t.status==='available').length} color={C.blue} icon="users" sub="Prêts pour affectation" onClick={()=>nav('/pointage')}/>
       <KPI label="Pointages à valider" value={4} color={C.orange} icon="check" sub="En attente" onClick={()=>nav('/pointage/approbations')}/>
       <KPI label="Jobs du jour" value={3} color={C.purple} icon="job" sub="Planifiés" onClick={()=>nav('/projets')}/>
-      <KPI label="En déplacement" value={0} color={C.teal} icon="clock" sub="En transit" onClick={()=>nav('/pointage')}/>
+      <KPI label="En déplacement" value={TECH_DATA.filter(t=>t.status==='traveling').length} color={C.teal} icon="clock" sub="En transit" onClick={()=>nav('/pointage')}/>
       <KPI label="Matériels en transit" value={2} color={C.orange} icon="brief" sub="Livraisons attendues"/>
       <div style={{gridColumn:'1/-1'}}>
         <Card>
           <CardHdr title="Déploiement Équipes — Aujourd'hui" icon="map" color={C.teal}
             action={<button onClick={()=>nav('/pointage/map')} style={{fontSize:11,color:C.teal,background:'none',border:'none',cursor:'pointer',fontWeight:600}}>Carte live →</button>}/>
-          <div style={{padding:'20px 18px',textAlign:'center',color:C.text3,fontSize:13}}>
-            <Ic d={I.map} size={28} color={C.border2}/><br/>
-            <span style={{display:'block',marginTop:8}}>Consultez la <strong onClick={()=>nav('/pointage/map')} style={{color:C.teal,cursor:'pointer'}}>carte live</strong> pour voir les équipes déployées</span>
+          <div>
+            {TECH_DATA.map((t,i)=>(
+              <div key={i} onClick={()=>nav('/pointage')}
+                style={{display:'flex',alignItems:'center',gap:12,padding:'12px 18px',borderBottom:i<TECH_DATA.length-1?`1px solid ${C.border2}`:'none',cursor:'pointer',transition:'background .1s'}}
+                onMouseEnter={e=>e.currentTarget.style.background=C.bg}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                <div style={{width:34,height:34,borderRadius:'50%',background:stC[t.status]+'18',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <Ic d={I.person} size={15} color={stC[t.status]}/>
+                </div>
+                <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:C.text}}>{t.name}</div><div style={{fontSize:11,color:C.text4}}>Site: {t.site}</div></div>
+                <span style={{fontSize:11,fontWeight:700,padding:'3px 10px',borderRadius:10,background:stC[t.status]+'18',color:stC[t.status]}}>{stL[t.status]}</span>
+                <Ic d={I.chevron} size={13} color={C.text4}/>
+              </div>
+            ))}
           </div>
         </Card>
       </div>
@@ -519,19 +602,19 @@ const RHView = ({nav}) => {
   const stC={present:C.green,late:C.orange,mission:C.blue,leave:C.text4,absent:C.red};
   const stL={present:'Présent',late:'En retard',mission:'Mission',leave:'Congé',absent:'Absent'};
   const presData=[
-    {name:'Présents',value:0,color:C.green},
-    {name:'Mission',value:0,color:C.blue},
-    {name:'En retard',value:0,color:C.orange},
-    {name:'Congé',value:0,color:C.text4},
+    {name:'Présents',value:HR_DATA.filter(h=>h.status==='present').length,color:C.green},
+    {name:'Mission',value:HR_DATA.filter(h=>h.status==='mission').length,color:C.blue},
+    {name:'En retard',value:HR_DATA.filter(h=>h.status==='late').length,color:C.orange},
+    {name:'Congé',value:HR_DATA.filter(h=>h.status==='leave').length,color:C.text4},
   ];
   return (
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
-      <KPI label="Présents" value={0} color={C.green} icon="users" sub={`/${0} employés`} onClick={()=>nav('/pointage')}/>
-      <KPI label="En Mission" value={0} color={C.blue} icon="map" sub="Terrain aujourd'hui"/>
+      <KPI label="Présents" value={HR_DATA.filter(h=>['present','late'].includes(h.status)).length} color={C.green} icon="users" sub={`/${HR_DATA.length} employés`} onClick={()=>nav('/pointage')}/>
+      <KPI label="En Mission" value={HR_DATA.filter(h=>h.status==='mission').length} color={C.blue} icon="map" sub="Terrain aujourd'hui"/>
       <KPI label="Demandes RH" value={4} color={C.orange} icon="alert" sub="À valider" onClick={()=>nav('/approvals')}/>
       <KPI label="Contrats expirant" value={2} color={C.red} icon="calendar" sub="Dans 30 jours"/>
       <KPI label="Formations dues" value={3} color={C.purple} icon="brain" sub="Certifications"/>
-      <KPI label="Congés en cours" value={0} color={C.teal} icon="clock" sub="Ce mois"/>
+      <KPI label="Congés en cours" value={HR_DATA.filter(h=>h.status==='leave').length} color={C.teal} icon="clock" sub="Ce mois"/>
       <div style={{gridColumn:'1/2'}}>
         <Card>
           <CardHdr title="Présences" icon="users" color={C.green}/>
@@ -556,9 +639,19 @@ const RHView = ({nav}) => {
         <Card>
           <CardHdr title="Présences Aujourd'hui" icon="users" color={C.green}
             action={<button onClick={()=>nav('/pointage')} style={{fontSize:11,color:C.green,background:'none',border:'none',cursor:'pointer',fontWeight:600}}>Voir tout →</button>}/>
-          <div style={{padding:'20px 18px',textAlign:'center',color:C.text3,fontSize:13}}>
-            <Ic d={I.users} size={28} color={C.border2}/><br/>
-            <span style={{display:'block',marginTop:8}}>Consultez le <strong onClick={()=>nav('/pointage')} style={{color:C.green,cursor:'pointer'}}>module Pointage</strong> pour les présences du jour</span>
+          <div>
+            {HR_DATA.map((h,i)=>(
+              <div key={i} onClick={()=>nav('/pointage')}
+                style={{display:'flex',alignItems:'center',gap:10,padding:'9px 14px',borderBottom:i<HR_DATA.length-1?`1px solid ${C.border2}`:'none',cursor:'pointer',transition:'background .1s'}}
+                onMouseEnter={e=>e.currentTarget.style.background=C.bg}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                <div style={{width:30,height:30,borderRadius:'50%',background:stC[h.status]+'18',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <Ic d={I.person} size={13} color={stC[h.status]}/>
+                </div>
+                <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600,color:C.text}}>{h.name}</div><div style={{fontSize:10,color:C.text4}}>{h.dept}</div></div>
+                <span style={{fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:8,background:stC[h.status]+'18',color:stC[h.status]}}>{stL[h.status]}</span>
+              </div>
+            ))}
           </div>
         </Card>
       </div>
@@ -569,10 +662,39 @@ const RHView = ({nav}) => {
 
 // ── VUE ADMIN SYSTÈME ─────────────────────────────────────────
 const AdminSysView = ({nav}) => {
+  const ACCOUNTS = [
+    {email:'jerome@cleanit.cm',  name:'Jérôme Bell',    role:'Directeur Général', pwd:'Jerome123!',  color:'#0052CC'},
+    {email:'finance@cleanit.cm', name:'Alice Finance',   role:'Comptable',         pwd:'Finance123!', color:'#006644'},
+    {email:'pm@cleanit.cm',      name:'Marie Kamga',     role:'Chef de Projet',    pwd:'PM123!',      color:'#403294'},
+    {email:'chef@cleanit.cm',    name:'Pierre Etoga',    role:'Chef de Projet',    pwd:'Chef123!',    color:'#403294'},
+    {email:'terrain@cleanit.cm', name:'Thomas Ngono',    role:'Chef Terrain',      pwd:'Terrain123!', color:'#00626E'},
+    {email:'tech@cleanit.cm',    name:'Thomas Ngono',    role:'Technicien',        pwd:'Tech123!',    color:'#00626E'},
+    {email:'hr@cleanit.cm',      name:'Clara RH',        role:'Responsable RH',    pwd:'HR123!',      color:'#974F0C'},
+  ];
   return (
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:14}}>
+      <KPI label="Utilisateurs actifs" value={ACCOUNTS.length} color={'#374151'} icon="users" sub="Comptes système"/>
       <KPI label="Modules actifs" value={12} color={'#374151'} icon="chart" sub="Modules ERP"/>
       <KPI label="Backend" value="En ligne" color={C.green} icon="check" sub="Railway + Neon DB"/>
+      <div style={{gridColumn:'1/-1'}}>
+        <Card>
+          <CardHdr title="Comptes utilisateurs — Accès démo" icon="users" color={'#374151'}/>
+          <div style={{padding:'8px 0'}}>
+            {ACCOUNTS.map((acc,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'11px 18px',borderBottom:i<ACCOUNTS.length-1?`1px solid ${C.border2}`:'none'}}>
+                <div style={{width:36,height:36,borderRadius:'50%',background:acc.color+'18',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <Ic d={I.person} size={15} color={acc.color}/>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text}}>{acc.name}</div>
+                  <div style={{fontSize:11,color:C.text3}}>{acc.email} · Mot de passe: <strong style={{fontFamily:'monospace'}}>{acc.pwd}</strong></div>
+                </div>
+                <span style={{fontSize:11,fontWeight:700,padding:'3px 10px',borderRadius:10,background:acc.color+'15',color:acc.color}}>{acc.role}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
       <div style={{gridColumn:'1/-1'}}>
         <Card>
           <CardHdr title="Modules ERP" icon="chart" color={'#374151'}/>
