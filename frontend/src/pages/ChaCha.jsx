@@ -350,15 +350,11 @@ export default function ChaCha() {
         }
         case 'projets':
         case 'projects': {
-          // /projects n'existe pas comme route de liste — le vrai tableau de suivi des projets (Planning >
-          // Tableau Projets) lit depuis /bc-sites, c'est la bonne source.
-          const data = await fetch(BASE_API+'/bc-sites',{headers:h}).then(r=>r.json()).catch(()=>[]);
+          const data = await fetch(BASE_API+'/projects',{headers:h}).then(r=>r.json()).catch(()=>[]);
           return JSON.stringify(Array.isArray(data)?data.slice(0,20):[]);
         }
         case 'bons_commande': {
-          // /purchase-orders est le vrai module actif (lié à PurchaseOrders.jsx) — /bons-commande est une route
-          // morte d'un ancien fichier jamais routé dans l'interface, ne pas l'utiliser ici.
-          const data = await fetch(BASE_API+'/purchase-orders',{headers:h}).then(r=>r.json()).catch(()=>[]);
+          const data = await fetch(BASE_API+'/bons-commande',{headers:h}).then(r=>r.json()).catch(()=>[]);
           return JSON.stringify(Array.isArray(data)?data.slice(0,10):[]);
         }
         case 'employes':
@@ -495,7 +491,7 @@ export default function ChaCha() {
     setMsgs(p=>[...p,userMsg]);
 
     // ===== GÉNÉRATION DE DOCUMENT — contournement direct, sans dépendre du tool-calling =====
-    // Le modèle (openai/gpt-oss-120b via Groq) répond parfois en texte libre au lieu d'appeler l'outil,
+    // Le modèle (meta-llama/llama-4-scout-17b-16e-instruct via Groq) répond parfois en texte libre au lieu d'appeler l'outil,
     // même avec tool_choice forcé sur le nom exact de la fonction — comportement non fiable constaté en test.
     // Pour cette action précise (création de fichier), on contourne entièrement la décision du modèle :
     // on lui demande seulement de structurer le contenu en JSON (qu'il suit beaucoup plus fidèlement
@@ -515,7 +511,7 @@ N'inclus QUE les champs pertinents au type choisi. Rédige un contenu complet et
 Demande de l'utilisateur: "${msg}"`;
         const res = await fetch(BASE_API+'/chacha/groq', {
           method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk4},
-          body: JSON.stringify({ model:'openai/gpt-oss-120b', max_tokens:1200, temperature:0.4,
+          body: JSON.stringify({ model:'meta-llama/llama-4-scout-17b-16e-instruct', max_tokens:1200, temperature:0.4,
             messages:[{role:'user', content: classifyPrompt}] })
         });
         const data = await res.json();
@@ -575,7 +571,7 @@ Demande de l'utilisateur: "${msg}"`;
           headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${tk}`},
           signal: ctrl.signal,
           body: JSON.stringify({
-            model: 'openai/gpt-oss-120b',
+            model: 'meta-llama/llama-4-scout-17b-16e-instruct',
             messages: [{role:'system', content:SYSTEM}, ...history],
             tools: CHACHA_TOOLS,
             tool_choice: forcedChoice,
@@ -754,7 +750,7 @@ Demande de l'utilisateur: "${msg}"`;
               headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${tk}`},
               signal: ctrl2.signal,
               body: JSON.stringify({
-                model: 'openai/gpt-oss-120b',
+                model: 'meta-llama/llama-4-scout-17b-16e-instruct',
                 messages,
                 tools: CHACHA_TOOLS,
                 tool_choice: 'auto',

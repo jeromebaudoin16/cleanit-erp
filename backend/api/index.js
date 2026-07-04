@@ -435,7 +435,10 @@ app.post('/users', auth, isAdmin, async (req, res) => {
       [email, hash, firstName, lastName, role]
     );
     res.status(201).json(result.rows[0]);
-  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
+  } catch (e) {
+    console.error('POST /users error:', e.message, e.detail||'');
+    res.status(500).json({ message: 'Erreur création utilisateur: ' + (e.detail||e.message) });
+  }
 });
 
 app.put('/users/:id', auth, async (req, res) => {
@@ -2122,106 +2125,59 @@ app.post('/purchase-orders', auth, async (req, res) => {
 
 app.post('/purchase-orders/import', auth, upload.single('file'), async (req, res) => {
   try {
-    const uQ = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1',[req.user.sub]);
-    const u = uQ.rows[0];
-    const userName = ((u?.firstName||'')+' '+(u?.lastName||'')).trim();
     let rows = [];
-
     if(req.file) {
-      // Parser le fichier Excel
       const wb = new ExcelJS.Workbook();
       await wb.xlsx.load(req.file.buffer);
       const ws = wb.worksheets[0];
       if(!ws) return res.status(400).json({message:'Feuille Excel vide'});
-      
-      // Lire les headers (ligne 1)
-      const headers = [];
-      ws.getRow(1).eachCell((cell,col)=>{ headers[col] = String(cell.value||'').toLowerCase().trim(); });
-      
-      // Lire les données
+      // Trouver la ligne des headers automatiquement
+      const KEY_WORDS = ['po','site_code','site code','duid','description','qty','quantit','requested','numero','bon de commande'];
+      let headerRow = 1; let headers = [];
       ws.eachRow((row, rowNum) => {
-        if(rowNum === 1) return;
-        const obj = {};
-        row.eachCell((cell, col) => { obj[headers[col]] = cell.value; });
-        if(Object.keys(obj).length > 0) rows.push(obj);
+        if(headers.length > 0) return;
+        const cells = []; row.eachCell((cell,col)=>{ cells[col]=String(cell.value||'').toLowerCase().trim(); });
+        const matchCount = KEY_WORDS.filter(kw=>cells.join(' ').includes(kw)).length;
+        if(matchCount >= 2) { headerRow = rowNum; headers = cells; }
       });
-    } else if(req.body && typeof req.body === 'object') {
-      // Import JSON direct
-      const b = req.body;
-      rows = [{
-        po: b.poNumber||b.po||b.numero,
-        site_code: b.siteCode||b.site_code||b.duid,
-        site_name: b.siteName||b.site_name||b.siteCode,
-        project_code: b.projectCode||b.project_code,
-        project_name: b.projectName||b.project_name,
-        description: b.description,
-        requested: b.requested||1,
-        billed: b.billed||0,
-      }];
-    }
-
-    if(rows.length === 0) return res.status(400).json({message:'Aucune donnée trouvée dans le fichier'});
-
-    const imported = [];
-    for(const row of rows) {
-      // Normaliser les champs — site_code = DUID
-      const po = String(row.po||row['po number']||row['bon de commande']||'').trim();
-      const siteCode = String(row.site_code||row['site code']||row['duid']||row['site id']||'').trim();
-      const siteName = String(row.site_name||row['site name']||row['nom site']||siteCode).trim();
-      const projectCode = String(row.project_code||row['project code']||row['code projet']||'').trim();
-      const projectName = String(row.project_name||row['project name']||row['nom projet']||'').trim();
-      const description = String(row.description||row['scope']||row['description']||'').trim();
-      const requested = Number(row.requested||row['qty requested']||row['quantite']||1);
-      const billed = Number(row.billed||row['qty billed']||0);
-      const region = String(row.region||'').trim();
-      const siteId = String(row.site_id||row['site id']||siteCode).trim();
-
-      if(!po && !siteCode) continue;
-
-      // Créer ou mettre à jour le site (site_code = DUID)
-      if(siteCode) {
-        const existing = await pool.query('SELECT id FROM sites WHERE code=$1',[siteCode]);
-        if(existing.rows[0]) {
-          await pool.query(
-            'UPDATE sites SET name=$1,"poNumber"=$2,region=$3,duid=$4 WHERE code=$5',
-            [siteName||siteCode, po, region, siteCode, siteCode]
-          ).catch(()=>{});
-        } else {
-          await pool.query(
-            `INSERT INTO sites (code,name,"poNumber",region,duid,status,latitude,longitude,technology)
-             VALUES ($1,$2,$3,$4,$5,'en_cours',0,0,'4G/5G')`,
-            [siteCode, siteName||siteCode, po, region, siteCode]
-          ).catch(()=>{});
-        }
+      if(headers.length === 0) { // fallback: première ligne non vide
+        ws.eachRow((row,rowNum)=>{ if(headers.length>0) return; const cells=[]; row.eachCell((cell,col)=>{cells[col]=String(cell.value||'').toLowerCase().trim();}); if(cells.some(c=>c&&c.length>0)){headerRow=rowNum;headers=cells;} });
       }
-
-      // Enregistrer le BC
-      const ref = po||('BC-'+Date.now().toString().slice(-6));
-      const r = await pool.query(
-        `INSERT INTO bons_commande 
-         (numero,client,site_code,duid,po_number,project_code,project_name,site_id,region,description,lignes,montant_total,status,created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,0,'en_cours',$12) 
-         ON CONFLICT DO NOTHING RETURNING *`,
-        [ref, projectName||'MTN Cameroun', siteCode, siteCode, po, projectCode, projectName, siteId, region, description,
-         JSON.stringify([{description,requested,billed,due:requested-billed}]),
-         req.user.sub]
-      ).catch(()=>({rows:[]}));
-
-      if(r.rows[0]) imported.push(r.rows[0]);
+      ws.eachRow((row,rowNum)=>{ if(rowNum<=headerRow) return; const obj={}; row.eachCell((cell,col)=>{ if(headers[col]) obj[headers[col]]=cell.value; }); if(Object.values(obj).some(v=>v!==null&&v!==undefined&&String(v).trim()!=='')) rows.push(obj); });
     }
-
-    res.status(201).json({
-      success: true,
-      imported: imported.length,
-      total: rows.length,
-      message: `${imported.length} site(s) importés sur ${rows.length} lignes — Sites mis à jour automatiquement`
-    });
-  } catch(e) { 
-    console.error('Import error:', e);
-    res.status(500).json({message:'Erreur import', error:e.message}); 
-  }
+    if(rows.length===0) return res.status(400).json({message:'Aucune donnée trouvée. Vérifiez que le fichier a des en-têtes reconnaissables (po, site_code, description, qty...)'});
+    // Grouper les lignes par (po + site_code) → 1 BC avec toutes ses lignes
+    const groups = {};
+    for(const row of rows) {
+      const po = String(row['po']||row['po number']||row['n° bc']||row['numero']||row['bon de commande']||'').trim();
+      const siteCode = String(row['site_code']||row['site code']||row['duid']||row['site id']||row['code site']||'').trim();
+      const key = (po||'BC')+'|'+(siteCode||'SITE');
+      if(!groups[key]) groups[key]={po,siteCode,siteName:String(row['site_name']||row['site name']||row['nom site']||row['nom du site']||siteCode||'').trim(),client:String(row['client']||'').trim(),projectCode:String(row['project_code']||row['project code']||row['code projet']||'').trim(),projectName:String(row['project_name']||row['project name']||row['projet']||row['nom du projet']||'').trim(),region:String(row['region']||'').trim(),lignes:[]};
+      const desc = String(row['description']||row['description de la prestation']||row['scope']||'').trim();
+      const ref = String(row['réf. équipement']||row['ref']||row['reference']||'').trim();
+      const qty = parseFloat(row['qty']||row['qté']||row['quantite']||row['quantité']||row['requested']||1)||1;
+      const unit = String(row['unité']||row['unit']||'unité').trim();
+      const unitPrice = parseFloat(row['prix unitaire (fcfa)']||row['prix unitaire']||row['unit_price']||row['prix']||0)||0;
+      const amount = parseFloat(row['montant (fcfa)']||row['montant']||row['amount']||0)||(qty*unitPrice);
+      if(desc||ref) groups[key].lignes.push({description:desc,ref,qty,unit,unitPrice,amount});
+    }
+    const imported=[];
+    for(const [,g] of Object.entries(groups)) {
+      const {po,siteCode,siteName,client,projectCode,projectName,region,lignes}=g;
+      if(!po&&!siteCode) continue;
+      const ref=po||('BC-'+Date.now().toString().slice(-6));
+      const totalHT=lignes.reduce((s,l)=>s+(l.amount||0),0);
+      if(siteCode) {
+        const existing=await pool.query('SELECT id FROM sites WHERE code=$1',[siteCode]);
+        if(existing.rows[0]) await pool.query('UPDATE sites SET name=$1,"poNumber"=$2,region=$3 WHERE code=$4',[siteName||siteCode,po,region,siteCode]).catch(()=>{});
+        else await pool.query(`INSERT INTO sites (code,name,"poNumber",region,duid,status,latitude,longitude,technology) VALUES ($1,$2,$3,$4,$5,'en_cours',0,0,'4G/5G')`,[siteCode,siteName||siteCode,po,region,siteCode]).catch(()=>{});
+      }
+      const r=await pool.query(`INSERT INTO bons_commande (numero,client,site_code,duid,po_number,project_code,project_name,site_id,region,description,lignes,montant_total,status,created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'en_cours',$13) ON CONFLICT DO NOTHING RETURNING *`,[ref,client||projectName||'',siteCode,siteCode,po,projectCode,projectName,siteCode,region,projectName||projectCode,JSON.stringify(lignes),totalHT,req.user.sub]).catch(()=>({rows:[]}));
+      if(r.rows[0]) imported.push({...r.rows[0],lignes_count:lignes.length,total:totalHT});
+    }
+    res.status(201).json({success:true,imported:imported.length,total:Object.keys(groups).length,details:imported,message:`${imported.length} BC importé(s) avec ${rows.length} ligne(s) de facturation`});
+  } catch(e) { console.error('Import BC error:',e); res.status(500).json({message:'Erreur import BC',error:e.message}); }
 });
-
 app.put('/purchase-orders/:id', auth, async (req, res) => {
   try {
     const {status,notes,lignes,montantTotal} = req.body;
