@@ -14,6 +14,7 @@ webpush.setVapidDetails(
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const mt = require('./multitenant');
 
 const app = express();
 
@@ -3426,6 +3427,10 @@ app.post('/bons-commande/analyze', auth, upload.single('file'), async (req, res)
 });
 
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
+
+// ─── MULTI-TENANT SaaS ────────────────────────────────────────
+// Initialise tables multi-tenant et routes /saas/*
+mt.init(pool, app, auth).catch(e => console.error('Multi-tenant init error:', e.message));
 
 module.exports = app;
 
