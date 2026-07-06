@@ -191,9 +191,30 @@ function TabProfil({user,setUser}){
             <div style={{fontSize:12,color:C.text3,marginBottom:6}}>{ROLES[user?.role]||user?.role}</div>
             <div style={{display:'flex',gap:6,alignItems:'center'}}>
             <input type="file" id="photo-upload" accept="image/*" style={{display:'none'}}
-              onChange={e=>{const file=e.target.files[0];if(file){const reader=new FileReader();reader.onload=r=>{const photoUrl=r.target.result;try{const u=JSON.parse(localStorage.getItem('cleanit_user')||'{}');localStorage.setItem('cleanit_user',JSON.stringify({...u,photoUrl}));setUser({...user,photoUrl});}catch{}setAlert1({type:'success',msg:'Photo mise à jour'});};reader.readAsDataURL(file);}}}/>
+              onChange={async e=>{
+                const file=e.target.files[0];
+                if(!file) return;
+                if(file.size > 5*1024*1024) { setAlert1({type:'error',msg:'Image trop lourde (max 5 Mo)'}); return; }
+                try {
+                  setAlert1({type:'info',msg:'Upload en cours...'});
+                  const fd=new FormData(); fd.append('file',file);
+                  const res=await api.post('/upload/avatar',fd);
+                  const url=res.data?.url;
+                  if(!url) throw new Error('URL manquante');
+                  setUser(prev=>({...prev,photoUrl:url}));
+                  try{const u=JSON.parse(localStorage.getItem('cleanit_user')||'{}');
+                    localStorage.setItem('cleanit_user',JSON.stringify({...u,photoUrl:url}));}catch{}
+                  setAlert1({type:'success',msg:'Photo de profil mise à jour !'});
+                } catch(err) {
+                  setAlert1({type:'error',msg:'Erreur upload: '+(err.response?.data?.message||err.message)});
+                }
+              }}/>
             <button onClick={()=>document.getElementById('photo-upload').click()} style={{fontSize:12,padding:'5px 12px',borderRadius:6,border:`1px solid ${C.border}`,background:'none',cursor:'pointer',fontFamily:'inherit',color:C.text3}}>Changer la photo</button>
-            {user?.photoUrl&&<button onClick={()=>{try{const u=JSON.parse(localStorage.getItem('cleanit_user')||'{}');delete u.photoUrl;localStorage.setItem('cleanit_user',JSON.stringify(u));setUser({...user,photoUrl:null});}catch{}}} style={{fontSize:11,padding:'3px 8px',borderRadius:5,border:`1px solid ${C.red}`,background:C.red_l,color:C.red,cursor:'pointer',fontFamily:'inherit'}}>Supprimer</button>}
+            {user?.photoUrl&&<button onClick={async ()=>{
+              await api.put(`/users/${user.id}`,{avatar_url:null}).catch(()=>{});
+              setUser(prev=>({...prev,photoUrl:null}));
+              try{const u=JSON.parse(localStorage.getItem('cleanit_user')||'{}');delete u.photoUrl;localStorage.setItem('cleanit_user',JSON.stringify(u));}catch{}
+            }} style={{fontSize:11,padding:'3px 8px',borderRadius:5,border:`1px solid ${C.red}`,background:C.red_l,color:C.red,cursor:'pointer',fontFamily:'inherit'}}>Supprimer</button>}
           </div>
           </div>
         </div>
@@ -789,10 +810,17 @@ export default function Profile(){
     if(stored){try{setUser(JSON.parse(stored));}catch{}}
     setLoading(false);
     // Rafraîchir depuis l'API en arrière-plan
-    api.get('/auth/me').then(r=>{
-      setUser(r.data);
-      localStorage.setItem('cleanit_user',JSON.stringify(r.data));
-    }).catch(()=>{});
+    api.get('/me').then(r=>{
+      const userData = {...r.data, photoUrl: r.data.avatar_url || r.data.photoUrl || null};
+      setUser(userData);
+      localStorage.setItem('cleanit_user',JSON.stringify(userData));
+    }).catch(()=>{
+      // fallback: essayer /auth/me
+      api.get('/auth/me').then(r=>{
+        setUser(r.data);
+        localStorage.setItem('cleanit_user',JSON.stringify(r.data));
+      }).catch(()=>{});
+    });
   },[]);
 
   const isAdmin=['ADMIN','DG','admin','dg'].includes(user?.role);
