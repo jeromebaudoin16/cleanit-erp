@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../utils/api';
+const BACKEND = 'https://backend-cleanit-erp.vercel.app';
+const authHeaders = () => ({'Authorization':'Bearer '+(localStorage.getItem('token')||'')});
 
 const C = {
   bg:'#F0F4F9',white:'#FFFFFF',navy:'#0A1628',blue:'#2563EB',
@@ -36,7 +38,11 @@ function PhotoUploadZone({phaseId,executionPhaseId,photos=[],onPhotosChange,isCa
         // Ne PAS définir Content-Type manuellement — le navigateur génère le boundary automatiquement
         const res = await api.post(endpoint, fd);
         added.push(res.data);
-      } catch(e){ setErr('Erreur upload: '+(e.response?.data?.message||e.message)); }
+      } catch(e){
+        const msg = e.response?.data?.message || e.response?.data?.error || e.message || 'Erreur inconnue';
+        console.error('Photo upload error:', e.response?.status, msg, e);
+        setErr('Erreur upload: '+msg);
+      }
     }
     setUploading(false);
     if(added.length) onPhotosChange([...photos,...added]);
@@ -64,21 +70,26 @@ function PhotoUploadZone({phaseId,executionPhaseId,photos=[],onPhotosChange,isCa
           ))}
         </div>
       )}
-      <div onDrop={e=>{e.preventDefault();doUpload(e.dataTransfer.files);}} onDragOver={e=>e.preventDefault()}
-           onClick={()=>ref.current?.click()}
-           style={{border:'1.5px dashed rgba(37,99,235,.3)',borderRadius:9,padding:'12px 16px',background:'rgba(37,99,235,.02)',textAlign:'center',cursor:'pointer',transition:'all .15s'}}
-           onMouseEnter={e=>{e.currentTarget.style.borderColor=C.blue;e.currentTarget.style.background='rgba(37,99,235,.05)';}}
+      <label htmlFor={'upload-'+phaseId+'-'+(executionPhaseId||'cat')}
+           onDrop={e=>{e.preventDefault();doUpload(e.dataTransfer.files);}} onDragOver={e=>e.preventDefault()}
+           style={{display:'block',border:'1.5px dashed rgba(37,99,235,.3)',borderRadius:9,padding:'14px 16px',
+             background:'rgba(37,99,235,.02)',textAlign:'center',cursor:'pointer',transition:'all .15s'}}
+           onMouseEnter={e=>{e.currentTarget.style.borderColor=C.blue;e.currentTarget.style.background='rgba(37,99,235,.06)';}}
            onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(37,99,235,.3)';e.currentTarget.style.background='rgba(37,99,235,.02)';}}>
-        <input ref={ref} type="file" multiple accept="image/*" style={{display:'none'}} onChange={e=>doUpload(e.target.files)} />
+        <input id={'upload-'+phaseId+'-'+(executionPhaseId||'cat')} ref={ref} type="file" multiple accept="image/*"
+          style={{display:'none'}} onChange={e=>{doUpload(e.target.files); e.target.value='';}} />
         {uploading
           ? <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,color:C.blue,fontSize:13}}><Spin/> Upload en cours...</div>
-          : <div style={{fontSize:12.5,color:C.gray,lineHeight:1.5}}>
-              <div style={{fontSize:18,marginBottom:4}}>📷</div>
-              <strong style={{color:C.blue}}>Cliquer pour ajouter des photos</strong><br/>
-              ou glisser-déposer · JPG, PNG · max 10 Mo
+          : <div style={{fontSize:12.5,color:C.gray,lineHeight:1.6}}>
+              <svg style={{marginBottom:6}} width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              <div><strong style={{color:C.blue,fontSize:13}}>Cliquer pour ajouter des photos</strong></div>
+              <div style={{fontSize:11,marginTop:3}}>ou glisser-déposer · JPG, PNG, WebP · max 10 Mo</div>
             </div>
         }
-      </div>
+      </label>
       {err && <div style={{marginTop:6,padding:'6px 10px',background:'#FEF2F2',borderRadius:6,color:C.red,fontSize:12}}>{err}</div>}
     </div>
   );
