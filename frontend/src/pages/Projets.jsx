@@ -33,7 +33,8 @@ function PhotoUploadZone({phaseId,executionPhaseId,photos=[],onPhotosChange,isCa
         const fd = new FormData();
         fd.append('file',f);
         if(isCatalogue) fd.append('caption',f.name.replace(/\.[^.]+$/,''));
-        const res = await api.post(endpoint,fd,{headers:{'Content-Type':'multipart/form-data'}});
+        // Ne PAS définir Content-Type manuellement — le navigateur génère le boundary automatiquement
+        const res = await api.post(endpoint, fd);
         added.push(res.data);
       } catch(e){ setErr('Erreur upload: '+(e.response?.data?.message||e.message)); }
     }
