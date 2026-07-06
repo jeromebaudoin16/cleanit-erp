@@ -8,16 +8,13 @@ const fN = n => new Intl.NumberFormat('fr-FR').format(Math.round(n||0));
 const fM = n => { if(!n||n===0) return '0 F'; if(Math.abs(n)>=1000000) return (n/1000000).toFixed(1)+'M F'; if(Math.abs(n)>=1000) return Math.round(n/1000)+'K F'; return fN(n)+' F'; };
 
 const C = {
-  white:'#ffffff', bg:'#f0f4f9', bg2:'#f8fafc',
-  border:'rgba(10,15,30,0.06)', border2:'rgba(10,15,30,0.04)',
-  text:'#0a0f1e', text2:'#4b5771', text3:'#8b9ab0', text4:'#c4cdd8',
-  blue:'#2563eb', green:'#16a34a', red:'#dc2626', orange:'#d97706',
-  purple:'#7c3aed', teal:'#0d9488',
-  blueL:'#eff6ff', greenL:'#f0fdf4', redL:'#fef2f2',
-  orangeL:'#fffbeb', purpleL:'#f5f3ff', tealL:'#f0fdfa',
-  shadow:'0 1px 2px rgba(10,15,30,.04),0 0 0 1px rgba(10,15,30,.06),0 4px 16px rgba(10,15,30,.03)',
-  shadowHover:'0 2px 4px rgba(10,15,30,.06),0 0 0 1px rgba(37,99,235,.15),0 8px 24px rgba(10,15,30,.06)',
-  radius: 14,
+  white:'#FFFFFF', bg:'#F0F4F9', bg2:'#E8EDF4',
+  border:'rgba(10,15,30,.07)', border2:'rgba(10,15,30,.04)',
+  text:'#0A1628', text2:'#334155', text3:'#64748B', text4:'#94A3B8',
+  blue:'#1D4ED8', green:'#16A34A', red:'#DC2626', orange:'#EA580C',
+  purple:'#7C3AED', teal:'#0D9488', navy:'#0A1628',
+  shadow:'0 1px 2px rgba(10,15,30,.05),0 0 0 1px rgba(10,15,30,.05)',
+  shadow2:'0 4px 16px rgba(10,15,30,.08),0 0 0 1px rgba(10,15,30,.04)',
 };
 
 const Ic = ({d,size=16,color='currentColor',sw=1.8}) => (
@@ -124,19 +121,33 @@ const CardHdr = ({title,sub,icon,color=C.blue,action}) => (
   </div>
 );
 const KPI = ({label,value,sub,color,icon,trend,up,onClick}) => (
-  <div onClick={onClick} style={{background:C.white,borderRadius:10,padding:'15px 16px',border:`1px solid ${C.border}`,boxShadow:C.shadow,cursor:onClick?'pointer':'default',position:'relative',overflow:'hidden',transition:'all .2s'}}
+  <div onClick={onClick}
+    style={{background:C.white,borderRadius:14,padding:'18px 20px',
+      border:'1px solid '+C.border,boxShadow:C.shadow,
+      cursor:onClick?'pointer':'default',position:'relative',overflow:'hidden',transition:'all .2s'}}
     onMouseEnter={e=>{if(onClick){e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=C.shadow2;}}}
     onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow=C.shadow;}}>
-    <div style={{position:'absolute',top:0,left:0,right:0,height:3,background:color,borderRadius:'10px 10px 0 0'}}/>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:10}}>
-      <div style={{width:34,height:34,borderRadius:8,background:color+'14',display:'flex',alignItems:'center',justifyContent:'center'}}><Ic d={I[icon]} size={16} color={color}/></div>
-      {trend&&<span style={{fontSize:11,fontWeight:700,color:up?C.green:C.red,display:'flex',alignItems:'center',gap:2}}><Ic d={up?I.trend:I.trendD} size={11} color={up?C.green:C.red} sw={2.5}/>{trend}</span>}
+    <div style={{position:'absolute',top:0,left:0,bottom:0,width:3,background:color,borderRadius:'14px 0 0 14px'}}/>
+    <div style={{paddingLeft:6}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:14}}>
+        <div style={{width:38,height:38,borderRadius:10,background:color+'14',display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <Ic d={I[icon]} size={18} color={color}/>
+        </div>
+        {trend&&<span style={{fontSize:11,fontWeight:700,color:up?C.green:C.red,
+          background:up?'#F0FDF4':'#FEF2F2',padding:'3px 9px',borderRadius:20,
+          display:'flex',alignItems:'center',gap:3}}>
+          <Ic d={up?I.trend:I.trendD} size={10} color={up?C.green:C.red} sw={2.5}/>{trend}
+        </span>}
+      </div>
+      <div style={{fontSize:26,fontWeight:800,color:'#0A1628',lineHeight:1,letterSpacing:'-.03em',marginBottom:4}}>{value}</div>
+      <div style={{fontSize:12.5,fontWeight:600,color:C.text2,marginBottom:sub?3:0}}>{label}</div>
+      {sub&&<div style={{fontSize:11,color:C.text4,display:'flex',alignItems:'center',gap:4}}>
+        <div style={{width:5,height:5,borderRadius:'50%',background:color,opacity:.6}}/>
+        {sub}
+      </div>}
     </div>
-    <div style={{fontSize:22,fontWeight:800,color,lineHeight:1,marginBottom:3}}>{value}</div>
-    <div style={{fontSize:12,fontWeight:600,color:C.text2,marginBottom:sub?2:0}}>{label}</div>
-    {sub&&<div style={{fontSize:10,color:C.text4}}>{sub}</div>}
   </div>
-);
+)
 
 const CustomTip = ({active,payload,label}) => {
   if(!active||!payload?.length) return null;

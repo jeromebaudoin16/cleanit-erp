@@ -1,22 +1,19 @@
-const CACHE_NAME = 'cleanit-v6';
+const CACHE_NAME = 'cleanit-v7';
 const API_CACHE = 'cleanit-api-v1';
 
-// Assets à mettre en cache immédiatement
 const STATIC_ASSETS = [
   '/', '/mobile', '/dashboard', '/manifest.json',
-  '/icons/icon-192.png', '/icons/icon-512.png'
+  '/icons/icon-192.png', '/icons/icon-512.png', '/logo.png'
 ];
 
-// Installation - cache les assets statiques
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME)
-      .then(c => c.addAll(STATIC_ASSETS).catch(()=>{}))
+      .then(c => c.addAll(STATIC_ASSETS).catch(() => {}))
       .then(() => self.skipWaiting())
   );
 });
 
-// Activation - nettoyer anciens caches
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -28,45 +25,71 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Stratégie fetch: Network First pour API, Cache First pour assets
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // API calls -> Network First avec fallback cache
-  if(url.hostname === 'backend-cleanit-erp.vercel.app') {
-    if(e.request.method !== 'GET') return; // POST/PUT/DELETE: laisser passer
+  // Laisser passer : blob:, data:, chrome-extension:, non-HTTP
+  if (!url.protocol.startsWith('http')) return;
+
+  // Laisser passer les requêtes non-GET (POST upload photo, PUT, DELETE)
+  if (e.request.method !== 'GET') return;
+
+  // API backend → Network First avec fallback cache (GET uniquement)
+  if (url.hostname.includes('backend-cleanit-erp.vercel.app') ||
+      url.hostname.includes('backend-one-kappa-96.vercel.app')) {
     e.respondWith(
       fetch(e.request)
         .then(resp => {
-          if(resp.ok) {
-            const clone = resp.clone();
-            caches.open(API_CACHE).then(c => c.put(e.request, clone));
+          if (resp.ok) {
+            caches.open(API_CACHE).then(c => c.put(e.request, resp.clone()));
           }
           return resp;
         })
-        .catch(() => caches.match(e.request))
+        .catch(() => caches.match(e.request).then(cached => cached || new Response('{"offline":true}', {
+          status: 503,
+          headers: {'Content-Type': 'application/json'}
+        })))
     );
     return;
   }
 
-  // Assets statiques -> Network First (toujours essayer la dernière version,
-  // ne retomber sur le cache que si le réseau est indisponible — hors-ligne)
-  if(e.request.method !== 'GET') return;
+  // Assets statiques → Network First avec fallback intelligent
   e.respondWith(
-    fetch(e.request).then(resp => {
-      if(resp.ok && !url.pathname.startsWith('/api/')) {
-        const clone = resp.clone();
-        caches.open(CACHE_NAME).then(c => c.put(e.request, clone));
-      }
-      return resp;
-    }).catch(() => caches.match(e.request).then(cached => cached || caches.match('/')))
+    fetch(e.request)
+      .then(resp => {
+        if (resp.ok) {
+          caches.open(CACHE_NAME).then(c => c.put(e.request, resp.clone()));
+        }
+        return resp;
+      })
+      .catch(async () => {
+        const cached = await caches.match(e.request);
+        if (cached) return cached;
+
+        // Pour les images manquantes → 404 propre (pas de substitution HTML)
+        const dest = e.request.destination;
+        if (dest === 'image' || dest === 'font') {
+          return new Response('', { status: 404, statusText: 'Not Found' });
+        }
+
+        // Pour les scripts/styles → 404 propre
+        if (dest === 'script' || dest === 'style') {
+          return new Response('', { status: 404, statusText: 'Not Found' });
+        }
+
+        // Pour les navigations (pages HTML) → page principale en cache
+        if (dest === 'document' || e.request.mode === 'navigate') {
+          return caches.match('/') || new Response('Offline', { status: 503 });
+        }
+
+        return new Response('', { status: 404 });
+      })
   );
 });
 
-// Push notifications
 self.addEventListener('push', e => {
-  let data = { title:'CleanIT ERP', body:'Nouvelle notification', url:'/mobile' };
-  try { data = e.data?.json() || data; } catch(err) {}
+  let data = { title: 'CleanIT ERP', body: 'Nouvelle notification', url: '/mobile' };
+  try { data = e.data?.json() || data; } catch (err) {}
   e.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
@@ -82,28 +105,21 @@ self.addEventListener('push', e => {
   );
 });
 
-// Clic notification
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  if(e.action === 'close') return;
+  if (e.action === 'close') return;
   const url = e.notification.data?.url || '/mobile';
   e.waitUntil(
-    clients.matchAll({type:'window',includeUncontrolled:true}).then(wins => {
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(wins => {
       const win = wins.find(w => w.url.includes(url));
-      if(win) return win.focus();
+      if (win) return win.focus();
       return clients.openWindow(url);
     })
   );
 });
 
-// Background Sync - synchroniser les actions en attente
 self.addEventListener('sync', e => {
-  if(e.tag === 'sync-posts') {
-    e.waitUntil(syncPendingPosts());
+  if (e.tag === 'sync-posts') {
+    e.waitUntil(Promise.resolve());
   }
 });
-
-async function syncPendingPosts() {
-  // Synchroniser les posts créés hors ligne
-  console.log('Background sync: posts en attente');
-}
