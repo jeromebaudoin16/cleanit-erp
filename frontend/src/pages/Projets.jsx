@@ -28,20 +28,30 @@ function PhotoUploadZone({phaseId,executionPhaseId,photos=[],onPhotosChange,isCa
     if(!files?.length) return;
     setUploading(true); setErr('');
     const added = [];
+    const BASE = 'https://backend-one-kappa-96.vercel.app';
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
     for(const f of Array.from(files)){
-      if(!f.type.startsWith('image/')) { setErr('Seules les images sont acceptées'); continue; }
+      if(!f.type.startsWith('image/')) { setErr('Format non supporté (JPG, PNG, WebP)'); continue; }
       if(f.size > 10*1024*1024) { setErr('Image trop lourde (max 10 Mo)'); continue; }
       try {
         const fd = new FormData();
-        fd.append('file',f);
-        if(isCatalogue) fd.append('caption',f.name.replace(/\.[^.]+$/,''));
-        // Ne PAS définir Content-Type manuellement — le navigateur génère le boundary automatiquement
-        const res = await api.post(endpoint, fd);
-        added.push(res.data);
+        fd.append('file', f);
+        if(isCatalogue) fd.append('caption', f.name.replace(/\.[^.]+$/, ''));
+        const url = BASE + endpoint;
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + token },
+          body: fd,
+        });
+        if(!resp.ok) {
+          const errData = await resp.json().catch(()=>({message:'Erreur serveur '+resp.status}));
+          throw new Error(errData.message || errData.error || 'Erreur '+resp.status);
+        }
+        const data = await resp.json();
+        added.push(data);
       } catch(e){
-        const msg = e.response?.data?.message || e.response?.data?.error || e.message || 'Erreur inconnue';
-        console.error('Photo upload error:', e.response?.status, msg, e);
-        setErr('Erreur upload: '+msg);
+        console.error('Photo upload error:', e.message);
+        setErr('Erreur: ' + e.message);
       }
     }
     setUploading(false);

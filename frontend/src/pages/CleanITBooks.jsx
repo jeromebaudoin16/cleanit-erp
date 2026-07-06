@@ -891,7 +891,7 @@ const DetailJob = ({job,customers,onEdit,onClose,onCreateInvoice}) => {
   const [tab, setTab] = useState("overview");
   const cust = customers.find(c=>c.id===job.customerId);
 
-  const totalInvoiced = job.invoices.reduce((s,i)=>s+i.amount,0);
+  const totalInvoiced = (Array.isArray(job.invoices)?job.invoices:[]).reduce((s,i)=>s+(i.amount||0),0);
   const totalBills    = job.bills.reduce((s,b)=>s+b.amount,0);
   const totalTime     = job.timeEntries.reduce((s,t)=>s+t.hours*t.rate,0);
   const totalCouts    = Object.values(job.coutsReels).reduce((s,v)=>s+v,0);
@@ -2239,7 +2239,7 @@ const PageCustomerDetail = ({customers,invoices,jobs}) => {
                 {custJobs.length===0?(
                   <div style={{padding:"24px",textAlign:"center",color:C.text4,fontSize:13}}>Aucun job pour ce client</div>
                 ):custJobs.slice(0,3).map((j,i)=>{
-                  const totalInv=j.invoices.reduce((s,inv)=>s+inv.amount,0);
+                  const totalInv=(Array.isArray(j.invoices)?j.invoices:[]).reduce((s,inv)=>s+(inv.amount||0),0);
                   const pct=j.contractAmount>0?Math.round(totalInv/j.contractAmount*100):0;
                   return(
                     <div key={j.id} style={{padding:"12px 16px",borderBottom:i<Math.min(custJobs.length,3)-1?"1px solid "+C.border2:"none",cursor:"pointer"}}
@@ -2382,7 +2382,7 @@ const PageCustomerDetail = ({customers,invoices,jobs}) => {
             ):(
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
                 {custJobs.map(j=>{
-                  const totalInv=j.invoices.reduce((s,i)=>s+i.amount,0);
+                  const totalInv=(Array.isArray(j.invoices)?j.invoices:[]).reduce((s,i)=>s+(i.amount||0),0);
                   const totalCR=Object.values(j.coutsReels).reduce((s,v)=>s+v,0);
                   const pct=j.contractAmount>0?Math.round(totalInv/j.contractAmount*100):0;
                   return(
@@ -2848,7 +2848,7 @@ const PageJobList = ({jobs,setJobs,customers}) => {
               let dataRowStart1 = 3;
               jobsFiltres.forEach((j,ri)=>{
                 const cust    = customers.find(c=>c.id===j.customerId);
-                const totalInv= j.invoices.reduce((s,i)=>s+i.amount,0);
+                const totalInv= (Array.isArray(j.invoices)?j.invoices:[]).reduce((s,i)=>s+(i.amount||0),0);
                 const totalCR = Object.values(j.coutsReels).reduce((s,v)=>s+v,0);
                 const marge   = totalInv-totalCR;
                 const pctF    = j.contractAmount>0?totalInv/j.contractAmount:0;
@@ -2894,7 +2894,7 @@ const PageJobList = ({jobs,setJobs,customers}) => {
               const totRow1 = ws1.addRow([
                 "TOTAL","","","","","","","","","",
                 jobsFiltres.reduce((s,j)=>s+j.contractAmount,0),
-                jobsFiltres.reduce((s,j)=>s+j.invoices.reduce((si,i)=>si+i.amount,0),0),
+                jobsFiltres.reduce((s,j)=>s+(Array.isArray(j.invoices)?j.invoices:[]).reduce((si,i)=>si+(i.amount||0),0),0),
                 jobsFiltres.reduce((s,j)=>s+Math.max(0,j.contractAmount-j.invoices.reduce((si,i)=>si+i.amount,0)),0),
                 jobsFiltres.reduce((s,j)=>s+Object.values(j.coutsReels).reduce((sc,v)=>sc+v,0),0),
                 "","","","",""
@@ -3048,7 +3048,7 @@ const PageJobList = ({jobs,setJobs,customers}) => {
                 )}
                 {jobsFiltres.map((job,i)=>{
                   const cust    = customers.find(c=>c.id===job.customerId);
-                  const totalInv= job.invoices.reduce((s,inv)=>s+inv.amount,0);
+                  const totalInv= (Array.isArray(job.invoices)?job.invoices:[]).reduce((s,inv)=>s+(inv.amount||0),0);
                   const totalCR = Object.values(job.coutsReels).reduce((s,v)=>s+v,0);
                   const marge   = totalInv-totalCR;
                   const pct     = job.contractAmount>0?Math.round(totalInv/job.contractAmount*100):0;
@@ -3094,7 +3094,7 @@ const PageJobList = ({jobs,setJobs,customers}) => {
                   <tr style={{borderTop:"2px solid "+C.border,background:"#F9FAFB"}}>
                     <td colSpan={5} style={{padding:"10px 14px",fontWeight:700,color:C.text,fontSize:12}}>TOTAL — {jobsFiltres.length} job(s)</td>
                     <td style={{padding:"10px 14px",textAlign:"right",fontWeight:700,color:C.blue}}>{fN(jobsFiltres.reduce((s,j)=>s+j.contractAmount,0))} F</td>
-                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:700,color:C.green}}>{fN(jobsFiltres.reduce((s,j)=>s+j.invoices.reduce((si,i)=>si+i.amount,0),0))} F</td>
+                    <td style={{padding:"10px 14px",textAlign:"right",fontWeight:700,color:C.green}}>{fN(jobsFiltres.reduce((s,j)=>s+(Array.isArray(j.invoices)?j.invoices:[]).reduce((si,i)=>si+(i.amount||0),0),0))} F</td>
                     <td style={{padding:"10px 14px",textAlign:"right",fontWeight:700,color:C.red}}>{fN(jobsFiltres.reduce((s,j)=>s+Object.values(j.coutsReels).reduce((sc,v)=>sc+v,0),0))} F</td>
                     <td colSpan={3}/>
                   </tr>
@@ -3134,7 +3134,7 @@ const PageJobDetail = ({jobs,setJobs,customers}) => {
     </div>
   );
 
-  const totalInvoiced = job.invoices.reduce((s,i)=>s+i.amount,0);
+  const totalInvoiced = (Array.isArray(job.invoices)?job.invoices:[]).reduce((s,i)=>s+(i.amount||0),0);
   const totalBills    = job.bills.reduce((s,b)=>s+b.amount,0);
   const totalTime     = job.timeEntries.reduce((s,t)=>s+t.hours*t.rate,0);
   const totalCouts    = Object.values(job.coutsReels).reduce((s,v)=>s+v,0);
@@ -4828,7 +4828,7 @@ const PageBanking = () => {
   const token = localStorage.getItem('token');
 
   useEffect(() => {
-    fetch('https://backend-cleanit-erp.vercel.app/journal',
+    fetch('https://backend-cleanit-erp.vercel.app/api/cleanitbooks/journal',
       {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json())
       .then(data => {
@@ -6464,7 +6464,7 @@ const PageReconciliation = ({invoices=[], bills=[]}) => {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    fetch('https://backend-cleanit-erp.vercel.app/journal', {headers:{'Authorization':'Bearer '+token}})
+    fetch('https://backend-cleanit-erp.vercel.app/api/cleanitbooks/journal', {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json())
       .then(data => {
         if(Array.isArray(data)) {
