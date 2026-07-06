@@ -217,6 +217,7 @@ export default function MapPage() {
   const tileLayerRef = useRef(null);
   const markersRef = useRef({});
   const techMarkersRef = useRef({});
+  const techClusterRef = useRef(null);
   const routeLayersRef = useRef([]);
   const geofenceLayersRef = useRef({});
   const replayLayersRef = useRef([]);
@@ -486,13 +487,47 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
     return()=>clearInterval(interval);
   },[liveMode]);
 
-  // ===== UPDATE MARKERS GPS =====
+  // ===== UPDATE MARKERS GPS (crée ou met à jour) =====
   useEffect(()=>{
-    if(!mapInstanceRef.current||!window.L) return;
-    techniciens.forEach(t=>{
-      const m=techMarkersRef.current[t.id];
-      if(m) m.setLatLng([t.lat,t.lng]);
+    const L=window.L;
+    if(!mapInstanceRef.current||!L||!techClusterRef.current) return;
+    const colors=['#1a73e8','#7c3aed','#0f9d58','#f29900','#db2777','#ea4335'];
+    techniciens.forEach((t,i)=>{
+      const existing=techMarkersRef.current[t.id];
+      if(existing){
+        // Marqueur existant — mettre à jour position seulement
+        existing.setLatLng([t.lat,t.lng]);
+      } else {
+        // Nouveau technicien — créer le marqueur
+        if(!t.lat||!t.lng||isNaN(t.lat)||isNaN(t.lng)) return;
+        const st=STATUS_TECH[t.status]||STATUS_TECH.disponible;
+        const color=t.color||colors[i%colors.length];
+        const av=(t.nom||'??').split(' ').map(n=>n[0]||'').join('').toUpperCase().slice(0,2);
+        const icon=L.divIcon({
+          html:`<div style="position:relative;width:50px;height:62px;cursor:pointer">
+            <div style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:${color};color:white;font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.2)">${t.nom.split(' ')[0]}</div>
+            <div style="width:50px;height:50px;border-radius:50%;overflow:hidden;border:3px solid ${color};box-shadow:0 0 0 2px rgba(255,255,255,.9),0 4px 14px rgba(0,0,0,.25)">
+              <div style="width:100%;height:100%;background:${color};display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px">${av}</div>
+            </div>
+            <div style="position:absolute;bottom:3px;right:3px;width:12px;height:12px;border-radius:50%;background:${st.color};border:2px solid white"></div>
+            <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:12px solid ${color}"></div>
+          </div>`,
+          className:'',iconSize:[50,62],iconAnchor:[25,62]
+        });
+        const marker=L.marker([t.lat,t.lng],{icon});
+        marker.on('click',()=>{
+          setSelectedTech(t);setSelected(null);
+          mapInstanceRef.current.flyTo([t.lat,t.lng],15,{animate:true,duration:1.2});
+        });
+        techMarkersRef.current[t.id]=marker;
+        techClusterRef.current.addLayer(marker);
+      }
     });
+    // Centrer sur Cameroun si des techniciens sont présents
+    if(techniciens.length>0&&Object.keys(techMarkersRef.current).length===techniciens.length){
+      const first=techniciens.find(t=>t.lat&&t.lng&&!isNaN(t.lat));
+      if(first) mapInstanceRef.current.setView([first.lat,first.lng],10,{animate:true});
+    }
   },[techniciens]);
 
   // ===== ALERTES PROXIMITÉ =====
@@ -644,6 +679,7 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
       techCluster.addLayer(marker);
     });
     map.addLayer(techCluster);
+    techClusterRef.current = techCluster; // stocker référence pour ajout dynamique
 
     // ===== GEOFENCES =====
     GEOFENCES_INIT.forEach(gf=>{
