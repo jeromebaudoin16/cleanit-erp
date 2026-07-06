@@ -286,12 +286,52 @@ const PHOTOS = {
   "EE005":"https://i.pravatar.cc/150?img=25",
 };
 
-const EMPLOYES = []; // Chargés depuis /users via API
-const EXTERNES = []; // Chargés depuis /technicians via API
-const BULLETINS = []; // Chargés depuis /rh/bulletins via API
-const POINTAGES = []; // Chargés depuis /pointages via API
-const CONGES = [];   // Chargés depuis /rh/conges via API
-const PAI_EXT = [];  // Chargés depuis /approvals via API
+const EMPLOYES = [
+  {id:"EI001",first:"Marie",last:"Kamga",email:"marie.kamga@cleanit.cm",phone:"+237 677 001 001",role:"Chef de Projet Senior",department:"Gestion de Projets",hireDate:"2021-03-15",birthDate:"1988-07-22",birthPlace:"Douala",nationality:"Camerounaise",cin:"12345678",salary:650000,contract:"CDI",status:"actif",gender:"F",city:"Douala",address:"Akwa, Rue des Palmiers",bank:"BICEC",rib:"CM21 1001 1234 5678",matricule:"CLN-INT-001",education:"Master/Ingénieur",emergencyName:"Paul Kamga",emergencyPhone:"+237 699 001 001",emergencyLink:"Époux",docs:[{name:"Contrat CDI",type:"Contrat",date:"2021-03-15"},{name:"Pièce identité",type:"CIN",date:"2021-03-15"},{name:"Diplôme Master",type:"Diplôme",date:"2021-03-10"}],history:[{type:"Promotion",date:"01/01/2023",detail:"Chef de Projet → Chef de Projet Senior",by:"DG Jérôme Bell"},{type:"Embauche",date:"15/03/2021",detail:"Recrutement CDI - Chef de Projet",by:"RH Aline Biya"}]},
+  {id:"EI002",first:"Pierre",last:"Etoga",email:"pierre.etoga@cleanit.cm",phone:"+237 677 002 002",role:"Ingénieur Télécom Senior",department:"Technique & Ingénierie",hireDate:"2020-06-01",birthDate:"1985-11-30",birthPlace:"Yaoundé",nationality:"Camerounaise",cin:"87654321",salary:580000,contract:"CDI",status:"actif",gender:"M",city:"Douala",address:"Bonanjo, Avenue de Gaulle",bank:"SGC",rib:"CM21 2001 9876 5432",matricule:"CLN-INT-002",education:"Master/Ingénieur",emergencyName:"Claire Etoga",emergencyPhone:"+237 699 002 002",emergencyLink:"Épouse",docs:[{name:"Contrat CDI",type:"Contrat",date:"2020-06-01"}],history:[{type:"Augmentation",date:"01/06/2022",detail:"Révision salariale +8%",by:"DG"},{type:"Embauche",date:"01/06/2020",detail:"Recrutement CDI",by:"RH"}]},
+  {id:"EI003",first:"Aline",last:"Biya",email:"aline.biya@cleanit.cm",phone:"+237 677 003 003",role:"RH Manager",department:"Ressources Humaines",hireDate:"2022-01-10",birthDate:"1990-04-15",birthPlace:"Bafoussam",nationality:"Camerounaise",cin:"11223344",salary:480000,contract:"CDI",status:"actif",gender:"F",city:"Douala",address:"Bonapriso",bank:"Afriland",rib:"CM21 3001 1111 2222",matricule:"CLN-INT-003",education:"Master/Ingénieur",emergencyName:"Jean Biya",emergencyPhone:"+237 699 003 003",emergencyLink:"Frère",docs:[{name:"Contrat CDI",type:"Contrat",date:"2022-01-10"}],history:[{type:"Embauche",date:"10/01/2022",detail:"Recrutement CDI",by:"DG"}]},
+  {id:"EI004",first:"David",last:"Mballa",email:"david.mballa@cleanit.cm",phone:"+237 677 004 004",role:"Comptable Senior",department:"Finance & Comptabilité",hireDate:"2021-09-01",birthDate:"1987-02-18",birthPlace:"Douala",nationality:"Camerounaise",cin:"44332211",salary:420000,contract:"CDI",status:"actif",gender:"M",city:"Douala",address:"Deido",bank:"BICEC",rib:"CM21 1001 4444 5555",matricule:"CLN-INT-004",education:"Licence",emergencyName:"Rose Mballa",emergencyPhone:"+237 699 004 004",emergencyLink:"Épouse",docs:[{name:"Contrat CDI",type:"Contrat",date:"2021-09-01"}],history:[{type:"Embauche",date:"01/09/2021",detail:"Recrutement CDI",by:"RH"}]},
+  {id:"EI005",first:"Jean",last:"Fouda",email:"jean.fouda@cleanit.cm",phone:"+237 677 005 005",role:"Commercial Senior",department:"Commercial & Business",hireDate:"2023-02-15",birthDate:"1992-09-05",birthPlace:"Yaoundé",nationality:"Camerounaise",cin:"55667788",salary:380000,contract:"CDI",status:"conge",gender:"M",city:"Yaoundé",address:"Bastos",bank:"MTN Mobile Money",rib:"677005005",matricule:"CLN-INT-005",education:"Master/Ingénieur",emergencyName:"Alice Fouda",emergencyPhone:"+237 699 005 005",emergencyLink:"Soeur",docs:[],history:[{type:"Embauche",date:"15/02/2023",detail:"Recrutement CDI",by:"RH"}]},
+  {id:"EI006",first:"Sandra",last:"Nguele",email:"sandra.nguele@cleanit.cm",phone:"+237 677 006 006",role:"Assistante de Direction",department:"Direction Générale",hireDate:"2020-11-01",birthDate:"1994-12-20",birthPlace:"Kribi",nationality:"Camerounaise",cin:"99887766",salary:320000,contract:"CDI",status:"actif",gender:"F",city:"Douala",address:"Akwa Nord",bank:"Orange Money",rib:"698006006",matricule:"CLN-INT-006",education:"BTS/DUT",emergencyName:"Marc Nguele",emergencyPhone:"+237 699 006 006",emergencyLink:"Père",docs:[{name:"Contrat CDI",type:"Contrat",date:"2020-11-01"}],history:[{type:"Embauche",date:"01/11/2020",detail:"Recrutement CDI",by:"RH"}]},
+];
+
+const EXTERNES = [
+  {id:"EE001",first:"Thomas",last:"Ngono",phone:"+237 677 100 001",role:"Technicien Installation 5G",speciality:"5G NR / 4G LTE",status:"actif",matricule:"CLN-EXT-001",bank:"MTN Mobile Money",rib:"677100001",city:"Douala",cin:"EXT001",birthDate:"1990-05-12",projects:["PROJ-2024-001"],totalEarned:13500000,dailyRate:85000,contract:"Freelance",rating:4.8,projectCount:7},
+  {id:"EE002",first:"Jean",last:"Mbarga",phone:"+237 677 100 002",role:"Ingénieur RF Senior",speciality:"Survey & Optimisation RF",status:"actif",matricule:"CLN-EXT-002",bank:"Orange Money",rib:"698100002",city:"Yaoundé",cin:"EXT002",birthDate:"1985-09-22",projects:["PROJ-2024-002"],totalEarned:8500000,dailyRate:120000,contract:"Freelance",rating:4.9,projectCount:12},
+  {id:"EE003",first:"Samuel",last:"Djomo",phone:"+237 677 100 003",role:"Technicien Maintenance",speciality:"3G UMTS / 4G LTE",status:"actif",matricule:"CLN-EXT-003",bank:"BICEC",rib:"CM21 1001 8888",city:"Douala",cin:"EXT003",birthDate:"1992-03-18",projects:["PROJ-2024-004"],totalEarned:6200000,dailyRate:70000,contract:"Freelance",rating:4.5,projectCount:5},
+  {id:"EE004",first:"Ali",last:"Moussa",phone:"+237 677 100 004",role:"Chef équipe terrain",speciality:"Supervision & HSE",status:"actif",matricule:"CLN-EXT-004",bank:"MTN Mobile Money",rib:"677100004",city:"Garoua",cin:"EXT004",birthDate:"1983-11-30",projects:["PROJ-2024-003"],totalEarned:4800000,dailyRate:95000,contract:"Freelance",rating:4.7,projectCount:9},
+  {id:"EE005",first:"René",last:"Talla",phone:"+237 677 100 005",role:"Câbleur fibre optique",speciality:"Fibre optique FTTH",status:"actif",matricule:"CLN-EXT-005",bank:"Orange Money",rib:"698100005",city:"Bafoussam",cin:"EXT005",birthDate:"1995-07-08",projects:[],totalEarned:2100000,dailyRate:55000,contract:"Freelance",rating:4.2,projectCount:3},
+];
+
+const BULLETINS = [
+  {id:"B001",empId:"EI001",month:2,year:2024,base:650000,bonus:75000,benefits:50000,deductions:0,gross:775000,net:775000,status:"paye",paidOn:"2024-02-28",payMethod:"Virement BICEC"},
+  {id:"B002",empId:"EI002",month:2,year:2024,base:580000,bonus:40000,benefits:30000,deductions:0,gross:650000,net:650000,status:"paye",paidOn:"2024-02-28",payMethod:"Virement SGC"},
+  {id:"B003",empId:"EI003",month:2,year:2024,base:480000,bonus:0,benefits:25000,deductions:0,gross:505000,net:505000,status:"paye",paidOn:"2024-02-28",payMethod:"Virement Afriland"},
+  {id:"B004",empId:"EI001",month:3,year:2024,base:650000,bonus:75000,benefits:50000,deductions:0,gross:775000,net:775000,status:"en_attente",paidOn:null,payMethod:"Virement BICEC"},
+  {id:"B005",empId:"EI002",month:3,year:2024,base:580000,bonus:40000,benefits:30000,deductions:0,gross:650000,net:650000,status:"en_attente",paidOn:null,payMethod:"Virement SGC"},
+  {id:"B006",empId:"EI003",month:3,year:2024,base:480000,bonus:0,benefits:25000,deductions:0,gross:505000,net:505000,status:"en_attente",paidOn:null,payMethod:"Virement Afriland"},
+  {id:"B007",empId:"EI004",month:3,year:2024,base:420000,bonus:20000,benefits:20000,deductions:0,gross:460000,net:460000,status:"en_attente",paidOn:null,payMethod:"Virement BICEC"},
+  {id:"B008",empId:"EI006",month:3,year:2024,base:320000,bonus:0,benefits:15000,deductions:0,gross:335000,net:335000,status:"en_attente",paidOn:null,payMethod:"Orange Money"},
+];
+const POINTAGES = [
+  {id:"P001",empId:"EI001",arrival:"08:02",departure:"17:45",hours:8.72,status:"present",note:""},
+  {id:"P002",empId:"EI002",arrival:"07:55",departure:"18:10",hours:9.25,status:"present",note:""},
+  {id:"P003",empId:"EI003",arrival:"09:15",departure:"17:30",hours:7.25,status:"retard",note:"Retard 1h15"},
+  {id:"P004",empId:"EI004",arrival:"08:00",departure:"17:00",hours:8,status:"present",note:""},
+  {id:"P005",empId:"EI005",arrival:"",departure:"",hours:0,status:"absent",note:"Congé annuel"},
+  {id:"P006",empId:"EI006",arrival:"08:30",departure:"17:30",hours:8,status:"present",note:""},
+];
+const CONGES = [
+  {id:"C001",empId:"EI005",empName:"Jean Fouda",type:"Congé annuel",start:"2024-03-01",end:"2024-03-20",days:20,status:"approuve",reason:"Congé annuel Q1",substitute:"Pierre Etoga",approvedBy:"Aline Biya"},
+  {id:"C002",empId:"EI003",empName:"Aline Biya",type:"Congé maladie",start:"2024-03-10",end:"2024-03-12",days:3,status:"approuve",reason:"Ordonnance médicale",substitute:"Sandra Nguele",approvedBy:"Marie Kamga"},
+  {id:"C003",empId:"EI001",empName:"Marie Kamga",type:"Congé exceptionnel",start:"2024-04-05",end:"2024-04-06",days:2,status:"en_attente",reason:"Mariage",substitute:"",approvedBy:""},
+];
+const PAI_EXT = [
+  {id:"PE001",empId:"EE001",project:"PROJ-2024-001",client:"MTN Cameroun",phase:"Phase 1 (30%)",projectAmount:45000000,pct:30,net:13500000,status:"paye",paidOn:"2024-01-20",payMethod:"MTN Mobile Money",ref:"PAY-EXT-001"},
+  {id:"PE002",empId:"EE002",project:"PROJ-2024-002",client:"Orange Cameroun",phase:"Paiement unique",projectAmount:12000000,pct:100,net:8500000,status:"paye",paidOn:"2024-02-15",payMethod:"Orange Money",ref:"PAY-EXT-002"},
+  {id:"PE003",empId:"EE001",project:"PROJ-2024-001",client:"MTN Cameroun",phase:"Phase 2 (40%)",projectAmount:45000000,pct:40,net:18000000,status:"en_attente",paidOn:null,payMethod:"MTN Mobile Money",ref:null},
+  {id:"PE004",empId:"EE003",project:"PROJ-2024-004",client:"MTN Cameroun",phase:"Phase 1 (25%)",projectAmount:18500000,pct:25,net:4625000,status:"en_attente",paidOn:null,payMethod:"Virement BICEC",ref:null},
+];
 
 // ===== PROFIL EMPLOYÉ — COMPLET AVEC PHOTOS =====
 // ===== DOCUMENTS TAB =====
@@ -1833,6 +1873,9 @@ export default function RH() {
           cin: u.cin||'', birthDate: u.birth_date||'',
           dailyRate: u.daily_rate||0, contract: 'Freelance',
           rating: 4.5, projectCount: 0, totalEarned: 0, projects: [],
+          certs: Array.isArray(u.certifications) ? u.certifications :
+                 (typeof u.certifications==='string' && u.certifications ?
+                   JSON.parse(u.certifications) : []),
         }));
         if(techs.length>0) setExternals(techs);
       }).catch(()=>{});

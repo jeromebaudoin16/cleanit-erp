@@ -180,6 +180,7 @@ const toF = (m,d) => (m||0)*(FX[d]||1);
 
 // ===== ICONES =====
 const ICONS = {
+  brief:    "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8",
   job:      "M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z",
   plus:     "M12 5v14 M5 12h14",
   search:   "M21 21l-4.35-4.35 M17 11A6 6 0 115 11a6 6 0 0112 0z",
@@ -7228,6 +7229,7 @@ export default function CleanITBooks() {
   };
 
   const renderContent = () => {
+    try {
     if(loc.includes('/time')) return <PageTimeTracking/>;
     if(loc.includes('/payroll')) return <PagePayroll/>;
     if(loc.includes('/budget')) return <PageBudget invoices={invoices} bills={bills}/>;
@@ -7270,6 +7272,17 @@ export default function CleanITBooks() {
     if(params.jobId) return <PageJobDetail jobs={jobs} setJobs={setJobs} customers={customers}/>;
     if(loc.includes('/jobs')) return <PageJobList jobs={jobs} setJobs={setJobs} customers={customers}/>;
     return <PageDashboard invoices={invoices} bills={bills} customers={customers} jobs={jobs} navigate={navigate} onTab={handleTab}/>;
+    } catch(err) {
+      console.error('CleanITBooks renderContent error:', err);
+      return <div style={{padding:40,textAlign:'center',color:'#D52B1E',fontSize:14}}>
+        <div style={{fontSize:24,marginBottom:12}}>⚠️</div>
+        <div><strong>Erreur de chargement</strong></div>
+        <div style={{color:'#6B7280',marginTop:8,fontSize:13}}>{err?.message||'Erreur inconnue'}</div>
+        <button onClick={()=>window.location.reload()} style={{marginTop:16,padding:'8px 16px',background:'#0077C5',color:'white',border:'none',borderRadius:6,cursor:'pointer',fontSize:13}}>
+          Recharger
+        </button>
+      </div>;
+    }
   };
 
   if(loading) return (
