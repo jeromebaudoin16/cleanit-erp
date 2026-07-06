@@ -3,7 +3,6 @@ import jsQR from 'jsqr';
 import QRCode from 'qrcode';
 import { AuthAPI, FeedAPI, MissionsAPI } from '../services/api.mobile.js';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getUser } from '../utils/api';
 import { useInactivityLogout } from '../hooks/useInactivityLogout';
 
 class ErrorBoundary extends Component {
@@ -719,33 +718,6 @@ const ScreenFil = ({user,navigate}) => {
   const [posts, setPosts] = useState(FEED_POSTS);
   const [loadingFeed, setLoadingFeed] = useState(false);
   const [terrainUsers, setTerrainUsers] = useState([]);
-  const [commentsFor, setCommentsFor] = useState(null); // post actuellement ouvert pour commentaires
-  const [commentsList, setCommentsList] = useState([]);
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [newComment, setNewComment] = useState('');
-  const [postingComment, setPostingComment] = useState(false);
-
-  const openComments = async (postId) => {
-    setCommentsFor(postId);
-    setLoadingComments(true);
-    try {
-      const data = await FeedAPI.getComments(postId);
-      setCommentsList(Array.isArray(data) ? data : []);
-    } catch { setCommentsList([]); }
-    setLoadingComments(false);
-  };
-
-  const submitComment = async () => {
-    if (!newComment.trim() || !commentsFor) return;
-    setPostingComment(true);
-    try {
-      const c = await FeedAPI.addComment(commentsFor, newComment.trim());
-      setCommentsList(prev => [...prev, c]);
-      setPosts(prev => prev.map(p => p.id === commentsFor ? { ...p, comments: (p.comments || 0) + 1 } : p));
-      setNewComment('');
-    } catch {}
-    setPostingComment(false);
-  };
   const [activeMissions, setActiveMissions] = useState([]);
   const touchStartY = useRef(0);
   const C2 = getC();
@@ -1094,8 +1066,7 @@ const ScreenFil = ({user,navigate}) => {
                   )}
                 </div>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C2.text}
-                  strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}
-                  onClick={()=>openComments(post.id)}>
+                  strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}>
                   <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
                 </svg>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C2.text}
@@ -1108,44 +1079,11 @@ const ScreenFil = ({user,navigate}) => {
                 <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
               </svg>
             </div>
-            {post.comments>0 && <div onClick={()=>openComments(post.id)} style={{fontSize:10,color:C2.text3,marginTop:4,cursor:'pointer'}}>Voir les {post.comments} commentaires</div>}
+            {post.comments>0 && <div style={{fontSize:10,color:C2.text3,marginTop:4}}>Voir les {post.comments} commentaires</div>}
             <div style={{fontSize:9,color:C2.text4,marginTop:2,textTransform:'uppercase',letterSpacing:.3}}>{post.time}</div>
           </div>
         </div>
       ))}
-
-      {commentsFor && (
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.5)',zIndex:9999,display:'flex',alignItems:'flex-end'}} onClick={()=>setCommentsFor(null)}>
-          <div style={{background:C2.bg,width:'100%',maxHeight:'70vh',borderRadius:'16px 16px 0 0',display:'flex',flexDirection:'column'}} onClick={e=>e.stopPropagation()}>
-            <div style={{padding:'14px 16px',borderBottom:'1px solid '+C2.border,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-              <div style={{fontSize:14,fontWeight:700,color:C2.text}}>Commentaires</div>
-              <button onClick={()=>setCommentsFor(null)} style={{background:'none',border:'none',fontSize:18,color:C2.text3,cursor:'pointer'}}>✕</button>
-            </div>
-            <div style={{flex:1,overflowY:'auto',padding:'10px 16px'}}>
-              {loadingComments && <div style={{textAlign:'center',color:C2.text3,fontSize:12,padding:20}}>Chargement...</div>}
-              {!loadingComments && commentsList.length===0 && (
-                <div style={{textAlign:'center',color:C2.text3,fontSize:12,padding:20}}>Aucun commentaire — sois le premier à réagir</div>
-              )}
-              {commentsList.map(c=>(
-                <div key={c.id} style={{marginBottom:12}}>
-                  <span style={{fontSize:12,fontWeight:700,color:C2.text}}>{c.user_name}</span>{' '}
-                  <span style={{fontSize:12,color:C2.text}}>{c.text}</span>
-                  <div style={{fontSize:9,color:C2.text4,marginTop:2}}>{new Date(c.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
-                </div>
-              ))}
-            </div>
-            <div style={{display:'flex',gap:8,padding:'10px 16px',borderTop:'1px solid '+C2.border,paddingBottom:'max(10px, env(safe-area-inset-bottom))'}}>
-              <input value={newComment} onChange={e=>setNewComment(e.target.value)} placeholder="Écrire un commentaire..."
-                onKeyDown={e=>{if(e.key==='Enter') submitComment();}}
-                style={{flex:1,padding:'9px 12px',border:'1px solid '+C2.border,borderRadius:20,fontSize:13,outline:'none',fontFamily:FONT}}/>
-              <button onClick={submitComment} disabled={postingComment||!newComment.trim()}
-                style={{padding:'9px 16px',borderRadius:20,border:'none',background:newComment.trim()?'#1B4F8A':C2.border,color:'white',fontSize:13,fontWeight:600,cursor:newComment.trim()?'pointer':'default'}}>
-                Envoyer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -1162,6 +1100,8 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
   const [myMission, setMyMission] = useState(null);
   const [siteInput, setSiteInput] = useState('');
   const [siteEdited, setSiteEdited] = useState(false);
+  const [pointageType, setPointageType] = useState('arrivee'); // 'arrivee' ou 'depart'
+  const [uploading, setUploading] = useState(false);
   const {toast, toastMsg, toastShow,toastType} = useToast();
   const n = now || new Date();
 
@@ -1244,75 +1184,125 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
     const v = vRef.current;
     const canvas = cRef.current;
     if(!v || !canvas) return;
+
+    // Capture image
     canvas.width = v.videoWidth || 640;
     canvas.height = v.videoHeight || 480;
     const ctx = canvas.getContext('2d');
     ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
 
-    // Encart légende en haut à gauche — format Lat/Long/Alt/Accuracy/Time/Address
+    // Encart GPS + site en haut à gauche
+    const typeLabel = pointageType === 'arrivee' ? 'ARRIVEE SUR SITE' : 'DEPART DU SITE';
     const lines = [
-      `Latitude: ${gps?.lat?.toFixed(7)||'—'}`,
-      `Longitude: ${gps?.lng?.toFixed(7)||'—'}`,
-      `Altitude: ${gps?.altitude!=null?gps.altitude.toFixed(1)+' m':'—'}`,
-      `Accuracy: ${gps?.accuracy!=null?gps.accuracy.toFixed(1)+' m':'—'}`,
-      `Time: ${n.toLocaleDateString('en-GB',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'})} ${n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`,
-      `Address: ${address||'Localisation en cours...'}`,
-      siteInput?`Site: ${siteInput}`:'Site: —',
+      typeLabel,
+      'Latitude: '+(gps?.lat?.toFixed(7)||'—'),
+      'Longitude: '+(gps?.lng?.toFixed(7)||'—'),
+      'Accuracy: '+(gps?.accuracy!=null?gps.accuracy.toFixed(1)+' m':'—'),
+      'Time: '+n.toLocaleDateString('fr-FR')+' '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+      'Technicien: '+user.name,
+      'Site: '+siteInput,
     ];
-    const lineH = 17;
-    const padX = 12, padY = 10;
-    const boxW = Math.min(canvas.width*0.78, 340);
-    const boxH = lines.length*lineH + padY*2;
-    ctx.fillStyle = 'rgba(255,255,255,.88)';
-    ctx.fillRect(0, 0, boxW, boxH);
-    ctx.fillStyle = '#111';
-    ctx.font = '12px system-ui, sans-serif';
-    ctx.textBaseline = 'top';
+    const lineH = 17; const padX=12, padY=10;
+    const boxW = Math.min(canvas.width*0.82,360);
+    const boxH = lines.length*lineH+padY*2;
+    ctx.fillStyle='rgba(0,0,0,.72)';
+    ctx.fillRect(0,0,boxW,boxH);
     lines.forEach((line,i)=>{
-      ctx.fillText(line, padX, padY + i*lineH);
+      ctx.fillStyle = i===0 ? (pointageType==='arrivee'?'#4ADE80':'#FB923C') : 'white';
+      ctx.font = i===0 ? 'bold 12px system-ui' : '11px system-ui';
+      ctx.textBaseline='top';
+      ctx.fillText(line, padX, padY+i*lineH);
     });
 
     const url = canvas.toDataURL('image/jpeg', 0.9);
     const photoId = Date.now();
-    setPhotos(p => [{id:photoId, url}, ...p]);
+    setPhotos(p=>[{id:photoId,url},...p]);
     setLast(url);
     setFlash(true);
-    setTimeout(() => setFlash(false), 150);
-    // Sauvegarder en local sur le téléphone
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'CleanIT-'+user.name.replace(' ','-')+'-'+new Date().toISOString().slice(0,10)+'-'+photoId+'.jpg';
-    link.click();
-    toast('Photo sauvegardée — publication dans le Fil en cours...');
+    setTimeout(()=>setFlash(false),150);
 
-    // Publier dans le Fil pour que le PM et l'équipe voient la photo en temps réel
+    // Sauvegarder dans le téléphone
+    const link=document.createElement('a');
+    link.href=url;
+    link.download='CleanIT-'+user.name.replace(' ','-')+'-'+siteInput+'-'+pointageType+'-'+new Date().toISOString().slice(0,16)+'.jpg';
+    link.click();
+
+    // ── Upload vers le backend ──────────────────────────────────────────────
+    setUploading(true);
+    const tk = localStorage.getItem('token');
+    const BASE = 'https://backend-cleanit-erp.vercel.app';
+    const headers = {'Authorization':'Bearer '+tk};
+
     try {
-      const token = localStorage.getItem('token');
-      // 1. Convertir dataUrl en Blob pour l'upload
-      const blob = await (await fetch(url)).blob();
-      const form = new FormData();
-      form.append('file', blob, 'cleanitcam-'+photoId+'.jpg');
-      // 2. Uploader vers Blob Storage via le backend
-      const uploadRes = await fetch('https://backend-cleanit-erp.vercel.app/upload/photo', {
-        method: 'POST',
-        headers: {'Authorization': 'Bearer '+token},
-        body: form,
+      // 1. Convertir canvas en Blob
+      const blob = await new Promise(res => canvas.toBlob(res,'image/jpeg',0.9));
+      const fd = new FormData();
+      fd.append('file', blob, 'cleanitcam.jpg');
+
+      // 2. Upload photo → Vercel Blob
+      let photoUrl = null;
+      try {
+        const uploadRes = await fetch(BASE+'/upload/photo',{method:'POST',headers,body:fd});
+        const uploadData = await uploadRes.json();
+        photoUrl = uploadData.url;
+      } catch(e){ console.warn('Upload photo failed:', e.message); }
+
+      // 3. Publier dans le Fil terrain
+      const filText = pointageType==='arrivee'
+        ? 'Arrivée sur site '+siteInput+' — '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
+        : 'Départ du site '+siteInput+' — '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      await fetch(BASE+'/feed',{
+        method:'POST',
+        headers:{...headers,'Content-Type':'application/json'},
+        body:JSON.stringify({
+          text: filText,
+          photo_url: photoUrl,
+          site: siteInput,
+          gps_lat: gps?.lat?.toString()||null,
+          gps_lng: gps?.lng?.toString()||null,
+          type: 'photo',
+        })
+      }).catch(()=>{});
+
+      // 4. Enregistrer pointage (arrivée ou départ)
+      const pointRes = await fetch(BASE+'/pointages',{
+        method:'POST',
+        headers:{...headers,'Content-Type':'application/json'},
+        body:JSON.stringify({
+          type: pointageType,
+          site_code: siteInput,
+          photo_url: photoUrl,
+          gps_lat: gps?.lat||null,
+          gps_lng: gps?.lng||null,
+        })
       });
-      const uploadData = await uploadRes.json();
-      const photoUrl = uploadData.url;
-      // 3. Publier dans le Fil avec l'URL publique de la photo
-      await FeedAPI.createPost({
-        text: `📸 Photo terrain — Site: ${siteInput||'Non renseigné'}${gps?.lat ? ` | GPS: ${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)}` : ''}`,
-        site: siteInput,
-        siteName: siteInput,
-        photoUrl,
-        gpsLat: gps?.lat?.toString(),
-        gpsLng: gps?.lng?.toString(),
-        type: 'photo',
-      });
-      toast('Photo publiée dans le Fil ✓');
-    } catch(e) {
-      toast('Photo sauvegardée localement (Fil indisponible: '+e.message+')');
+      const pointData = await pointRes.json().catch(()=>({}));
+
+      // 5. Mettre à jour la position sur Digital Twin
+      await fetch(BASE+'/location/update',{
+        method:'POST',
+        headers:{...headers,'Content-Type':'application/json'},
+        body:JSON.stringify({
+          lat: gps?.lat||null,
+          lng: gps?.lng||null,
+          status: pointageType==='arrivee' ? 'en_mission' : 'disponible',
+          siteCode: siteInput,
+        })
+      }).catch(()=>{});
+
+      // 6. Toast final
+      const msg = pointageType==='arrivee'
+        ? 'Arrivée enregistrée sur '+siteInput+' — visible sur la carte'
+        : 'Départ enregistré — bonne route !';
+      toast(msg, 'success');
+
+      // Basculer auto vers Départ après Arrivée
+      if(pointageType==='arrivee') setPointageType('depart');
+
+    } catch(e){
+      toast('Erreur upload: '+e.message,'error');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -1326,7 +1316,7 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
       <canvas ref={cRef} style={{display:'none'}}/>
       {flash && <div style={{position:'absolute',inset:0,background:'#fff',zIndex:50,opacity:.7,pointerEvents:'none'}}/>}
 
-      <button onClick={()=>{stopCam(); navigate('/mobile');}}
+      <button onClick={()=>{stopCam(); navigate('/mobile/fil');}}
         style={{position:'absolute',top:14,left:14,zIndex:40,width:34,height:34,borderRadius:'50%',
           background:'rgba(0,0,0,.55)',border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -1390,6 +1380,25 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
         )}
       </div>
 
+      {/* Sélecteur Arrivée / Départ */}
+      <div style={{background:'#111',padding:'10px 20px 6px',display:'flex',gap:10,justifyContent:'center'}}>
+        {['arrivee','depart'].map(t=>(
+          <button key={t} onClick={()=>setPointageType(t)}
+            style={{flex:1,padding:'8px 0',borderRadius:10,border:'none',cursor:'pointer',
+              fontFamily:'inherit',fontSize:13,fontWeight:700,transition:'all .15s',
+              background:pointageType===t?(t==='arrivee'?'#16A34A':'#EA580C'):'#222',
+              color:pointageType===t?'white':'#666'}}>
+            {t==='arrivee' ? '📍 Arrivée sur site' : '🚪 Départ du site'}
+          </button>
+        ))}
+      </div>
+
+      {uploading && (
+        <div style={{background:'#111',padding:'6px 20px',textAlign:'center',fontSize:11,color:'#94A3B8'}}>
+          Envoi en cours... photo + pointage + mise à jour carte
+        </div>
+      )}
+
       <div style={{background:'#0a0a0a',padding:'14px 20px 24px',
         display:'flex',alignItems:'center',justifyContent:'space-between'}}>
         <div style={{width:52,height:52}}>
@@ -1399,11 +1408,14 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
         </div>
 
         {active ? (
-          <button onClick={shoot}
-            style={{width:70,height:70,borderRadius:'50%',border:'4px solid white',
-              background:'transparent',cursor:'pointer',
-              display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <div style={{width:56,height:56,borderRadius:'50%',background:'white'}}/>
+          <button onClick={shoot} disabled={uploading}
+            style={{width:70,height:70,borderRadius:'50%',
+              border:'4px solid '+(pointageType==='arrivee'?'#4ADE80':'#FB923C'),
+              background:'transparent',cursor:uploading?'wait':'pointer',
+              display:'flex',alignItems:'center',justifyContent:'center',
+              opacity:uploading?0.6:1}}>
+            <div style={{width:56,height:56,borderRadius:'50%',
+              background:pointageType==='arrivee'?'#4ADE80':'#FB923C'}}/>
           </button>
         ) : (
           <button onClick={startCam}
@@ -1497,7 +1509,7 @@ const ScreenMessages = () => {
   const [convos, setConvos] = useState([]);
   const [convId, setConvId] = useState(null);
   const pollRef = useRef(null);
-  const meId = (getUser()||{}).id;
+  const meId = JSON.parse(localStorage.getItem('user')||'{}').id;
   const token = localStorage.getItem('token');
   const BASE = 'https://backend-cleanit-erp.vercel.app';
 
@@ -1508,17 +1520,11 @@ const ScreenMessages = () => {
   const [msgTab, setMsgTab] = useState('messages');
   const [contacts, setContacts] = useState([]);
   const [contactSearch, setContactSearch] = useState('');
-  const [calls, setCalls] = useState([]);
-  useEffect(()=>{
-    fetch(BASE+'/calls/history',{headers:{'Authorization':'Bearer '+token}})
-      .then(r=>r.json()).then(d=>{ if(Array.isArray(d)) setCalls(d); }).catch(()=>{});
-  },[]);
-  const missedCount = calls.filter(c=>c.status==='missed').length;
 
   useEffect(()=>{
     const fetchOnline = () => {
       const tk = localStorage.getItem('token');
-      const me = (getUser()||{});
+      const me = JSON.parse(localStorage.getItem('user')||'{}');
       fetch('https://backend-cleanit-erp.vercel.app/users/online',{headers:{'Authorization':'Bearer '+tk}})
         .then(r=>r.json()).then(users=>{
           if(!Array.isArray(users)) return;
@@ -1539,7 +1545,7 @@ const ScreenMessages = () => {
   const loadConvList = async () => {
     try {
       const tk = localStorage.getItem('token');
-      const me = (getUser()||{});
+      const me = JSON.parse(localStorage.getItem('user')||'{}');
       const users = await fetch(BASE+'/users/online',{headers:{'Authorization':'Bearer '+tk}}).then(r=>r.json()).catch(()=>[]);
       if(Array.isArray(users)) {
         setContacts(users.filter(u=>u.id!==me.id).map(u=>({
@@ -1610,7 +1616,7 @@ const ScreenMessages = () => {
         </div>
         <button onClick={async ()=>{
             const tk = localStorage.getItem('token');
-            const me = (getUser()||{});
+            const me = JSON.parse(localStorage.getItem('user')||'{}');
             const room = `CleanIT-dm-${[me.id, openConv.otherId].sort((a,b)=>a-b).join('-')}`;
             try {
               const r = await fetch('https://backend-cleanit-erp.vercel.app/calls/initiate',{
@@ -1628,7 +1634,7 @@ const ScreenMessages = () => {
         </button>
         <button onClick={async ()=>{
             const tk = localStorage.getItem('token');
-            const me = (getUser()||{});
+            const me = JSON.parse(localStorage.getItem('user')||'{}');
             const room = `CleanIT-dm-${[me.id, openConv.otherId].sort((a,b)=>a-b).join('-')}`;
             try {
               const r = await fetch('https://backend-cleanit-erp.vercel.app/calls/initiate',{
@@ -1658,7 +1664,7 @@ const ScreenMessages = () => {
       <div style={{flex:1,overflowY:'auto',padding:'12px 14px',
         display:'flex',flexDirection:'column',gap:8,paddingBottom:80}}>
         {chatMsgs.map((m,i)=>{
-          const meId = (getUser()||{}).id;
+          const meId = JSON.parse(localStorage.getItem('user')||'{}').id;
           const isMe = m.from_id ? Number(m.from_id)===Number(meId) : m.from==='me';
           const timeStr = m.created_at
             ? new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
@@ -1704,8 +1710,8 @@ const ScreenMessages = () => {
             </button>
           </div>
           <DailyFrame
-            room={inCall.room||`CleanIT-dm-${[(getUser()||{}).id, openConv.otherId].sort((a,b)=>a-b).join('-')}`}
-            displayName={(getUser()||{}).firstName}
+            room={inCall.room||`CleanIT-dm-${[JSON.parse(localStorage.getItem('user')||'{}').id, openConv.otherId].sort((a,b)=>a-b).join('-')}`}
+            displayName={JSON.parse(localStorage.getItem('user')||'{}').firstName}
             audioOnly={inCall.type==='audio'}/>
         </div>
       )}
@@ -1772,13 +1778,10 @@ const ScreenMessages = () => {
         </div>
       }/>
       <div style={{display:'flex',padding:'8px 14px',gap:6,borderBottom:'1px solid '+C2.border}}>
-        {[['messages','Conversations'],['contacts','Contacts'],['appels','Appels']].map(([id,lbl])=>(
+        {[['messages','Conversations'],['contacts','Contacts']].map(([id,lbl])=>(
           <button key={id} onClick={()=>setMsgTab(id)}
-            style={{flex:1,padding:'7px',border:'none',borderRadius:8,background:msgTab===id?'#1B4F8A':'transparent',color:msgTab===id?'white':C2.text3,fontWeight:msgTab===id?600:400,fontSize:12,cursor:'pointer',fontFamily:FONT,position:'relative'}}>
+            style={{flex:1,padding:'7px',border:'none',borderRadius:8,background:msgTab===id?'#1B4F8A':'transparent',color:msgTab===id?'white':C2.text3,fontWeight:msgTab===id?600:400,fontSize:12,cursor:'pointer',fontFamily:FONT}}>
             {lbl}
-            {id==='appels' && missedCount>0 && (
-              <span style={{position:'absolute',top:2,right:6,background:'#dc2626',color:'white',fontSize:9,fontWeight:700,borderRadius:8,padding:'1px 5px',minWidth:14}}>{missedCount}</span>
-            )}
           </button>
         ))}
       </div>
@@ -1804,33 +1807,6 @@ const ScreenMessages = () => {
             </div>
           ))}
           {contacts.length===0&&<div style={{textAlign:'center',padding:24,color:C2.text3,fontSize:13}}>Chargement...</div>}
-        </div>
-      )}
-      {msgTab==='appels'&&(
-        <div style={{padding:'6px 14px'}}>
-          {calls.map(c=>{
-            const isMissed = c.status==='missed';
-            const isOutgoing = c.direction==='outgoing';
-            return (
-              <div key={c.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 6px',borderRadius:8,marginBottom:2}}>
-                <div style={{width:38,height:38,borderRadius:'50%',background:isMissed?'#fef2f2':'#f0fdf4',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={isMissed?'#dc2626':'#16a34a'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    {isOutgoing
-                      ? <path d="M7 17L17 7M9 7h8v8"/>
-                      : <path d="M17 7L7 17M15 17H7V9"/>}
-                  </svg>
-                </div>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:600,color:isMissed?'#dc2626':C2.text}}>{c.caller_display || c.caller_name || 'Inconnu'}</div>
-                  <div style={{fontSize:11,color:isMissed?'#dc2626':C2.text3}}>
-                    {isMissed ? 'Appel manqué' : isOutgoing ? 'Appel sortant' : 'Appel reçu'} · {c.type==='video'?'Vidéo':'Audio'}
-                  </div>
-                </div>
-                <span style={{fontSize:10,color:C2.text3}}>{new Date(c.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>
-              </div>
-            );
-          })}
-          {calls.length===0&&<div style={{textAlign:'center',padding:24,color:C2.text3,fontSize:13}}>Aucun appel pour l'instant</div>}
         </div>
       )}
       {msgTab==='messages'&&(
@@ -2347,7 +2323,7 @@ const ScreenEquipe = ({user, navigate}) => {
 
   const callUser = async (otherId, type) => {
     const tk = localStorage.getItem('token');
-    const me = (getUser()||{});
+    const me = JSON.parse(localStorage.getItem('user')||'{}');
     const room = `CleanIT-dm-${[me.id, otherId].sort((a,b)=>a-b).join('-')}`;
     try {
       const r = await fetch('https://backend-cleanit-erp.vercel.app/calls/initiate',{
@@ -3049,8 +3025,7 @@ const ScreenProfil = ({user,onLogout}) => {
                   });
                   // Envoyer subscription au backend
                   const token = localStorage.getItem('token');
-                  let pushUser = {};
-                  try { pushUser = JSON.parse(localStorage.getItem('user')||localStorage.getItem('cit_mobile_user')||'{}'); } catch { pushUser = {}; }
+                  const pushUser = JSON.parse(localStorage.getItem('user')||localStorage.getItem('cit_mobile_user')||'{}');
                   await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
