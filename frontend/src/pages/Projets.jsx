@@ -1,985 +1,468 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { api } from '../utils/api';
 
-const BASE = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
-const tk = () => localStorage.getItem('token') || '';
-const api = (url, opts = {}) => fetch(BASE + url, { headers: { 'Authorization': 'Bearer ' + tk(), ...(opts.json ? {'Content-Type':'application/json'} : {}), ...(opts.headers||{}) }, ...opts });
-const apiJ = (url, opts = {}) => api(url, { ...opts, json: true, body: opts.body ? JSON.stringify(opts.body) : undefined });
-
-// ─── DESIGN SYSTEM ─────────────────────────────────────────────────────
 const C = {
-  bg: '#F2F5FA',
-  white: '#FFFFFF',
-  // Cards avec bordure élégante ultra-fine (style des screenshots)
-  cardBorder: '1px solid rgba(0,0,0,0.07)',
-  cardShadow: '0 1px 3px rgba(0,0,0,0.04), 0 0 0 0.5px rgba(0,0,0,0.04)',
-  cardBorderHover: '1px solid rgba(37,99,235,0.25)',
-  cardShadowHover: '0 4px 16px rgba(37,99,235,0.08), 0 0 0 0.5px rgba(37,99,235,0.15)',
-  text: '#0F172A', text2: '#374151', text3: '#6B7280', text4: '#9CA3AF',
-  blue: '#2563EB', blueL: '#EFF6FF',
-  green: '#16A34A', greenL: '#F0FDF4',
-  amber: '#D97706', amberL: '#FFFBEB',
-  red: '#DC2626', redL: '#FEF2F2',
-  purple: '#7C3AED', purpleL: '#F5F3FF',
-  teal: '#0D9488', tealL: '#F0FDFA',
-  orange: '#EA580C', orangeL: '#FFF7ED',
-  border: 'rgba(0,0,0,0.07)',
+  bg:'#F0F4F9',white:'#FFFFFF',navy:'#0A1628',blue:'#2563EB',
+  teal:'#0D9488',green:'#16A34A',orange:'#EA580C',purple:'#7C3AED',
+  red:'#DC2626',gold:'#D97706',gray:'#6B7280',
+  border:'rgba(10,15,30,.06)',
+  shadow:'0 1px 3px rgba(10,15,30,.06),0 0 0 1px rgba(10,15,30,.06)',
+  shadowMd:'0 4px 16px rgba(10,15,30,.08),0 1px 4px rgba(10,15,30,.04)',
 };
+const card = {background:C.white,borderRadius:14,boxShadow:C.shadow,padding:20};
+const b = (bg,color,border) => ({padding:'7px 16px',borderRadius:8,border:border||'none',background:bg,color,fontSize:13,fontWeight:600,cursor:'pointer',display:'inline-flex',alignItems:'center',gap:6,fontFamily:'inherit',transition:'all .15s'});
+const SV = {pending:{bg:'#F1F5F9',text:'#64748B',label:'En attente'},in_progress:{bg:'#EFF6FF',text:'#2563EB',label:'En cours'},done:{bg:'#F0FDF4',text:'#16A34A',label:'Terminé'},blocked:{bg:'#FEF2F2',text:'#DC2626',label:'Bloqué'}};
+const TC = ['#0D9488','#7C3AED','#1D4ED8','#EA580C','#D97706','#16A34A','#0891B2'];
+const Spin = () => <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>;
 
-const Card = ({ children, onClick, style = {} }) => {
-  const [hov, setHov] = useState(false);
+// ── PhotoUploadZone ───────────────────────────────────────────────────────
+function PhotoUploadZone({phaseId,executionPhaseId,photos=[],onPhotosChange,isCatalogue=false}) {
+  const ref = useRef(null);
+  const [uploading,setUploading] = useState(false);
+  const [err,setErr] = useState('');
+  const endpoint = isCatalogue ? `/project-phases/${phaseId}/photos` : `/project-execution-phases/${executionPhaseId}/photos`;
+
+  const doUpload = async (files) => {
+    if(!files?.length) return;
+    setUploading(true); setErr('');
+    const added = [];
+    for(const f of Array.from(files)){
+      if(!f.type.startsWith('image/')) { setErr('Seules les images sont acceptées'); continue; }
+      if(f.size > 10*1024*1024) { setErr('Image trop lourde (max 10 Mo)'); continue; }
+      try {
+        const fd = new FormData();
+        fd.append('file',f);
+        if(isCatalogue) fd.append('caption',f.name.replace(/\.[^.]+$/,''));
+        const res = await api.post(endpoint,fd,{headers:{'Content-Type':'multipart/form-data'}});
+        added.push(res.data);
+      } catch(e){ setErr('Erreur upload: '+(e.response?.data?.message||e.message)); }
+    }
+    setUploading(false);
+    if(added.length) onPhotosChange([...photos,...added]);
+  };
+
+  const del = async (pid) => {
+    if(!window.confirm('Supprimer cette photo ?')) return;
+    try {
+      await api.delete(isCatalogue ? `/project-phase-photos/${pid}` : `/project-execution-photos/${pid}`);
+      onPhotosChange(photos.filter(p=>p.id!==pid));
+    } catch(e){ setErr('Erreur suppression'); }
+  };
+
   return (
-    <div onClick={onClick}
-      style={{ background: C.white, borderRadius: 11, border: hov ? C.cardBorderHover : C.cardBorder, boxShadow: hov ? C.cardShadowHover : C.cardShadow, transition: 'all .15s ease', cursor: onClick ? 'pointer' : 'default', ...style }}
-      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}>
-      {children}
+    <div style={{marginTop:10}}>
+      {photos.length>0 && (
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(100px,1fr))',gap:8,marginBottom:10}}>
+          {photos.map(ph => (
+            <div key={ph.id} style={{position:'relative',borderRadius:8,overflow:'hidden',aspectRatio:'1',background:'#F1F5F9'}}>
+              <img src={ph.url||ph.photo_url} alt={ph.caption||'photo'} onClick={()=>window.open(ph.url||ph.photo_url,'_blank')}
+                   style={{width:'100%',height:'100%',objectFit:'cover',cursor:'pointer',display:'block'}} />
+              <button onClick={()=>del(ph.id)} style={{position:'absolute',top:4,right:4,background:'rgba(0,0,0,.55)',border:'none',borderRadius:5,color:'white',width:22,height:22,cursor:'pointer',fontSize:12,lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+              {ph.caption && <div style={{position:'absolute',bottom:0,left:0,right:0,background:'rgba(0,0,0,.5)',color:'white',fontSize:9,padding:'2px 5px',overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{ph.caption}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+      <div onDrop={e=>{e.preventDefault();doUpload(e.dataTransfer.files);}} onDragOver={e=>e.preventDefault()}
+           onClick={()=>ref.current?.click()}
+           style={{border:'1.5px dashed rgba(37,99,235,.3)',borderRadius:9,padding:'12px 16px',background:'rgba(37,99,235,.02)',textAlign:'center',cursor:'pointer',transition:'all .15s'}}
+           onMouseEnter={e=>{e.currentTarget.style.borderColor=C.blue;e.currentTarget.style.background='rgba(37,99,235,.05)';}}
+           onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(37,99,235,.3)';e.currentTarget.style.background='rgba(37,99,235,.02)';}}>
+        <input ref={ref} type="file" multiple accept="image/*" style={{display:'none'}} onChange={e=>doUpload(e.target.files)} />
+        {uploading
+          ? <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,color:C.blue,fontSize:13}}><Spin/> Upload en cours...</div>
+          : <div style={{fontSize:12.5,color:C.gray,lineHeight:1.5}}>
+              <div style={{fontSize:18,marginBottom:4}}>📷</div>
+              <strong style={{color:C.blue}}>Cliquer pour ajouter des photos</strong><br/>
+              ou glisser-déposer · JPG, PNG · max 10 Mo
+            </div>
+        }
+      </div>
+      {err && <div style={{marginTop:6,padding:'6px 10px',background:'#FEF2F2',borderRadius:6,color:C.red,fontSize:12}}>{err}</div>}
     </div>
   );
-};
+}
 
-const Badge = ({ label, color, bg }) => (
-  <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: bg, color, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
-    {label}
-  </span>
-);
-
-const Toast = ({ msg }) => msg ? (
-  <div style={{ position:'fixed', bottom:24, right:24, background:C.text, color:'#fff', padding:'10px 18px', borderRadius:9, fontSize:13, fontWeight:500, zIndex:9999, boxShadow:'0 8px 24px rgba(0,0,0,0.2)' }}>{msg}</div>
-) : null;
-
-// ─── CATALOGUE — VUE LISTE ──────────────────────────────────────────────
-function CatalogueView({ types, loading, onSelect, onNew, isAdmin }) {
+// ── Catalogue ─────────────────────────────────────────────────────────────
+function Catalogue({onSelect}) {
+  const [types,setTypes] = useState([]);
+  const [loading,setLoading] = useState(true);
+  useEffect(()=>{ api.get('/project-catalogue').then(r=>setTypes(r.data||[])).catch(()=>{}).finally(()=>setLoading(false)); },[]);
+  if(loading) return <div style={{padding:40,textAlign:'center',color:C.gray}}>Chargement...</div>;
   return (
-    <div style={{ padding: 28, background: C.bg, minHeight: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 600, color: C.text, margin: 0, letterSpacing: '-0.02em' }}>Catalogue des Projets</h1>
-          <p style={{ color: C.text3, fontSize: 12, margin: '4px 0 0' }}>
-            Chaque type de projet décrit le processus d'exécution de CleanIT SARL, phase par phase, avec photos terrain
-          </p>
-        </div>
-        {isAdmin && (
-          <button onClick={onNew} style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: C.text, color: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
-            + Nouveau type
-          </button>
-        )}
+    <div>
+      <div style={{marginBottom:24}}>
+        <div style={{fontSize:22,fontWeight:700,color:C.navy,letterSpacing:'-.02em',marginBottom:4}}>Catalogue des Types de Projets</div>
+        <div style={{fontSize:13.5,color:C.gray}}>Référentiel des processus d'exécution — IP Core, Rural Start et autres types</div>
       </div>
-
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: C.text4, fontSize: 13 }}>Chargement du catalogue...</div>
+      {types.length===0 ? (
+        <div style={{...card,textAlign:'center',padding:48,color:C.gray}}>
+          Aucun type de projet. Vérifiez que le backend a bien initialisé IP Core et Rural Start.
+        </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 }}>
-          {types.map(t => (
-            <Card key={t.id} onClick={() => onSelect(t.id)}>
-              <div style={{ padding: '20px 20px 16px' }}>
-                {/* Bande colorée en haut de la card */}
-                <div style={{ width: 36, height: 4, borderRadius: 4, background: t.color || C.blue, marginBottom: 14 }} />
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 10 }}>
-                  <h2 style={{ fontSize: 15, fontWeight: 600, color: C.text, margin: 0, letterSpacing: '-0.01em', lineHeight: 1.3 }}>{t.name}</h2>
-                  <span style={{ fontSize: 10, fontWeight: 500, padding: '3px 8px', borderRadius: 6, background: C.bg, color: C.text3, whiteSpace: 'nowrap', flexShrink: 0, border: `1px solid ${C.border}` }}>
-                    {t.phases_count} étapes
-                  </span>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(270px,1fr))',gap:14}}>
+          {types.map((t,i)=>{
+            const col = t.color||TC[i%TC.length];
+            return (
+              <div key={t.id} onClick={()=>onSelect(t)}
+                   style={{...card,cursor:'pointer',borderTop:`3px solid ${col}`,paddingTop:16,transition:'all .18s'}}
+                   onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow=C.shadowMd;}}
+                   onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow=C.shadow;}}>
+                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                  <div style={{width:36,height:36,borderRadius:9,background:col+'18',display:'flex',alignItems:'center',justifyContent:'center',color:col,fontSize:18}}>
+                    📋
+                  </div>
+                  <div>
+                    <div style={{fontSize:15,fontWeight:700,color:C.navy}}>{t.name}</div>
+                    <div style={{fontSize:11,color:C.gray,marginTop:1}}>{t.category}</div>
+                  </div>
                 </div>
-                {t.category && (
-                  <div style={{ fontSize: 11, color: t.color || C.blue, fontWeight: 500, marginBottom: 8 }}>{t.category}</div>
-                )}
-                {t.description && (
-                  <p style={{ fontSize: 12, color: C.text3, lineHeight: 1.6, margin: 0, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                    {t.description}
-                  </p>
-                )}
+                <div style={{fontSize:13,color:C.gray,lineHeight:1.55,marginBottom:14}}>
+                  {t.description?.slice(0,90)}{t.description?.length>90?'...':''}
+                </div>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  <span style={{fontSize:11.5,fontWeight:600,color:col,background:col+'15',padding:'3px 10px',borderRadius:20}}>
+                    {t.phases_count||'—'} phases
+                  </span>
+                  <span style={{fontSize:12,color:C.blue,fontWeight:500}}>Voir →</span>
+                </div>
               </div>
-              <div style={{ padding: '10px 20px', borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 11, color: C.text4 }}>Voir le processus complet</span>
-                <span style={{ fontSize: 14, color: C.text4 }}>›</span>
-              </div>
-            </Card>
-          ))}
-
-          {/* Card "Ajouter" si admin */}
-          {isAdmin && (
-            <Card onClick={onNew} style={{ border: `1.5px dashed ${C.border}`, boxShadow: 'none', background: 'transparent' }}>
-              <div style={{ padding: '32px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, height: '100%', minHeight: 140 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: C.bg, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: C.text4 }}>+</div>
-                <span style={{ fontSize: 12, color: C.text4, fontWeight: 500 }}>Nouveau type de projet</span>
-                <span style={{ fontSize: 11, color: C.text4 }}>MPBN, DWDM, B2B...</span>
-              </div>
-            </Card>
-          )}
+            );
+          })}
         </div>
       )}
     </div>
   );
 }
 
-// ─── DÉTAIL D'UN TYPE DE PROJET ─────────────────────────────────────────
-function TypeDetail({ typeId, onBack, isAdmin }) {
-  const [pt, setPt] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [editDesc, setEditDesc] = useState(false);
-  const [descDraft, setDescDraft] = useState('');
-  const [ctxDraft, setCtxDraft] = useState('');
-  const [tab, setTab] = useState('processus');
-  const [selectedSite, setSelectedSite] = useState(null);
-  const [showAttach, setShowAttach] = useState(false);
-  const [showAddPhase, setShowAddPhase] = useState(false);
-  const [newPhase, setNewPhase] = useState({ title: '', description: '', is_client_scope: false });
-  const [expandedPhase, setExpandedPhase] = useState(null);
-  const [uploadingPhase, setUploadingPhase] = useState(null);
-  const [toast, setToast] = useState('');
-  const fileRef = useRef();
+// ── TypeDetail ─────────────────────────────────────────────────────────────
+function TypeDetail({type,onBack,onAttach,onSelectSite}) {
+  const [phases,setPhases] = useState([]);
+  const [sites,setSites] = useState([]);
+  const [tab,setTab] = useState('phases');
+  const [loading,setLoading] = useState(true);
+  const [expanded,setExpanded] = useState(null);
+  const col = type.color||C.teal;
 
-  const showT = m => { setToast(m); setTimeout(() => setToast(''), 3000); };
-  const load = useCallback(async () => {
+  useEffect(()=>{
     setLoading(true);
-    const r = await api(`/project-catalogue/${typeId}`).then(r => r.json()).catch(() => null);
-    setPt(r);
-    setDescDraft(r?.description || '');
-    setCtxDraft(r?.context || '');
-    setLoading(false);
-  }, [typeId]);
-  useEffect(() => { load(); }, [load]);
+    Promise.all([api.get(`/project-catalogue/${type.id}`),api.get(`/project-catalogue/${type.id}/sites`)])
+      .then(([d,s])=>{ setPhases(d.data.phases||[]); setSites(s.data||[]); })
+      .catch(()=>{}).finally(()=>setLoading(false));
+  },[type.id]);
 
-  const saveDesc = async () => {
-    await apiJ(`/project-catalogue/${typeId}`, { method: 'PUT', body: { description: descDraft, context: ctxDraft } });
-    setEditDesc(false);
-    showT('Mis à jour ✓');
-    load();
-  };
-
-  const addPhase = async () => {
-    if (!newPhase.title) return showT('Titre requis');
-    await apiJ(`/project-catalogue/${typeId}/phases`, { method: 'POST', body: { ...newPhase, order_index: pt?.phases?.length || 0 } });
-    setNewPhase({ title: '', description: '', is_client_scope: false });
-    setShowAddPhase(false);
-    showT('Phase ajoutée ✓');
-    load();
-  };
-
-  const deletePhase = async (phaseId) => {
-    if (!confirm('Supprimer cette phase ?')) return;
-    await apiJ(`/project-phases/${phaseId}`, { method: 'DELETE' });
-    showT('Phase supprimée');
-    load();
-  };
-
-  const uploadPhoto = async (phaseId) => {
-    if (!fileRef.current) return;
-    const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/*';
-    input.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      setUploadingPhase(phaseId);
-      showT('Upload en cours...');
-      const form = new FormData();
-      form.append('file', file);
-      const r = await fetch(BASE + `/project-phases/${phaseId}/photos`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + tk() }, body: form }).then(r => r.json());
-      if (r.url) { showT('Photo ajoutée ✓'); load(); }
-      else showT('Erreur upload');
-      setUploadingPhase(null);
-    };
-    input.click();
-  };
-
-  const deletePhoto = async (photoId) => {
-    await apiJ(`/project-phase-photos/${photoId}`, { method: 'DELETE' });
-    showT('Photo supprimée');
-    load();
-  };
-
-  if (loading) return <div style={{ padding: 60, textAlign: 'center', color: C.text4 }}>Chargement...</div>;
-  if (!pt || pt.message) return <div style={{ padding: 60, textAlign: 'center', color: C.red }}>Type de projet introuvable</div>;
-
-  const phases = pt.phases || [];
-  const donePhases = phases.filter(p => p.status === 'done').length;
+  const updatePhotos = (phaseId,newPh) => setPhases(p=>p.map(x=>x.id===phaseId?{...x,photos:newPh}:x));
 
   return (
-    <div style={{ padding: 24, background: C.bg, minHeight: '100%' }}>
-      <Toast msg={toast} />
-
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 18 }}>
-        <button onClick={onBack} style={{ padding: '7px 13px', borderRadius: 7, border: C.cardBorder, background: C.white, boxShadow: C.cardShadow, fontSize: 12, cursor: 'pointer', color: C.text3 }}>← Catalogue</button>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 10, height: 10, borderRadius: 3, background: pt.color || C.blue }} />
-            <h1 style={{ fontSize: 19, fontWeight: 600, color: C.text, margin: 0, letterSpacing: '-0.02em' }}>{pt.name}</h1>
+    <div>
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20}}>
+        <button onClick={onBack} style={{...b(C.white,C.navy,`1px solid ${C.border}`),padding:'6px 12px'}}>← Catalogue</button>
+        <div style={{flex:1}}>
+          <div style={{fontSize:20,fontWeight:700,color:C.navy,display:'flex',alignItems:'center',gap:8}}>
+            <span style={{width:10,height:10,borderRadius:3,background:col,display:'inline-block'}}/>
+            {type.name}
           </div>
-          {pt.category && <div style={{ fontSize: 12, color: pt.color || C.blue, fontWeight: 500, marginTop: 3 }}>{pt.category}</div>}
+          <div style={{fontSize:12.5,color:C.gray,marginTop:2}}>{type.category}</div>
         </div>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: C.text4 }}>{phases.length} phases</span>
-        </div>
+        <button onClick={onAttach} style={{...b(C.navy,'white')}}> + Rattacher un site</button>
       </div>
 
-      {/* Description & Contexte */}
-      <Card style={{ marginBottom: 14 }}>
-        <div style={{ padding: '16px 18px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '0.06em' }}>À propos de ce type de projet</div>
-            {isAdmin && !editDesc && (
-              <button onClick={() => setEditDesc(true)} style={{ padding: '4px 10px', borderRadius: 5, border: C.cardBorder, background: 'transparent', fontSize: 11, color: C.text3, cursor: 'pointer' }}>Modifier</button>
-            )}
-          </div>
-          {editDesc ? (
-            <div>
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Description courte</div>
-                <textarea value={descDraft} onChange={e => setDescDraft(e.target.value)} rows={3}
-                  style={{ width: '100%', padding: '9px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, resize: 'vertical', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', lineHeight: 1.6 }} />
-              </div>
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Contexte détaillé (pour les personnes qui ne connaissent pas ce type de projet)</div>
-                <textarea value={ctxDraft} onChange={e => setCtxDraft(e.target.value)} rows={5}
-                  style={{ width: '100%', padding: '9px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, resize: 'vertical', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', lineHeight: 1.6 }} />
-              </div>
-              <div style={{ display: 'flex', gap: 7 }}>
-                <button onClick={saveDesc} style={{ padding: '7px 18px', borderRadius: 7, border: 'none', background: C.green, color: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Enregistrer</button>
-                <button onClick={() => { setEditDesc(false); setDescDraft(pt.description || ''); setCtxDraft(pt.context || ''); }} style={{ padding: '7px 12px', borderRadius: 7, border: C.cardBorder, background: 'white', fontSize: 12, cursor: 'pointer' }}>Annuler</button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              {pt.description && <p style={{ fontSize: 13, color: C.text2, lineHeight: 1.65, margin: '0 0 10px' }}>{pt.description}</p>}
-              {pt.context && (
-                <div style={{ background: C.bg, borderRadius: 8, padding: '12px 14px', border: C.cardBorder }}>
-                  <div style={{ fontSize: 10, fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Contexte</div>
-                  <p style={{ fontSize: 12, color: C.text3, lineHeight: 1.7, margin: 0 }}>{pt.context}</p>
-                </div>
-              )}
-              {!pt.description && !pt.context && (
-                <p style={{ fontSize: 12, color: C.text4, margin: 0, fontStyle: 'italic' }}>Aucune description — {isAdmin ? 'cliquez Modifier pour ajouter' : 'à remplir par l\'administrateur'}</p>
-              )}
-            </div>
-          )}
-        </div>
-      </Card>
+      <div style={{...card,marginBottom:14,borderLeft:`3px solid ${col}`}}>
+        <div style={{fontSize:13,color:C.navy,lineHeight:1.65}}>{type.description}</div>
+        {type.context&&<div style={{fontSize:12.5,color:C.gray,marginTop:8,lineHeight:1.6,fontStyle:'italic'}}>{type.context}</div>}
+      </div>
 
-      {/* Onglets : Processus / Sites en cours */}
-      <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, marginBottom: 18, background: C.white, borderRadius: '10px 10px 0 0', border: C.cardBorder, boxShadow: C.cardShadow }}>
-        {[['processus', `Processus (${phases.length} phases)`], ['sites', 'Sites en cours']].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)}
-            style={{ padding: '12px 20px', border: 'none', borderBottom: `2px solid ${tab === id ? (pt.color || C.blue) : 'transparent'}`, background: 'transparent', color: tab === id ? (pt.color || C.blue) : C.text3, fontWeight: tab === id ? 600 : 400, fontSize: 13, cursor: 'pointer', transition: 'all .12s' }}>
-            {label}
+      <div style={{display:'flex',borderBottom:`1px solid ${C.border}`,marginBottom:20}}>
+        {['phases','sites'].map(t=>(
+          <button key={t} onClick={()=>setTab(t)} style={{padding:'9px 20px',border:'none',cursor:'pointer',fontSize:13.5,fontWeight:600,background:'none',fontFamily:'inherit',color:tab===t?col:C.gray,borderBottom:tab===t?`2px solid ${col}`:'2px solid transparent',marginBottom:-1}}>
+            {t==='phases'?`Processus (${phases.length} phases)`:`Sites en cours (${sites.length})`}
           </button>
         ))}
       </div>
 
-      {/* Vue Sites */}
-      {tab === 'sites' && !selectedSite && !showAttach && (
-        <SitesList typeId={typeId} typeColor={pt.color} isAdmin={isAdmin}
-          onSelectSite={id => setSelectedSite(id)}
-          onAttach={() => setShowAttach(true)} />
-      )}
-      {tab === 'sites' && showAttach && (
-        <AttachSiteForm typeId={typeId} typeName={pt.name} typeColor={pt.color}
-          onSave={id => { setSelectedSite(id); setShowAttach(false); setTab('sites'); }}
-          onCancel={() => setShowAttach(false)} />
-      )}
-      {tab === 'sites' && selectedSite && !showAttach && (
-        <div>
-          <button onClick={() => setSelectedSite(null)} style={{ padding: '7px 13px', borderRadius: 7, border: C.cardBorder, background: C.white, boxShadow: C.cardShadow, fontSize: 12, cursor: 'pointer', color: C.text3, marginBottom: 14 }}>
-            ← Tous les sites
-          </button>
-          <SiteDetail executionId={selectedSite} typeColor={pt.color} onBack={() => setSelectedSite(null)} />
-        </div>
-      )}
+      {loading && <div style={{textAlign:'center',color:C.gray,padding:32}}>Chargement...</div>}
 
-      {/* Vue Processus */}
-      {tab === 'processus' && (
-        <div>
-
-      {/* Phases */}
-      <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Processus d'exécution</div>
-          <div style={{ fontSize: 11, color: C.text4, marginTop: 2 }}>{phases.length} phases — suivre dans l'ordre pour chaque mission de ce type</div>
-        </div>
-        {isAdmin && (
-          <button onClick={() => setShowAddPhase(!showAddPhase)}
-            style={{ padding: '7px 14px', borderRadius: 7, border: C.cardBorder, background: C.white, boxShadow: C.cardShadow, fontSize: 11, fontWeight: 500, color: C.text2, cursor: 'pointer' }}>
-            + Ajouter une phase
-          </button>
-        )}
-      </div>
-
-      {showAddPhase && (
-        <Card style={{ marginBottom: 12, padding: 16 }}>
-          <div style={{ padding: 0 }}>
-            <div style={{ marginBottom: 9 }}>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Titre de la phase *</div>
-              <input value={newPhase.title} onChange={e => setNewPhase(p => ({ ...p, title: e.target.value }))}
-                placeholder="ex: Réception DN, Installation antennes, Power On..."
-                style={{ width: '100%', padding: '8px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, boxSizing: 'border-box', outline: 'none', color: C.text }} />
-            </div>
-            <div style={{ marginBottom: 9 }}>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Description détaillée</div>
-              <textarea value={newPhase.description} onChange={e => setNewPhase(p => ({ ...p, description: e.target.value }))} rows={3}
-                placeholder="Décrivez en détail ce qui se passe pendant cette phase..."
-                style={{ width: '100%', padding: '8px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, resize: 'vertical', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', lineHeight: 1.6 }} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <input type="checkbox" id="client_scope" checked={newPhase.is_client_scope} onChange={e => setNewPhase(p => ({ ...p, is_client_scope: e.target.checked }))} />
-              <label htmlFor="client_scope" style={{ fontSize: 12, color: C.text3, cursor: 'pointer' }}>
-                Phase hors périmètre CleanIT (ex: configuration client)
-              </label>
-            </div>
-            <div style={{ display: 'flex', gap: 7 }}>
-              <button onClick={addPhase} style={{ padding: '7px 16px', borderRadius: 7, border: 'none', background: C.text, color: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>Ajouter</button>
-              <button onClick={() => setShowAddPhase(false)} style={{ padding: '7px 12px', borderRadius: 7, border: C.cardBorder, background: 'white', fontSize: 12, cursor: 'pointer' }}>Annuler</button>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Timeline des phases */}
-      <div style={{ position: 'relative' }}>
-        <div style={{ position: 'absolute', left: 19, top: 0, bottom: 0, width: 1.5, background: `linear-gradient(to bottom, ${pt.color||C.blue}44, transparent)` }} />
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {phases.map((ph, idx) => {
-            const isExpanded = expandedPhase === ph.id;
-            const isClientScope = ph.is_client_scope;
-            const photos = Array.isArray(ph.photos) ? ph.photos : [];
-
-            return (
-              <div key={ph.id} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                {/* Indicateur numéroté */}
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: isClientScope ? '#F3F4F6' : C.white, border: `2px solid ${isClientScope ? '#D1D5DB' : (pt.color || C.blue)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, zIndex: 1, fontSize: 13, fontWeight: 700, color: isClientScope ? '#9CA3AF' : (pt.color || C.blue), boxShadow: C.cardShadow }}>
-                  {idx + 1}
+      {!loading && tab==='phases' && (
+        <div style={{display:'flex',flexDirection:'column',gap:10}}>
+          {phases.map((ph,idx)=>(
+            <div key={ph.id} style={{...card,padding:0,overflow:'hidden',borderLeft:`3px solid ${ph.is_client_scope?C.gold:col}`}}>
+              <div onClick={()=>setExpanded(expanded===ph.id?null:ph.id)}
+                   style={{display:'flex',alignItems:'flex-start',gap:12,padding:'14px 18px',cursor:'pointer'}}>
+                <div style={{width:32,height:32,borderRadius:'50%',flexShrink:0,background:ph.is_client_scope?C.gold+'20':col+'18',border:`2px solid ${ph.is_client_scope?C.gold:col}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:ph.is_client_scope?C.gold:col}}>
+                  {idx+1}
                 </div>
-
-                {/* Card de la phase */}
-                <Card style={{ flex: 1, cursor: 'default' }}>
-                  <div style={{ padding: '13px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: isExpanded ? 10 : 0 }}
-                      onClick={() => setExpandedPhase(isExpanded ? null : ph.id)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: isExpanded ? 10 : 0 }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 13, fontWeight: 500, color: isClientScope ? C.text4 : C.text, letterSpacing: '-0.01em' }}>{ph.title}</span>
-                          {isClientScope && (
-                            <Badge label="Hors périmètre CleanIT" color="#9CA3AF" bg="#F3F4F6" />
-                          )}
-                          {photos.length > 0 && (
-                            <Badge label={`${photos.length} photo${photos.length>1?'s':''}`} color={pt.color||C.blue} bg={(pt.color||C.blue)+'15'} />
-                          )}
-                        </div>
-                        {!isExpanded && ph.description && (
-                          <p style={{ fontSize: 11, color: C.text4, margin: '3px 0 0', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                            {ph.description}
-                          </p>
-                        )}
-                      </div>
-                      <span style={{ fontSize: 12, color: C.text4, flexShrink: 0, marginTop: 2 }}>{isExpanded ? '▲' : '▼'}</span>
-                    </div>
-
-                    {isExpanded && (
-                      <div>
-                        {ph.description && (
-                          <div style={{ background: C.bg, borderRadius: 8, padding: '11px 13px', border: C.cardBorder, marginBottom: 12 }}>
-                            <p style={{ fontSize: 13, color: C.text2, lineHeight: 1.7, margin: 0 }}>{ph.description}</p>
-                          </div>
-                        )}
-
-                        {/* Photos de la phase */}
-                        {photos.length > 0 && (
-                          <div style={{ marginBottom: 12 }}>
-                            <div style={{ fontSize: 11, fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                              Photos terrain ({photos.length})
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                              {photos.map(p => (
-                                <div key={p.id} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: C.cardBorder }}>
-                                  <img src={p.url} alt={p.caption || 'Photo terrain'}
-                                    style={{ width: 120, height: 90, objectFit: 'cover', display: 'block', cursor: 'pointer' }}
-                                    onClick={() => window.open(p.url, '_blank')} />
-                                  {p.caption && (
-                                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.5)', padding: '3px 6px', fontSize: 9, color: '#fff' }}>
-                                      {p.caption}
-                                    </div>
-                                  )}
-                                  {isAdmin && (
-                                    <button onClick={() => deletePhoto(p.id)}
-                                      style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'rgba(220,38,38,0.85)', color: '#fff', fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
-                                      ×
-                                    </button>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Actions */}
-                        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                          <button onClick={() => uploadPhoto(ph.id)} disabled={uploadingPhase === ph.id}
-                            style={{ padding: '5px 12px', borderRadius: 6, border: C.cardBorder, background: C.white, color: C.text2, fontSize: 11, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-                            📷 {uploadingPhase === ph.id ? 'Upload...' : 'Ajouter une photo'}
-                          </button>
-                          {isAdmin && (
-                            <button onClick={() => deletePhase(ph.id)}
-                              style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #FCA5A5', background: C.redL, color: C.red, fontSize: 11, cursor: 'pointer' }}>
-                              Supprimer phase
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                    <span style={{fontSize:14,fontWeight:700,color:C.navy}}>{ph.title}</span>
+                    {ph.is_client_scope && <span style={{fontSize:10.5,fontWeight:700,padding:'2px 8px',borderRadius:20,background:C.gold+'18',color:C.gold}}>Hors périmètre CleanIT</span>}
+                    {ph.photos?.length>0 && <span style={{fontSize:10.5,color:C.blue}}>📷 {ph.photos.length}</span>}
                   </div>
-                </Card>
+                  <div style={{fontSize:12.5,color:C.gray,marginTop:3,lineHeight:1.55}}>{ph.description}</div>
+                </div>
+                <span style={{color:C.gray,fontSize:18,flexShrink:0}}>{expanded===ph.id?'▲':'▼'}</span>
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {phases.length === 0 && (
-        <div style={{ textAlign: 'center', padding: 40, color: C.text4, fontSize: 13, background: C.white, borderRadius: 10, border: C.cardBorder }}>
-          Aucune phase définie — {isAdmin ? 'ajoutez les étapes du processus' : 'à remplir par l\'administrateur'}
+              {expanded===ph.id && (
+                <div style={{padding:'0 18px 16px',borderTop:`1px solid ${C.border}`}}>
+                  <div style={{fontSize:11,fontWeight:600,color:C.gray,marginTop:14,marginBottom:4,textTransform:'uppercase',letterSpacing:'.05em'}}>Photos illustratives de la phase</div>
+                  <PhotoUploadZone phaseId={ph.id} photos={ph.photos||[]} onPhotosChange={np=>updatePhotos(ph.id,np)} isCatalogue={true} />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
+
+      {!loading && tab==='sites' && (
+        <div>
+          {sites.length===0 ? (
+            <div style={{...card,textAlign:'center',padding:40,color:C.gray}}>
+              <div style={{fontSize:14,marginBottom:6}}>Aucun site rattaché</div>
+              <div style={{fontSize:12.5}}>Utilisez "Rattacher un site" pour commencer le suivi</div>
+            </div>
+          ) : (
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(270px,1fr))',gap:12}}>
+              {sites.map(s=>{
+                const pct = s.total_phases ? Math.round(((s.done_phases||0)/s.total_phases)*100) : 0;
+                return (
+                  <div key={s.id} style={{...card,cursor:'pointer',transition:'all .18s'}}
+                       onClick={()=>onSelectSite(s)}
+                       onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=C.shadowMd;}}
+                       onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow=C.shadow;}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:10}}>
+                      <div>
+                        <div style={{fontSize:14.5,fontWeight:700,color:C.navy}}>{s.site_code}</div>
+                        <div style={{fontSize:12,color:C.gray,marginTop:2}}>{s.site_name||s.region}</div>
+                      </div>
+                      <span style={{fontSize:13,fontWeight:700,color:pct===100?C.green:C.blue}}>{pct}%</span>
+                    </div>
+                    <div style={{height:4,background:'#F1F5F9',borderRadius:2,overflow:'hidden',marginBottom:8}}>
+                      <div style={{width:`${pct}%`,height:'100%',background:pct===100?C.green:col,borderRadius:2}}/>
+                    </div>
+                    <div style={{fontSize:11.5,color:C.gray}}>{s.done_phases||0}/{s.total_phases||0} phases · {s.client}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-// ─── LISTE DES SITES EN COURS ─────────────────────────────────────────
-function SitesList({ typeId, typeColor, onSelectSite, onAttach, isAdmin }) {
-  const [sites, setSites] = useState([]);
-  const [loading, setLoading] = useState(true);
+// ── AttachSiteForm ────────────────────────────────────────────────────────
+function AttachSiteForm({type,onBack,onSuccess}) {
+  const [sites,setSites] = useState([]);
+  const [form,setForm] = useState({site_code:'',site_name:'',client:'',bc_reference:'',region:'',start_date:''});
+  const [saving,setSaving] = useState(false);
+  const [error,setError] = useState('');
+  const inp = {width:'100%',padding:'9px 12px',border:`1px solid ${C.border}`,borderRadius:8,fontSize:13.5,fontFamily:'inherit',outline:'none',background:C.white,color:C.navy,boxSizing:'border-box'};
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const r = await api(`/project-catalogue/${typeId}/sites`).then(r => r.json()).catch(() => []);
-    setSites(Array.isArray(r) ? r : []);
-    setLoading(false);
-  }, [typeId]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(()=>{ api.get('/sites').then(r=>setSites(r.data||[])).catch(()=>{}); },[]);
 
-  const STATUS_COLORS = {
-    en_cours:  { label: 'En cours',  color: '#2563EB', bg: '#EFF6FF' },
-    planifie:  { label: 'Planifié',  color: '#7C3AED', bg: '#F5F3FF' },
-    termine:   { label: 'Terminé',   color: '#16A34A', bg: '#F0FDF4' },
-    suspendu:  { label: 'Suspendu',  color: '#6B7280', bg: '#F3F4F6' },
+  const submit = async () => {
+    if(!form.site_code) return setError('Le code site est requis');
+    setSaving(true); setError('');
+    try {
+      await api.post(`/project-catalogue/${type.id}/sites`,form);
+      onSuccess();
+    } catch(e) { setError(e.response?.data?.message||'Erreur lors du rattachement'); setSaving(false); }
   };
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <div style={{ fontSize: 12, color: C.text3 }}>
-          {sites.length} site{sites.length > 1 ? 's' : ''} rattaché{sites.length > 1 ? 's' : ''} à ce type de projet
-        </div>
-        <button onClick={onAttach}
-          style={{ padding: '7px 14px', borderRadius: 7, border: 'none', background: typeColor || C.blue, color: '#fff', fontSize: 11, fontWeight: 500, cursor: 'pointer' }}>
-          + Rattacher un site
-        </button>
-      </div>
-
-      {loading ? (
-        <div style={{ padding: 32, textAlign: 'center', color: C.text4, fontSize: 12 }}>Chargement...</div>
-      ) : sites.length === 0 ? (
-        <div style={{ padding: 40, textAlign: 'center', background: C.bg, borderRadius: 10, border: C.cardBorder }}>
-          <div style={{ fontSize: 13, color: C.text4, marginBottom: 8 }}>Aucun site rattaché pour l'instant</div>
-          <div style={{ fontSize: 11, color: C.text4, marginBottom: 16 }}>Cliquez "+ Rattacher un site" pour démarrer le suivi d'une mission</div>
-          <button onClick={onAttach} style={{ padding: '8px 18px', borderRadius: 7, border: 'none', background: typeColor || C.blue, color: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
-            + Rattacher un site
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-          {sites.map(site => {
-            const st = STATUS_COLORS[site.status] || STATUS_COLORS.en_cours;
-            const pct = site.total_phases > 0 ? Math.round((site.done_phases / site.total_phases) * 100) : 0;
-            return (
-              <Card key={site.id} onClick={() => onSelectSite(site.id)}>
-                <div style={{ padding: '14px 16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: typeColor || C.blue, background: (typeColor || C.blue) + '14', padding: '2px 8px', borderRadius: 5, letterSpacing: '0.01em' }}>
-                          {site.site_code}
-                        </span>
-                        <span style={{ fontSize: 13, fontWeight: 500, color: C.text }}>{site.site_name || site.site_code}</span>
-                        <Badge label={st.label} color={st.color} bg={st.bg} />
-                      </div>
-                      <div style={{ fontSize: 11, color: C.text4, marginBottom: 10 }}>
-                        {site.client && <span>{site.client}</span>}
-                        {site.bc_reference && <span style={{ marginLeft: 8 }}>· Réf. {site.bc_reference}</span>}
-                        {site.region && <span style={{ marginLeft: 8 }}>· {site.region}</span>}
-                        {site.chef_nom && <span style={{ marginLeft: 8 }}>· CDP: {site.chef_nom}</span>}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ flex: 1, maxWidth: 260 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                            <span style={{ fontSize: 10, color: C.text4 }}>{site.done_phases}/{site.total_phases} phases complétées</span>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: pct >= 100 ? C.green : (typeColor || C.blue) }}>{pct}%</span>
-                          </div>
-                          <div style={{ height: 4, background: C.bg, borderRadius: 3, overflow: 'hidden', border: C.cardBorder }}>
-                            <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? C.green : (typeColor || C.blue), borderRadius: 3, transition: 'width .4s' }} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <span style={{ fontSize: 14, color: C.text4 }}>›</span>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── FORMULAIRE RATTACHEMENT SITE ────────────────────────────────────────
-function AttachSiteForm({ typeId, typeName, typeColor, onSave, onCancel }) {
-  const [form, setForm] = useState({ site_code: '', site_name: '', region: '', client: '', bc_reference: '', status: 'en_cours', start_date: '', target_date: '', notes: '' });
-  const [saving, setSaving] = useState(false);
-  const [users, setUsers] = useState([]);
-
-  useEffect(() => {
-    api('/users').then(r => r.json()).then(d => setUsers(Array.isArray(d) ? d.filter(u => ['admin','project_manager'].includes(u.role)) : [])).catch(() => {});
-  }, []);
-
-  const save = async () => {
-    if (!form.site_code) return;
-    setSaving(true);
-    const r = await api(`/project-catalogue/${typeId}/sites`, {
-      json: true, method: 'POST',
-      body: JSON.stringify(form),
-      headers: { 'Content-Type': 'application/json' }
-    });
-    if (r.ok) { const data = await r.json(); onSave(data.id); }
-    setSaving(false);
-  };
-
-  const inp = (f, p = {}) => (
-    <input value={form[f]} onChange={e => setForm(prev => ({ ...prev, [f]: e.target.value }))}
-      style={{ width: '100%', padding: '8px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, boxSizing: 'border-box', outline: 'none', color: C.text, background: C.white }} {...p} />
-  );
-
-  return (
-    <div style={{ padding: 24, background: C.bg, minHeight: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <button onClick={onCancel} style={{ padding: '7px 13px', borderRadius: 7, border: C.cardBorder, background: C.white, boxShadow: C.cardShadow, fontSize: 12, cursor: 'pointer', color: C.text3 }}>← Annuler</button>
+      <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:24}}>
+        <button onClick={onBack} style={{...b(C.white,C.navy,`1px solid ${C.border}`),padding:'6px 12px'}}>← Retour</button>
         <div>
-          <h1 style={{ fontSize: 17, fontWeight: 600, color: C.text, margin: 0 }}>Rattacher un site</h1>
-          <div style={{ fontSize: 11, color: typeColor || C.blue, marginTop: 2 }}>Type : {typeName}</div>
+          <div style={{fontSize:18,fontWeight:700,color:C.navy}}>Rattacher un site à {type.name}</div>
+          <div style={{fontSize:12.5,color:C.gray,marginTop:2}}>Les {type.phases_count||'—'} phases seront copiées automatiquement</div>
         </div>
       </div>
-
-      <Card>
-        <div style={{ padding: 22 }}>
-          <div style={{ background: (typeColor || C.blue) + '10', border: `1px solid ${(typeColor || C.blue)}25`, borderRadius: 8, padding: '10px 14px', marginBottom: 18, fontSize: 12, color: C.text2, lineHeight: 1.6 }}>
-            Les <strong>{typeName === 'IP Core' ? '13' : '12'} phases</strong> du processus <strong>{typeName}</strong> seront automatiquement copiées pour ce site. Il suffira ensuite de cocher chaque phase au fur et à mesure de l'exécution et d'ajouter les photos terrain.
+      <div style={{...card,maxWidth:500}}>
+        {[
+          {label:'Code site (DUID)',field:'site_code',type:'select'},
+          {label:'Nom du site',field:'site_name',ph:'Tour MTN Garoua Centre'},
+          {label:'Client',field:'client',ph:'MTN Cameroun'},
+          {label:'Référence BC',field:'bc_reference',ph:'416121376123-2'},
+          {label:'Région',field:'region',ph:'Nord Cameroun'},
+          {label:'Date de démarrage',field:'start_date',it:'date'},
+        ].map(({label,field,ph,type:ft,it})=>(
+          <div key={field} style={{marginBottom:14}}>
+            <label style={{display:'block',fontSize:12,fontWeight:600,color:C.gray,marginBottom:5,textTransform:'uppercase',letterSpacing:'.04em'}}>{label}</label>
+            {ft==='select'
+              ? <select value={form[field]} onChange={e=>{ const s=sites.find(x=>x.code===e.target.value); if(s) setForm(f=>({...f,site_code:s.code,site_name:s.name,region:s.region||''})); else setForm(f=>({...f,site_code:e.target.value})); }} style={{...inp,appearance:'none'}}>
+                  <option value="">Saisir manuellement ou sélectionner</option>
+                  {sites.map(s=><option key={s.id} value={s.code}>{s.code} — {s.name}</option>)}
+                </select>
+              : <input type={it||'text'} value={form[field]} placeholder={ph} onChange={e=>setForm(f=>({...f,[field]:e.target.value}))} style={inp} />
+            }
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 13, marginBottom: 13 }}>
-            <div>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Code site *</div>
-              {inp('site_code', { placeholder: 'ex: GAR-001' })}
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Nom du site</div>
-              {inp('site_name', { placeholder: 'ex: Tour MTN Garoua Centre' })}
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Client</div>
-              {inp('client', { placeholder: 'ex: MTN Cameroun' })}
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Référence BC / PO</div>
-              {inp('bc_reference', { placeholder: 'ex: 416121376123-2' })}
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Région</div>
-              {inp('region', { placeholder: 'ex: Nord Cameroun' })}
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Statut</div>
-              <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-                style={{ width: '100%', padding: '8px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, background: C.white, color: C.text }}>
-                <option value="planifie">Planifié</option>
-                <option value="en_cours">En cours</option>
-                <option value="termine">Terminé</option>
-                <option value="suspendu">Suspendu</option>
-              </select>
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Date de démarrage</div>
-              {inp('start_date', { type: 'date' })}
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Date cible de fin</div>
-              {inp('target_date', { type: 'date' })}
-            </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Notes (contexte spécifique à ce site)</div>
-              <textarea value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} rows={3}
-                placeholder="Particularités de ce site : accès, contraintes, historique..."
-                style={{ width: '100%', padding: '8px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, resize: 'vertical', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', lineHeight: 1.6, color: C.text }} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={onCancel} style={{ padding: '9px 18px', borderRadius: 8, border: C.cardBorder, background: 'white', fontSize: 12, cursor: 'pointer', color: C.text2 }}>Annuler</button>
-            <button onClick={save} disabled={saving || !form.site_code}
-              style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: form.site_code ? (typeColor || C.blue) : '#CBD5E1', color: 'white', fontSize: 12, fontWeight: 500, cursor: form.site_code ? 'pointer' : 'default' }}>
-              {saving ? 'Rattachement...' : 'Rattacher et créer les phases'}
-            </button>
-          </div>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-// ─── DÉTAIL D'UN SITE EN COURS ───────────────────────────────────────────
-function SiteDetail({ executionId, typeColor, onBack }) {
-  const [exec, setExec] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [expandedPhase, setExpandedPhase] = useState(null);
-  const [uploadingPhase, setUploadingPhase] = useState(null);
-  const [toast, setToast] = useState('');
-  const [editNotes, setEditNotes] = useState(null);
-  const [notesDraft, setNotesDraft] = useState('');
-
-  const showT = m => { setToast(m); setTimeout(() => setToast(''), 3000); };
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const r = await api(`/project-site-executions/${executionId}`).then(r => r.json()).catch(() => null);
-    setExec(r);
-    setLoading(false);
-  }, [executionId]);
-  useEffect(() => { load(); }, [load]);
-
-  const updPhase = async (phaseId, updates) => {
-    await api(`/project-execution-phases/${phaseId}`, {
-      method: 'PUT', json: true,
-      body: JSON.stringify(updates),
-      headers: { 'Content-Type': 'application/json' }
-    });
-    load();
-  };
-
-  const saveNotes = async (phaseId) => {
-    await updPhase(phaseId, { notes: notesDraft });
-    setEditNotes(null);
-    showT('Notes enregistrées ✓');
-  };
-
-  const uploadPhoto = async (phaseId) => {
-    const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/*';
-    input.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      setUploadingPhase(phaseId);
-      showT('Upload en cours...');
-      const form = new FormData();
-      form.append('file', file);
-      const r = await fetch(BASE + `/project-execution-phases/${phaseId}/photos`, {
-        method: 'POST', headers: { 'Authorization': 'Bearer ' + tk() }, body: form
-      }).then(r => r.json());
-      if (r.url) { showT('Photo ajoutée ✓'); load(); }
-      else showT('Erreur upload photo');
-      setUploadingPhase(null);
-    };
-    input.click();
-  };
-
-  const deletePhoto = async (photoId) => {
-    await api(`/project-execution-photos/${photoId}`, { method: 'DELETE', json: true, headers: { 'Content-Type': 'application/json' } });
-    showT('Photo supprimée');
-    load();
-  };
-
-  const STATUS_PHASE = {
-    pending:     { label: 'À faire',  color: '#6B7280', bg: '#F3F4F6' },
-    in_progress: { label: 'En cours', color: '#2563EB', bg: '#EFF6FF' },
-    done:        { label: 'Terminé',  color: '#16A34A', bg: '#F0FDF4' },
-    blocked:     { label: 'Bloqué',   color: '#DC2626', bg: '#FEF2F2' },
-  };
-
-  if (loading) return <div style={{ padding: 60, textAlign: 'center', color: C.text4 }}>Chargement...</div>;
-  if (!exec || exec.message) return <div style={{ padding: 60, textAlign: 'center', color: C.red }}>Exécution introuvable</div>;
-
-  const phases = exec.phases || [];
-  const donePhases = phases.filter(p => p.status === 'done').length;
-  const pct = phases.length > 0 ? Math.round((donePhases / phases.length) * 100) : 0;
-  const color = exec.type_color || typeColor || C.blue;
-
-  return (
-    <div style={{ padding: 24, background: C.bg, minHeight: '100%' }}>
-      <Toast msg={toast} />
-
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
-        <button onClick={onBack} style={{ padding: '7px 13px', borderRadius: 7, border: C.cardBorder, background: C.white, boxShadow: C.cardShadow, fontSize: 12, cursor: 'pointer', color: C.text3 }}>
-          ← Sites
+        ))}
+        {error && <div style={{padding:'8px 12px',background:'#FEF2F2',borderRadius:8,color:C.red,fontSize:13,marginBottom:14}}>{error}</div>}
+        <button onClick={submit} disabled={saving} style={{...b(C.navy,'white'),width:'100%',justifyContent:'center',padding:12}}>
+          {saving ? <><Spin/> Rattachement...</> : '✓ Rattacher et copier les phases'}
         </button>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color, background: color + '14', padding: '2px 8px', borderRadius: 5 }}>{exec.site_code}</span>
-            <h1 style={{ fontSize: 17, fontWeight: 600, color: C.text, margin: 0 }}>{exec.site_name || exec.site_code}</h1>
-          </div>
-          <div style={{ fontSize: 11, color: C.text4 }}>
-            {exec.type_name && <span style={{ color, fontWeight: 500 }}>{exec.type_name}</span>}
-            {exec.client && <span style={{ marginLeft: 8 }}>· {exec.client}</span>}
-            {exec.bc_reference && <span style={{ marginLeft: 8 }}>· Réf. {exec.bc_reference}</span>}
-            {exec.region && <span style={{ marginLeft: 8 }}>· {exec.region}</span>}
-          </div>
-        </div>
-      </div>
-
-      {/* Barre de progression globale */}
-      <Card style={{ marginBottom: 14, padding: '14px 18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 500, color: C.text }}>Avancement global</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: pct >= 100 ? C.green : color }}>{pct}%</span>
-            </div>
-            <div style={{ height: 6, background: C.bg, borderRadius: 4, overflow: 'hidden', border: C.cardBorder }}>
-              <div style={{ height: '100%', width: `${pct}%`, background: pct >= 100 ? C.green : color, borderRadius: 4, transition: 'width .5s' }} />
-            </div>
-            <div style={{ fontSize: 10, color: C.text4, marginTop: 4 }}>{donePhases} / {phases.length} phases complétées</div>
-          </div>
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: pct >= 100 ? C.green : color, letterSpacing: '-0.03em' }}>{donePhases}/{phases.length}</div>
-            <div style={{ fontSize: 10, color: C.text4 }}>phases</div>
-          </div>
-        </div>
-        {exec.notes && (
-          <div style={{ marginTop: 12, fontSize: 12, color: C.text3, background: C.bg, borderRadius: 7, padding: '8px 11px', border: C.cardBorder }}>
-            {exec.notes}
-          </div>
-        )}
-      </Card>
-
-      {/* Phases d'exécution */}
-      <div style={{ fontSize: 13, fontWeight: 500, color: C.text, marginBottom: 12 }}>Suivi des phases</div>
-
-      <div style={{ position: 'relative' }}>
-        <div style={{ position: 'absolute', left: 19, top: 0, bottom: 0, width: 1.5, background: `linear-gradient(to bottom, ${color}55, transparent)` }} />
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {phases.map((ph, idx) => {
-            const sph = STATUS_PHASE[ph.status] || STATUS_PHASE.pending;
-            const isExpanded = expandedPhase === ph.id;
-            const isClientScope = ph.is_client_scope;
-            const photos = Array.isArray(ph.photos) ? ph.photos : [];
-            const isDone = ph.status === 'done';
-
-            return (
-              <div key={ph.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                {/* Cercle numéroté */}
-                <div style={{ width: 40, height: 40, borderRadius: '50%', background: isDone ? color : (isClientScope ? '#F3F4F6' : C.white), border: `2px solid ${isDone ? color : (isClientScope ? '#D1D5DB' : (ph.status === 'in_progress' ? color : C.border))}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, zIndex: 1, fontSize: 13, fontWeight: 700, color: isDone ? '#fff' : (isClientScope ? '#9CA3AF' : color), boxShadow: C.cardShadow, transition: 'all .2s' }}>
-                  {isDone ? '✓' : (idx + 1)}
-                </div>
-
-                <Card style={{ flex: 1, cursor: 'default', opacity: isClientScope ? 0.75 : 1 }}>
-                  <div style={{ padding: '12px 15px' }}>
-                    {/* En-tête cliquable */}
-                    <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 8 }}
-                      onClick={() => setExpandedPhase(isExpanded ? null : ph.id)}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 12, fontWeight: 500, color: isClientScope ? C.text4 : C.text }}>{ph.title}</span>
-                          <Badge label={sph.label} color={sph.color} bg={sph.bg} />
-                          {isClientScope && <Badge label="Hors périmètre CleanIT" color="#9CA3AF" bg="#F3F4F6" />}
-                          {photos.length > 0 && <Badge label={`${photos.length} photo${photos.length > 1 ? 's' : ''}`} color={color} bg={color + '15'} />}
-                          {ph.notes && !isExpanded && <Badge label="Notes" color="#6B7280" bg="#F3F4F6" />}
-                        </div>
-                        {ph.completed_at && <div style={{ fontSize: 10, color: C.green, marginTop: 2 }}>Terminé le {new Date(ph.completed_at).toLocaleDateString('fr-FR')}</div>}
-                      </div>
-                      <span style={{ fontSize: 11, color: C.text4, flexShrink: 0 }}>{isExpanded ? '▲' : '▼'}</span>
-                    </div>
-
-                    {/* Contenu déplié */}
-                    {isExpanded && (
-                      <div style={{ marginTop: 12 }}>
-                        {ph.description && (
-                          <div style={{ background: C.bg, borderRadius: 8, padding: '11px 13px', border: C.cardBorder, marginBottom: 12 }}>
-                            <p style={{ fontSize: 12, color: C.text2, lineHeight: 1.7, margin: 0 }}>{ph.description}</p>
-                          </div>
-                        )}
-
-                        {/* Notes de l'équipe */}
-                        <div style={{ marginBottom: 12 }}>
-                          <div style={{ fontSize: 10, fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Notes de l'équipe</div>
-                          {editNotes === ph.id ? (
-                            <div>
-                              <textarea value={notesDraft} onChange={e => setNotesDraft(e.target.value)} rows={3} autoFocus
-                                placeholder="Observations, problèmes rencontrés, modifications du client..."
-                                style={{ width: '100%', padding: '8px 10px', border: `1.5px solid ${color}`, borderRadius: 7, fontSize: 12, resize: 'vertical', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', lineHeight: 1.6 }} />
-                              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                                <button onClick={() => saveNotes(ph.id)} style={{ padding: '5px 14px', borderRadius: 6, border: 'none', background: C.green, color: '#fff', fontSize: 11, fontWeight: 500, cursor: 'pointer' }}>Enregistrer</button>
-                                <button onClick={() => setEditNotes(null)} style={{ padding: '5px 10px', borderRadius: 6, border: C.cardBorder, background: 'white', fontSize: 11, cursor: 'pointer' }}>Annuler</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div onClick={() => { setEditNotes(ph.id); setNotesDraft(ph.notes || ''); }}
-                              style={{ padding: '8px 10px', background: ph.notes ? C.bg : 'transparent', borderRadius: 7, border: C.cardBorder, fontSize: 12, color: ph.notes ? C.text2 : C.text4, cursor: 'pointer', lineHeight: 1.6, minHeight: 36, display: 'flex', alignItems: ph.notes ? 'flex-start' : 'center', fontStyle: ph.notes ? 'normal' : 'italic' }}>
-                              {ph.notes || 'Cliquer pour ajouter des notes...'}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Photos */}
-                        {photos.length > 0 && (
-                          <div style={{ marginBottom: 12 }}>
-                            <div style={{ fontSize: 10, fontWeight: 600, color: C.text3, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Photos terrain ({photos.length})</div>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                              {photos.map(p => (
-                                <div key={p.id} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', border: C.cardBorder, boxShadow: C.cardShadow }}>
-                                  <img src={p.url} alt={p.caption || 'Photo terrain'}
-                                    style={{ width: 130, height: 95, objectFit: 'cover', display: 'block', cursor: 'pointer' }}
-                                    onClick={() => window.open(p.url, '_blank')} />
-                                  {p.caption && (
-                                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.55)', padding: '4px 7px', fontSize: 9, color: '#fff' }}>{p.caption}</div>
-                                  )}
-                                  <button onClick={() => deletePhoto(p.id)}
-                                    style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%', border: 'none', background: 'rgba(220,38,38,0.85)', color: '#fff', fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Actions phase */}
-                        {!isClientScope && (
-                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                            <div style={{ fontSize: 10, color: C.text4, marginRight: 4 }}>Statut :</div>
-                            {['pending', 'in_progress', 'done', 'blocked'].map(s => (
-                              <button key={s} onClick={() => updPhase(ph.id, { status: s })}
-                                style={{ padding: '4px 10px', borderRadius: 6, border: `1px solid ${ph.status === s ? STATUS_PHASE[s].color : C.border}`, background: ph.status === s ? STATUS_PHASE[s].color : C.white, color: ph.status === s ? '#fff' : C.text3, fontSize: 10, fontWeight: ph.status === s ? 600 : 400, cursor: 'pointer', transition: 'all .1s' }}>
-                                {STATUS_PHASE[s].label}
-                              </button>
-                            ))}
-                            <button onClick={() => uploadPhoto(ph.id)} disabled={uploadingPhase === ph.id}
-                              style={{ marginLeft: 'auto', padding: '4px 11px', borderRadius: 6, border: C.cardBorder, background: C.white, color: C.text3, fontSize: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-                              📷 {uploadingPhase === ph.id ? 'Upload...' : 'Ajouter photo'}
-                            </button>
-                          </div>
-                        )}
-                        {isClientScope && (
-                          <div style={{ fontSize: 11, color: '#9CA3AF', fontStyle: 'italic' }}>
-                            Cette phase est gérée par le client — CleanIT n'intervient pas
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              </div>
-            );
-          })}
-        </div>
       </div>
     </div>
   );
 }
 
+// ── SiteExecution ────────────────────────────────────────────────────────
+function SiteExecution({execId,onBack}) {
+  const [exec,setExec] = useState(null);
+  const [phases,setPhases] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [expanded,setExpanded] = useState(null);
+  const [notes,setNotes] = useState({});
+  const [savingNote,setSavingNote] = useState(null);
 
-function NewTypeForm({ onSave, onCancel }) {
-  const COLORS = ['#1B4F8A','#0D9488','#7C3AED','#EA580C','#16A34A','#D97706','#DC2626','#0891B2'];
-  const [form, setForm] = useState({ code: '', name: '', category: '', description: '', context: '', color: '#1B4F8A' });
-  const [saving, setSaving] = useState(false);
+  const load = useCallback(async()=>{
+    try {
+      const r = await api.get(`/project-site-executions/${execId}`);
+      setExec(r.data); setPhases(r.data.phases||[]);
+      const n={}; (r.data.phases||[]).forEach(p=>{n[p.id]=p.notes||'';});
+      setNotes(n);
+    } catch(e){console.error(e);}
+    finally{setLoading(false);}
+  },[execId]);
 
-  const save = async () => {
-    if (!form.code || !form.name) return;
-    setSaving(true);
-    const r = await apiJ('/project-catalogue', { method: 'POST', body: form });
-    if (r.ok !== false) { const data = await r.json(); onSave(data.id); }
-    setSaving(false);
+  useEffect(()=>{load();},[load]);
+
+  const setStatus = async(pid,status)=>{
+    try {
+      await api.put(`/project-execution-phases/${pid}`,{status});
+      setPhases(p=>p.map(x=>x.id===pid?{...x,status,
+        started_at:status==='in_progress'&&!x.started_at?new Date().toISOString():x.started_at,
+        completed_at:status==='done'?new Date().toISOString():null
+      }:x));
+    } catch(e){alert('Erreur mise à jour statut');}
   };
 
+  const saveNote = async(pid)=>{
+    setSavingNote(pid);
+    try{ await api.put(`/project-execution-phases/${pid}`,{notes:notes[pid]}); }
+    catch(e){alert('Erreur sauvegarde');}
+    setSavingNote(null);
+  };
+
+  const updatePhotos = (pid,np) => setPhases(p=>p.map(x=>x.id===pid?{...x,photos:np}:x));
+
+  if(loading) return <div style={{padding:40,textAlign:'center',color:C.gray}}>Chargement...</div>;
+  if(!exec) return <div style={{padding:40,color:C.red}}>Exécution introuvable.</div>;
+
+  const done = phases.filter(p=>p.status==='done').length;
+  const pct = phases.length ? Math.round((done/phases.length)*100) : 0;
+
   return (
-    <div style={{ padding: 28, background: C.bg, minHeight: '100%' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
-        <button onClick={onCancel} style={{ padding: '7px 13px', borderRadius: 7, border: C.cardBorder, background: C.white, boxShadow: C.cardShadow, fontSize: 12, cursor: 'pointer', color: C.text3 }}>← Annuler</button>
-        <h1 style={{ fontSize: 18, fontWeight: 600, color: C.text, margin: 0 }}>Nouveau type de projet</h1>
+    <div>
+      <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:20}}>
+        <button onClick={onBack} style={{...b(C.white,C.navy,`1px solid ${C.border}`),padding:'6px 12px',marginTop:2}}>← Retour</button>
+        <div style={{flex:1}}>
+          <div style={{fontSize:20,fontWeight:700,color:C.navy}}>{exec.site_code} — {exec.type_name}</div>
+          <div style={{fontSize:13,color:C.gray,marginTop:3}}>{exec.site_name} · {exec.client} · {exec.region}</div>
+        </div>
+        <div style={{textAlign:'right',flexShrink:0}}>
+          <div style={{fontSize:26,fontWeight:800,color:pct===100?C.green:C.blue,letterSpacing:'-.03em'}}>{pct}%</div>
+          <div style={{fontSize:11.5,color:C.gray}}>{done}/{phases.length} phases</div>
+        </div>
       </div>
 
-      <Card>
-        <div style={{ padding: 22 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
-            <div>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Code court * (sans espace)</div>
-              <input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value.toLowerCase().replace(/\s/g, '_') }))}
-                placeholder="ex: mpbn, dwdm, b2b_enterprise"
-                style={{ width: '100%', padding: '8px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, boxSizing: 'border-box', outline: 'none', color: C.text }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Nom complet *</div>
-              <input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                placeholder="ex: MPBN, DWDM, B2B Entreprise"
-                style={{ width: '100%', padding: '8px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, boxSizing: 'border-box', outline: 'none', color: C.text }} />
-            </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Catégorie</div>
-              <input value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
-                placeholder="ex: Radio, Data Center, Câblage fibre..."
-                style={{ width: '100%', padding: '8px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, boxSizing: 'border-box', outline: 'none', color: C.text }} />
-            </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Description courte</div>
-              <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2}
-                placeholder="Résumé en 1-2 phrases de ce type de projet..."
-                style={{ width: '100%', padding: '8px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, resize: 'vertical', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' }} />
-            </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 4 }}>Contexte (pour les personnes qui ne connaissent pas ce projet)</div>
-              <textarea value={form.context} onChange={e => setForm(p => ({ ...p, context: e.target.value }))} rows={4}
-                placeholder="Expliquer en détail à quoi sert ce type de projet, dans quel contexte il se produit..."
-                style={{ width: '100%', padding: '8px 11px', border: C.cardBorder, borderRadius: 7, fontSize: 12, resize: 'vertical', boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', lineHeight: 1.6 }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: C.text3, marginBottom: 8 }}>Couleur</div>
-              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
-                {COLORS.map(c => (
-                  <button key={c} onClick={() => setForm(p => ({ ...p, color: c }))}
-                    style={{ width: 26, height: 26, borderRadius: 7, background: c, border: form.color === c ? `3px solid #0F172A` : '2px solid transparent', cursor: 'pointer' }} />
-                ))}
+      <div style={{height:6,background:'#F1F5F9',borderRadius:3,overflow:'hidden',marginBottom:20}}>
+        <div style={{width:`${pct}%`,height:'100%',background:pct===100?C.green:C.blue,borderRadius:3,transition:'width .5s'}}/>
+      </div>
+
+      <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        {phases.map((ph,idx)=>{
+          const st = SV[ph.status]||SV.pending;
+          const isOpen = expanded===ph.id;
+          return (
+            <div key={ph.id} style={{...card,padding:0,overflow:'hidden',borderLeft:`3px solid ${ph.status==='done'?C.green:ph.status==='in_progress'?C.blue:ph.is_client_scope?C.gold:C.border}`}}>
+              <div onClick={()=>setExpanded(isOpen?null:ph.id)}
+                   style={{display:'flex',alignItems:'flex-start',gap:12,padding:'13px 16px',cursor:'pointer'}}>
+                <div style={{width:30,height:30,borderRadius:'50%',flexShrink:0,background:ph.status==='done'?C.green:ph.status==='in_progress'?C.blue:'#F1F5F9',display:'flex',alignItems:'center',justifyContent:'center',color:ph.status==='done'||ph.status==='in_progress'?'white':C.gray,fontSize:12,fontWeight:700}}>
+                  {ph.status==='done'?'✓':idx+1}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}>
+                    <span style={{fontSize:14,fontWeight:600,color:C.navy}}>{ph.title}</span>
+                    <span style={{fontSize:10.5,fontWeight:600,padding:'2px 8px',borderRadius:20,background:st.bg,color:st.text}}>{st.label}</span>
+                    {ph.is_client_scope && <span style={{fontSize:10.5,padding:'2px 8px',borderRadius:20,background:C.gold+'18',color:C.gold,fontWeight:600}}>Hors périmètre</span>}
+                    {ph.photos?.length>0 && <span style={{fontSize:10.5,color:C.blue}}>📷 {ph.photos.length}</span>}
+                  </div>
+                  <div style={{fontSize:12,color:C.gray,marginTop:3,lineHeight:1.5}}>{ph.description?.slice(0,80)}{ph.description?.length>80?'...':''}</div>
+                </div>
+                <span style={{color:C.gray,fontSize:16,flexShrink:0,marginTop:4}}>{isOpen?'▲':'▼'}</span>
               </div>
+
+              {isOpen && (
+                <div style={{padding:'0 16px 16px',borderTop:`1px solid ${C.border}`}}>
+                  {!ph.is_client_scope && (
+                    <div style={{marginTop:14,marginBottom:14}}>
+                      <div style={{fontSize:11,fontWeight:600,color:C.gray,marginBottom:8,textTransform:'uppercase',letterSpacing:'.05em'}}>Statut de la phase</div>
+                      <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                        {[{s:'pending',l:'En attente',bg:'#F1F5F9',c:C.gray},{s:'in_progress',l:'En cours',bg:'#EFF6FF',c:C.blue},{s:'done',l:'Terminé',bg:'#F0FDF4',c:C.green},{s:'blocked',l:'Bloqué',bg:'#FEF2F2',c:C.red}].map(({s,l,bg,c})=>(
+                          <button key={s} onClick={()=>setStatus(ph.id,s)}
+                            style={{padding:'6px 14px',borderRadius:20,border:'none',cursor:'pointer',fontFamily:'inherit',fontSize:12.5,fontWeight:600,background:ph.status===s?c:bg,color:ph.status===s?'white':c,transition:'all .15s'}}>
+                            {l}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{marginBottom:16}}>
+                    <div style={{fontSize:11,fontWeight:600,color:C.gray,marginBottom:6,textTransform:'uppercase',letterSpacing:'.05em'}}>Notes terrain</div>
+                    <textarea value={notes[ph.id]||''} onChange={e=>setNotes(n=>({...n,[ph.id]:e.target.value}))}
+                      placeholder="Observations, problèmes rencontrés..." rows={3}
+                      style={{width:'100%',padding:'9px 12px',border:`1px solid ${C.border}`,borderRadius:8,fontSize:13,fontFamily:'inherit',resize:'vertical',outline:'none',color:C.navy,boxSizing:'border-box'}} />
+                    <button onClick={()=>saveNote(ph.id)} disabled={savingNote===ph.id}
+                      style={{...b(C.navy,'white'),marginTop:8,fontSize:12}}>
+                      {savingNote===ph.id?'Sauvegarde...':'💾 Sauvegarder la note'}
+                    </button>
+                  </div>
+
+                  {/* ── UPLOAD PHOTOS ── */}
+                  <div>
+                    <div style={{fontSize:11,fontWeight:600,color:C.gray,marginBottom:6,textTransform:'uppercase',letterSpacing:'.05em'}}>
+                      Photos terrain ({ph.photos?.length||0} photo{ph.photos?.length!==1?'s':''})
+                    </div>
+                    <PhotoUploadZone
+                      executionPhaseId={ph.id}
+                      photos={ph.photos||[]}
+                      onPhotosChange={np=>updatePhotos(ph.id,np)}
+                      isCatalogue={false}
+                    />
+                  </div>
+
+                  {(ph.started_at||ph.completed_at) && (
+                    <div style={{marginTop:14,display:'flex',gap:20,fontSize:11.5,color:C.gray}}>
+                      {ph.started_at && <span>Démarré : {new Date(ph.started_at).toLocaleDateString('fr-FR')}</span>}
+                      {ph.completed_at && <span>Terminé : {new Date(ph.completed_at).toLocaleDateString('fr-FR')}</span>}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <button onClick={onCancel} style={{ padding: '9px 18px', borderRadius: 8, border: C.cardBorder, background: 'white', fontSize: 12, cursor: 'pointer' }}>Annuler</button>
-            <button onClick={save} disabled={saving || !form.code || !form.name}
-              style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: (form.code && form.name) ? C.text : '#CBD5E1', color: 'white', fontSize: 12, fontWeight: 500, cursor: (form.code && form.name) ? 'pointer' : 'default' }}>
-              {saving ? 'Création...' : 'Créer le type de projet'}
-            </button>
-          </div>
-        </div>
-      </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-// ─── COMPOSANT PRINCIPAL ─────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────
 export default function Projets() {
-  const [view, setView] = useState('catalogue');
-  const [selId, setSelId] = useState(null);
-  const [types, setTypes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [view,setView] = useState('catalogue');
+  const [selType,setSelType] = useState(null);
+  const [selExecId,setSelExecId] = useState(null);
 
-  // Vérification admin
-  const user = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
-  const isAdmin = ['admin', 'project_manager'].includes(user.role);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    const r = await api('/project-catalogue').then(r => r.json()).catch(() => []);
-    setTypes(Array.isArray(r) ? r : []);
-    setLoading(false);
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
-  if (view === 'new') return <NewTypeForm onSave={id => { setSelId(id); setView('detail'); load(); }} onCancel={() => setView('catalogue')} />;
-  if (view === 'detail' && selId) return <TypeDetail typeId={selId} isAdmin={isAdmin} onBack={() => { setView('catalogue'); load(); }} />;
-  return <CatalogueView types={types} loading={loading} isAdmin={isAdmin} onSelect={id => { setSelId(id); setView('detail'); }} onNew={() => setView('new')} />;
+  return (
+    <div style={{padding:24,background:C.bg,minHeight:'100%'}}>
+      <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
+      {view==='catalogue' && <Catalogue onSelect={t=>{setSelType(t);setView('type');}} />}
+      {view==='type' && selType && <TypeDetail type={selType} onBack={()=>setView('catalogue')} onAttach={()=>setView('attach')} onSelectSite={s=>{setSelExecId(s.id);setView('exec');}} />}
+      {view==='attach' && selType && <AttachSiteForm type={selType} onBack={()=>setView('type')} onSuccess={()=>setView('type')} />}
+      {view==='exec' && selExecId && <SiteExecution execId={selExecId} onBack={()=>setView('type')} />}
+    </div>
+  );
 }
