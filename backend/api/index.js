@@ -2207,20 +2207,46 @@ app.post('/purchase-orders/import', auth, upload.single('file'), async (req, res
     }
     if(rows.length===0) return res.status(400).json({message:'Aucune donnée trouvée. Vérifiez que le fichier a des en-têtes reconnaissables (po, site_code, description, qty...)'});
     // Grouper les lignes par (po + site_code) → 1 BC avec toutes ses lignes
+    // Extraction flexible : cherche dans toutes les clés de la ligne
+    const findVal = (row, ...keywords) => {
+      const keys = Object.keys(row);
+      for(const kw of keywords) {
+        // Correspondance exacte d'abord
+        if(row[kw]!==undefined && String(row[kw]||'').trim()) return String(row[kw]).trim();
+        // Correspondance partielle dans le nom de colonne
+        const match = keys.find(k => k.includes(kw) && String(row[k]||'').trim());
+        if(match) return String(row[match]).trim();
+      }
+      return '';
+    };
+
     const groups = {};
     for(const row of rows) {
-      const po = String(row['po']||row['po number']||row['n° bc']||row['numero']||row['bon de commande']||'').trim();
-      const siteCode = String(row['site_code']||row['site code']||row['duid']||row['site id']||row['code site']||'').trim();
+      // Détection flexible du PO (cherche dans toutes les clés contenant 'po','bc','numero','bon')
+      const po = findVal(row, 'po','n° bc','n°_bc','n° bc/po','numero','bon de commande','po number','bc number','n°');
+      // Détection flexible du site (cherche dans les clés contenant 'site','duid','code')
+      const siteCode = findVal(row, 'site_code','site code','code site','duid','site id','code_site','site');
       // Ignorer les lignes dont le PO ou site ressemble à un total
       if(isSkipVal(po) || isSkipVal(siteCode)) continue;
+      if(!po && !siteCode) continue;
       const key = (po||'BC')+'|'+(siteCode||'SITE');
-      if(!groups[key]) groups[key]={po,siteCode,siteName:String(row['site_name']||row['site name']||row['nom site']||row['nom du site']||siteCode||'').trim(),client:String(row['client']||'').trim(),projectCode:String(row['project_code']||row['project code']||row['code projet']||'').trim(),projectName:String(row['project_name']||row['project name']||row['projet']||row['nom du projet']||'').trim(),region:String(row['region']||'').trim(),lignes:[]};
-      const desc = String(row['description']||row['description de la prestation']||row['scope']||'').trim();
-      const ref = String(row['réf. équipement']||row['ref']||row['reference']||'').trim();
-      const qty = parseFloat(row['qty']||row['qté']||row['quantite']||row['quantité']||row['requested']||1)||1;
-      const unit = String(row['unité']||row['unit']||'unité').trim();
-      const unitPrice = parseFloat(row['prix unitaire (fcfa)']||row['prix unitaire']||row['unit_price']||row['prix']||0)||0;
-      const amount = parseFloat(row['montant (fcfa)']||row['montant']||row['amount']||0)||(qty*unitPrice);
+      if(!groups[key]) groups[key]={
+        po, siteCode,
+        siteName: findVal(row,'site_name','site name','nom site','nom du site') || siteCode,
+        client:   findVal(row,'client','operateur','operator'),
+        projectCode: findVal(row,'project_code','project code','code projet','code_projet'),
+        projectName: findVal(row,'project_name','project name','nom projet','nom du projet','projet'),
+        region:   findVal(row,'region','zone'),
+        lignes:[]
+      };
+      const desc     = findVal(row,'description','description de la prestation','libelle','scope','prestation');
+      const ref      = findVal(row,'réf. équipement','ref equipement','ref','reference','réf','equipment ref');
+      // Nettoyage format français: "850 000" → 850000, "1.350.000" → 1350000
+      const parseNum = (v) => parseFloat(String(v||'0').replace(/\s/g,'').replace(/\.(?=\d{3})/g,'').replace(',','.')) || 0;
+      const qty      = parseNum(findVal(row,'qty','qté','quantite','quantité','requested','nb')) || 1;
+      const unit     = findVal(row,'unité','unit','unite') || 'unité';
+      const unitPrice= parseNum(findVal(row,'prix unitaire (fcfa)','prix unitaire','unit_price','prix unit','pu'));
+      const amount   = parseNum(findVal(row,'montant (fcfa)','montant','amount','montant ttc')) || (qty*unitPrice);
       if(desc||ref) groups[key].lignes.push({description:desc,ref,qty,unit,unitPrice,amount});
     }
     const imported=[];
