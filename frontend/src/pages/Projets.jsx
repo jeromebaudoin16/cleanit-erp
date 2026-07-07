@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../utils/api';
-const BACKEND = 'https://backend-cleanit-erp.vercel.app';
-const authHeaders = () => ({'Authorization':'Bearer '+(localStorage.getItem('token')||'')});
 
 const C = {
   bg:'#F0F4F9',white:'#FFFFFF',navy:'#0A1628',blue:'#2563EB',
@@ -19,120 +17,72 @@ const Spin = () => <svg width={16} height={16} viewBox="0 0 24 24" fill="none" s
 
 // ── PhotoUploadZone ───────────────────────────────────────────────────────
 function PhotoUploadZone({phaseId,executionPhaseId,photos=[],onPhotosChange,isCatalogue=false}) {
+  const ref = useRef(null);
   const [uploading,setUploading] = useState(false);
   const [err,setErr] = useState('');
-  const [ok,setOk] = useState('');
-  const BASE = 'https://backend-one-kappa-96.vercel.app';
+  const endpoint = isCatalogue ? `/project-phases/${phaseId}/photos` : `/project-execution-phases/${executionPhaseId}/photos`;
 
   const doUpload = async (files) => {
-    if(!files||!files.length) return;
-    setUploading(true); setErr(''); setOk('');
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
-    const endpoint = isCatalogue
-      ? BASE+'/project-phases/'+phaseId+'/photos'
-      : BASE+'/project-execution-phases/'+executionPhaseId+'/photos';
+    if(!files?.length) return;
+    setUploading(true); setErr('');
     const added = [];
     for(const f of Array.from(files)){
-      if(!f.type.startsWith('image/')){setErr('Format non supporté. Utilise JPG ou PNG.');continue;}
-      if(f.size>10*1024*1024){setErr('Image trop lourde (max 10 Mo)');continue;}
-      try{
-        const fd=new FormData();
+      if(!f.type.startsWith('image/')) { setErr('Seules les images sont acceptées'); continue; }
+      if(f.size > 10*1024*1024) { setErr('Image trop lourde (max 10 Mo)'); continue; }
+      try {
+        const fd = new FormData();
         fd.append('file',f);
         if(isCatalogue) fd.append('caption',f.name.replace(/\.[^.]+$/,''));
-        const resp=await fetch(endpoint,{method:'POST',headers:{'Authorization':'Bearer '+token},body:fd});
-        const txt=await resp.text();
-        let data;
-        try{data=JSON.parse(txt);}catch{throw new Error('Réponse invalide du serveur: '+txt.slice(0,80));}
-        if(!resp.ok) throw new Error(data.message||data.error||'Erreur HTTP '+resp.status);
-        added.push(data);
-        setOk('Photo ajoutée');
-      }catch(e){
-        console.error('Upload error:',e);
-        setErr('Erreur: '+e.message);
-      }
+        // Ne PAS définir Content-Type manuellement — le navigateur génère le boundary automatiquement
+        const res = await api.post(endpoint, fd);
+        added.push(res.data);
+      } catch(e){ setErr('Erreur upload: '+(e.response?.data?.message||e.message)); }
     }
     setUploading(false);
     if(added.length) onPhotosChange([...photos,...added]);
   };
 
-  const handleInputChange = (e) => {
-    const files = e.target.files;
-    if(files && files.length > 0) doUpload(files);
-    e.target.value = '';
-  };
-
-  const openPicker = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // Créer un input temporaire hors DOM pour éviter les problèmes de montage
-    const inp = document.createElement('input');
-    inp.type = 'file';
-    inp.multiple = true;
-    inp.accept = 'image/*';
-    inp.style.position = 'fixed';
-    inp.style.top = '-9999px';
-    inp.onchange = (ev) => { doUpload(ev.target.files); document.body.removeChild(inp); };
-    document.body.appendChild(inp);
-    inp.click();
-  };
-
-  const handleDrop = (e) => { e.preventDefault(); e.stopPropagation(); doUpload(e.dataTransfer.files); };
-
-  const delPhoto = async (pid) => {
+  const del = async (pid) => {
     if(!window.confirm('Supprimer cette photo ?')) return;
-    const token = localStorage.getItem('token')||'';
-    const endpoint = isCatalogue
-      ? BASE+'/project-phase-photos/'+pid
-      : BASE+'/project-execution-photos/'+pid;
-    try{
-      await fetch(endpoint,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+    try {
+      await api.delete(isCatalogue ? `/project-phase-photos/${pid}` : `/project-execution-photos/${pid}`);
       onPhotosChange(photos.filter(p=>p.id!==pid));
-    }catch(e){setErr('Erreur suppression: '+e.message);}
+    } catch(e){ setErr('Erreur suppression'); }
   };
 
   return (
-    <div style={{marginTop:10}} onClick={e=>e.stopPropagation()}>
+    <div style={{marginTop:10}}>
       {photos.length>0 && (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(100px,1fr))',gap:8,marginBottom:10}}>
-          {photos.map(ph=>(
+          {photos.map(ph => (
             <div key={ph.id} style={{position:'relative',borderRadius:8,overflow:'hidden',aspectRatio:'1',background:'#F1F5F9'}}>
-              <img src={ph.url||ph.photo_url} alt={ph.caption||'photo'}
-                   onClick={()=>window.open(ph.url||ph.photo_url,'_blank')}
-                   style={{width:'100%',height:'100%',objectFit:'cover',cursor:'pointer',display:'block'}}/>
-              <button onClick={(e)=>{e.stopPropagation();delPhoto(ph.id);}}
-                style={{position:'absolute',top:4,right:4,background:'rgba(0,0,0,.6)',border:'none',
-                  borderRadius:5,color:'white',width:22,height:22,cursor:'pointer',
-                  fontSize:11,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+              <img src={ph.url||ph.photo_url} alt={ph.caption||'photo'} onClick={()=>window.open(ph.url||ph.photo_url,'_blank')}
+                   style={{width:'100%',height:'100%',objectFit:'cover',cursor:'pointer',display:'block'}} />
+              <button onClick={()=>del(ph.id)} style={{position:'absolute',top:4,right:4,background:'rgba(0,0,0,.55)',border:'none',borderRadius:5,color:'white',width:22,height:22,cursor:'pointer',fontSize:12,lineHeight:1,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+              {ph.caption && <div style={{position:'absolute',bottom:0,left:0,right:0,background:'rgba(0,0,0,.5)',color:'white',fontSize:9,padding:'2px 5px',overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis'}}>{ph.caption}</div>}
             </div>
           ))}
         </div>
       )}
-      <div onDrop={handleDrop} onDragOver={e=>e.preventDefault()}>
-        <button
-          onClick={openPicker}
-          disabled={uploading}
-          style={{width:'100%',padding:'16px',border:'1.5px dashed rgba(37,99,235,.35)',
-            borderRadius:10,background:uploading?'rgba(37,99,235,.04)':'rgba(37,99,235,.02)',
-            cursor:uploading?'wait':'pointer',textAlign:'center',transition:'all .15s',
-            fontFamily:'inherit',display:'block'}}
-          onMouseEnter={e=>{if(!uploading){e.currentTarget.style.background='rgba(37,99,235,.07)';e.currentTarget.style.borderColor=C.blue;}}}
-          onMouseLeave={e=>{e.currentTarget.style.background='rgba(37,99,235,.02)';e.currentTarget.style.borderColor='rgba(37,99,235,.35)';}}>
+      <div style={{position:'relative',borderRadius:9,overflow:'hidden'}}
+           onDrop={e=>{e.preventDefault();doUpload(e.dataTransfer.files);}}
+           onDragOver={e=>e.preventDefault()}>
+        <div style={{border:'1.5px dashed rgba(37,99,235,.35)',borderRadius:9,padding:'14px 16px',
+          textAlign:'center',background:'rgba(37,99,235,.02)',pointerEvents:'none'}}>
           {uploading
-            ? <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,color:C.blue,fontSize:13}}><Spin/>Upload en cours...</div>
-            : <div style={{pointerEvents:'none'}}>
-                <svg style={{display:'block',margin:'0 auto 8px'}} width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                  <polyline points="17 8 12 3 7 8"/>
-                  <line x1="12" y1="3" x2="12" y2="15"/>
-                </svg>
-                <div style={{fontSize:13,fontWeight:600,color:C.blue,marginBottom:3}}>Cliquer pour ajouter des photos</div>
-                <div style={{fontSize:11,color:C.gray}}>ou glisser-déposer ici · JPG, PNG, WebP · max 10 Mo</div>
+            ? <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,color:C.blue,fontSize:13,fontWeight:600}}><Spin/> Upload en cours...</div>
+            : <div>
+                <svg style={{display:'block',margin:'0 auto 6px'}} width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth={2} strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <div style={{fontSize:13,fontWeight:700,color:C.blue}}>Ajouter des photos</div>
+                <div style={{fontSize:10.5,color:C.gray,marginTop:2}}>JPG · PNG · WebP · max 8 Mo</div>
               </div>
           }
-        </button>
+        </div>
+        {!uploading && <input type="file" multiple accept="image/*"
+          onChange={e=>{doUpload(e.target.files);e.target.value='';}}
+          style={{position:'absolute',inset:0,width:'100%',height:'100%',opacity:0,cursor:'pointer'}}/>}
       </div>
-      {err && <div style={{marginTop:8,padding:'8px 12px',background:'#FEF2F2',borderRadius:8,color:'#DC2626',fontSize:12.5,fontWeight:500}}>{err}</div>}
-      {ok && !uploading && <div style={{marginTop:8,padding:'8px 12px',background:'#F0FDF4',borderRadius:8,color:'#16A34A',fontSize:12.5,fontWeight:500}}>✓ {ok}</div>}
+      {err && <div style={{marginTop:6,padding:'6px 10px',background:'#FEF2F2',borderRadius:6,color:C.red,fontSize:12}}>{err}</div>}
     </div>
   );
 }
