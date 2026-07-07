@@ -59,15 +59,16 @@ const SEED_BC = [
   {id:6,po:'4161HG3336731-65',project_code:'56A0KY1',project_name:'DWDM',region:'Center',site_id:'T29',site_code:'ON-OSN9800-SWAP-Yde-Metro-T29-031-MTNC-Center',site_name:'Mokolo_SC',duid:'ON-OSN9800-SWAP-Yde-Metro-T29-031-MTNC',scope:'Swap',description:'Installation of ACDB',requested:1,billed:1,due:0,statut:'facture',tl:'Dani',lat:3.886954,lng:10.702884},
 ];
 
-const AUDIT_KEY = 'cleanit_bc_audit';
-
-function getAudit(){
-  try{return JSON.parse(localStorage.getItem(AUDIT_KEY)||'[]');}catch{return[];}
-}
-function addAudit(entry){
-  const audit = getAudit();
-  audit.unshift({...entry, id:Date.now(), ts:new Date().toISOString()});
-  localStorage.setItem(AUDIT_KEY, JSON.stringify(audit.slice(0,500)));
+// Audit trail stocké en base de données (pas localStorage)
+const BASE_API = 'https://backend-one-kappa-96.vercel.app';
+async function addAudit(entry){
+  try{
+    await fetch(BASE_API+'/bc-audit',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+(localStorage.getItem('token')||'')},
+      body:JSON.stringify(entry)
+    });
+  }catch(e){console.warn('audit:',e.message);}
 }
 function fmtDate(iso){
   if(!iso) return '';
@@ -115,7 +116,8 @@ export default function PurchaseOrders(){
 
   useEffect(()=>{
     loadBCs();
-    setAudit(getAudit());
+    fetch(BASE_API+'/bc-audit',{headers:{'Authorization':'Bearer '+(localStorage.getItem('token')||'')}})
+      .then(r=>r.json()).then(d=>setAudit(Array.isArray(d)?d:[])).catch(()=>setAudit([]));
   },[]);
 
   const loadBCs = async () => {
@@ -132,7 +134,10 @@ export default function PurchaseOrders(){
     setLoading(false);
   };
 
-  const refreshAudit = () => setAudit(getAudit());
+  const refreshAudit = () => {
+    fetch(BASE_API+'/bc-audit',{headers:{'Authorization':'Bearer '+(localStorage.getItem('token')||'')}})
+      .then(r=>r.json()).then(d=>setAudit(Array.isArray(d)?d:[])).catch(()=>{});
+  };
 
   const handleImport = async (file) => {
     if(!file) return;

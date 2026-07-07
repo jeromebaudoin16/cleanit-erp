@@ -3484,6 +3484,39 @@ app.post('/bons-commande/analyze', auth, upload.single('file'), async (req, res)
   }
 });
 
+
+// ─── BC AUDIT TRAIL ─────────────────────────────────────────────────────────
+pool.query(`CREATE TABLE IF NOT EXISTS bc_audit (
+  id SERIAL PRIMARY KEY,
+  action VARCHAR(100) NOT NULL,
+  bc_id INTEGER,
+  po_number VARCHAR(200),
+  user_id INTEGER,
+  user_name VARCHAR(200),
+  detail TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+)`).catch(()=>{});
+
+app.get('/bc-audit', auth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM bc_audit ORDER BY created_at DESC LIMIT 200');
+    res.json(r.rows);
+  } catch(e) { res.status(500).json({message:e.message}); }
+});
+
+app.post('/bc-audit', auth, async (req, res) => {
+  try {
+    const {action,bc_id,po_number,detail} = req.body;
+    const user = await pool.query('SELECT "firstName","lastName" FROM users WHERE id=$1',[req.user.sub]).catch(()=>({rows:[{}]}));
+    const name = user.rows[0] ? (user.rows[0].firstName||'')+' '+(user.rows[0].lastName||'') : 'Utilisateur';
+    const r = await pool.query(
+      'INSERT INTO bc_audit(action,bc_id,po_number,user_id,user_name,detail) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',
+      [action, bc_id||null, po_number||null, req.user.sub, name.trim(), detail||null]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch(e) { res.status(500).json({message:e.message}); }
+});
+
 // ─── MULTI-TENANT SaaS ─────────────────────────────────────────────────
 const mt = require('./multitenant');
 mt.initRoutes(pool, app, auth);      // synchrone — routes enregistrées avant le 404
