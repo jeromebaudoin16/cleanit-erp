@@ -2177,6 +2177,14 @@ app.post('/purchase-orders', auth, async (req, res) => {
 
 app.post('/purchase-orders/import', auth, upload.single('file'), async (req, res) => {
   try {
+    // Patterns à ignorer (scope route handler — accessible partout dans le try)
+    const SKIP_PATTERNS = [
+      /^(ttc total|tva|total ht|total h\.t|sous.total|montant total|somme)/i,
+      /^(n°|numero|numéro|ref|code site|nom site|nom projet|description)\s*(bc|po)?$/i,
+      /^\d+[,.]\d+\s*%$/,
+      /^(prix|qty|quantité|unité|unit|montant|total)\s*$/i,
+    ];
+    const isSkipVal = (v) => SKIP_PATTERNS.some(p => p.test(String(v||'').trim()));
     let rows = [];
     if(req.file) {
       const wb = new ExcelJS.Workbook();
@@ -2195,20 +2203,7 @@ app.post('/purchase-orders/import', auth, upload.single('file'), async (req, res
       if(headers.length === 0) { // fallback: première ligne non vide
         ws.eachRow((row,rowNum)=>{ if(headers.length>0) return; const cells=[]; row.eachCell((cell,col)=>{cells[col]=String(cell.value||'').toLowerCase().trim();}); if(cells.some(c=>c&&c.length>0)){headerRow=rowNum;headers=cells;} });
       }
-      // Mots-clés à ignorer — lignes de totaux/TVA/sous-headers
-      const SKIP_PATTERNS = [
-        /^(ttc|tva|ht|total|sous.?total|montant|somme|sous.total)/i,
-        /^(n°|numero|numéro|ref|code|nom|site|projet|description)\s*(bc|po|site|projet)?$/i,
-        /^\d{1,2}[,.]\d{2}%$/,  // pourcentage genre 19,25%
-        /^(prix|qty|qté|quantité|unité|unit)$/i,
-      ];
-      const isSkipRow = (obj) => {
-        const allVals = Object.values(obj).map(v=>String(v||'').trim());
-        const mainVal = allVals.find(v=>v.length>0) || '';
-        return SKIP_PATTERNS.some(p=>p.test(mainVal)) ||
-               allVals.every(v=>!v || SKIP_PATTERNS.some(p=>p.test(v)));
-      };
-      ws.eachRow((row,rowNum)=>{ if(rowNum<=headerRow) return; const obj={}; row.eachCell((cell,col)=>{ if(headers[col]) obj[headers[col]]=cell.value; }); if(Object.values(obj).some(v=>v!==null&&v!==undefined&&String(v).trim()!=='') && !isSkipRow(obj)) rows.push(obj); });
+      ws.eachRow((row,rowNum)=>{ if(rowNum<=headerRow) return; const obj={}; row.eachCell((cell,col)=>{ if(headers[col]) obj[headers[col]]=cell.value; }); const vals=Object.values(obj); if(vals.some(v=>v!==null&&v!==undefined&&String(v).trim()!=='')){ const first=String(vals.find(v=>v)||'').trim(); if(!isSkipVal(first)) rows.push(obj); } });
     }
     if(rows.length===0) return res.status(400).json({message:'Aucune donnée trouvée. Vérifiez que le fichier a des en-têtes reconnaissables (po, site_code, description, qty...)'});
     // Grouper les lignes par (po + site_code) → 1 BC avec toutes ses lignes
@@ -2217,7 +2212,7 @@ app.post('/purchase-orders/import', auth, upload.single('file'), async (req, res
       const po = String(row['po']||row['po number']||row['n° bc']||row['numero']||row['bon de commande']||'').trim();
       const siteCode = String(row['site_code']||row['site code']||row['duid']||row['site id']||row['code site']||'').trim();
       // Ignorer les lignes dont le PO ou site ressemble à un total
-      if(SKIP_PATTERNS.some(p=>p.test(po)||p.test(siteCode))) continue;
+      if(isSkipVal(po) || isSkipVal(siteCode)) continue;
       const key = (po||'BC')+'|'+(siteCode||'SITE');
       if(!groups[key]) groups[key]={po,siteCode,siteName:String(row['site_name']||row['site name']||row['nom site']||row['nom du site']||siteCode||'').trim(),client:String(row['client']||'').trim(),projectCode:String(row['project_code']||row['project code']||row['code projet']||'').trim(),projectName:String(row['project_name']||row['project name']||row['projet']||row['nom du projet']||'').trim(),region:String(row['region']||'').trim(),lignes:[]};
       const desc = String(row['description']||row['description de la prestation']||row['scope']||'').trim();
