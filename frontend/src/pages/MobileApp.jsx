@@ -727,7 +727,7 @@ const ScreenFil = ({user,navigate}) => {
   useEffect(() => {
     const tk = localStorage.getItem('token');
     const h = {'Authorization':'Bearer '+tk};
-    const b = 'https://backend-cleanit-erp.vercel.app';
+    const b = 'https://backend-one-kappa-96.vercel.app';
     Promise.all([
       fetch(b+'/users',{headers:h}).then(r=>r.json()).catch(()=>[]),
       fetch(b+'/missions',{headers:h}).then(r=>r.json()).catch(()=>[]),
@@ -912,6 +912,28 @@ const ScreenFil = ({user,navigate}) => {
           </span>
         </div>
         <div style={{display:'flex',gap:14,alignItems:'center'}}>
+          {/* Bouton Publier - crayon */}
+          <div onClick={()=>{
+            const txt=window.prompt('Écrivez votre message pour le Fil terrain:');
+            if(!txt||!txt.trim()) return;
+            const tk=localStorage.getItem('token')||'';
+            fetch('https://backend-one-kappa-96.vercel.app/feed',{
+              method:'POST',
+              headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+              body:JSON.stringify({text:txt.trim(),type:'text'})
+            }).then(r=>r.json()).then(d=>{
+              if(d.id) alert('✓ Publié dans le Fil !');
+              else alert('Erreur: '+(d.message||'inconnue'));
+            }).catch(e=>alert('Erreur réseau: '+e.message));
+          }} style={{cursor:'pointer',width:32,height:32,borderRadius:'50%',
+            background:'linear-gradient(135deg,#667eea,#764ba2)',
+            display:'flex',alignItems:'center',justifyContent:'center',
+            boxShadow:'0 2px 8px rgba(102,126,234,.4)'}}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </div>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C2.text}
             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}>
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -1274,6 +1296,7 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
           photo_url: photoUrl,
           gps_lat: gps?.lat||null,
           gps_lng: gps?.lng||null,
+          method: 'cleanitcam',
         })
       });
       const pointData = await pointRes.json().catch(()=>({}));
@@ -1967,7 +1990,7 @@ const ScreenPointer = ({user, gps}) => {
       const token=localStorage.getItem('token');
       const r=await fetch('https://backend-one-kappa-96.vercel.app/pointages',{
         method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-        body:JSON.stringify({siteCode:site.code,siteName:site.name,gpsLat:gps?.lat,gpsLng:gps?.lng})
+        body:JSON.stringify({siteCode:site.code,siteName:site.name,gpsLat:gps?.lat,gpsLng:gps?.lng,method:'qr_code'})
       });
       const d=await r.json();
       toast((d.type==='arrivee'?'Arrivée':'Départ')+' enregistré — '+site.name,'success');
@@ -2290,7 +2313,7 @@ const ScreenEquipe = ({user, navigate}) => {
     const load = () => {
       const tk = localStorage.getItem('token');
       const h = {'Authorization':'Bearer '+tk};
-      const b = 'https://backend-cleanit-erp.vercel.app';
+      const b = 'https://backend-one-kappa-96.vercel.app';
       Promise.all([
         fetch(b+'/users',{headers:h}).then(r=>r.json()).catch(()=>[]),
         fetch(b+'/missions',{headers:h}).then(r=>r.json()).catch(()=>[]),
@@ -2791,7 +2814,7 @@ const ScreenProfil = ({user,onLogout}) => {
   useEffect(()=>{
     const tk = localStorage.getItem('token');
     const h = {'Authorization':'Bearer '+tk};
-    const b = 'https://backend-cleanit-erp.vercel.app';
+    const b = 'https://backend-one-kappa-96.vercel.app';
     Promise.all([
       fetch(b+'/missions/my',{headers:h}).then(r=>r.json()).catch(()=>[]),
       fetch(b+'/pointages',{headers:h}).then(r=>r.json()).catch(()=>[]),
@@ -3283,8 +3306,10 @@ export default function MobileApp() {
     if(isCamera) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
-    // Seuil élevé + ratio dx/dy strict pour éviter les faux positifs sur stories
-    if(Math.abs(dx) < 90 || Math.abs(dy) > 40 || Math.abs(dx) < Math.abs(dy) * 2) return;
+    // Bloquer si touch a démarré dans une zone scrollable horizontalement (stories)
+    if(swipeBlockedByScroll && swipeBlockedByScroll.current) { swipeBlockedByScroll.current=false; return; }
+    // Seuil strict: 100px horizontal, ratio horizontal/vertical > 3
+    if(Math.abs(dx) < 100 || Math.abs(dy) > 30 || Math.abs(dx) < Math.abs(dy) * 3) return;
     const currentIdx = tabs.findIndex(t=>t.id===activePage||(activePage===''&&t.id==='fil'));
     if(dx < 0 && currentIdx < tabs.length-1) navigate(tabs[currentIdx+1].url);
     if(dx > 0 && currentIdx > 0) navigate(tabs[currentIdx-1].url);
