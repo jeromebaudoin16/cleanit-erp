@@ -3522,6 +3522,22 @@ const mt = require('./multitenant');
 mt.initRoutes(pool, app, auth);      // synchrone — routes enregistrées avant le 404
 mt.initDB(pool).catch(e => console.error('MT DB:', e.message)); // async DB
 
+
+// POST /users/:id/reset-password — Admin resets a user password (for techs without passwords)
+app.post('/users/:id/reset-password', auth, async (req, res) => {
+  try {
+    const { password } = req.body;
+    if(!password || password.length < 4) return res.status(400).json({message:'Mot de passe trop court (min 4 car.)'});
+    const hash = await require('bcryptjs').hash(password, 12);
+    const r = await pool.query(
+      'UPDATE users SET password=$1 WHERE id=$2 RETURNING id,email,"firstName","lastName",role',
+      [hash, req.params.id]
+    );
+    if(!r.rows[0]) return res.status(404).json({message:'Utilisateur non trouvé'});
+    res.json({success:true, user:r.rows[0], message:'Mot de passe mis à jour'});
+  } catch(e) { res.status(500).json({message:e.message}); }
+});
+
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 
 module.exports = app;

@@ -421,7 +421,7 @@ const ScreenLogin = ({onLogin}) => {
     if(!email||!pwd) return setErr('Veuillez remplir tous les champs');
     setLoading(true); setErr('');
     try {
-      const r = await fetch('https://backend-cleanit-erp.vercel.app/auth/login',{
+      const r = await fetch('https://backend-one-kappa-96.vercel.app/auth/login',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({email:email.trim().toLowerCase(), password:pwd})
@@ -440,7 +440,7 @@ const ScreenLogin = ({onLogin}) => {
               const outputArray = new Uint8Array(rawData.length);
               for(let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
               const sub = await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:outputArray});
-              await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe', {
+              await fetch('https://backend-one-kappa-96.vercel.app/push/subscribe', {
                 method:'POST',
                 headers:{'Content-Type':'application/json','Authorization':'Bearer '+d.token},
                 body: JSON.stringify({subscription: JSON.parse(JSON.stringify(sub)), userId: d.user?.id||null})
@@ -2937,7 +2937,7 @@ const ScreenProfil = ({user,onLogout}) => {
                   const token = localStorage.getItem('token');
                   if(!token){ alert('Non connecté — reconnectez-vous'); return; }
                   // Envoyer au backend
-                  const r = await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe',{
+                  const r = await fetch('https://backend-one-kappa-96.vercel.app/push/subscribe',{
                     method:'POST',
                     headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
                     body:JSON.stringify({subscription: sub.toJSON()})
@@ -3026,7 +3026,7 @@ const ScreenProfil = ({user,onLogout}) => {
                   // Envoyer subscription au backend
                   const token = localStorage.getItem('token');
                   const pushUser = JSON.parse(localStorage.getItem('user')||localStorage.getItem('cit_mobile_user')||'{}');
-                  await fetch('https://backend-cleanit-erp.vercel.app/push/subscribe', {
+                  await fetch('https://backend-one-kappa-96.vercel.app/push/subscribe', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
                     body: JSON.stringify({ subscription: sub, userId: pushUser.id||null })
@@ -3283,7 +3283,8 @@ export default function MobileApp() {
     if(isCamera) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
     const dy = e.changedTouches[0].clientY - touchStartY.current;
-    if(Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy)) return;
+    // Seuil élevé + ratio dx/dy strict pour éviter les faux positifs sur stories
+    if(Math.abs(dx) < 90 || Math.abs(dy) > 40 || Math.abs(dx) < Math.abs(dy) * 2) return;
     const currentIdx = tabs.findIndex(t=>t.id===activePage||(activePage===''&&t.id==='fil'));
     if(dx < 0 && currentIdx < tabs.length-1) navigate(tabs[currentIdx+1].url);
     if(dx > 0 && currentIdx > 0) navigate(tabs[currentIdx-1].url);
