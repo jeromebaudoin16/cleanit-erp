@@ -1114,415 +1114,277 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
   const vRef = useRef(null);
   const cRef = useRef(null);
   const streamRef = useRef(null);
+  const [mode, setMode] = useState(null); // null=choix, 'arrivee','depart','libre'
   const [active, setActive] = useState(false);
-  const [photos, setPhotos] = useState([]);
-  const [last, setLast] = useState(null);
   const [flash, setFlash] = useState(false);
-  const [w3wAddress, setW3wAddress] = useState(null);
-  const [myMission, setMyMission] = useState(null);
-  const [siteInput, setSiteInput] = useState('');
-  const [siteEdited, setSiteEdited] = useState(false);
-  const [pointageType, setPointageType] = useState('arrivee'); // 'arrivee' ou 'depart'
   const [uploading, setUploading] = useState(false);
-  const {toast, toastMsg, toastShow,toastType} = useToast();
+  const [status, setStatus] = useState('');
+  const [showPublish, setShowPublish] = useState(false);
+  const [publishText, setPublishText] = useState('');
+  const [lastPhotoUrl, setLastPhotoUrl] = useState(null);
+  const [siteInput, setSiteInput] = useState('');
+  const BASE = 'https://backend-one-kappa-96.vercel.app';
+  const FONT = 'system-ui,sans-serif';
   const n = now || new Date();
 
-  useEffect(() => {
-    const tk = localStorage.getItem('token');
-    fetch('https://backend-cleanit-erp.vercel.app/missions/my',{headers:{'Authorization':'Bearer '+tk}})
-      .then(r=>r.json()).then(d=>{
-        if(Array.isArray(d) && d[0]){
-          setMyMission(d[0]);
-          // Pré-remplir avec le site du planning, seulement si l'utilisateur n'a pas déjà tapé quelque chose
-          if(!siteEdited) setSiteInput(d[0].site||'');
-        }
-      }).catch(()=>{});
-  }, []);
-
-  useEffect(() => {
-    if(gps && !w3wAddress) {
-      getW3W(gps.lat, gps.lng).then(w => { if(w) setW3wAddress(w); });
-    }
-  }, [gps]);
-
   const stopCam = () => {
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    streamRef.current = null;
-    if(vRef.current) vRef.current.srcObject = null;
+    if(streamRef.current) { streamRef.current.getTracks().forEach(t=>t.stop()); streamRef.current=null; }
     setActive(false);
   };
 
   const startCam = async () => {
     try {
-      const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-      const constraints = isMobile
-        ? {video:{facingMode:'environment'}, audio:false}
-        : {video:{width:{ideal:1280},height:{ideal:720}}, audio:false};
-
-      const s = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = s;
-
-      if(vRef.current) {
-        vRef.current.srcObject = s;
-        vRef.current.muted = true;
-        vRef.current.volume = 0;
-        vRef.current.onloadedmetadata = () => {
-          vRef.current?.play().catch(e => console.warn(e));
-          setActive(true);
-        };
-        // Fallback si onloadedmetadata ne se declenche pas
-        setTimeout(() => {
-          if(!active && vRef.current?.readyState >= 1) {
-            vRef.current.play().catch(()=>{});
-            setActive(true);
-          }
-        }, 1500);
-      }
-    } catch(e) {
-      if(e.name==='NotAllowedError') toast('Autorisez la camera dans le navigateur');
-      else if(e.name==='NotFoundError') toast('Aucune camera detectee');
-      else toast('Erreur: '+e.name);
-    }
+      const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+      streamRef.current = stream;
+      if(vRef.current) { vRef.current.srcObject=stream; vRef.current.play(); }
+      setActive(true);
+    } catch(e) { alert('Camera inaccessible: '+e.message); }
   };
 
-  const [address, setAddress] = useState(null);
-  useEffect(() => {
-    if(gps?.lat && gps?.lng){
-      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${gps.lat}&lon=${gps.lng}&addressdetails=1`,
-        {headers:{'User-Agent':'CleanIT-ERP-CleanCam/1.0'}})
-        .then(r=>r.json()).then(d=>{
-          const a = d.address||{};
-          const parts = [a.country, a.state, a.county, a.suburb||a.neighbourhood||a.road].filter(Boolean);
-          setAddress(parts.join(', ')||d.display_name||null);
-        }).catch(()=>{});
-    }
-  }, [gps?.lat, gps?.lng]);
+  useEffect(() => { if(mode && mode!==null) startCam(); return ()=>stopCam(); }, [mode]);
 
   const shoot = async () => {
-    if(!siteInput.trim()){
-      toast('Indiquez le code du site avant de prendre la photo','error');
-      return;
+    const v=vRef.current, canvas=cRef.current;
+    if(!v||!canvas) return;
+    canvas.width=v.videoWidth||640; canvas.height=v.videoHeight||480;
+    const ctx=canvas.getContext('2d');
+    ctx.drawImage(v,0,0,canvas.width,canvas.height);
+
+    // Overlay GPS
+    if(mode!=='libre') {
+      const label = mode==='arrivee' ? 'ARRIVEE SUR SITE' : 'DEPART DU SITE';
+      const color = mode==='arrivee' ? '#00FF88' : '#FF8800';
+      const lines = [
+        label,
+        'Latitude: '+(gps?.lat?.toFixed(7)||'—'),
+        'Longitude: '+(gps?.lng?.toFixed(7)||'—'),
+        'Accuracy: '+(gps?.accuracy!=null?gps.accuracy.toFixed(0)+' m':'—'),
+        'Time: '+n.toLocaleDateString('fr-FR')+' '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+        'Technicien: '+(user?.firstName||'')+' '+(user?.lastName||''),
+        'Site: '+(siteInput||'—'),
+      ];
+      const lh=17,px=12,py=10;
+      const bw=Math.min(canvas.width*.85,380), bh=lines.length*lh+py*2;
+      ctx.fillStyle='rgba(0,0,0,.75)'; ctx.fillRect(0,0,bw,bh);
+      lines.forEach((l,i)=>{
+        ctx.fillStyle=i===0?color:'white';
+        ctx.font=i===0?'bold 12px system-ui':'11px system-ui';
+        ctx.textBaseline='top';
+        ctx.fillText(l,px,py+i*lh);
+      });
+    } else {
+      // Mode libre: overlay léger
+      ctx.fillStyle='rgba(0,0,0,.6)';
+      ctx.fillRect(0,0,280,56);
+      ctx.fillStyle='#00CCFF'; ctx.font='bold 11px system-ui'; ctx.textBaseline='top';
+      ctx.fillText('CleanIT — Photo terrain',10,8);
+      ctx.fillStyle='white'; ctx.font='10px system-ui';
+      ctx.fillText((gps?.lat?.toFixed(6)||'—')+', '+(gps?.lng?.toFixed(6)||'—'),10,24);
+      ctx.fillText(n.toLocaleDateString('fr-FR')+' '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),10,40);
     }
-    const v = vRef.current;
-    const canvas = cRef.current;
-    if(!v || !canvas) return;
 
-    // Capture image
-    canvas.width = v.videoWidth || 640;
-    canvas.height = v.videoHeight || 480;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+    // Flash
+    setFlash(true); setTimeout(()=>setFlash(false),150);
 
-    // Encart GPS + site en haut à gauche
-    const typeLabel = pointageType === 'arrivee' ? 'ARRIVEE SUR SITE' : 'DEPART DU SITE';
-    const lines = [
-      typeLabel,
-      'Latitude: '+(gps?.lat?.toFixed(7)||'—'),
-      'Longitude: '+(gps?.lng?.toFixed(7)||'—'),
-      'Accuracy: '+(gps?.accuracy!=null?gps.accuracy.toFixed(1)+' m':'—'),
-      'Time: '+n.toLocaleDateString('fr-FR')+' '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
-      'Technicien: '+user.name,
-      'Site: '+siteInput,
-    ];
-    const lineH = 17; const padX=12, padY=10;
-    const boxW = Math.min(canvas.width*0.82,360);
-    const boxH = lines.length*lineH+padY*2;
-    ctx.fillStyle='rgba(0,0,0,.72)';
-    ctx.fillRect(0,0,boxW,boxH);
-    lines.forEach((line,i)=>{
-      ctx.fillStyle = i===0 ? (pointageType==='arrivee'?'#4ADE80':'#FB923C') : 'white';
-      ctx.font = i===0 ? 'bold 12px system-ui' : '11px system-ui';
-      ctx.textBaseline='top';
-      ctx.fillText(line, padX, padY+i*lineH);
-    });
-
-    const url = canvas.toDataURL('image/jpeg', 0.9);
-    const photoId = Date.now();
-    setPhotos(p=>[{id:photoId,url},...p]);
-    setLast(url);
-    setFlash(true);
-    setTimeout(()=>setFlash(false),150);
-
-    // Sauvegarder dans le téléphone
+    // Sauvegarder sur le téléphone
+    const url=canvas.toDataURL('image/jpeg',0.9);
     const link=document.createElement('a');
-    link.href=url;
-    link.download='CleanIT-'+user.name.replace(' ','-')+'-'+siteInput+'-'+pointageType+'-'+new Date().toISOString().slice(0,16)+'.jpg';
+    link.href=url; link.download='CleanIT-'+(user?.firstName||'')+'-'+(siteInput||'photo')+'-'+mode+'-'+n.toISOString().slice(0,16)+'.jpg';
     link.click();
 
-    // ── Upload vers le backend ──────────────────────────────────────────────
-    setUploading(true);
-    const tk = localStorage.getItem('token');
-    const BASE = 'https://backend-cleanit-erp.vercel.app';
-    const headers = {'Authorization':'Bearer '+tk};
+    if(mode==='libre') {
+      // Mode libre: proposer de publier dans le Fil
+      setLastPhotoUrl(url);
+      setShowPublish(true);
+      return;
+    }
+
+    // Mode Arrivée/Départ: envoi automatique
+    if(!siteInput.trim()) { alert('Indiquez le code du site en haut'); return; }
+    setUploading(true); setStatus('Envoi en cours...');
+    const tk=localStorage.getItem('token')||'';
+    const headers={'Authorization':'Bearer '+tk};
 
     try {
-      // 1. Convertir canvas en Blob
-      const blob = await new Promise(res => canvas.toBlob(res,'image/jpeg',0.9));
-      const fd = new FormData();
-      fd.append('file', blob, 'cleanitcam.jpg');
-
-      // 2. Upload photo → Vercel Blob
-      let photoUrl = null;
+      // Upload photo
+      const blob=await new Promise(res=>canvas.toBlob(res,'image/jpeg',0.9));
+      const fd=new FormData(); fd.append('file',blob,'cleanitcam.jpg');
+      let photoUrl=null;
       try {
-        const uploadRes = await fetch(BASE+'/upload/photo',{method:'POST',headers,body:fd});
-        const uploadData = await uploadRes.json();
-        photoUrl = uploadData.url;
-      } catch(e){ console.warn('Upload photo failed:', e.message); }
+        const up=await fetch(BASE+'/upload/photo',{method:'POST',headers,body:fd});
+        const ud=await up.json();
+        photoUrl=ud.url;
+      } catch{}
 
-      // 3. Publier dans le Fil terrain
-      const filText = pointageType==='arrivee'
-        ? 'Arrivée sur site '+siteInput+' — '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
-        : 'Départ du site '+siteInput+' — '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-      await fetch(BASE+'/feed',{
-        method:'POST',
-        headers:{...headers,'Content-Type':'application/json'},
-        body:JSON.stringify({
-          text: filText,
-          photo_url: photoUrl,
-          site: siteInput,
-          gps_lat: gps?.lat?.toString()||null,
-          gps_lng: gps?.lng?.toString()||null,
-          type: 'photo',
-        })
+      // Publier dans le Fil
+      await fetch(BASE+'/feed',{method:'POST',headers:{...headers,'Content-Type':'application/json'},
+        body:JSON.stringify({text:(mode==='arrivee'?'Arrivée':'Départ')+' sur site '+siteInput+' — '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),photo_url:photoUrl,site:siteInput,gps_lat:gps?.lat?.toString(),gps_lng:gps?.lng?.toString(),type:'photo'})
       }).catch(()=>{});
 
-      // 4. Enregistrer pointage (arrivée ou départ)
-      const pointRes = await fetch(BASE+'/pointages',{
-        method:'POST',
-        headers:{...headers,'Content-Type':'application/json'},
-        body:JSON.stringify({
-          type: pointageType,
-          site_code: siteInput,
-          photo_url: photoUrl,
-          gps_lat: gps?.lat||null,
-          gps_lng: gps?.lng||null,
-          method: 'cleanitcam',
-        })
+      // Pointage
+      await fetch(BASE+'/pointages',{method:'POST',headers:{...headers,'Content-Type':'application/json'},
+        body:JSON.stringify({type:mode,site_code:siteInput,photo_url:photoUrl,gps_lat:gps?.lat||null,gps_lng:gps?.lng||null,method:'cleanitcam'})
       });
-      const pointData = await pointRes.json().catch(()=>({}));
 
-      // 5. Mettre à jour la position sur Digital Twin
-      await fetch(BASE+'/location/update',{
-        method:'POST',
-        headers:{...headers,'Content-Type':'application/json'},
-        body:JSON.stringify({
-          lat: gps?.lat||null,
-          lng: gps?.lng||null,
-          status: pointageType==='arrivee' ? 'en_mission' : 'disponible',
-          siteCode: siteInput,
-        })
+      // Digital Twin
+      await fetch(BASE+'/location/update',{method:'POST',headers:{...headers,'Content-Type':'application/json'},
+        body:JSON.stringify({lat:gps?.lat||null,lng:gps?.lng||null,status:mode==='arrivee'?'en_mission':'disponible',siteCode:siteInput})
       }).catch(()=>{});
 
-      // 6. Toast final
-      const msg = pointageType==='arrivee'
-        ? 'Arrivée enregistrée sur '+siteInput+' — visible sur la carte'
-        : 'Départ enregistré — bonne route !';
-      toast(msg, 'success');
-
-      // Basculer auto vers Départ après Arrivée
-      if(pointageType==='arrivee') setPointageType('depart');
-
-    } catch(e){
-      toast('Erreur upload: '+e.message,'error');
-    } finally {
-      setUploading(false);
+      setStatus(mode==='arrivee'?'✓ Arrivée enregistrée':'✓ Départ enregistré');
+      setTimeout(()=>{setStatus('');setMode(null);},2500);
+    } catch(e) {
+      setStatus('Erreur: '+e.message);
     }
+    setUploading(false);
   };
 
-  useEffect(() => () => stopCam(), []);
+  const publishToFil = async () => {
+    const tk=localStorage.getItem('token')||'';
+    try {
+      // Upload la photo si disponible
+      let photoUrl=null;
+      if(lastPhotoUrl) {
+        const res=await fetch(lastPhotoUrl);
+        const blob=await res.blob();
+        const fd=new FormData(); fd.append('file',blob,'terrain.jpg');
+        const up=await fetch(BASE+'/upload/photo',{method:'POST',headers:{'Authorization':'Bearer '+tk},body:fd});
+        const ud=await up.json(); photoUrl=ud.url;
+      }
+      await fetch(BASE+'/feed',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+        body:JSON.stringify({text:publishText||'Photo terrain',photo_url:photoUrl,type:'photo'})
+      });
+      setShowPublish(false); setPublishText(''); setLastPhotoUrl(null);
+      alert('✓ Publié dans le Fil !');
+    } catch(e) { alert('Erreur: '+e.message); }
+  };
 
-  const C2 = getC();
+  // ── ÉCRAN DE CHOIX DU MODE ─────────────────────────────────────────────
+  if(!mode) return (
+    <div style={{flex:1,background:'#0a0a0a',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:24,gap:20}}>
+      <button onClick={()=>{stopCam();navigate('/mobile/fil');}}
+        style={{position:'absolute',top:14,left:14,width:34,height:34,borderRadius:'50%',background:'rgba(255,255,255,.15)',border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+
+      <div style={{textAlign:'center',marginBottom:8}}>
+        <div style={{fontSize:22,fontWeight:800,color:'white',letterSpacing:'-.02em'}}>CleanIT Cam</div>
+        <div style={{fontSize:13,color:'rgba(255,255,255,.5)',marginTop:4}}>Choisissez votre mode</div>
+      </div>
+
+      {/* Saisie site (pour arrivée/départ) */}
+      <input value={siteInput} onChange={e=>setSiteInput(e.target.value)}
+        placeholder="Code site (ex: GAR-001)"
+        style={{width:'100%',maxWidth:300,padding:'10px 14px',borderRadius:10,border:'1px solid rgba(255,255,255,.2)',background:'rgba(255,255,255,.08)',color:'white',fontSize:13,fontFamily:FONT,outline:'none',textAlign:'center'}}/>
+
+      {/* Arrivée */}
+      <button onClick={()=>setMode('arrivee')} style={{width:'100%',maxWidth:300,padding:'16px',borderRadius:14,border:'none',background:'linear-gradient(135deg,#16A34A,#15803D)',cursor:'pointer',fontFamily:FONT,transition:'all .15s'}}
+        onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'} onMouseLeave={e=>e.currentTarget.style.transform=''}>
+        <div style={{fontSize:28,marginBottom:6}}>📍</div>
+        <div style={{fontSize:16,fontWeight:700,color:'white'}}>Arrivée sur site</div>
+        <div style={{fontSize:12,color:'rgba(255,255,255,.7)',marginTop:4}}>Clock-in · Photo + Pointage + Carte</div>
+      </button>
+
+      {/* Départ */}
+      <button onClick={()=>setMode('depart')} style={{width:'100%',maxWidth:300,padding:'16px',borderRadius:14,border:'none',background:'linear-gradient(135deg,#EA580C,#C2410C)',cursor:'pointer',fontFamily:FONT,transition:'all .15s'}}
+        onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'} onMouseLeave={e=>e.currentTarget.style.transform=''}>
+        <div style={{fontSize:28,marginBottom:6}}>🚪</div>
+        <div style={{fontSize:16,fontWeight:700,color:'white'}}>Départ du site</div>
+        <div style={{fontSize:12,color:'rgba(255,255,255,.7)',marginTop:4}}>Clock-out · Photo + Pointage + Carte</div>
+      </button>
+
+      {/* Photo libre */}
+      <button onClick={()=>setMode('libre')} style={{width:'100%',maxWidth:300,padding:'16px',borderRadius:14,border:'1px solid rgba(255,255,255,.2)',background:'rgba(255,255,255,.06)',cursor:'pointer',fontFamily:FONT,transition:'all .15s'}}
+        onMouseEnter={e=>e.currentTarget.style.transform='scale(1.02)'} onMouseLeave={e=>e.currentTarget.style.transform=''}>
+        <div style={{fontSize:28,marginBottom:6}}>📷</div>
+        <div style={{fontSize:16,fontWeight:700,color:'white'}}>Photo terrain</div>
+        <div style={{fontSize:12,color:'rgba(255,255,255,.5)',marginTop:4}}>Photo géolocalisée · Sauvegarde locale</div>
+      </button>
+    </div>
+  );
+
+  // ── ÉCRAN CAMÉRA ──────────────────────────────────────────────────────
+  const modeColor = mode==='arrivee'?'#4ADE80':mode==='depart'?'#FB923C':'#60A5FA';
+  const modeLabel = mode==='arrivee'?'📍 Arrivée':'🚪 Départ du site';
 
   return (
-    <div style={{flex:1,display:'flex',flexDirection:'column',background:'#000',position:'relative'}}>
-      <Toast msg={toastMsg} show={toastShow} type={toastType}/>
+    <div style={{flex:1,background:'#000',display:'flex',flexDirection:'column',position:'relative',overflow:'hidden'}}>
       <canvas ref={cRef} style={{display:'none'}}/>
       {flash && <div style={{position:'absolute',inset:0,background:'#fff',zIndex:50,opacity:.7,pointerEvents:'none'}}/>}
 
-      <button onClick={()=>{stopCam(); navigate('/mobile/fil');}}
-        style={{position:'absolute',top:14,left:14,zIndex:40,width:34,height:34,borderRadius:'50%',
-          background:'rgba(0,0,0,.55)',border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M19 12H5M12 19l-7-7 7-7"/>
-        </svg>
+      {/* Back + mode indicator */}
+      <button onClick={()=>{stopCam();setMode(null);}}
+        style={{position:'absolute',top:14,left:14,zIndex:40,width:34,height:34,borderRadius:'50%',background:'rgba(0,0,0,.55)',border:'none',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
       </button>
 
-      <div style={{flex:1,position:'relative',overflow:'hidden',background:'#0a0a0a',minHeight:300}}>
-        <video ref={vRef} autoPlay playsInline
-          style={{width:'100%',height:'100%',objectFit:'cover',
-            display:active?'block':'none'}}/>
-
-        {!active && (
-          <div style={{display:'flex',flexDirection:'column',alignItems:'center',
-            justifyContent:'center',height:'100%',gap:10}}>
-            {last
-              ? <img src={last} style={{maxWidth:'100%',maxHeight:'65vh',objectFit:'contain',borderRadius:6}}/>
-              : <div style={{textAlign:'center',color:'rgba(255,255,255,.3)'}}>
-                  <div style={{fontSize:48,marginBottom:8}}>📷</div>
-                  <div style={{fontSize:12,color:'rgba(255,255,255,.5)'}}>Appuyez pour demarrer</div>
-                </div>
-            }
-          </div>
-        )}
-
-        {active && (
-          <>
-            <svg style={{position:'absolute',inset:0,width:'100%',height:'100%',opacity:.2,pointerEvents:'none'}}
-              viewBox="0 0 3 4">
-              <line x1="1" y1="0" x2="1" y2="4" stroke="white" strokeWidth=".04"/>
-              <line x1="2" y1="0" x2="2" y2="4" stroke="white" strokeWidth=".04"/>
-              <line x1="0" y1="1.33" x2="3" y2="1.33" stroke="white" strokeWidth=".04"/>
-              <line x1="0" y1="2.67" x2="3" y2="2.67" stroke="white" strokeWidth=".04"/>
-            </svg>
-            <div style={{position:'absolute',top:10,left:10,background:'rgba(0,0,0,.5)',
-              padding:'3px 8px',borderRadius:10,display:'flex',alignItems:'center',gap:4}}>
-              <div style={{width:6,height:6,borderRadius:'50%',background:'#22C55E'}}/>
-              <span style={{fontSize:8,color:'white',fontWeight:500}}>
-                GPS {gps ? Math.round(gps.accuracy)+'m' : '...'}
-              </span>
-            </div>
-            <div style={{position:'absolute',top:10,right:10,display:'flex',alignItems:'center',gap:5,
-              background:'rgba(0,0,0,.55)',borderRadius:10,padding:'3px 6px 3px 10px',
-              border:siteInput.trim()?'1px solid transparent':'1px solid rgba(232,93,93,.7)'}}>
-              <span style={{fontSize:8,color:'rgba(255,255,255,.6)'}}>Site:</span>
-              <input value={siteInput} onChange={e=>{setSiteInput(e.target.value);setSiteEdited(true);}}
-                placeholder="Obligatoire"
-                style={{background:'transparent',border:'none',outline:'none',color:'white',
-                  fontSize:9,fontWeight:600,fontFamily:FONT,width:90,padding:'2px 0'}}/>
-            </div>
-            <div style={{position:'absolute',bottom:0,left:0,right:0,
-              background:'linear-gradient(transparent,rgba(0,0,0,.8))',padding:'10px 12px 6px'}}>
-              <div style={{fontSize:10,color:'rgba(255,255,255,.9)',fontWeight:600}}>{user.name}</div>
-              <div style={{fontSize:8,color:'rgba(255,255,255,.6)'}}>
-                {n.toLocaleDateString('fr-FR')} {n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
-                {gps ? ' · '+gps.lat.toFixed(5)+', '+gps.lng.toFixed(5) : ''}
-              </div>
-              <div style={{fontSize:8,color:'#E86C6C',marginTop:1}}>///{w3wAddress||'GPS en cours...'}</div>
-            </div>
-          </>
-        )}
+      <div style={{position:'absolute',top:14,left:'50%',transform:'translateX(-50%)',zIndex:40,background:'rgba(0,0,0,.6)',padding:'6px 14px',borderRadius:20,border:'1px solid '+modeColor}}>
+        <span style={{fontSize:12,fontWeight:700,color:modeColor}}>{mode==='libre'?'📷 Photo terrain':modeLabel}</span>
       </div>
 
-      {/* Sélecteur Arrivée / Départ */}
-      <div style={{background:'#111',padding:'10px 20px 6px',display:'flex',gap:10,justifyContent:'center'}}>
-        {['arrivee','depart'].map(t=>(
-          <button key={t} onClick={()=>setPointageType(t)}
-            style={{flex:1,padding:'8px 0',borderRadius:10,border:'none',cursor:'pointer',
-              fontFamily:'inherit',fontSize:13,fontWeight:700,transition:'all .15s',
-              background:pointageType===t?(t==='arrivee'?'#16A34A':'#EA580C'):'#222',
-              color:pointageType===t?'white':'#666'}}>
-            {t==='arrivee' ? '📍 Arrivée sur site' : '🚪 Départ du site'}
-          </button>
-        ))}
+      {/* GPS indicator */}
+      <div style={{position:'absolute',top:14,right:14,zIndex:40,background:'rgba(0,0,0,.6)',padding:'4px 10px',borderRadius:12,fontSize:10,color:gps?'#4ADE80':'#FB923C'}}>
+        GPS {gps?gps.accuracy?.toFixed(0)+'m':'—'}
       </div>
 
-      {uploading && (
-        <div style={{background:'#111',padding:'6px 20px',textAlign:'center',fontSize:11,color:'#94A3B8'}}>
-          Envoi en cours... photo + pointage + mise à jour carte
+      {/* Video feed */}
+      <video ref={vRef} autoPlay playsInline muted style={{flex:1,objectFit:'cover',width:'100%'}}/>
+
+      {/* Status bar */}
+      {status && (
+        <div style={{position:'absolute',bottom:90,left:0,right:0,textAlign:'center',padding:'10px',background:'rgba(0,0,0,.75)'}}>
+          <span style={{fontSize:13,color:status.startsWith('✓')?'#4ADE80':'white',fontWeight:600}}>{status}</span>
         </div>
       )}
 
-      <div style={{background:'#0a0a0a',padding:'14px 20px 24px',
-        display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-        <div style={{width:52,height:52}}>
-          {photos[0] && <img src={photos[0].url}
-            style={{width:52,height:52,borderRadius:8,objectFit:'cover',
-              border:'2px solid rgba(255,255,255,.2)'}}/>}
+      {/* Bottom bar */}
+      <div style={{background:'#0a0a0a',padding:'16px 20px 28px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        {/* Dernière photo miniature */}
+        <div style={{width:52,height:52,borderRadius:8,background:'rgba(255,255,255,.1)',overflow:'hidden'}}>
         </div>
 
-        {active ? (
-          <button onClick={shoot} disabled={uploading}
-            style={{width:70,height:70,borderRadius:'50%',
-              border:'4px solid '+(pointageType==='arrivee'?'#4ADE80':'#FB923C'),
-              background:'transparent',cursor:uploading?'wait':'pointer',
-              display:'flex',alignItems:'center',justifyContent:'center',
-              opacity:uploading?0.6:1}}>
-            <div style={{width:56,height:56,borderRadius:'50%',
-              background:pointageType==='arrivee'?'#4ADE80':'#FB923C'}}/>
-          </button>
-        ) : (
-          <button onClick={startCam}
-            style={{width:70,height:70,borderRadius:'50%',border:'none',
-              background:'#0066CC',cursor:'pointer',
-              display:'flex',alignItems:'center',justifyContent:'center'}}>
-            <svg width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='white' strokeWidth='1.75' strokeLinecap='round' strokeLinejoin='round'><path d='M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z'/><circle cx='12' cy='13' r='4'/></svg>
-          </button>
-        )}
+        {/* Bouton photo */}
+        <button onClick={shoot} disabled={uploading}
+          style={{width:72,height:72,borderRadius:'50%',border:'4px solid '+modeColor,background:'transparent',cursor:uploading?'wait':'pointer',display:'flex',alignItems:'center',justifyContent:'center',opacity:uploading?.6:1}}>
+          {uploading
+            ? <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={modeColor} strokeWidth={2} strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            : <div style={{width:58,height:58,borderRadius:'50%',background:modeColor}}/>
+          }
+        </button>
 
-        <div style={{width:52,display:'flex',flexDirection:'column',gap:8,alignItems:'center'}}>
-          {active ? (
-            <button onClick={stopCam}
-              style={{width:42,height:42,borderRadius:10,border:'1px solid #333',
-                background:'#1a1a1a',cursor:'pointer',display:'flex',
-                alignItems:'center',justifyContent:'center'}}>
-              <div style={{width:14,height:14,background:'#ef4444',borderRadius:2}}/>
-            </button>
-          ) : photos.length > 0 ? (
-            <button onClick={()=>toast('Photo envoyee au projet')}
-              style={{padding:'8px 10px',borderRadius:8,border:'none',
-                background:'#0066CC',cursor:'pointer',color:'white',
-                fontSize:10,fontWeight:600,fontFamily:FONT}}>
-              Envoyer
-            </button>
-          ) : null}
+        {/* Site code indicator */}
+        <div style={{width:52,textAlign:'center'}}>
+          <div style={{fontSize:9,color:'rgba(255,255,255,.4)',marginBottom:2}}>SITE</div>
+          <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.8)'}}>{siteInput||'—'}</div>
         </div>
       </div>
 
-      {!active && photos.length > 0 && (
-        <div style={{background:'#0a0a0a',padding:'0 12px 12px',
-          display:'flex',gap:5,overflowX:'auto'}}>
-          {photos.map(p=>(
-            <img key={p.id} src={p.url}
-              style={{width:52,height:52,borderRadius:6,objectFit:'cover',
-                flexShrink:0,border:'1.5px solid #333'}}/>
-          ))}
-        </div>
-      )}
-
-      {!active && (
-        <div style={{background:'#0a0a0a',padding:'0 14px 12px',textAlign:'center'}}>
-          <div style={{fontSize:11,color:'rgba(34,197,94,.9)',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
-            <span>✓</span> Photo enregistrée dans la galerie
+      {/* Modal publier dans le Fil (mode libre seulement) */}
+      {showPublish && (
+        <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,.85)',zIndex:100,display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+          <div style={{background:'#1a1a2e',borderRadius:'20px 20px 0 0',padding:20}}>
+            <div style={{fontSize:16,fontWeight:700,color:'white',marginBottom:16,textAlign:'center'}}>Partager dans le Fil ?</div>
+            <textarea value={publishText} onChange={e=>setPublishText(e.target.value)}
+              placeholder="Décrivez ce qui se passe sur le terrain..."
+              rows={3} style={{width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid rgba(255,255,255,.15)',background:'rgba(255,255,255,.08)',color:'white',fontSize:13,fontFamily:'system-ui',resize:'none',outline:'none',boxSizing:'border-box'}}/>
+            <div style={{display:'flex',gap:10,marginTop:12}}>
+              <button onClick={()=>{setShowPublish(false);setLastPhotoUrl(null);}}
+                style={{flex:1,padding:12,borderRadius:10,border:'1px solid rgba(255,255,255,.2)',background:'none',color:'white',cursor:'pointer',fontFamily:'system-ui',fontSize:14,fontWeight:600}}>
+                Non, garder pour moi
+              </button>
+              <button onClick={publishToFil}
+                style={{flex:1,padding:12,borderRadius:10,border:'none',background:'linear-gradient(135deg,#667eea,#764ba2)',color:'white',cursor:'pointer',fontFamily:'system-ui',fontSize:14,fontWeight:700}}>
+                Publier 🚀
+              </button>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
+
 };
 
-// ─── SCREEN: MESSAGES ─────────────────────────────────────────
-// Composant réutilisable : crée une room Daily.co via le backend puis affiche l'iframe
-const DailyFrame = ({ room, displayName, audioOnly }) => {
-  const [roomUrl, setRoomUrl] = useState(null);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const tk = localStorage.getItem('token');
-    fetch('https://backend-cleanit-erp.vercel.app/calls/daily-room', {
-      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
-      body: JSON.stringify({ roomName: room })
-    }).then(r=>r.json()).then(r=>{
-      if(r.url) setRoomUrl(r.url); else setError(r.message||'Erreur création room');
-    }).catch(e=>setError(e.message));
-  }, [room]);
-
-  if(error) return (
-    <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:13,padding:20,textAlign:'center'}}>
-      Erreur de connexion : {error}
-    </div>
-  );
-  if(!roomUrl) return (
-    <div style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,.6)',fontSize:13}}>
-      Connexion en cours...
-    </div>
-  );
-  return (
-    <iframe
-      src={`${roomUrl}?displayname=${encodeURIComponent(displayName||'Utilisateur')}`}
-      style={{flex:1,border:'none'}}
-      allow="camera; microphone; fullscreen; display-capture" title="Appel"/>
-  );
-};
 
 const ScreenMessages = () => {
   const [openConv, setOpenConv] = useState(null);
