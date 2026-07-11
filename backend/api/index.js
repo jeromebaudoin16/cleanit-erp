@@ -394,7 +394,7 @@ app.post('/auth/login', rateLimit(5, 60000), async (req, res) => {
       return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
     const token = jwt.sign({ sub: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
     await pool.query('UPDATE users SET "lastSeen" = NOW() WHERE id = $1', [user.id]);
-    res.json({ token, user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, moduleAccess: user.module_access || null } });
+    res.json({ token, user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role, moduleAccess: user.module_access || null, avatar_url: user.avatar_url || null, photoUrl: user.avatar_url || null } });
   } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
 });
 

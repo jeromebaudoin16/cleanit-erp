@@ -22,7 +22,15 @@ api.interceptors.response.use(
 );
 
 export const getUser = () => {
-  try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || 'null'); }
+  try {
+    // Cherche dans toutes les clés possibles selon le contexte (login web/mobile)
+    const raw = localStorage.getItem('cleanit_user')
+      || localStorage.getItem('user')
+      || sessionStorage.getItem('cleanit_user')
+      || sessionStorage.getItem('user')
+      || 'null';
+    return JSON.parse(raw);
+  }
   catch { return null; }
 };
 export const getToken = () => localStorage.getItem('token') || sessionStorage.getItem('token');
