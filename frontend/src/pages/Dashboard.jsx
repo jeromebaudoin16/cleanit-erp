@@ -130,8 +130,10 @@ const KPI = ({label,value,sub,color,icon,trend,up,onClick}) => (
     <div style={{position:'absolute',top:0,left:0,bottom:0,width:3,background:color,borderRadius:'14px 0 0 14px'}}/>
     <div style={{paddingLeft:6}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:14}}>
-        <div style={{width:38,height:38,borderRadius:10,background:color+'14',display:'flex',alignItems:'center',justifyContent:'center'}}>
-          <Ic d={I[icon]} size={18} color={color}/>
+        <div style={{width:36,height:36,borderRadius:9,background:color+'0D',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          border:'1px solid '+color+'20'}}>
+          <Ic d={I[icon]} size={16} color={color}/>
         </div>
         {trend&&<span style={{fontSize:11,fontWeight:700,color:up?C.green:C.red,
           background:up?'#F0FDF4':'#FEF2F2',padding:'3px 9px',borderRadius:20,
@@ -139,7 +141,7 @@ const KPI = ({label,value,sub,color,icon,trend,up,onClick}) => (
           <Ic d={up?I.trend:I.trendD} size={10} color={up?C.green:C.red} sw={2.5}/>{trend}
         </span>}
       </div>
-      <div style={{fontSize:26,fontWeight:800,color:'#0A1628',lineHeight:1,letterSpacing:'-.03em',marginBottom:4}}>{value}</div>
+      <div style={{fontSize:28,fontWeight:700,color:'#0A1628',lineHeight:1,letterSpacing:'-.04em',marginBottom:5,fontVariantNumeric:'tabular-nums'}}>{value}</div>
       <div style={{fontSize:12.5,fontWeight:600,color:C.text2,marginBottom:sub?3:0}}>{label}</div>
       {sub&&<div style={{fontSize:11,color:C.text4,display:'flex',alignItems:'center',gap:4}}>
         <div style={{width:5,height:5,borderRadius:'50%',background:color,opacity:.6}}/>
@@ -811,16 +813,19 @@ export default function Dashboard() {
               Bonjour, {userName} 👋
             </div>
             <div style={{fontSize:13, color:C.text3, marginTop:3}}>
-              {role.label} · {time.toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long', year:'numeric'})} · {time.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
+              {time.toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long', year:'numeric'})} · {time.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}
             </div>
           </div>
           <div style={{display:'flex', alignItems:'center', gap:10}}>
-            <div style={{width:44, height:44, borderRadius:11, background:role.gradient, display:'flex', alignItems:'center', justifyContent:'center'}}>
-              <Ic d={I[role.icon]} size={21} color='#fff'/>
+            <div style={{width:44, height:44, borderRadius:'50%', background:role.gradient,
+              display:'flex', alignItems:'center', justifyContent:'center',
+              fontSize:15, fontWeight:800, color:'white', letterSpacing:'-.02em',
+              boxShadow:'0 2px 8px rgba(0,0,0,.15)'}}>
+              {(userName||'').split(' ').map(n=>n[0]||'').join('').slice(0,2).toUpperCase()}
             </div>
             <div>
-              <div style={{fontSize:12, fontWeight:700, color:C.text}}>{role.label}</div>
-              <div style={{fontSize:10, color:C.text4}}>Tableau de bord personnalisé</div>
+              <div style={{fontSize:13, fontWeight:700, color:C.text, letterSpacing:'-.01em'}}>{userName}</div>
+              <div style={{fontSize:11, color:C.text3}}>{role.label}</div>
             </div>
           </div>
         </div>
