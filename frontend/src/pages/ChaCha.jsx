@@ -488,6 +488,21 @@ export default function ChaCha() {
     if(!msg||loading) return;
     setInput('');
     if(inputRef.current) inputRef.current.style.height='auto';
+
+    // Intercept simple greetings - respond directly without LLM
+    const msgLow = msg.toLowerCase().replace(/[!?.]/g,'').trim();
+    const greetWords = ['hey','bonjour','salut','hello','hi','bonsoir','coucou','allo','allô','chacha','hey chacha','bonjour chacha'];
+    if(greetWords.includes(msgLow)) {
+      const hour = new Date().getHours();
+      const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
+      const name = user?.firstName || '';
+      setMsgs(p=>[...p,
+        {role:'user', content:msg, ts:Date.now()},
+        {role:'assistant', content:`${greeting}${name?' '+name:''} ! 😊 Comment puis-je vous aider ? Vous pouvez me demander d'ouvrir un module, créer un événement, consulter les données ou générer un document.`, ts:Date.now()+1}
+      ]);
+      return;
+    }
+
     setLoading(true);
     const userMsg={role:'user',content:msg,ts:Date.now()};
     setMsgs(p=>[...p,userMsg]);
@@ -604,12 +619,12 @@ Demande de l'utilisateur: "${msg}"`;
       let finalText = '';
       let iterations = 0;
       const MAX_ITERATIONS = 6;
-      const generatedDocs = []; // accumule les liens de documents générés, peu importe l'itération — au cas où le modèle ne les reformule pas dans sa réponse finale
+      const generatedDocs = []; // accumule les liens de documents générés
+      const toolResultsForDisplay = []; // résumés lisibles pour réponse fallback
 
       while(currentChoice.finish_reason === 'tool_calls' && currentMsg.tool_calls && iterations < MAX_ITERATIONS) {
         iterations++;
         const toolResults = [];
-        const toolResultsForDisplay = [];
         for(const tc of currentMsg.tool_calls) {
           let args = {};
           try { args = JSON.parse(tc.function.arguments || '{}'); }
