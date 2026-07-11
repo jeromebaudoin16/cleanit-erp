@@ -3542,6 +3542,43 @@ app.post('/users/:id/reset-password', auth, async (req, res) => {
   } catch(e) { res.status(500).json({message:e.message}); }
 });
 
+
+// POST /upload/avatar — upload photo de profil vers Vercel Blob
+pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT').catch(()=>{});
+
+app.post('/upload/avatar', auth, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'Aucun fichier reçu' });
+    const ext = (req.file.originalname||'').split('.').pop().toLowerCase()||'jpg';
+    if (!['jpg','jpeg','png','webp'].includes(ext))
+      return res.status(400).json({ message: 'Format non supporté (jpg/png/webp)' });
+    if (req.file.size > 5*1024*1024)
+      return res.status(400).json({ message: 'Image trop lourde (max 5 Mo)' });
+    const { put } = require('@vercel/blob');
+    const blob = await put(
+      'avatars/user_'+req.user.sub+'_'+Date.now()+'.'+ext,
+      req.file.buffer,
+      { access:'public', contentType: req.file.mimetype||'image/jpeg' }
+    );
+    await pool.query('UPDATE users SET avatar_url=$1 WHERE id=$2',[blob.url, req.user.sub]);
+    res.json({ url: blob.url, message: 'Photo mise à jour' });
+  } catch(e) {
+    res.status(500).json({ message: 'Erreur upload: '+e.message });
+  }
+});
+
+// GET /me — profil complet avec avatar_url
+app.get('/me', auth, async (req, res) => {
+  try {
+    const r = await pool.query(
+      'SELECT id,email,"firstName","lastName",role,phone,department,avatar_url,module_access,city FROM users WHERE id=$1',
+      [req.user.sub]
+    );
+    if (!r.rows[0]) return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    res.json(r.rows[0]);
+  } catch(e) { res.status(500).json({ message: e.message }); }
+});
+
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));
 
 module.exports = app;
