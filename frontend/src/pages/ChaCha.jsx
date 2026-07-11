@@ -722,8 +722,46 @@ Demande de l'utilisateur: "${msg}"`;
               }]);
               break;
             }
+            case 'creer_evenement_planning': {
+              try {
+                const tk = localStorage.getItem('token');
+                const r = await fetch(BASE_API+'/planning/events', {
+                  method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+                  body: JSON.stringify({
+                    title: args.titre, type: args.type||'reunion_interne', dept: args.departement||'terrain',
+                    visibility: args.visibilite||'entreprise', startDate: args.dateDebut, endDate: args.dateFin||args.dateDebut,
+                    startHour: args.heureDebut, endHour: args.heureFin, allDay: args.journeeComplete||false,
+                    description: args.description||'', techIds: args.participantsIds||[],
+                  })
+                }).then(r=>r.json());
+                result = r?.id
+                  ? JSON.stringify({succes:true, id:r.id, message:`Événement "${args.titre}" créé dans Planning`})
+                  : JSON.stringify({succes:false, erreur:r?.message||'Erreur'});
+              } catch(e) { result = JSON.stringify({succes:false, erreur:e.message}); }
+              break;
+            }
+            case 'envoyer_message_interne': {
+              try {
+                const tk = localStorage.getItem('token');
+                const r = await fetch(BASE_API+'/conversations', {
+                  method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+                  body: JSON.stringify({ participantId: args.destinataireId })
+                }).then(r=>r.json());
+                if(r?.id) {
+                  await fetch(BASE_API+'/messages', {
+                    method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+                    body: JSON.stringify({ conversationId: r.id, text: args.texte })
+                  });
+                  result = JSON.stringify({succes:true, message:'Message envoyé via CleanIT Comm'});
+                } else result = JSON.stringify({succes:false, erreur:'Conversation introuvable'});
+              } catch(e) { result = JSON.stringify({succes:false, erreur:e.message}); }
+              break;
+            }
+            case 'afficher_alerte':
+              result = `Information: ${args.message}`;
+              break;
             default:
-              result = 'Action exécutée';
+              result = 'Action effectuée';
           }
           toolResults.push({role: 'tool', tool_call_id: tc.id, content: result});
         }
