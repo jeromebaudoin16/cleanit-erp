@@ -613,6 +613,7 @@ Demande de l'utilisateur: "${msg}"`;
           catch { toolResults.push({role:'tool', name:tc.function.name, tool_call_id:tc.id, content:'Erreur: arguments invalides reçus du modèle, réessaie ta demande différemment.'}); continue; }
           let result = '';
 
+          console.log('[ChaCha DEBUG] Outil appelé:', tc.function.name, '| Args:', JSON.stringify(args).slice(0,200));
           switch(tc.function.name) {
             case 'naviguer_module':
               setTimeout(() => navigate(args.url), 300);
@@ -761,7 +762,8 @@ Demande de l'utilisateur: "${msg}"`;
               result = `Information: ${args.message}`;
               break;
             default:
-              result = 'Action effectuée';
+              console.warn('[ChaCha] Outil inconnu:', tc.function.name, args);
+              result = JSON.stringify({info: `Outil "${tc.function.name}" reçu`, args});
           }
           toolResults.push({role: 'tool', tool_call_id: tc.id, content: result});
         }
