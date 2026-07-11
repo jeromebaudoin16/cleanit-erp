@@ -61,7 +61,9 @@ RÈGLES:
 - N'explique jamais ce que tu peux faire, fais-le directement
 - Ne montre JAMAIS les commandes ## dans ta réponse
 - Après avoir utilisé un outil, réponds TOUJOURS avec une phrase naturelle confirmant l'action (ex: "J'ai créé la réunion MTN pour demain à 10h30 ✓") 
-- Pour les salutations simples (hey, bonjour, salut), réponds directement SANS utiliser d'outil
+- Pour les salutations, questions conversationnelles, remerciements et messages non-techniques, réponds TOUJOURS directement en texte SANS aucun outil
+- N'utilise les outils QUE quand l'utilisateur demande explicitement une action (créer, ouvrir, chercher, générer, envoyer)
+- Si tu n'as pas d'action concrète à effectuer, réponds en texte libre naturellement
 - Tu t'appelles ChaCha
 - Sois proactive et anticipe les besoins
 - Quand tu as terminé toutes les actions demandées, résume clairement ce qui a été fait et ce qui n'a pas pu être fait (et pourquoi)`;
@@ -489,16 +491,30 @@ export default function ChaCha() {
     setInput('');
     if(inputRef.current) inputRef.current.style.height='auto';
 
-    // Intercept simple greetings - respond directly without LLM
-    const msgLow = msg.toLowerCase().replace(/[!?.]/g,'').trim();
-    const greetWords = ['hey','bonjour','salut','hello','hi','bonsoir','coucou','allo','allô','chacha','hey chacha','bonjour chacha'];
-    if(greetWords.includes(msgLow)) {
+    // Intercept conversational messages - respond directly without LLM tool calls
+    const msgLow = msg.toLowerCase().replace(/[!?.,']/g,'').trim();
+    const isConversational = 
+      // Salutations exactes ou avec typos
+      /^(hey|bonjour|salut|hello|hi|bonsoir|coucou|allo|allô|cc)\s*(chacha|chaha|chahca|cha)?$/.test(msgLow) ||
+      // Questions conversationnelles
+      /^(comment\s*(tu\s*(vas|te\s*portes?)|ça\s*va|allez.vous))\s*(chacha|chaha)?$/.test(msgLow) ||
+      /^(ça\s*va|ca\s*va|bien|ok|merci|super|parfait|nickel|good|thanks|thx|noted)$/.test(msgLow) ||
+      /^(chacha|chaha|chahca)$/.test(msgLow);
+    
+    if(isConversational) {
       const hour = new Date().getHours();
       const greeting = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir';
       const name = user?.firstName || '';
+      const responses = [
+        `${greeting}${name?' '+name:''} ! 😊 Comment puis-je vous aider ?`,
+        `Je vais très bien, merci ! 😊 Et vous${name?' '+name:''}? En quoi puis-je vous être utile ?`,
+        `Bonjour${name?' '+name:''} ! Je suis prête à vous aider. Dites-moi ce que vous souhaitez faire.`,
+        `Toujours disponible et opérationnelle ! 💪 Que puis-je faire pour vous ?`,
+      ];
+      const response = responses[Math.floor(Math.random()*responses.length)];
       setMsgs(p=>[...p,
         {role:'user', content:msg, ts:Date.now()},
-        {role:'assistant', content:`${greeting}${name?' '+name:''} ! 😊 Comment puis-je vous aider ? Vous pouvez me demander d'ouvrir un module, créer un événement, consulter les données ou générer un document.`, ts:Date.now()+1}
+        {role:'assistant', content:response, ts:Date.now()+1}
       ]);
       return;
     }
