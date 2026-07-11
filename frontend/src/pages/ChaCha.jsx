@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUser } from '../utils/api';
 
-const BASE_API = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+const BASE_API = import.meta.env.VITE_API_URL || 'https://backend-one-kappa-96.vercel.app';
 
 const TODAY_STR = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
@@ -125,7 +125,7 @@ const BcConfirmCard = ({ bc, onImported }) => {
   const [importing, setImporting] = useState(false);
   const [paymentMode, setPaymentMode] = useState('grouped'); // grouped | per-payment (Type A uniquement)
   const [error, setError] = useState(null);
-  const BASE_API = 'https://backend-cleanit-erp.vercel.app';
+  const BASE_API = 'https://backend-one-kappa-96.vercel.app';
 
   if(bc.imported) {
     return (
