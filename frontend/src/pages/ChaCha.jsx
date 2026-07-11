@@ -609,6 +609,7 @@ Demande de l'utilisateur: "${msg}"`;
       while(currentChoice.finish_reason === 'tool_calls' && currentMsg.tool_calls && iterations < MAX_ITERATIONS) {
         iterations++;
         const toolResults = [];
+        const toolResultsForDisplay = [];
         for(const tc of currentMsg.tool_calls) {
           let args = {};
           try { args = JSON.parse(tc.function.arguments || '{}'); }
@@ -771,6 +772,8 @@ Demande de l'utilisateur: "${msg}"`;
               result = JSON.stringify({info: `Outil "${tc.function.name}" reçu`, args});
           }
           toolResults.push({role: 'tool', tool_call_id: tc.id, content: result});
+          // Garder un résumé lisible pour le fallback
+          if(result && !result.startsWith('{') && result.length < 200) toolResultsForDisplay.push(result);
         }
 
         messages = [...messages, currentMsg, ...toolResults];
@@ -828,7 +831,12 @@ Demande de l'utilisateur: "${msg}"`;
       if(iterations >= MAX_ITERATIONS && currentChoice.finish_reason === 'tool_calls') {
         finalText = (finalText||'') + '\n\n(Certaines étapes supplémentaires nécessitent une vérification manuelle — limite de sécurité atteinte.)';
       }
-      if(!finalText && generatedDocs.length === 0) finalText = 'Action effectuée.';
+      // Si le LLM n'a pas généré de texte final, on génère une réponse basée sur les outils exécutés
+      if(!finalText && generatedDocs.length === 0) {
+        // Regarder les résultats des outils pour générer une réponse contextuelle
+        const toolSummary = toolResultsForDisplay.filter(r=>r).join(' ');
+        finalText = toolSummary || 'Commande exécutée avec succès.';
+      }
       // Filet de sécurité: si un document a été généré mais que le modèle ne l'a pas mentionné
       // dans sa réponse finale, on l'ajoute quand même — l'utilisateur ne doit jamais perdre un lien valide.
       for (const docLine of generatedDocs) {
