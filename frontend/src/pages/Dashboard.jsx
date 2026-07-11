@@ -817,11 +817,14 @@ export default function Dashboard() {
             </div>
           </div>
           <div style={{display:'flex', alignItems:'center', gap:10}}>
-            <div style={{width:44, height:44, borderRadius:'50%', background:role.gradient,
-              display:'flex', alignItems:'center', justifyContent:'center',
+            <div style={{width:44, height:44, borderRadius:'50%', overflow:'hidden',
+              background:role.gradient, display:'flex', alignItems:'center', justifyContent:'center',
               fontSize:15, fontWeight:800, color:'white', letterSpacing:'-.02em',
-              boxShadow:'0 2px 8px rgba(0,0,0,.15)'}}>
-              {(userName||'').split(' ').map(n=>n[0]||'').join('').slice(0,2).toUpperCase()}
+              boxShadow:'0 2px 8px rgba(0,0,0,.15)', flexShrink:0}}>
+              {user?.avatar_url || user?.photoUrl
+                ? <img src={user.avatar_url||user.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.target.style.display='none';}}/>
+                : (userName||'').split(' ').map(n=>n[0]||'').join('').slice(0,2).toUpperCase()
+              }
             </div>
             <div>
               <div style={{fontSize:13, fontWeight:700, color:C.text, letterSpacing:'-.01em'}}>{userName}</div>

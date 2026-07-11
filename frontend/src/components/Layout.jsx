@@ -249,8 +249,11 @@ export default function Layout() {
               style={{display:'flex', alignItems:'center', gap:9, background:'white', border:'1px solid #e8ecf0', borderRadius:10, cursor:'pointer', padding:'5px 12px 5px 5px', transition:'all .2s'}}
               onMouseEnter={e => e.currentTarget.style.background='#f8fafc'}
               onMouseLeave={e => e.currentTarget.style.background='white'}>
-              <div style={{width:32, height:32, borderRadius:8, background:'linear-gradient(135deg,#334155,#475569)', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:800, fontSize:13, flexShrink:0}}>
-                {user?.firstName?.[0]?.toUpperCase() || 'U'}
+              <div style={{width:32, height:32, borderRadius:8, overflow:'hidden', flexShrink:0, background:'linear-gradient(135deg,#334155,#475569)', display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:800, fontSize:13}}>
+                {user?.avatar_url || user?.photoUrl
+                  ? <img src={user.avatar_url||user.photoUrl} alt="" style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.target.style.display='none';}}/>
+                  : (user?.firstName?.[0]?.toUpperCase() || 'U')
+                }
               </div>
               <div style={{textAlign:'left'}}>
                 <div style={{fontSize:13, fontWeight:700, color:'#1e293b', lineHeight:1.2, whiteSpace:'nowrap'}}>{user?.firstName} {user?.lastName}</div>
