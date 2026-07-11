@@ -60,6 +60,8 @@ RÈGLES:
 - Réponds toujours en français, sois concise et professionnelle
 - N'explique jamais ce que tu peux faire, fais-le directement
 - Ne montre JAMAIS les commandes ## dans ta réponse
+- Après avoir utilisé un outil, réponds TOUJOURS avec une phrase naturelle confirmant l'action (ex: "J'ai créé la réunion MTN pour demain à 10h30 ✓") 
+- Pour les salutations simples (hey, bonjour, salut), réponds directement SANS utiliser d'outil
 - Tu t'appelles ChaCha
 - Sois proactive et anticipe les besoins
 - Quand tu as terminé toutes les actions demandées, résume clairement ce qui a été fait et ce qui n'a pas pu être fait (et pourquoi)`;
@@ -76,7 +78,7 @@ const saveHistory = (msgs) => {
 
 // ===== CHACHA TOOLS =====
 const CHACHA_TOOLS = [
-  {type:"function",function:{name:"naviguer_module",description:"Naviguer vers un module CleanIT ERP",parameters:{type:"object",properties:{url:{type:"string",description:"URL: /dashboard /approvals /finance /rh /crm /terrain /map /bi /cleanitcomm /pointage /planning /techniciens /purchase-orders /cleanitbooks /bons-commande"}},required:["url"]}}},
+  {type:"function",function:{name:"naviguer_module",description:"Naviguer vers un module CleanIT ERP",parameters:{type:"object",properties:{url:{type:"string",description:"URL exactes disponibles: /dashboard /approvals /rh /map /cleanitcomm /planning /technicians /purchase-orders /cleanitbooks /projets /profile /chacha"}},required:["url"]}}},
   {type:"function",function:{name:"lire_donnees_systeme",description:"Lire les données réelles du système CleanIT ERP. UTILISE cet outil pour répondre aux questions sur le planning, les techniciens, les missions, les approbations, les employés.",parameters:{type:"object",properties:{module:{type:"string",enum:["planning","missions","techniciens","approvals","projets","bons_commande","rh"],description:"planning=événements et réunions, missions=missions terrain, techniciens=liste équipe, approvals=demandes en attente, projets=projets, bons_commande=BCs, rh=employés"}},required:["module"]}}},
   {type:"function",function:{name:"creer_approbation",description:"Créer une demande dans Approvals",parameters:{type:"object",properties:{titre:{type:"string"},montant:{type:"number"},beneficiaire:{type:"string"},site:{type:"string"},type:{type:"string",enum:["payment_request","leave_request","purchase_request"]}},required:["titre"]}}},
   {type:"function",function:{name:"creer_evenement_planning",description:"Créer un événement réel dans le module Planning, visible immédiatement par les participants assignés. Utilise lire_donnees_systeme(techniciens) d'abord pour obtenir les vrais IDs des participants.",parameters:{type:"object",properties:{
@@ -758,9 +760,12 @@ Demande de l'utilisateur: "${msg}"`;
               } catch(e) { result = JSON.stringify({succes:false, erreur:e.message}); }
               break;
             }
-            case 'afficher_alerte':
-              result = `Information: ${args.message}`;
+            case 'afficher_alerte': {
+              // Afficher le message dans le chat directement
+              setMsgs(p=>[...p, {role:'assistant', content: args.message || args.titre || 'Information', ts:Date.now()}]);
+              result = `Message affiché: "${args.message||args.titre}"`;
               break;
+            }
             default:
               console.warn('[ChaCha] Outil inconnu:', tc.function.name, args);
               result = JSON.stringify({info: `Outil "${tc.function.name}" reçu`, args});
