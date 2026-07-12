@@ -720,7 +720,7 @@ const ScreenFil = ({user,navigate}) => {
   const [composePhoto,setComposePhoto] = useState(null);
   const [composePhotoUrl,setComposePhotoUrl] = useState(null);
   const [posting,setPosting] = useState(false);
-  const composeFileRef = React.useRef(null);
+  const composeFileRef = useRef(null);
   const BASE_FIL = 'https://backend-one-kappa-96.vercel.app';
 
   const publishPost = async () => {
