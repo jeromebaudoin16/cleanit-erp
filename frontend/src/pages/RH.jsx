@@ -809,7 +809,7 @@ const EmpCard = ({employee,onClick,delay=0}) => {
 const BulletinModal = ({selB, onClose, onValidate}) => {
   const [pErr, setPErr] = useState(false);
   const e = EMPLOYES.find(emp => emp.id === selB.empId);
-  const photo = employees.find(e=>e.id===selB.empId||String(e.id)===selB.empId)?.photo || PHOTOS[selB.empId] || null;
+  const photo = PHOTOS[selB.empId] || null; // Avatar chargé depuis profil si disponible
   const ac = getAC((e?.first||"") + (e?.last||""));
 
   return (
@@ -1093,7 +1093,7 @@ ${selB.bonus>0?`<tr><td>Primes &amp; Bonus</td><td>—</td><td>—</td><td style
 // ===== MINI PHOTO — composants séparés pour éviter useState dans map =====
 const MiniPhoto = ({empId, first="", last="", size=32}) => {
   const [err, setErr] = useState(false);
-  const photo = employees.find(e=>String(e.id)===String(empId))?.photo || PHOTOS[empId] || null;
+  const photo = PHOTOS[empId] || null;
   const ac = getAC(first+last);
   return (
     <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid white",boxShadow:"0 0 0 1.5px #D9D9D9"}}>

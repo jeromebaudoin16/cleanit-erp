@@ -1175,7 +1175,7 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
                 const st=STATUS_TECH[tech.status]||STATUS_TECH.disponible;
                 return(
                   <div key={tech.id}
-                    onClick={()=>{setSelectedTech(tech);setSelected(null);flyTo(tech.lat,tech.lng,15);if(tech.siteLat&&tech.status!=="disponible")calculateRoute(mapInstanceRef.current,tech.lat,tech.lng,tech.siteLat,tech.siteLng);}}
+                    onClick={()=>{setSelectedTech(tech);setSelected(null);if(tech.lat&&tech.lng)flyTo(tech.lat,tech.lng,15);else if(mapInstanceRef.current)mapInstanceRef.current.flyTo([4.0511,9.7679],12,{animate:true});if(tech.siteLat&&tech.status!=="disponible"&&tech.lat&&tech.lng)calculateRoute(mapInstanceRef.current,tech.lat,tech.lng,tech.siteLat,tech.siteLng);}}
                     style={{padding:"10px 12px",borderBottom:"1px solid #f1f3f4",cursor:"pointer",background:selectedTech?.id===tech.id?"#e8f0fe":"white",transition:"all .1s"}}
                     onMouseEnter={e=>e.currentTarget.style.background=selectedTech?.id===tech.id?"#e8f0fe":"#f8f9fa"}
                     onMouseLeave={e=>e.currentTarget.style.background=selectedTech?.id===tech.id?"#e8f0fe":"white"}>

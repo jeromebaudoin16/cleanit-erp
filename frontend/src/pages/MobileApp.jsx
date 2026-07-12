@@ -740,8 +740,16 @@ const ScreenFil = ({user,navigate}) => {
         body:JSON.stringify({text:composeText.trim()||null,photo_url:photoUrl,type:composePhoto?'photo':'text'})
       });
       setShowCompose(false); setComposeText(''); setComposePhoto(null); setComposePhotoUrl(null);
-      // Rafraîchir le fil
-      setTimeout(()=>window.location.reload(),300);
+      // Rafraîchir le fil sans reload complet
+      try {
+        const tk2 = localStorage.getItem('token')||'';
+        const fresh = await fetch(BASE_FIL+'/feed',{headers:{'Authorization':'Bearer '+tk2}});
+        const fd = await fresh.json();
+        if(Array.isArray(fd)) {
+          // Trigger re-render via custom event
+          window.dispatchEvent(new CustomEvent('feed-refresh', {detail: fd}));
+        }
+      } catch{}
     } catch(e){ alert('Erreur: '+e.message); }
     setPosting(false);
   };

@@ -1,7 +1,7 @@
 // API Service - connexion au backend CleanIT
-const API_URL = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+const API_URL = import.meta.env.VITE_API_URL || 'https://backend-one-kappa-96.vercel.app';
 
-const getToken = () => localStorage.getItem('cit_token');
+const getToken = () => localStorage.getItem('token') || localStorage.getItem('cit_token');
 
 const apiCall = async (method, endpoint, body = null) => {
   const headers = { 'Content-Type': 'application/json' };
