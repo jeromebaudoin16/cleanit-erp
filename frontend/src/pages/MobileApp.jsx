@@ -197,18 +197,7 @@ const saveFeedPosts = async () => {
 };
 
 // Conversations chargées depuis l'API
-
-const APPROVALS = [
-  {id:1,userId:'EX-001',name:'Thomas Ngono',av:'TN',color:'#EA580C',
-   type:'conge',label:'Conge',detail:'Conge annuel · 02-06 juin · 5 jours',
-   level:1,n1:'RH',n2:'',n1done:false,n2done:false},
-  {id:2,userId:'EX-005',name:'Pierre Etoga',av:'PE',color:'#7C3AED',
-   type:'frais',label:'Frais',detail:'Note de frais · Transport Kribi · 45 000 FCFA',
-   level:2,n1:'N1',n2:'N2',n1done:true,n2done:false},
-  {id:3,userId:'EX-002',name:'Samuel Djomo',av:'SD',color:'#16A34A',
-   type:'materiel',label:'Materiel',detail:'Demande materiel · 2x Cable RF LMR-400',
-   level:3,n1:'N1',n2:'N2',n1done:true,n2done:true},
-];
+// Note: les demandes d'approbation réelles sont chargées depuis l'API (voir ScreenApprovals)
 
 // ─── HELPERS ──────────────────────────────────────────────────
 const Av = ({u,size=44}) => (
@@ -737,7 +726,7 @@ const ScreenFil = ({user,navigate}) => {
       await fetch(BASE_FIL+'/feed',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
-        body:JSON.stringify({text:composeText.trim()||null,photo_url:photoUrl,type:composePhoto?'photo':'text'})
+        body:JSON.stringify({text:composeText.trim()||null,photoUrl:photoUrl,type:composePhoto?'photo':'text'})
       });
       setShowCompose(false); setComposeText(''); setComposePhoto(null); setComposePhotoUrl(null);
       // Rafraîchir le fil sans reload complet
@@ -1321,7 +1310,7 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
 
       // Publier dans le Fil
       await fetch(BASE+'/feed',{method:'POST',headers:{...headers,'Content-Type':'application/json'},
-        body:JSON.stringify({text:(mode==='arrivee'?'Arrivée':'Départ')+' sur site '+siteInput+' — '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),photo_url:photoUrl,site:siteInput,gps_lat:gps?.lat?.toString(),gps_lng:gps?.lng?.toString(),type:'photo'})
+        body:JSON.stringify({text:(mode==='arrivee'?'Arrivée':'Départ')+' sur site '+siteInput+' — '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),photoUrl:photoUrl,site:siteInput,gpsLat:gps?.lat?.toString(),gpsLng:gps?.lng?.toString(),type:'photo'})
       }).catch(()=>{});
 
       // Pointage — camelCase pour correspondre au backend
@@ -1330,7 +1319,7 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
           type: mode,
           siteCode: siteInput.trim(),
           siteName: siteInput.trim(),
-          photo_url: photoUrl,
+          photoUrl: photoUrl,
           gpsLat: gps?.lat||null,
           gpsLng: gps?.lng||null,
           method: 'cleanitcam'
@@ -1365,7 +1354,7 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
         const ud=await up.json(); photoUrl=ud.url;
       }
       await fetch(BASE+'/feed',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
-        body:JSON.stringify({text:publishText||'Photo terrain',photo_url:photoUrl,type:'photo'})
+        body:JSON.stringify({text:publishText||'Photo terrain',photoUrl:photoUrl,type:'photo'})
       });
       setShowPublish(false); setPublishText(''); setLastPhotoUrl(null);
       alert('✓ Publié dans le Fil !');
