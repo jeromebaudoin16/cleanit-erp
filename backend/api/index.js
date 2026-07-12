@@ -440,9 +440,13 @@ app.get('/auth/me', auth, async (req, res) => {
 // ─── USERS ROUTES ─────────────────────────────────────────────
 app.get('/users', auth, async (req, res) => {
   try {
-    // Essaie d'abord avec module_access, repli sans si la colonne n'existe pas
     const result = await pool.query(
-      'SELECT id, email, "firstName", "lastName", role, "isActive", "lastSeen", "createdAt", module_access FROM users ORDER BY "createdAt" DESC'
+      `SELECT id, email, "firstName", "lastName", role, "isActive", "lastSeen", "createdAt", module_access,
+              phone, department, salary, contract, city, address, bank, rib,
+              matricule, education, gender, birth_date, birth_place, nationality, cin,
+              emergency_name, emergency_phone, emergency_link, speciality, daily_rate,
+              certifications, hire_date, avatar_url
+       FROM users ORDER BY "createdAt" DESC`
     ).catch(() => pool.query(
       'SELECT id, email, "firstName", "lastName", role, "isActive", "lastSeen", "createdAt" FROM users ORDER BY "createdAt" DESC'
     ));
@@ -493,7 +497,7 @@ app.put('/users/:id', auth, async (req, res) => {
     if (isNaN(id)) return res.status(400).json({ message: 'ID invalide' });
     // Vérifier que c'est admin ou l'utilisateur lui-même
     const uQ = await pool.query('SELECT role FROM users WHERE id=$1',[req.user.sub]);
-    const isAdm = ['admin','hr'].includes(uQ.rows[0]?.role);
+    const isAdm = ['admin','hr','rh'].includes(uQ.rows[0]?.role);
     if(!isAdm && String(req.user.sub)!==String(id)) return res.status(403).json({message:'Non autorisé'});
     // Protection : un admin ne peut pas se retirer son propre rôle admin ni se désactiver lui-même
     // (ça le bloquerait hors de Paramètres sans moyen simple de revenir en arrière).
@@ -713,14 +717,32 @@ const initTables = async () => {
 initTables().catch(console.error);
 
 // ─── FEED ROUTES ────────────────────────────────────────────
+// Garantit que les tables existent même si /init-db n'a jamais été appelée manuellement.
+pool.query(`CREATE TABLE IF NOT EXISTS feed_posts (
+  id SERIAL PRIMARY KEY, user_id INTEGER, user_name VARCHAR(100),
+  user_av VARCHAR(10), site VARCHAR(50), site_name VARCHAR(100),
+  text TEXT NOT NULL DEFAULT '', photo_url TEXT, gps_lat VARCHAR(20),
+  gps_lng VARCHAR(20), what3words VARCHAR(100),
+  type VARCHAR(20) DEFAULT 'text',
+  reactions JSONB DEFAULT '{}',
+  comments_count INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW()
+)`).catch(console.error);
+pool.query(`CREATE TABLE IF NOT EXISTS post_reactions (
+  id SERIAL PRIMARY KEY, post_id INTEGER, user_id INTEGER,
+  emoji VARCHAR(10), UNIQUE(post_id, user_id)
+)`).catch(console.error);
+pool.query("ALTER TABLE feed_posts ALTER COLUMN text DROP NOT NULL").catch(()=>{});
+pool.query("ALTER TABLE feed_posts ADD COLUMN IF NOT EXISTS reactions JSONB DEFAULT '{}'").catch(()=>{});
+pool.query("ALTER TABLE feed_posts ADD COLUMN IF NOT EXISTS comments_count INTEGER DEFAULT 0").catch(()=>{});
 app.get('/feed', auth, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT fp.*, u."firstName" || ' ' || u."lastName" as author_name
+      SELECT fp.*, u."firstName" || ' ' || u."lastName" as author_name,
+             (SELECT emoji FROM post_reactions pr WHERE pr.post_id = fp.id AND pr.user_id = $1) as my_reaction
       FROM feed_posts fp
       LEFT JOIN users u ON fp.user_id = u.id
       ORDER BY fp.created_at DESC LIMIT 50
-    `);
+    `, [req.user.sub]);
     res.json(result.rows);
   } catch (e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
 });
@@ -728,14 +750,16 @@ app.get('/feed', auth, async (req, res) => {
 app.post('/feed', auth, async (req, res) => {
   try {
     const { text, site, siteName, photoUrl, gpsLat, gpsLng, what3words, type } = req.body;
-    if (!text) return res.status(400).json({ message: 'Texte requis' });
+    // Une photo seule (sans légende) est un post valide — seul un post totalement
+    // vide (ni texte, ni photo) est refusé.
+    if (!text && !photoUrl) return res.status(400).json({ message: 'Texte ou photo requis' });
     const user = await pool.query('SELECT "firstName", "lastName" FROM users WHERE id = $1', [req.user.sub]);
     const u = user.rows[0];
     const av = (u.firstName[0] + u.lastName[0]).toUpperCase();
     const result = await pool.query(`
       INSERT INTO feed_posts (user_id, user_name, user_av, site, site_name, text, photo_url, gps_lat, gps_lng, what3words, type)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *
-    `, [req.user.sub, u.firstName+' '+u.lastName, av, site||'', siteName||'', text, photoUrl||null, gpsLat||null, gpsLng||null, what3words||null, type||'text']);
+    `, [req.user.sub, u.firstName+' '+u.lastName, av, site||'', siteName||'', text||'', photoUrl||null, gpsLat||null, gpsLng||null, what3words||null, type||'text']);
     res.status(201).json(result.rows[0]);
   } catch (e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
 });
@@ -744,13 +768,36 @@ app.post('/feed/:id/react', auth, async (req, res) => {
   try {
     const { emoji } = req.body;
     const { id } = req.params;
+    if (!emoji) return res.status(400).json({ message: 'emoji requis' });
     await pool.query(`
       INSERT INTO post_reactions (post_id, user_id, emoji) VALUES ($1,$2,$3)
       ON CONFLICT (post_id, user_id) DO UPDATE SET emoji = $3
     `, [id, req.user.sub, emoji]);
-    const count = await pool.query('SELECT COUNT(*) FROM post_reactions WHERE post_id = $1', [id]);
-    res.json({ reactions: parseInt(count.rows[0].count) });
-  } catch (e) { res.status(500).json({ message: 'Erreur serveur' }); }
+    // Recalculer la répartition réelle par emoji depuis post_reactions (source de vérité),
+    // puis la persister dans feed_posts.reactions pour que GET /feed la retourne directement.
+    const grouped = await pool.query(
+      'SELECT emoji, COUNT(*)::int as count FROM post_reactions WHERE post_id=$1 GROUP BY emoji', [id]
+    );
+    const breakdown = {};
+    grouped.rows.forEach(r => { breakdown[r.emoji] = r.count; });
+    await pool.query('UPDATE feed_posts SET reactions=$1 WHERE id=$2', [JSON.stringify(breakdown), id]);
+    res.json({ reactions: breakdown });
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
+// DELETE /feed/:id/react — retirer sa propre réaction (toggle off)
+app.delete('/feed/:id/react', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('DELETE FROM post_reactions WHERE post_id=$1 AND user_id=$2', [id, req.user.sub]);
+    const grouped = await pool.query(
+      'SELECT emoji, COUNT(*)::int as count FROM post_reactions WHERE post_id=$1 GROUP BY emoji', [id]
+    );
+    const breakdown = {};
+    grouped.rows.forEach(r => { breakdown[r.emoji] = r.count; });
+    await pool.query('UPDATE feed_posts SET reactions=$1 WHERE id=$2', [JSON.stringify(breakdown), id]);
+    res.json({ reactions: breakdown });
+  } catch (e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
 });
 
 // ─── COMMENTAIRES FIL ──────────────────────────────────────

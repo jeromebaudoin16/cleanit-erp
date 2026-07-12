@@ -791,12 +791,14 @@ const ScreenFil = ({user,navigate}) => {
             gpsLng: p.gps_lng,
             what3words: p.what3words,
             type: p.photo_url ? 'photo' : 'text',
-            reactions: p.reactions || {like:0,fire:0,clap:0},
+            reactions: p.reactions || {},
+            myReaction: p.my_reaction || null,
             comments: p.comments_count || 0,
             time: new Date(p.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
             date: new Date(p.created_at).toLocaleDateString('fr-FR'),
           }));
           setPosts(formatted);
+          setReactions(prev=>({...prev, ...Object.fromEntries(formatted.filter(p=>p.myReaction).map(p=>[p.id,p.myReaction]))}));
           FEED_POSTS.length = 0;
           FEED_POSTS.push(...formatted);
         }
@@ -826,10 +828,12 @@ const ScreenFil = ({user,navigate}) => {
             text: p.text, photoUrl: p.photo_url,
             gpsLat: p.gps_lat, gpsLng: p.gps_lng, what3words: p.what3words,
             type: p.photo_url?'photo':'text',
-            reactions: p.reactions||{like:0,fire:0,clap:0},
+            reactions: p.reactions||{},
+            myReaction: p.my_reaction || null,
             comments: p.comments_count||0,
             time: new Date(p.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
           }));
+          setReactions(prev=>({...prev, ...Object.fromEntries(formatted.filter(p=>p.myReaction).map(p=>[p.id,p.myReaction]))}));
           setPosts(formatted);
         }
       } catch(e) { console.log('Refresh offline'); }
@@ -1140,11 +1144,11 @@ const ScreenFil = ({user,navigate}) => {
                 <span style={{fontWeight:700}}>{post.userName}</span> {post.text}
               </div>
             )}
-            {post.reactions && (
+            {post.reactions && Object.keys(post.reactions).length>0 && (
               <div style={{display:'flex',alignItems:'center',gap:4,marginBottom:6}}>
-                <span style={{fontSize:12}}>{reactions[post.id]||''}{post.reactions.fire>0?'🔥':''}{post.reactions.clap>0?'👏':''}</span>
+                <span style={{fontSize:12}}>{Object.keys(post.reactions).filter(k=>post.reactions[k]>0).slice(0,3).join('')}</span>
                 <span style={{fontSize:11,fontWeight:600,color:C2.text}}>
-                  {(post.reactions.like||0)+(post.reactions.fire||0)+(post.reactions.clap||0)+(reactions[post.id]?1:0)} reactions
+                  {Object.values(post.reactions).reduce((a,b)=>a+(b||0),0)} reactions
                 </span>
               </div>
             )}
@@ -1170,7 +1174,18 @@ const ScreenFil = ({user,navigate}) => {
                       border:'0.5px solid '+C2.border,borderRadius:20,padding:'6px 8px',
                       display:'flex',gap:6,boxShadow:'0 4px 16px rgba(0,0,0,.15)',zIndex:10}}>
                       {EMOJIS.map(e=>(
-                        <button key={e} onClick={()=>{setReactions(r=>({...r,[post.id]:e}));setOpenEmoji(null);}}
+                        <button key={e} onClick={async ()=>{
+                          setReactions(r=>({...r,[post.id]:e}));
+                          setOpenEmoji(null);
+                          try {
+                            const tk = localStorage.getItem('token')||'';
+                            const r = await fetch('https://backend-one-kappa-96.vercel.app/feed/'+post.id+'/react',{
+                              method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+                              body:JSON.stringify({emoji:e})
+                            }).then(r=>r.json());
+                            if(r.reactions) setPosts(prev=>prev.map(p=>p.id===post.id?{...p,reactions:r.reactions}:p));
+                          } catch(err){}
+                        }}
                           style={{background:'none',border:'none',cursor:'pointer',fontSize:20,padding:2}}>
                           {e}
                         </button>

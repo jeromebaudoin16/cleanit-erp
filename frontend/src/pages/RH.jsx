@@ -368,11 +368,11 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast,setEditEmp=()
     : [{id:"info",l:"Informations personnelles"},{id:"job",l:"Emploi & Contrat"},{id:"payroll",l:"Paie & Rémunération"},{id:"docs",l:"Documents RH"},{id:"history",l:"Historique"},{id:"conge",l:"Congés"}];
 
   // Certifications state (pour techniciens)
-  const [certs, setCerts] = React.useState(Array.isArray(employee.certs)?employee.certs:[]);
-  const [newCert, setNewCert] = React.useState({name:'',issuer:'',date:'',expiry:'',fileUrl:null,fileName:''});
-  const [showAddCert, setShowAddCert] = React.useState(false);
-  const [savingCert, setSavingCert] = React.useState(false);
-  const certFileRef = React.useRef(null);
+  const [certs, setCerts] = useState(Array.isArray(employee.certs)?employee.certs:[]);
+  const [newCert, setNewCert] = useState({name:'',issuer:'',date:'',expiry:'',fileUrl:null,fileName:''});
+  const [showAddCert, setShowAddCert] = useState(false);
+  const [savingCert, setSavingCert] = useState(false);
+  const certFileRef = useRef(null);
   const BASE_RH = 'https://backend-one-kappa-96.vercel.app';
   const tok_rh = ()=>localStorage.getItem('token')||'';
 
