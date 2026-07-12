@@ -753,7 +753,19 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast,setEditEmp=()
               )}
 
               <div style={{display:'flex',flexDirection:'column',gap:10}}>
-                {certs.map(c=>(
+                {certs.map(c=>{
+                  // Détection automatique de l'expiration : rouge si dépassée,
+                  // orange si elle arrive dans moins de 30 jours, vert sinon.
+                  let expBadge=null;
+                  if(c.expiry){
+                    const today=new Date(); today.setHours(0,0,0,0);
+                    const expDate=new Date(c.expiry);
+                    const diffDays=Math.round((expDate-today)/86400000);
+                    if(diffDays<0) expBadge={txt:'⚠ Expirée depuis '+Math.abs(diffDays)+' j',bg:'#FEE2E2',c:'#CC0000'};
+                    else if(diffDays<=30) expBadge={txt:'⏳ Expire dans '+diffDays+' j',bg:'#FEF3C7',c:'#AD4E00'};
+                    else expBadge={txt:'✓ Valide',bg:'#E6F7EE',c:'#107E3E'};
+                  }
+                  return (
                   <div key={c.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:'white',borderRadius:9,border:'1px solid #E8E8E8',boxShadow:'0 1px 3px rgba(0,0,0,.04)'}}>
                     <div style={{width:38,height:38,borderRadius:9,background:'#E8F3FF',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:18}}>🏆</div>
                     <div style={{flex:1,minWidth:0}}>
@@ -764,6 +776,9 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast,setEditEmp=()
                         {c.expiry&&<span> · Expire: {c.expiry}</span>}
                       </div>
                     </div>
+                    {expBadge&&(
+                      <span style={{padding:'4px 9px',borderRadius:6,background:expBadge.bg,color:expBadge.c,fontSize:11,fontWeight:700,whiteSpace:'nowrap'}}>{expBadge.txt}</span>
+                    )}
                     {c.fileUrl&&(
                       <a href={c.fileUrl} target="_blank" rel="noreferrer"
                         style={{padding:'5px 10px',borderRadius:6,border:'1px solid #0070F2',color:'#0070F2',fontSize:12,fontWeight:600,textDecoration:'none'}}>
@@ -773,7 +788,8 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast,setEditEmp=()
                     <button onClick={()=>deleteCert(c.id)}
                       style={{background:'none',border:'none',cursor:'pointer',color:'#CC0000',fontSize:16,padding:'4px'}}>×</button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1615,14 +1631,48 @@ const Leaves = () => {
 // ===== PAIE MENSUELLE =====
 const Payroll = ({employees,bulletins,setBulletins,onToast}) => {
   const [selB,setSelB] = useState(null);
-  const [month,setMonth] = useState("3");
-  const [year,setYear] = useState("2024");
+  const [genLoading,setGenLoading] = useState(false);
+  const now0 = new Date();
+  const [month,setMonth] = useState(String(now0.getMonth()+1));
+  const [year,setYear] = useState(String(now0.getFullYear()));
+  const YEARS = [now0.getFullYear(), now0.getFullYear()-1, now0.getFullYear()-2].map(String);
+  const BASE_PAY = 'https://backend-one-kappa-96.vercel.app';
+  const tok_pay = () => localStorage.getItem('token')||'';
   const filtered = bulletins.filter(b=>b.month===Number(month)&&b.year===Number(year));
   const pending = filtered.filter(b=>b.status==="en_attente").length;
   const totalNet = filtered.reduce((s,b)=>s+b.net,0);
   const totalGross = filtered.reduce((s,b)=>s+b.gross,0);
-  const validate = id => { setBulletins(p=>p.map(b=>b.id===id?{...b,status:"paye",paidOn:new Date().toISOString().split("T")[0]}:b)); onToast("Bulletin validé avec succès","success"); };
-  const validateAll = () => { setBulletins(p=>p.map(b=>filtered.find(f=>f.id===b.id&&b.status==="en_attente")?{...b,status:"paye",paidOn:new Date().toISOString().split("T")[0]}:b)); onToast(`${pending} bulletin(s) validé(s)`,"success"); };
+  const validate = async id => {
+    setBulletins(p=>p.map(b=>b.id===id?{...b,status:"paye",paidOn:new Date().toISOString().split("T")[0]}:b));
+    try {
+      await fetch(BASE_PAY+'/bulletins/'+id,{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok_pay()},body:JSON.stringify({status:'paye'})});
+      onToast("Bulletin validé avec succès","success");
+    } catch(e){ onToast("Erreur de sauvegarde — réessaie","error"); }
+  };
+  const validateAll = async () => {
+    const y=Number(year), m=Number(month);
+    setBulletins(p=>p.map(b=>filtered.find(f=>f.id===b.id&&b.status==="en_attente")?{...b,status:"paye",paidOn:new Date().toISOString().split("T")[0]}:b));
+    try {
+      await fetch(BASE_PAY+'/bulletins/validate-all',{method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok_pay()},body:JSON.stringify({month:m,year:y})});
+      onToast(`${pending} bulletin(s) validé(s)`,"success");
+    } catch(e){ onToast("Erreur de sauvegarde — réessaie","error"); }
+  };
+  const genererLaPaie = async () => {
+    const m=Number(month), y=Number(year);
+    const eligibles = employees.filter(e=>e.salary>0);
+    if(eligibles.length===0){ onToast("Aucun employé avec un salaire configuré","error"); return; }
+    setGenLoading(true);
+    try {
+      const r = await fetch(BASE_PAY+'/bulletins/generate',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok_pay()},body:JSON.stringify({month:m,year:y})}).then(r=>r.json());
+      if(Array.isArray(r.created) && r.created.length>0){
+        setBulletins(prev=>[...prev,...r.created]);
+        onToast(r.created.length+" bulletin(s) généré(s) pour "+MOIS_S[m-1]+" "+y,"success");
+      } else {
+        onToast("Tous les bulletins de "+MOIS_S[m-1]+" "+y+" sont déjà générés.","error");
+      }
+    } catch(e){ onToast("Erreur lors de la génération — réessaie","error"); }
+    setGenLoading(false);
+  };
 
   return (
     <div className="rh-page-enter">
@@ -1631,11 +1681,11 @@ const Payroll = ({employees,bulletins,setBulletins,onToast}) => {
           {MOIS_S.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
         </select>
         <select value={year} onChange={e=>setYear(e.target.value)} className="rh-select" style={{width:"auto"}}>
-          {["2024","2023"].map(y=><option key={y} value={y}>{y}</option>)}
+          {YEARS.map(y=><option key={y} value={y}>{y}</option>)}
         </select>
         <div style={{marginLeft:"auto",display:"flex",gap:"8px"}}>
           {pending>0&&<Btn label={`Valider tous (${pending})`} icon="chk" variant="success" sm onClick={validateAll}/>}
-          <Btn label="Générer la paie" icon="add" variant="primary" sm/>
+          <Btn label={genLoading?"Génération...":"Générer la paie"} icon="add" variant="primary" sm onClick={genererLaPaie} disabled={genLoading}/>
         </div>
       </div>
 
@@ -1954,23 +2004,6 @@ export default function RH() {
                    JSON.parse(u.certifications) : []),
         }));
         if(techs.length>0) setExternals(techs);
-        // Générer bulletins depuis les vrais employés internes
-        if(emps.length>0) {
-          const now=new Date();
-          const mois=now.getMonth()+1; const annee=now.getFullYear();
-          const generatedBulletins=emps.filter(e=>e.salary>0).map((e,i)=>({
-            id:'B-'+e.id+'-'+annee+'-'+mois,
-            empId:e.id,
-            month:mois, year:annee,
-            base:Number(e.salary)||0,
-            bonus:0, benefits:0, deductions:0,
-            gross:Number(e.salary)||0,
-            net:Number(e.salary)||0,
-            status:'en_attente', paidOn:null,
-            payMethod:'Virement '+(e.bank||'—'),
-          }));
-          if(generatedBulletins.length>0) setBulletins(generatedBulletins);
-        }
       }).catch(()=>{});
   },[]);
   const [editForm, setEditForm] = useState({});
@@ -2056,6 +2089,14 @@ export default function RH() {
     } catch(e) { return false; }
   };
   const [bulletins,setBulletins] = useState(BULLETINS);
+  const [loadingBulletins,setLoadingBulletins] = useState(true);
+  useEffect(()=>{
+    const tk = localStorage.getItem('token');
+    fetch('https://backend-one-kappa-96.vercel.app/bulletins',{headers:{'Authorization':'Bearer '+tk}})
+      .then(r=>r.json()).then(d=>{ if(Array.isArray(d)) setBulletins(d); })
+      .catch(()=>{})
+      .finally(()=>setLoadingBulletins(false));
+  },[]);
   const [payExt,setPayExt] = useState(PAI_EXT);
   const [selEmp,setSelEmp] = useState(null);
   const [selType,setSelType] = useState(null);
@@ -2263,7 +2304,7 @@ export default function RH() {
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:"8px",paddingRight:"8px"}}>
           {tab==="employees"&&<Btn label="+ Nouvel employé" icon="add" variant="primary" sm onClick={()=>setShowAddEmp(true)}/>}
           {tab==="externals"&&<Btn label="+ Nouveau technicien" icon="add" variant="primary" sm onClick={()=>setShowAddExt(true)}/>}
-          {tab==="payroll"&&<Btn label="Générer bulletins" icon="doc" variant="primary" sm onClick={()=>{const m=new Date().getMonth()+1;const y=new Date().getFullYear();const pending=employees.filter(e=>!bulletins.find(b=>b.empId===e.id&&b.month===m&&b.year===y));if(pending.length===0){alert("Tous les bulletins du mois sont déjà générés.");}else{const newBulletins=pending.map((e,i)=>{const p=calcPaie(e.salary,0,0);return{id:"B"+(Date.now()+i),empId:e.id,month:m,year:y,base:e.salary,bonus:0,benefits:0,cnpsEmploye:p.cnpsEmploye,cnpsEmployeur:p.cnpsEmployeur,irpp:p.irpp,cac:p.cac,rav:p.rav,gross:p.brut,net:p.net,status:"en_attente",paidOn:null,payMethod:e.bank};});setBulletins(prev=>[...prev,...newBulletins]);onToast(pending.length+" bulletins générés avec calcul CNPS/IRPP","success");}}}/>}
+          {/* Bouton de génération déplacé dans le composant Payroll lui-même (persisté via API) */}
           {tab==="ext_payments"&&<Btn label="+ Nouveau paiement" icon="add" variant="primary" sm onClick={()=>onToast("Redirection vers Approvals — Demande de paiement","success")}/>}
         </div>
       </div>

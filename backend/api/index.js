@@ -200,7 +200,15 @@ app.post('/upload/photo', auth, upload.single('file'), async (req, res) => {
     if (!req.file) return res.status(400).json({ message: 'Aucun fichier reçu' });
     if (!process.env.BLOB_READ_WRITE_TOKEN) return res.status(500).json({ message: 'BLOB_READ_WRITE_TOKEN non configuré' });
     const { put } = require('@vercel/blob');
-    const filename = `photos/cleanitcam-${req.user.sub}-${Date.now()}.jpg`;
+    // Déduire la vraie extension du fichier (PDF, PNG, JPG...) au lieu de forcer .jpg —
+    // un justificatif PDF stocké avec une extension .jpg peut échouer à s'afficher/s'ouvrir
+    // correctement selon le navigateur, même si le Content-Type reste correct.
+    const extFromName = (req.file.originalname||'').split('.').pop();
+    const mimeExtMap = {'application/pdf':'pdf','image/png':'png','image/jpeg':'jpg','image/webp':'webp','image/gif':'gif'};
+    const ext = (extFromName && extFromName.length<=5 && /^[a-zA-Z0-9]+$/.test(extFromName))
+      ? extFromName.toLowerCase()
+      : (mimeExtMap[req.file.mimetype] || 'jpg');
+    const filename = `photos/cleanitcam-${req.user.sub}-${Date.now()}.${ext}`;
     const blob = await put(filename, req.file.buffer, {
       access: 'public', contentType: req.file.mimetype || 'image/jpeg', addRandomSuffix: false,
     });
@@ -3584,6 +3592,122 @@ app.get('/me', auth, async (req, res) => {
     if (!r.rows[0]) return res.status(404).json({ message: 'Utilisateur non trouvé' });
     res.json(r.rows[0]);
   } catch(e) { res.status(500).json({ message: e.message }); }
+});
+
+// ─── BULLETINS DE PAIE — persistance réelle (CNPS/IRPP camerounais) ──────────
+pool.query(`CREATE TABLE IF NOT EXISTS bulletins (
+  id SERIAL PRIMARY KEY,
+  emp_id INTEGER NOT NULL REFERENCES users(id),
+  month INTEGER NOT NULL,
+  year INTEGER NOT NULL,
+  base NUMERIC(12,2) DEFAULT 0,
+  bonus NUMERIC(12,2) DEFAULT 0,
+  benefits NUMERIC(12,2) DEFAULT 0,
+  cnps_employe NUMERIC(12,2) DEFAULT 0,
+  cnps_employeur NUMERIC(12,2) DEFAULT 0,
+  irpp NUMERIC(12,2) DEFAULT 0,
+  cac NUMERIC(12,2) DEFAULT 0,
+  rav NUMERIC(12,2) DEFAULT 0,
+  gross NUMERIC(12,2) DEFAULT 0,
+  net NUMERIC(12,2) DEFAULT 0,
+  status VARCHAR(20) DEFAULT 'en_attente',
+  paid_on TIMESTAMP,
+  pay_method VARCHAR(100),
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(emp_id, month, year)
+)`).catch(console.error);
+
+// Calcul de paie camerounais (OHADA/SYSCOHADA) — même logique que le frontend,
+// recalculée côté serveur pour ne jamais faire confiance à un montant envoyé par le client.
+function calcIRPP(salaireImposableAnnuel){
+  let irpp = 0;
+  if (salaireImposableAnnuel <= 2000000) irpp = salaireImposableAnnuel * 0.10;
+  else if (salaireImposableAnnuel <= 3000000) irpp = 200000 + (salaireImposableAnnuel - 2000000) * 0.15;
+  else if (salaireImposableAnnuel <= 5000000) irpp = 350000 + (salaireImposableAnnuel - 3000000) * 0.25;
+  else irpp = 850000 + (salaireImposableAnnuel - 5000000) * 0.35;
+  return Math.round(irpp / 12);
+}
+function calcPaie(salaireBase, primes=0, avantages=0){
+  const brut = Number(salaireBase||0) + Number(primes||0) + Number(avantages||0);
+  const cnpsPlafond = Math.min(brut, 750000);
+  const cnpsEmploye = Math.round(cnpsPlafond * 0.042);
+  const cnpsEmployeur = Math.round(cnpsPlafond * 0.07);
+  const imposable = brut - cnpsEmploye;
+  const irpp = calcIRPP(imposable * 12);
+  const cac = Math.round(irpp * 0.10);
+  const rav = 7500;
+  const totalDed = cnpsEmploye + irpp + cac + rav;
+  const net = brut - totalDed;
+  return { brut, cnpsEmploye, cnpsEmployeur, irpp, cac, rav, totalDed, net };
+}
+
+const bulletinRow = r => ({
+  id: r.id, empId: r.emp_id, month: r.month, year: r.year,
+  base: Number(r.base), bonus: Number(r.bonus), benefits: Number(r.benefits),
+  cnpsEmploye: Number(r.cnps_employe), cnpsEmployeur: Number(r.cnps_employeur),
+  irpp: Number(r.irpp), cac: Number(r.cac), rav: Number(r.rav),
+  gross: Number(r.gross), net: Number(r.net), status: r.status,
+  paidOn: r.paid_on, payMethod: r.pay_method,
+});
+
+// GET /bulletins — tous les bulletins existants
+app.get('/bulletins', auth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM bulletins ORDER BY year DESC, month DESC, emp_id ASC');
+    res.json(r.rows.map(bulletinRow));
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
+// POST /bulletins/generate — génère les bulletins manquants pour un mois/année donné,
+// pour tous les employés internes actifs ayant un salaire renseigné.
+app.post('/bulletins/generate', auth, async (req, res) => {
+  try {
+    const { month, year } = req.body;
+    if(!month || !year) return res.status(400).json({ message: 'month et year requis' });
+    const users = await pool.query(
+      `SELECT id, salary, bank FROM users WHERE "isActive" IS NOT FALSE AND role NOT IN ('technician','terrain') AND salary > 0`
+    );
+    const existing = await pool.query('SELECT emp_id FROM bulletins WHERE month=$1 AND year=$2', [month, year]);
+    const existingIds = new Set(existing.rows.map(r=>r.emp_id));
+    const pending = users.rows.filter(u=>!existingIds.has(u.id));
+    if(pending.length===0) return res.json({ created: [], message: 'Tous les bulletins de cette période existent déjà' });
+    const created = [];
+    for(const u of pending){
+      const p = calcPaie(u.salary, 0, 0);
+      const r = await pool.query(
+        `INSERT INTO bulletins (emp_id,month,year,base,bonus,benefits,cnps_employe,cnps_employeur,irpp,cac,rav,gross,net,status,pay_method)
+         VALUES ($1,$2,$3,$4,0,0,$5,$6,$7,$8,$9,$10,$11,'en_attente',$12) RETURNING *`,
+        [u.id, month, year, u.salary, p.cnpsEmploye, p.cnpsEmployeur, p.irpp, p.cac, p.rav, p.brut, p.net, 'Virement '+(u.bank||'—')]
+      );
+      created.push(bulletinRow(r.rows[0]));
+    }
+    res.status(201).json({ created });
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
+// PUT /bulletins/:id — valider un bulletin (passer en "payé")
+app.put('/bulletins/:id', auth, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const r = await pool.query(
+      `UPDATE bulletins SET status=$1, paid_on=CASE WHEN $1='paye' THEN NOW() ELSE paid_on END WHERE id=$2 RETURNING *`,
+      [status||'paye', req.params.id]
+    );
+    if(!r.rows[0]) return res.status(404).json({ message: 'Bulletin introuvable' });
+    res.json(bulletinRow(r.rows[0]));
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
+});
+
+// PUT /bulletins/validate-all — valider tous les bulletins en attente d'une période
+app.put('/bulletins/validate-all', auth, async (req, res) => {
+  try {
+    const { month, year } = req.body;
+    const r = await pool.query(
+      `UPDATE bulletins SET status='paye', paid_on=NOW() WHERE month=$1 AND year=$2 AND status='en_attente' RETURNING *`,
+      [month, year]
+    );
+    res.json({ updated: r.rows.map(bulletinRow) });
+  } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }
 });
 
 app.use((req, res) => res.status(404).json({ message: 'Route introuvable' }));

@@ -57,9 +57,7 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Sites from './pages/Sites';
-import Tickets from './pages/Tickets';
 import Techniciens from './pages/Techniciens';
-import Interventions from './pages/Interventions';
 import Planning from './pages/Planning';
 import Inventaire from './pages/Inventaire';
 import Parametres from './pages/Parametres';
@@ -78,9 +76,7 @@ import Contrats from './pages/Contrats';
 import Mediation from './pages/Mediation';
 import PurchaseOrders from './pages/PurchaseOrders';
 import BI from './pages/BI';
-import AI from './pages/AI';
 import Profile from './pages/Profile';
-import Evidence from './pages/Evidence';
 import Map from './pages/Map';
 import ChaCha from './pages/ChaCha';
 
@@ -122,9 +118,7 @@ export default function App() {
           <Route path="dashboard"       element={<Dashboard />} />
           <Route path="profile"         element={<Profile />} />
           <Route path="sites"           element={<Sites />} />
-          <Route path="tickets"         element={<Tickets />} />
           <Route path="technicians"     element={<Techniciens />} />
-          <Route path="interventions"   element={<Interventions />} />
           <Route path="planning"        element={<Planning />} />
           <Route path="inventaire"      element={<Inventaire />} />
           <Route path="parametres"      element={<Parametres />} />
@@ -159,10 +153,8 @@ export default function App() {
           <Route path="crm"             element={<CRM />} />
           <Route path="analytics"       element={<Analytics />} />
           <Route path="bi"              element={<BI />} />
-          <Route path="ai"              element={<AI />} />
           <Route path="map"             element={<Map />} />
           <Route path="terrain"         element={<Terrain />} />
-          <Route path="evidence"        element={<Evidence />} />
           <Route path="ocr"             element={<OCRScanner />} />
           <Route path="cleanitbooks" element={<CleanITBooks />} />
           <Route path="cleanitbooks/jobs" element={<CleanITBooks />} />
