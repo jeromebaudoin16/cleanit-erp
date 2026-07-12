@@ -1954,7 +1954,7 @@ export default function RH() {
         body: JSON.stringify({
           phone: tech.phone, speciality: tech.speciality,
           dailyRate: tech.dailyRate, bank: tech.bank, rib: tech.rib,
-          certifications: JSON.stringify(tech.certs||[]),
+          certifications: tech.certs||[],
         })
       });
       const data = await r.json();

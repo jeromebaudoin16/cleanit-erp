@@ -22,8 +22,10 @@ function PhotoUpload({phaseId,execPhaseId,isCat,photos=[],onDone}){
     const url=BASE+(isCat?'/project-phases/'+phaseId+'/photos':'/project-execution-phases/'+execPhaseId+'/photos');
     const added=[];
     for(const f of Array.from(files)){
-      if(!f.type.startsWith('image/')){setErr('JPG/PNG/WebP uniquement');continue;}
-      if(f.size>8*1024*1024){setErr('Max 8 Mo');continue;}
+      const isImg=f.type.startsWith('image/');
+      const isPdf=f.type==='application/pdf';
+      if(!isImg&&!isPdf){setErr('JPG, PNG, WebP ou PDF uniquement');continue;}
+      if(f.size>20*1024*1024){setErr('Fichier trop lourd (max 20 Mo)');continue;}
       const fd=new FormData();fd.append('file',f);if(isCat)fd.append('caption',f.name.replace(/\.[^.]+$/,''));
       try{
         const r=await fetch(url,{method:'POST',headers:hdr(),body:fd});
@@ -47,8 +49,15 @@ function PhotoUpload({phaseId,execPhaseId,isCat,photos=[],onDone}){
       {photos.length>0&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(88px,1fr))',gap:8,marginBottom:10}}>
         {photos.map(p=>(
           <div key={p.id} style={{position:'relative',borderRadius:8,overflow:'hidden',aspectRatio:'1',background:'#F1F5F9'}}>
-            <img src={p.url||p.photo_url} alt="" onClick={()=>window.open(p.url||p.photo_url,'_blank')}
-              style={{width:'100%',height:'100%',objectFit:'cover',cursor:'pointer',display:'block'}}/>
+            {(p.url||p.photo_url||'').toLowerCase().includes('.pdf') || p.type==='pdf'
+              ? <div onClick={()=>window.open(p.url||p.photo_url,'_blank')}
+                  style={{width:'100%',height:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',cursor:'pointer',background:'#FEF3C7',gap:4}}>
+                  <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth={1.8} strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+                  <span style={{fontSize:8,fontWeight:700,color:'#D97706'}}>PDF</span>
+                </div>
+              : <img src={p.url||p.photo_url} alt="" onClick={()=>window.open(p.url||p.photo_url,'_blank')}
+                  style={{width:'100%',height:'100%',objectFit:'cover',cursor:'pointer',display:'block'}}/>
+            }
             <button onClick={e=>{e.stopPropagation();del(p.id);}}
               style={{position:'absolute',top:3,right:3,background:'rgba(0,0,0,.6)',border:'none',borderRadius:4,color:'white',width:20,height:20,cursor:'pointer',fontSize:10,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
           </div>
@@ -62,11 +71,11 @@ function PhotoUpload({phaseId,execPhaseId,isCat,photos=[],onDone}){
             :<div>
               <svg style={{display:'block',margin:'0 auto 6px'}} width={20} height={20} viewBox="0 0 24 24" fill="none" stroke={C.blue} strokeWidth={2} strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
               <div style={{fontSize:13,fontWeight:700,color:C.blue}}>Ajouter des photos</div>
-              <div style={{fontSize:10.5,color:C.gray,marginTop:2}}>JPG · PNG · WebP · max 8 Mo</div>
+              <div style={{fontSize:10.5,color:C.gray,marginTop:2}}>JPG · PNG · WebP · PDF · max 20 Mo</div>
             </div>
           }
         </div>
-        {!busy&&<input type="file" multiple accept="image/*" onChange={e=>{upload(e.target.files);e.target.value='';}}
+        {!busy&&<input type="file" multiple accept="image/*,application/pdf" onChange={e=>{upload(e.target.files);e.target.value='';}}
           style={{position:'absolute',inset:0,width:'100%',height:'100%',opacity:0,cursor:'pointer'}}/>}
       </div>
       {err&&<div style={{marginTop:6,padding:'7px 10px',background:'#FEF2F2',borderRadius:7,color:C.red,fontSize:12}}>⚠ {err}</div>}
