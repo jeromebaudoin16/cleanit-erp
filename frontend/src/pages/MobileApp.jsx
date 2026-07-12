@@ -715,6 +715,36 @@ const ScreenFil = ({user,navigate}) => {
   const [viewPhoto,setViewPhoto] = useState(null);
   const [refreshing,setRefreshing] = useState(false);
   const [pullY,setPullY] = useState(0);
+  const [showCompose,setShowCompose] = useState(false);
+  const [composeText,setComposeText] = useState('');
+  const [composePhoto,setComposePhoto] = useState(null);
+  const [composePhotoUrl,setComposePhotoUrl] = useState(null);
+  const [posting,setPosting] = useState(false);
+  const composeFileRef = React.useRef(null);
+  const BASE_FIL = 'https://backend-one-kappa-96.vercel.app';
+
+  const publishPost = async () => {
+    if(!composeText.trim()&&!composePhoto) return;
+    setPosting(true);
+    const tk = localStorage.getItem('token')||'';
+    let photoUrl = null;
+    try {
+      if(composePhoto) {
+        const fd=new FormData(); fd.append('file',composePhoto);
+        const up=await fetch(BASE_FIL+'/upload/photo',{method:'POST',headers:{'Authorization':'Bearer '+tk},body:fd});
+        const ud=await up.json(); photoUrl=ud.url||null;
+      }
+      await fetch(BASE_FIL+'/feed',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
+        body:JSON.stringify({text:composeText.trim()||null,photo_url:photoUrl,type:composePhoto?'photo':'text'})
+      });
+      setShowCompose(false); setComposeText(''); setComposePhoto(null); setComposePhotoUrl(null);
+      // Rafraîchir le fil
+      setTimeout(()=>window.location.reload(),300);
+    } catch(e){ alert('Erreur: '+e.message); }
+    setPosting(false);
+  };
   const [posts, setPosts] = useState(FEED_POSTS);
   const [loadingFeed, setLoadingFeed] = useState(false);
   const [terrainUsers, setTerrainUsers] = useState([]);
@@ -874,7 +904,67 @@ const ScreenFil = ({user,navigate}) => {
     </div>
   );
 
+  // ── Instagram-style compose modal ────────────────────────────────────
+  const ComposeModal = showCompose ? (
+    <div style={{position:'fixed',inset:0,zIndex:9999,background:'rgba(0,0,0,.6)',display:'flex',flexDirection:'column',justifyContent:'flex-end'}}>
+      <div style={{background:C2.card,borderRadius:'20px 20px 0 0',padding:'0 0 24px'}}>
+        {/* Header */}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 18px',borderBottom:'1px solid '+C2.border}}>
+          <button onClick={()=>{setShowCompose(false);setComposeText('');setComposePhoto(null);setComposePhotoUrl(null);}}
+            style={{background:'none',border:'none',fontSize:15,color:C2.sub,cursor:'pointer',fontFamily:'inherit'}}>Annuler</button>
+          <span style={{fontSize:15,fontWeight:700,color:C2.text}}>Nouvelle publication</span>
+          <button onClick={publishPost} disabled={posting||(!composeText.trim()&&!composePhoto)}
+            style={{padding:'7px 16px',borderRadius:20,border:'none',
+              background:(!composeText.trim()&&!composePhoto)||posting?C2.border:'linear-gradient(135deg,#667eea,#764ba2)',
+              color:(!composeText.trim()&&!composePhoto)||posting?C2.sub:'white',
+              cursor:(!composeText.trim()&&!composePhoto)||posting?'default':'pointer',
+              fontFamily:'inherit',fontSize:14,fontWeight:700}}>
+            {posting?'Envoi...':'Publier'}
+          </button>
+        </div>
+
+        {/* Zone saisie */}
+        <div style={{padding:'16px 18px',display:'flex',gap:12}}>
+          <div style={{width:40,height:40,borderRadius:'50%',background:'linear-gradient(135deg,#667eea,#764ba2)',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:700,color:'white'}}>
+            {user?.firstName?.[0]?.toUpperCase()||'U'}
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,fontWeight:700,color:C2.text,marginBottom:8}}>{user?.firstName} {user?.lastName}</div>
+            <textarea value={composeText} onChange={e=>setComposeText(e.target.value)}
+              placeholder="Partagez une info terrain, un avancement, une alerte..."
+              rows={4} style={{width:'100%',background:'none',border:'none',outline:'none',fontSize:15,color:C2.text,fontFamily:'inherit',resize:'none',lineHeight:1.5,boxSizing:'border-box'}}/>
+          </div>
+        </div>
+
+        {/* Aperçu photo */}
+        {composePhotoUrl&&(
+          <div style={{margin:'0 18px 12px',position:'relative',borderRadius:12,overflow:'hidden'}}>
+            <img src={composePhotoUrl} alt="" style={{width:'100%',maxHeight:200,objectFit:'cover',display:'block'}}/>
+            <button onClick={()=>{setComposePhoto(null);setComposePhotoUrl(null);}}
+              style={{position:'absolute',top:8,right:8,background:'rgba(0,0,0,.6)',border:'none',borderRadius:'50%',color:'white',width:28,height:28,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>
+          </div>
+        )}
+
+        {/* Barre d'actions */}
+        <div style={{display:'flex',gap:16,padding:'12px 18px',borderTop:'1px solid '+C2.border}}>
+          <input ref={composeFileRef} type="file" accept="image/*,video/*" style={{display:'none'}}
+            onChange={e=>{const f=e.target.files?.[0];if(f){setComposePhoto(f);setComposePhotoUrl(URL.createObjectURL(f));}e.target.value='';}}/>
+          <button onClick={()=>composeFileRef.current?.click()}
+            style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'pointer',color:C2.primary,fontFamily:'inherit',fontSize:13,fontWeight:600,padding:'6px 12px',borderRadius:8,border:'1px solid '+C2.primary}}>
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            Photo / Vidéo
+          </button>
+          <button onClick={()=>{}} style={{display:'flex',alignItems:'center',gap:6,background:'none',border:'none',cursor:'pointer',color:C2.sub,fontFamily:'inherit',fontSize:13,fontWeight:600,padding:'6px 12px',borderRadius:8,border:'1px solid '+C2.border}}>
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Localisation
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   return (
+    <>{ComposeModal}
     <div style={{flex:1,overflowY:'auto',background:C2.bg,paddingBottom:80}}
       onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
 
@@ -933,6 +1023,10 @@ const ScreenFil = ({user,navigate}) => {
               <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
               <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
             </svg>
+          </div>
+          {/* Bouton publier style Instagram */}
+          <div onClick={()=>setShowCompose(true)} style={{width:34,height:34,borderRadius:'50%',background:'linear-gradient(135deg,#667eea,#764ba2)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',boxShadow:'0 2px 8px rgba(102,126,234,.4)'}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </div>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={C2.text}
             strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{cursor:'pointer'}}>
@@ -1107,6 +1201,7 @@ const ScreenFil = ({user,navigate}) => {
         </div>
       ))}
     </div>
+    </>
   );
 };
 

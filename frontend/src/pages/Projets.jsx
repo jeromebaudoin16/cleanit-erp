@@ -126,7 +126,12 @@ function TypeDetail({type,onBack,onAttach,onSelectSite}){
   const [tab,setTab]=useState('phases');
   const [loading,setLoading]=useState(true);
   const [expanded,setExpanded]=useState(null);
+  const [showAddPhase,setShowAddPhase]=useState(false);
+  const [editPhase,setEditPhase]=useState(null);
+  const [newPhase,setNewPhase]=useState({title:'',description:'',is_client_scope:false});
   const col=type.color||C.teal;
+  const BASE='https://backend-one-kappa-96.vercel.app';
+  const tok=()=>localStorage.getItem('token')||'';
 
   useEffect(()=>{
     setLoading(true);
@@ -136,6 +141,41 @@ function TypeDetail({type,onBack,onAttach,onSelectSite}){
   },[type.id]);
 
   const updPh=(pid,np)=>setPhases(p=>p.map(x=>x.id===pid?{...x,photos:np}:x));
+
+  const addPhase=async()=>{
+    if(!newPhase.title.trim())return;
+    try{
+      const r=await fetch(BASE+'/project-catalogue/'+type.id+'/phases',{
+        method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok()},
+        body:JSON.stringify({...newPhase,order_index:phases.length})
+      });
+      const d=await r.json();
+      if(d.id){setPhases(p=>[...p,{...d,photos:[]}]);setShowAddPhase(false);setNewPhase({title:'',description:'',is_client_scope:false});}
+    }catch(e){alert('Erreur: '+e.message);}
+  };
+
+  const saveEditPhase=async()=>{
+    if(!editPhase||!editPhase.title.trim())return;
+    try{
+      const r=await fetch(BASE+'/project-phases/'+editPhase.id,{
+        method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok()},
+        body:JSON.stringify({title:editPhase.title,description:editPhase.description,is_client_scope:editPhase.is_client_scope})
+      });
+      const d=await r.json();
+      if(d.id){setPhases(p=>p.map(x=>x.id===d.id?{...x,...d}:x));setEditPhase(null);}
+    }catch(e){alert('Erreur: '+e.message);}
+  };
+
+  const deletePhase=async(phId)=>{
+    if(!window.confirm('Supprimer cette phase ? Cette action est irréversible.'))return;
+    try{
+      await fetch(BASE+'/project-phases/'+phId,{method:'DELETE',headers:{'Authorization':'Bearer '+tok()}});
+      setPhases(p=>p.filter(x=>x.id!==phId));
+      if(expanded===phId)setExpanded(null);
+    }catch(e){alert('Erreur: '+e.message);}
+  };
+
+  const inp={width:'100%',padding:'8px 12px',border:'1px solid '+C.border,borderRadius:8,fontSize:13,fontFamily:'inherit',outline:'none',boxSizing:'border-box'};
 
   return(
     <div>
@@ -148,7 +188,7 @@ function TypeDetail({type,onBack,onAttach,onSelectSite}){
           </div>
           <div style={{fontSize:12.5,color:C.gray,marginTop:2}}>{type.category}</div>
         </div>
-        <button onClick={onAttach} style={{padding:'7px 16px',borderRadius:8,border:'none',background:C.navy,color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:600}}>+ Rattacher un site</button>
+        <button onClick={onAttach} style={{padding:'7px 14px',borderRadius:8,border:'none',background:C.navy,color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:600}}>+ Rattacher un site</button>
       </div>
 
       <div style={{...card,marginBottom:14,borderLeft:'3px solid '+col,padding:'14px 18px'}}>
@@ -167,38 +207,107 @@ function TypeDetail({type,onBack,onAttach,onSelectSite}){
       {loading&&<div style={{textAlign:'center',color:C.gray,padding:32}}>Chargement...</div>}
 
       {!loading&&tab==='phases'&&(
-        <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          {phases.map((ph,idx)=>(
-            <div key={ph.id} style={{...card,padding:0,overflow:'hidden',borderLeft:'3px solid '+(ph.is_client_scope?C.gold:col)}}>
-              <div onClick={()=>setExpanded(expanded===ph.id?null:ph.id)}
-                style={{display:'flex',alignItems:'flex-start',gap:12,padding:'14px 18px',cursor:'pointer'}}>
-                <div style={{width:32,height:32,borderRadius:'50%',flexShrink:0,background:(ph.is_client_scope?C.gold:col)+'18',border:'2px solid '+(ph.is_client_scope?C.gold:col),display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:ph.is_client_scope?C.gold:col}}>
-                  {idx+1}
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                    <span style={{fontSize:14,fontWeight:700,color:C.navy}}>{ph.title}</span>
-                    {ph.is_client_scope&&<span style={{fontSize:10.5,fontWeight:700,padding:'2px 8px',borderRadius:20,background:C.gold+'18',color:C.gold}}>Hors périmètre CleanIT</span>}
-                    {ph.photos?.length>0&&<span style={{fontSize:10.5,color:C.blue}}>📷 {ph.photos.length}</span>}
-                  </div>
-                  <div style={{fontSize:12.5,color:C.gray,marginTop:3,lineHeight:1.55}}>{ph.description}</div>
-                </div>
-                <span style={{color:C.gray,fontSize:16,flexShrink:0}}>{expanded===ph.id?'▲':'▼'}</span>
+        <div>
+          {/* Bouton ajouter phase */}
+          <div style={{display:'flex',justifyContent:'flex-end',marginBottom:12}}>
+            <button onClick={()=>setShowAddPhase(true)}
+              style={{padding:'8px 16px',borderRadius:8,border:'none',background:col,color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:600,display:'flex',alignItems:'center',gap:6}}>
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Ajouter une phase
+            </button>
+          </div>
+
+          {/* Modal ajout phase */}
+          {showAddPhase&&(
+            <div style={{...card,padding:'18px 20px',marginBottom:16,border:'2px solid '+col}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.navy,marginBottom:12}}>Nouvelle phase</div>
+              <div style={{marginBottom:10}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.gray,display:'block',marginBottom:4,textTransform:'uppercase'}}>Titre *</label>
+                <input value={newPhase.title} onChange={e=>setNewPhase(p=>({...p,title:e.target.value}))} placeholder="Ex: Installation équipements" style={inp}/>
               </div>
-              {expanded===ph.id&&(
-                <div style={{padding:'0 18px 16px',borderTop:'1px solid '+C.border}}>
-                  <div style={{fontSize:11,fontWeight:600,color:C.gray,marginTop:12,marginBottom:4,textTransform:'uppercase',letterSpacing:'.05em'}}>Photos de la phase</div>
-                  <PhotoUpload phaseId={ph.id} isCat={true} photos={ph.photos||[]} onDone={np=>updPh(ph.id,np)}/>
-                </div>
-              )}
+              <div style={{marginBottom:10}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.gray,display:'block',marginBottom:4,textTransform:'uppercase'}}>Description</label>
+                <textarea value={newPhase.description} onChange={e=>setNewPhase(p=>({...p,description:e.target.value}))} placeholder="Décrivez les actions de cette phase..." rows={3}
+                  style={{...inp,resize:'vertical'}}/>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
+                <input type="checkbox" id="cscope" checked={newPhase.is_client_scope} onChange={e=>setNewPhase(p=>({...p,is_client_scope:e.target.checked}))}/>
+                <label htmlFor="cscope" style={{fontSize:13,color:C.gray,cursor:'pointer'}}>Phase hors périmètre CleanIT (responsabilité client)</label>
+              </div>
+              <div style={{display:'flex',gap:10}}>
+                <button onClick={addPhase} style={{padding:'8px 18px',borderRadius:8,border:'none',background:col,color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:600}}>✓ Ajouter</button>
+                <button onClick={()=>{setShowAddPhase(false);setNewPhase({title:'',description:'',is_client_scope:false});}} style={{padding:'8px 14px',borderRadius:8,border:'1px solid '+C.border,background:'none',cursor:'pointer',fontFamily:'inherit',fontSize:13,color:C.gray}}>Annuler</button>
+              </div>
             </div>
-          ))}
+          )}
+
+          {/* Modal edit phase */}
+          {editPhase&&(
+            <div style={{...card,padding:'18px 20px',marginBottom:16,border:'2px solid '+C.blue}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.navy,marginBottom:12}}>Modifier la phase</div>
+              <div style={{marginBottom:10}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.gray,display:'block',marginBottom:4,textTransform:'uppercase'}}>Titre *</label>
+                <input value={editPhase.title} onChange={e=>setEditPhase(p=>({...p,title:e.target.value}))} style={inp}/>
+              </div>
+              <div style={{marginBottom:10}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.gray,display:'block',marginBottom:4,textTransform:'uppercase'}}>Description</label>
+                <textarea value={editPhase.description} onChange={e=>setEditPhase(p=>({...p,description:e.target.value}))} rows={3} style={{...inp,resize:'vertical'}}/>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
+                <input type="checkbox" id="escope" checked={editPhase.is_client_scope} onChange={e=>setEditPhase(p=>({...p,is_client_scope:e.target.checked}))}/>
+                <label htmlFor="escope" style={{fontSize:13,color:C.gray,cursor:'pointer'}}>Phase hors périmètre CleanIT</label>
+              </div>
+              <div style={{display:'flex',gap:10}}>
+                <button onClick={saveEditPhase} style={{padding:'8px 18px',borderRadius:8,border:'none',background:C.blue,color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:600}}>✓ Sauvegarder</button>
+                <button onClick={()=>setEditPhase(null)} style={{padding:'8px 14px',borderRadius:8,border:'1px solid '+C.border,background:'none',cursor:'pointer',fontFamily:'inherit',fontSize:13,color:C.gray}}>Annuler</button>
+              </div>
+            </div>
+          )}
+
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            {phases.map((ph,idx)=>(
+              <div key={ph.id} style={{...card,padding:0,overflow:'hidden',borderLeft:'3px solid '+(ph.is_client_scope?C.gold:col)}}>
+                <div style={{display:'flex',alignItems:'flex-start',gap:12,padding:'14px 18px'}}>
+                  <div onClick={()=>setExpanded(expanded===ph.id?null:ph.id)} style={{width:32,height:32,borderRadius:'50%',flexShrink:0,background:(ph.is_client_scope?C.gold:col)+'18',border:'2px solid '+(ph.is_client_scope?C.gold:col),display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:ph.is_client_scope?C.gold:col,cursor:'pointer'}}>
+                    {idx+1}
+                  </div>
+                  <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={()=>setExpanded(expanded===ph.id?null:ph.id)}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                      <span style={{fontSize:14,fontWeight:700,color:C.navy}}>{ph.title}</span>
+                      {ph.is_client_scope&&<span style={{fontSize:10.5,fontWeight:700,padding:'2px 8px',borderRadius:20,background:C.gold+'18',color:C.gold}}>Hors périmètre</span>}
+                      {ph.photos?.length>0&&<span style={{fontSize:10.5,color:C.blue}}>📷 {ph.photos.length}</span>}
+                    </div>
+                    <div style={{fontSize:12.5,color:C.gray,marginTop:3,lineHeight:1.55}}>{ph.description}</div>
+                  </div>
+                  {/* Actions modifier/supprimer */}
+                  <div style={{display:'flex',gap:6,flexShrink:0}}>
+                    <button onClick={e=>{e.stopPropagation();setEditPhase({...ph});setShowAddPhase(false);}}
+                      style={{padding:'5px 10px',borderRadius:7,border:'1px solid '+C.border,background:C.white,cursor:'pointer',fontSize:11,fontWeight:600,color:C.navy,fontFamily:'inherit'}}>✏️ Modifier</button>
+                    <button onClick={e=>{e.stopPropagation();deletePhase(ph.id);}}
+                      style={{padding:'5px 10px',borderRadius:7,border:'1px solid #FEE2E2',background:'#FEF2F2',cursor:'pointer',fontSize:11,fontWeight:600,color:C.red,fontFamily:'inherit'}}>🗑 Supprimer</button>
+                    <span onClick={()=>setExpanded(expanded===ph.id?null:ph.id)} style={{color:C.gray,fontSize:16,cursor:'pointer',padding:'5px 6px'}}>{expanded===ph.id?'▲':'▼'}</span>
+                  </div>
+                </div>
+                {expanded===ph.id&&(
+                  <div style={{padding:'0 18px 16px',borderTop:'1px solid '+C.border}}>
+                    <div style={{fontSize:11,fontWeight:600,color:C.gray,marginTop:12,marginBottom:4,textTransform:'uppercase',letterSpacing:'.05em'}}>Photos & Documents</div>
+                    <PhotoUpload phaseId={ph.id} isCat={true} photos={ph.photos||[]} onDone={np=>updPh(ph.id,np)}/>
+                  </div>
+                )}
+              </div>
+            ))}
+            {phases.length===0&&!showAddPhase&&(
+              <div style={{...card,textAlign:'center',padding:40,color:C.gray}}>
+                Aucune phase définie. Cliquez sur "Ajouter une phase".
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {!loading&&tab==='sites'&&(
         <div>
-          {!sites.length?<div style={{...card,textAlign:'center',padding:40,color:C.gray}}>Aucun site rattaché. Utilisez "Rattacher un site".</div>
+          {!sites.length?<div style={{...card,textAlign:'center',padding:40,color:C.gray}}>Aucun site rattaché.</div>
           :<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(270px,1fr))',gap:12}}>
             {sites.map(s=>{const pct=s.total_phases?Math.round(((s.done_phases||0)/s.total_phases)*100):0;return(
               <div key={s.id} style={{...card,cursor:'pointer',transition:'all .18s',padding:'16px 18px'}}
@@ -221,8 +330,6 @@ function TypeDetail({type,onBack,onAttach,onSelectSite}){
     </div>
   );
 }
-
-// ── AttachSiteForm ──────────────────────────────────────────────────────────
 function AttachSiteForm({type,onBack,onSuccess}){
   const [sites,setSites]=useState([]);
   const [form,setForm]=useState({site_code:'',site_name:'',client:'',bc_reference:'',region:'',start_date:''});

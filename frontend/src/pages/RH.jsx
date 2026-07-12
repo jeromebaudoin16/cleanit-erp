@@ -407,7 +407,7 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast,setEditEmp=()
   const [tab,setTab] = useState("info");
   const [photoError,setPhotoError] = useState(false);
   const ac = getAC(employee.first+employee.last);
-  const photo = PHOTOS[employee.id];
+  const photo = employee?.photo || PHOTOS[employee?.id] || null;
   const seniority = employee.hireDate ? Math.floor((Date.now()-new Date(employee.hireDate))/(365.25*24*3600*1000)) : 0;
   const empBulletins = bulletins.filter(b=>b.empId===employee.id);
   const deptClass = DEPT_CLASSES[employee.department]||"dept-default";
@@ -741,7 +741,7 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast,setEditEmp=()
 // ===== EMPLOYEE CARD VISUELLE =====
 const EmpCard = ({employee,onClick,delay=0}) => {
   const ac = getAC(employee.first+employee.last);
-  const photo = PHOTOS[employee.id];
+  const photo = employee?.photo || PHOTOS[employee?.id] || null;
   const [photoErr,setPhotoErr] = useState(false);
   const deptClass = DEPT_CLASSES[employee.department||""]||"dept-default";
   const seniority = employee.hireDate ? Math.floor((Date.now()-new Date(employee.hireDate))/(365.25*24*3600*1000)) : 0;
@@ -809,7 +809,7 @@ const EmpCard = ({employee,onClick,delay=0}) => {
 const BulletinModal = ({selB, onClose, onValidate}) => {
   const [pErr, setPErr] = useState(false);
   const e = EMPLOYES.find(emp => emp.id === selB.empId);
-  const photo = PHOTOS[selB.empId];
+  const photo = employees.find(e=>e.id===selB.empId||String(e.id)===selB.empId)?.photo || PHOTOS[selB.empId] || null;
   const ac = getAC((e?.first||"") + (e?.last||""));
 
   return (
@@ -1093,7 +1093,7 @@ ${selB.bonus>0?`<tr><td>Primes &amp; Bonus</td><td>—</td><td>—</td><td style
 // ===== MINI PHOTO — composants séparés pour éviter useState dans map =====
 const MiniPhoto = ({empId, first="", last="", size=32}) => {
   const [err, setErr] = useState(false);
-  const photo = PHOTOS[empId];
+  const photo = employees.find(e=>String(e.id)===String(empId))?.photo || PHOTOS[empId] || null;
   const ac = getAC(first+last);
   return (
     <div style={{width:size,height:size,borderRadius:"50%",overflow:"hidden",flexShrink:0,border:"2px solid white",boxShadow:"0 0 0 1.5px #D9D9D9"}}>
@@ -1844,11 +1844,12 @@ export default function RH() {
 
   // Charger les vrais employés depuis API
   useEffect(()=>{
-    fetch('https://backend-cleanit-erp.vercel.app/users',{headers:{'Authorization':'Bearer '+token}})
+    fetch('https://backend-one-kappa-96.vercel.app/users',{headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(users=>{
         if(!Array.isArray(users)) return;
         const emps = users.filter(u=>!['technician','terrain'].includes(u.role)).map(u=>({
           id: u.id, first: u.firstName||'', last: u.lastName||'',
+          photo: u.avatar_url||null,
           email: u.email||'', phone: u.phone||'', role: u.role||'',
           department: u.department||'', hireDate: u.hire_date||u.hireDate||'',
           birthDate: u.birth_date||u.birthDate||'', birthPlace: u.birth_place||u.birthPlace||'',
