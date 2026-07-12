@@ -231,7 +231,7 @@ export default function MapPage() {
   const loadRealData = useCallback(() => {
     const token = localStorage.getItem('token');
     const h = {'Authorization':'Bearer '+token};
-    const base = 'https://backend-cleanit-erp.vercel.app';
+    const base = 'https://backend-one-kappa-96.vercel.app';
     Promise.all([
       fetch(base+'/sites',{headers:h}).then(r=>r.json()).catch(()=>[]),
       fetch(base+'/location/all',{headers:h}).then(r=>r.json()).catch(()=>[]),

@@ -525,7 +525,12 @@ app.put('/users/:id', auth, async (req, res) => {
       if(req.body[f]!==undefined){
         updates.push(`${col} = $${idx++}`);
         // module_access arrive en tableau JS (ou null pour "revenir aux permissions par défaut du rôle") — il faut le sérialiser pour une colonne JSONB
-        values.push(f==='moduleAccess' ? (req.body[f]===null ? null : JSON.stringify(req.body[f])) : req.body[f]);
+        const jsonbFields = ['moduleAccess','certifications'];
+        if(jsonbFields.includes(f)) {
+          values.push(req.body[f]===null ? null : (typeof req.body[f]==='string' ? req.body[f] : JSON.stringify(req.body[f])));
+        } else {
+          values.push(req.body[f]);
+        }
       }
     }
     if(req.body.password && isAdm){
