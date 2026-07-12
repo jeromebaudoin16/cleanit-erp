@@ -4828,7 +4828,7 @@ const PageBanking = () => {
   const token = localStorage.getItem('token');
 
   useEffect(() => {
-    fetch('https://backend-cleanit-erp.vercel.app/api/cleanitbooks/journal',
+    fetch('https://backend-one-kappa-96.vercel.app/api/cleanitbooks/journal',
       {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json())
       .then(data => {
@@ -5815,7 +5815,7 @@ const PageJournal = () => {
   const [sel,     setSel]     = useState(null);
 
   useEffect(()=>{
-    fetch("https://backend-cleanit-erp.vercel.app/api/cleanitbooks/journal",{headers:{"Authorization":"Bearer "+localStorage.getItem("token")}}).then(r=>r.json()).then(d=>{ setEntries(Array.isArray(d)?d:[]); setLoading(false); }).catch(()=>setLoading(false));
+    fetch("https://backend-one-kappa-96.vercel.app/api/cleanitbooks/journal",{headers:{"Authorization":"Bearer "+localStorage.getItem("token")}}).then(r=>r.json()).then(d=>{ setEntries(Array.isArray(d)?d:[]); setLoading(false); }).catch(()=>setLoading(false));
   },[]);
 
   const JOURNALS = ['VENTES','ACHATS','BANQUE','CAISSE','OD'];
@@ -6464,7 +6464,7 @@ const PageReconciliation = ({invoices=[], bills=[]}) => {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    fetch('https://backend-cleanit-erp.vercel.app/api/cleanitbooks/journal', {headers:{'Authorization':'Bearer '+token}})
+    fetch('https://backend-one-kappa-96.vercel.app/api/cleanitbooks/journal', {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json())
       .then(data => {
         if(Array.isArray(data)) {
@@ -6643,7 +6643,7 @@ const PageImportCSV = () => {
           reference: row[mapping.ref||""]||"",
           type: "import_csv"
         };
-        const r = await fetch("https://backend-cleanit-erp.vercel.app/journal",{
+        const r = await fetch("https://backend-one-kappa-96.vercel.app/journal",{
           method:"POST",
           headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
           body: JSON.stringify(body)

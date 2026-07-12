@@ -491,7 +491,7 @@ const AIRisk = ({item}) => {
     setL(true);
     try{
       const tk=localStorage.getItem("token");
-      const res=await fetch((import.meta.env.VITE_API_URL||"https://backend-cleanit-erp.vercel.app")+"/chacha/groq",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+tk},body:JSON.stringify({model:"openai/gpt-oss-120b",max_tokens:120,messages:[{role:"user",content:"Analyse demande ERP. JSON uniquement {score:1-10,niveau:'faible|moyen|élevé',note:'max70chars'}. Type:"+item.type+",Montant:"+item.amount+" FCFA,Justif:"+(item.justification||"none")}]})});
+      const res=await fetch((import.meta.env.VITE_API_URL||"https://backend-one-kappa-96.vercel.app")+"/chacha/groq",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+tk},body:JSON.stringify({model:"openai/gpt-oss-120b",max_tokens:120,messages:[{role:"user",content:"Analyse demande ERP. JSON uniquement {score:1-10,niveau:'faible|moyen|élevé',note:'max70chars'}. Type:"+item.type+",Montant:"+item.amount+" FCFA,Justif:"+(item.justification||"none")}]})});
       const d=await res.json();const txt=(d.choices?.[0]?.message?.content||"{}").replace(/```json|```/g,"").trim();
       setR(JSON.parse(txt));
     }catch{setR({score:5,niveau:"moyen",note:"Analyse indisponible"});}

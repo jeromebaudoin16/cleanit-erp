@@ -276,35 +276,13 @@ const VILLES = ["Douala","Yaoundé","Bafoussam","Garoua","Bamenda","Kribi","Limb
 const PHOTOS = {}; // Vide - les vraies photos viennent de employee.photo (avatar_url DB)
 
 const EMPLOYES = []; // Données chargées depuis la DB (voir useEffect dans le composant)
-const EXTERNES = [
-  {id:"EE001",first:"Thomas",last:"Ngono",phone:"+237 677 100 001",role:"Technicien Installation 5G",speciality:"5G NR / 4G LTE",status:"actif",matricule:"CLN-EXT-001",bank:"MTN Mobile Money",rib:"677100001",city:"Douala",cin:"EXT001",birthDate:"1990-05-12",projects:["PROJ-2024-001"],totalEarned:13500000,dailyRate:85000,contract:"Freelance",rating:4.8,projectCount:7},
-  {id:"EE002",first:"Jean",last:"Mbarga",phone:"+237 677 100 002",role:"Ingénieur RF Senior",speciality:"Survey & Optimisation RF",status:"actif",matricule:"CLN-EXT-002",bank:"Orange Money",rib:"698100002",city:"Yaoundé",cin:"EXT002",birthDate:"1985-09-22",projects:["PROJ-2024-002"],totalEarned:8500000,dailyRate:120000,contract:"Freelance",rating:4.9,projectCount:12},
-  {id:"EE003",first:"Samuel",last:"Djomo",phone:"+237 677 100 003",role:"Technicien Maintenance",speciality:"3G UMTS / 4G LTE",status:"actif",matricule:"CLN-EXT-003",bank:"BICEC",rib:"CM21 1001 8888",city:"Douala",cin:"EXT003",birthDate:"1992-03-18",projects:["PROJ-2024-004"],totalEarned:6200000,dailyRate:70000,contract:"Freelance",rating:4.5,projectCount:5},
-  {id:"EE004",first:"Ali",last:"Moussa",phone:"+237 677 100 004",role:"Chef équipe terrain",speciality:"Supervision & HSE",status:"actif",matricule:"CLN-EXT-004",bank:"MTN Mobile Money",rib:"677100004",city:"Garoua",cin:"EXT004",birthDate:"1983-11-30",projects:["PROJ-2024-003"],totalEarned:4800000,dailyRate:95000,contract:"Freelance",rating:4.7,projectCount:9},
-  {id:"EE005",first:"René",last:"Talla",phone:"+237 677 100 005",role:"Câbleur fibre optique",speciality:"Fibre optique FTTH",status:"actif",matricule:"CLN-EXT-005",bank:"Orange Money",rib:"698100005",city:"Bafoussam",cin:"EXT005",birthDate:"1995-07-08",projects:[],totalEarned:2100000,dailyRate:55000,contract:"Freelance",rating:4.2,projectCount:3},
-];
+const EXTERNES = []; // Techniciens chargés depuis la DB (voir useEffect dans le composant)
 
 // BULLETINS générés dynamiquement depuis les vrais employés (voir state dans le composant)
 const BULLETINS = []; // Remplacé par vraies données DB dans le composant
-const POINTAGES = [
-  {id:"P001",empId:"EI001",arrival:"08:02",departure:"17:45",hours:8.72,status:"present",note:""},
-  {id:"P002",empId:"EI002",arrival:"07:55",departure:"18:10",hours:9.25,status:"present",note:""},
-  {id:"P003",empId:"EI003",arrival:"09:15",departure:"17:30",hours:7.25,status:"retard",note:"Retard 1h15"},
-  {id:"P004",empId:"EI004",arrival:"08:00",departure:"17:00",hours:8,status:"present",note:""},
-  {id:"P005",empId:"EI005",arrival:"",departure:"",hours:0,status:"absent",note:"Congé annuel"},
-  {id:"P006",empId:"EI006",arrival:"08:30",departure:"17:30",hours:8,status:"present",note:""},
-];
-const CONGES = [
-  {id:"C001",empId:"EI005",empName:"Jean Fouda",type:"Congé annuel",start:"2024-03-01",end:"2024-03-20",days:20,status:"approuve",reason:"Congé annuel Q1",substitute:"Pierre Etoga",approvedBy:"Aline Biya"},
-  {id:"C002",empId:"EI003",empName:"Aline Biya",type:"Congé maladie",start:"2024-03-10",end:"2024-03-12",days:3,status:"approuve",reason:"Ordonnance médicale",substitute:"Sandra Nguele",approvedBy:"Marie Kamga"},
-  {id:"C003",empId:"EI001",empName:"Marie Kamga",type:"Congé exceptionnel",start:"2024-04-05",end:"2024-04-06",days:2,status:"en_attente",reason:"Mariage",substitute:"",approvedBy:""},
-];
-const PAI_EXT = [
-  {id:"PE001",empId:"EE001",project:"PROJ-2024-001",client:"MTN Cameroun",phase:"Phase 1 (30%)",projectAmount:45000000,pct:30,net:13500000,status:"paye",paidOn:"2024-01-20",payMethod:"MTN Mobile Money",ref:"PAY-EXT-001"},
-  {id:"PE002",empId:"EE002",project:"PROJ-2024-002",client:"Orange Cameroun",phase:"Paiement unique",projectAmount:12000000,pct:100,net:8500000,status:"paye",paidOn:"2024-02-15",payMethod:"Orange Money",ref:"PAY-EXT-002"},
-  {id:"PE003",empId:"EE001",project:"PROJ-2024-001",client:"MTN Cameroun",phase:"Phase 2 (40%)",projectAmount:45000000,pct:40,net:18000000,status:"en_attente",paidOn:null,payMethod:"MTN Mobile Money",ref:null},
-  {id:"PE004",empId:"EE003",project:"PROJ-2024-004",client:"MTN Cameroun",phase:"Phase 1 (25%)",projectAmount:18500000,pct:25,net:4625000,status:"en_attente",paidOn:null,payMethod:"Virement BICEC",ref:null},
-];
+const POINTAGES = []; // Non utilisé — voir le vrai flux /pointages/all (module Présence & Pointage)
+const CONGES = []; // Chargé depuis /approvals?type=leave_request (voir composant Leaves)
+const PAI_EXT = []; // Paiements techniciens — à brancher sur une vraie route API quand elle existera
 
 // ===== PROFIL EMPLOYÉ — COMPLET AVEC PHOTOS =====
 // ===== DOCUMENTS TAB =====
@@ -1447,7 +1425,7 @@ const Attendance = ({employees}) => {
   useEffect(()=>{
     setLoading(true);
     const token = localStorage.getItem("token");
-    const base = import.meta.env.VITE_API_URL||"https://backend-cleanit-erp.vercel.app";
+    const base = import.meta.env.VITE_API_URL||"https://backend-one-kappa-96.vercel.app";
     // /pointages/all = tous les pointages (admin/RH), triés par created_at DESC
     fetch(base+"/pointages/all", {headers:{"Authorization":"Bearer "+token}})
       .then(r=>r.json())
@@ -1558,7 +1536,7 @@ const Leaves = () => {
 
   useEffect(()=>{
     const token = localStorage.getItem("token");
-    const base = import.meta.env.VITE_API_URL||"https://backend-cleanit-erp.vercel.app";
+    const base = import.meta.env.VITE_API_URL||"https://backend-one-kappa-96.vercel.app";
     fetch(base+"/approvals?type=leave_request", {headers:{"Authorization":"Bearer "+token}})
       .then(r=>r.json())
       .then(data=>{
@@ -1582,7 +1560,7 @@ const Leaves = () => {
 
   const approveLeave = async (id, action) => {
     const token = localStorage.getItem("token");
-    const base = import.meta.env.VITE_API_URL||"https://backend-cleanit-erp.vercel.app";
+    const base = import.meta.env.VITE_API_URL||"https://backend-one-kappa-96.vercel.app";
     const r = await fetch(base+"/approvals/"+id, {
       method:"PUT",
       headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
@@ -1872,7 +1850,7 @@ export default function RH() {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    const base = import.meta.env.VITE_API_URL || 'https://backend-one-kappa-96.vercel.app';
     Promise.all([
       fetch(base+'/approvals',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[]),
       fetch(base+'/users',{headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[]),
@@ -1920,7 +1898,7 @@ export default function RH() {
 
   const approveRequest = async (id, action) => {
     const token = localStorage.getItem('token');
-    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    const base = import.meta.env.VITE_API_URL || 'https://backend-one-kappa-96.vercel.app';
     const r = await fetch(base+'/approvals/'+id, {
       method: 'PUT',
       headers: {'Content-Type':'application/json','Authorization':'Bearer '+token},
@@ -1997,7 +1975,7 @@ export default function RH() {
   },[]);
   const [editForm, setEditForm] = useState({});
   const [editSaving, setEditSaving] = useState(false);
-  const BASE = 'https://backend-cleanit-erp.vercel.app';
+  const BASE = 'https://backend-one-kappa-96.vercel.app';
   const token = localStorage.getItem('token');
 
   const saveEmployee = async (emp) => {

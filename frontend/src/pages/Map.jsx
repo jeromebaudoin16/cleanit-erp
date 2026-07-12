@@ -226,6 +226,10 @@ export default function MapPage() {
   const [loaded, setLoaded] = useState(false);
   const [techniciens, setTechniciens] = useState(TECHNICIENS_INIT);
   const [realSites, setRealSites] = useState(SITES);
+  // Empêche le recentrage automatique de la carte de se répéter à chaque
+  // rafraîchissement (30s) ou tick liveMode (5s) — ne doit s'exécuter
+  // qu'une seule fois, au tout premier chargement des positions.
+  const autoCenteredRef = useRef(false);
 
   // Charger vrais sites et positions GPS réelles des techniciens depuis API
   const loadRealData = useCallback(() => {
@@ -236,7 +240,8 @@ export default function MapPage() {
       fetch(base+'/sites',{headers:h}).then(r=>r.json()).catch(()=>[]),
       fetch(base+'/location/all',{headers:h}).then(r=>r.json()).catch(()=>[]),
       fetch(base+'/missions',{headers:h}).then(r=>r.json()).catch(()=>[]),
-    ]).then(([sites, locations, missions])=>{
+      fetch(base+'/pointages/all',{headers:h}).then(r=>r.json()).catch(()=>[]),
+    ]).then(([sites, locations, missions, pointages])=>{
       if(Array.isArray(sites)){
         const formatted = sites.map(s=>({
           code: s.code, name: s.name,
@@ -251,12 +256,13 @@ export default function MapPage() {
         }));
         setRealSites(formatted);
       }
+      const colors = ['#1a73e8','#7c3aed','#0f9d58','#f29900','#db2777','#ea4335'];
+      const techById = {};
       if(Array.isArray(locations)){
-        const colors = ['#1a73e8','#7c3aed','#0f9d58','#f29900','#db2777','#ea4335'];
         const formatted = locations.map((loc,i)=>{
           const mission = Array.isArray(missions) ? missions.find(m=>m.tech_id===loc.user_id&&m.status==='in_progress') : null;
           const av = ((loc.firstName||'')[0]+(loc.lastName||'')[0]).toUpperCase();
-          return {
+          const t = {
             id: String(loc.user_id), nom: (loc.firstName||'')+' '+(loc.lastName||''),
             lat: parseFloat(loc.lat), lng: parseFloat(loc.lng),
             status: loc.status||(mission?'en_mission':'disponible'),
@@ -273,10 +279,31 @@ export default function MapPage() {
             taches: mission ? 1 : 0,
             rapport: '', heureDebut: '—', trajectory:[]
           };
+          techById[String(loc.user_id)] = t;
+          return t;
         });
         setTechniciens(formatted);
       } else {
         setTechniciens([]);
+      }
+      // Photos de pointage CleanCam réelles — uniquement les pointages qui ont
+      // une photo (photo_url) et des coordonnées GPS valides.
+      if(Array.isArray(pointages)){
+        const withPhoto = pointages
+          .filter(p=>p.photo_url&&p.gps_lat&&p.gps_lng)
+          .map(p=>{
+            const tech = techById[String(p.user_id)];
+            return {
+              id: 'PT'+p.id, techId: String(p.user_id),
+              lat: parseFloat(p.gps_lat), lng: parseFloat(p.gps_lng),
+              url: p.photo_url,
+              desc: (p.type==='arrivee'?'Arrivée':'Départ')+' — '+(p.site_name||p.site_code||'Site'),
+              time: new Date(p.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+              site: p.site_code||p.site_name||'—',
+              color: tech?.color,
+            };
+          });
+        setPhotos(withPhoto);
       }
     }).catch(console.error);
   },[]);
@@ -310,12 +337,7 @@ export default function MapPage() {
   const [showEquipTwin, setShowEquipTwin] = useState(null);
   // Couverture réseau simulation
   const [coverageCircle, setCoverageCircle] = useState(null);
-  // Photos CleanCam sur carte
-  const [camPhotos] = useState([
-    {id:'cp1',siteCode:'DLA-001',techId:'EE001',techNom:'Thomas Ngono',lat:4.0520,lng:9.7090,photo:'https://i.pravatar.cc/150?img=15',caption:'BBU 5900 installé — câblage RRU terminé',ts:Date.now()-3600000},
-    {id:'cp2',siteCode:'YDE-001',techId:'EE002',techNom:'Jean Mbarga',lat:3.8490,lng:11.5030,photo:'https://i.pravatar.cc/150?img=17',caption:'Antenne 5G NR positionnée — azimut 180°',ts:Date.now()-7200000},
-    {id:'cp3',siteCode:'GAR-001',techId:'EE004',techNom:'Ali Moussa',lat:9.3025,lng:13.3925,photo:'https://i.pravatar.cc/150?img=3',caption:'Inspection pylône 45m — harnais conforme HSE',ts:Date.now()-14400000},
-  ]);
+  // Photos CleanCam sur carte — voir l'état `photos`, alimenté par /pointages/all
   // IoT capteurs simulés
   const [iotData] = useState({
     'DLA-001':{temp:42,humidity:68,vibration:'normale',tension:220,alerte:false},
@@ -346,15 +368,12 @@ export default function MapPage() {
   const [iaRecommandations, setIaRecommandations] = useState([]);
   const [showIADispatch, setShowIADispatch] = useState(false);
   const [iaTargetSite, setIaTargetSite] = useState(null);
-  const [collabCursors, setCollabCursors] = useState([
-    {id:"PM001",nom:"Marie Kamga",lat:4.05,lng:9.71,color:"#db2777",lastSeen:"maintenant"},
-    {id:"PM002",nom:"Jean Fouda",lat:3.85,lng:11.50,color:"#f29900",lastSeen:"il y a 2 min"},
-  ]);
-  const [photos, setPhotos] = useState([
-    {id:"P001",techId:"EE001",lat:4.0511,lng:9.7085,url:"https://picsum.photos/200/150?random=1",desc:"Antenne RRU installée - DLA-001",time:"09:45",site:"DLA-001"},
-    {id:"P002",techId:"EE002",lat:3.8480,lng:11.5021,url:"https://picsum.photos/200/150?random=2",desc:"BBU configuration terminée - YDE-001",time:"11:20",site:"YDE-001"},
-    {id:"P003",techId:"EE004",lat:9.3019,lng:13.3920,url:"https://picsum.photos/200/150?random=3",desc:"Inspection pylône sécurisée - GAR-001",time:"10:15",site:"GAR-001"},
-  ]);
+  // Curseurs collaboratifs (chefs de projet en ligne sur la carte) — alimenté
+  // uniquement par de vraies sessions ; vide tant qu'aucune donnée réelle n'existe.
+  const [collabCursors, setCollabCursors] = useState([]);
+  // Photos de pointage CleanCam — chargées depuis /pointages/all (voir loadRealData),
+  // jamais de données simulées : une carte vide vaut mieux qu'une carte qui ment.
+  const [photos, setPhotos] = useState([]);
   const [showPhotos, setShowPhotos] = useState(true);
   const [showCollab, setShowCollab] = useState(true);
   const photoMarkersRef = useRef({});
@@ -523,10 +542,19 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
         techClusterRef.current.addLayer(marker);
       }
     });
-    // Centrer sur Cameroun si des techniciens sont présents
-    if(techniciens.length>0&&Object.keys(techMarkersRef.current).length===techniciens.length){
+    // Centrer sur Cameroun si des techniciens sont présents — UNE SEULE FOIS.
+    // Sans ce garde-fou, ce bloc s'exécute à chaque rafraîchissement (toutes les
+    // 30s via loadRealData, ou toutes les 5s en liveMode) et annule tout zoom/pan
+    // manuel de l'utilisateur en recentrant la carte — c'est le bug "le zoom quitte
+    // directement" : dès que l'utilisateur zoome sur un employé/technicien/site,
+    // le prochain tick de rafraîchissement des positions faisait revenir la vue
+    // en arrière avant même que l'utilisateur ait fini d'interagir.
+    if(!autoCenteredRef.current&&techniciens.length>0&&Object.keys(techMarkersRef.current).length===techniciens.length){
       const first=techniciens.find(t=>t.lat&&t.lng&&!isNaN(t.lat));
-      if(first) mapInstanceRef.current.setView([first.lat,first.lng],10,{animate:true});
+      if(first){
+        mapInstanceRef.current.setView([first.lat,first.lng],10,{animate:true});
+        autoCenteredRef.current=true;
+      }
     }
   },[techniciens]);
 
@@ -725,54 +753,42 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
     });
 
     // ===== MARQUEURS PHOTOS GÉOLOCALISÉES (CleanCam) =====
-    const addPhotoMarkers=(photosList)=>{
-      photosList.forEach(photo=>{
-        const tech=TECHNICIENS_INIT.find(t=>t.id===photo.techId);
-        const icon=L.divIcon({
-          html:`<div style="position:relative;cursor:pointer">
-            <div style="width:44px;height:44px;border-radius:6px;overflow:hidden;border:3px solid ${tech?.color||"#1a73e8"};box-shadow:0 3px 10px rgba(0,0,0,.3)">
-              <img src="${photo.url}" style="width:100%;height:100%;object-fit:cover"/>
-            </div>
-            <div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);background:${tech?.color||"#1a73e8"};color:white;font-size:8px;font-weight:700;padding:1px 5px;border-radius:5px;white-space:nowrap">📷 ${photo.time}</div>
-            <div style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid ${tech?.color||"#1a73e8"}"></div>
-          </div>`,
-          className:"",iconSize:[44,44],iconAnchor:[22,50]
-        });
-        const marker=L.marker([photo.lat,photo.lng],{icon,zIndexOffset:100})
-          .addTo(map)
-          .bindPopup(`<div style="font-family:Inter,sans-serif;padding:4px">
-            <img src="${photo.url}" style="width:200px;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px"/>
-            <div style="font-size:11px;font-weight:700;color:#202124;margin-bottom:3px">${photo.desc}</div>
-            <div style="font-size:10px;color:#5f6368">${tech?.nom||"Technicien"} · ${photo.time} · ${photo.site}</div>
-          </div>`,{maxWidth:220});
-        photoMarkersRef.current[photo.id]=marker;
-      });
-    };
-    addPhotoMarkers([
-      {id:"P001",techId:"EE001",lat:4.0511,lng:9.7085,url:"https://picsum.photos/200/150?random=1",desc:"Antenne RRU installée - DLA-001",time:"09:45",site:"DLA-001"},
-      {id:"P002",techId:"EE002",lat:3.8480,lng:11.5021,url:"https://picsum.photos/200/150?random=2",desc:"BBU configuration terminée - YDE-001",time:"11:20",site:"YDE-001"},
-      {id:"P003",techId:"EE004",lat:9.3019,lng:13.3920,url:"https://picsum.photos/200/150?random=3",desc:"Inspection pylône - GAR-001",time:"10:15",site:"GAR-001"},
-    ]);
-
-    // ===== CURSEURS COLLABORATIFS (autres PMs en ligne) =====
-    const collabData=[
-      {id:"PM001",nom:"Marie Kamga",lat:4.05,lng:9.71,color:"#db2777"},
-      {id:"PM002",nom:"Jean Fouda",lat:3.85,lng:11.50,color:"#f29900"},
-    ];
-    collabData.forEach(pm=>{
-      const icon=L.divIcon({
-        html:`<div style="position:relative">
-          <div style="width:32px;height:32px;border-radius:50%;background:${pm.color};border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white">${pm.nom.split(" ").map(n=>n[0]).join("")}</div>
-          <div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);background:${pm.color};color:white;font-size:8px;font-weight:700;padding:1px 5px;border-radius:5px;white-space:nowrap">👤 ${pm.nom.split(" ")[0]}</div>
-        </div>`,
-        className:"",iconSize:[32,32],iconAnchor:[16,16]
-      });
-      const marker=L.marker([pm.lat,pm.lng],{icon,zIndexOffset:200}).addTo(map);
-      collabMarkersRef.current[pm.id]=marker;
-    });
+    // Les marqueurs réels sont créés par l'effet réactif [photos] ci-dessous,
+    // alimenté par /pointages/all (voir loadRealData) — aucune donnée simulée ici.
 
     mapInstanceRef.current=map;
   },[loaded]);
+
+  // ===== MARQUEURS PHOTOS RÉELS (CleanCam) — créés/mis à jour depuis l'état `photos` =====
+  useEffect(()=>{
+    const L=window.L, map=mapInstanceRef.current;
+    if(!map||!L) return;
+    // Nettoyer les anciens marqueurs avant de recréer (les pointages changent au fil des rafraîchissements)
+    Object.values(photoMarkersRef.current).forEach(m=>{ try{ map.removeLayer(m); }catch(e){} });
+    photoMarkersRef.current={};
+    photos.forEach(photo=>{
+      if(!photo.lat||!photo.lng) return;
+      const color=photo.color||"#1a73e8";
+      const icon=L.divIcon({
+        html:`<div style="position:relative;cursor:pointer">
+          <div style="width:44px;height:44px;border-radius:6px;overflow:hidden;border:3px solid ${color};box-shadow:0 3px 10px rgba(0,0,0,.3)">
+            <img src="${photo.url}" style="width:100%;height:100%;object-fit:cover"/>
+          </div>
+          <div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);background:${color};color:white;font-size:8px;font-weight:700;padding:1px 5px;border-radius:5px;white-space:nowrap">📷 ${photo.time}</div>
+          <div style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid ${color}"></div>
+        </div>`,
+        className:"",iconSize:[44,44],iconAnchor:[22,50]
+      });
+      const marker=L.marker([photo.lat,photo.lng],{icon,zIndexOffset:100})
+        .addTo(map)
+        .bindPopup(`<div style="font-family:Inter,sans-serif;padding:4px">
+          <img src="${photo.url}" style="width:200px;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px"/>
+          <div style="font-size:11px;font-weight:700;color:#202124;margin-bottom:3px">${photo.desc}</div>
+          <div style="font-size:10px;color:#5f6368">${photo.time} · ${photo.site}</div>
+        </div>`,{maxWidth:220});
+      photoMarkersRef.current[photo.id]=marker;
+    });
+  },[photos]);
 
   // ===== TOGGLE PHOTOS =====
   useEffect(()=>{
@@ -1300,11 +1316,9 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
                     </div>
                   )}
                   {/* Alertes système */}
-                  {[
-                    {type:"RETARD",color:"#ea4335",msg:"DLA-003 en retard. Aucun technicien assigné.",time:"14:23"},
-                    {type:"BATTERIE",color:"#f29900",msg:"Batterie faible (45%) — Samuel Djomo",time:"14:30"},
-                    {type:"SIGNAL",color:"#f29900",msg:"Signal faible zone Garoua — Ali Moussa",time:"14:38"},
-                  ].map((a,i)=>(
+                  {/* Alertes système — désactivées tant qu'aucune source réelle
+                      (batterie faible, signal faible, etc.) n'est branchée côté API */}
+                  {[].map((a,i)=>(
                     <div key={i} style={{padding:"10px 12px",borderBottom:"1px solid #f1f3f4",borderLeft:`3px solid ${a.color}`}}>
                       <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
                         <span style={{fontSize:9,fontWeight:700,color:a.color,letterSpacing:".4px"}}>{a.type}</span>
@@ -1371,33 +1385,10 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
                       </div>
                     );
                   })}
-                  {/* Simuler nouvelle photo */}
+                  {/* Actualiser les photos de pointage CleanCam depuis l'API */}
                   <div style={{padding:"10px 12px"}}>
-                    <button onClick={()=>{
-                      const newPhoto={
-                        id:`P${Date.now()}`,techId:"EE003",
-                        lat:4.0167+Math.random()*0.01,lng:9.2000+Math.random()*0.01,
-                        url:`https://picsum.photos/200/150?random=${Math.floor(Math.random()*100)}`,
-                        desc:"Nouvelle photo terrain - LIM-001",
-                        time:new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}),
-                        site:"LIM-001"
-                      };
-                      setPhotos(prev=>[newPhoto,...prev]);
-                      // Ajouter marqueur sur carte
-                      if(mapInstanceRef.current&&window.L){
-                        const tech=TECHNICIENS_INIT.find(t=>t.id===newPhoto.techId);
-                        const icon=window.L.divIcon({
-                          html:`<div style="width:44px;height:44px;border-radius:6px;overflow:hidden;border:3px solid ${tech?.color||"#0f9d58"};box-shadow:0 3px 10px rgba(0,0,0,.3)"><img src="${newPhoto.url}" style="width:100%;height:100%;object-fit:cover"/></div>`,
-                          className:"",iconSize:[44,44],iconAnchor:[22,50]
-                        });
-                        const m=window.L.marker([newPhoto.lat,newPhoto.lng],{icon})
-                          .addTo(mapInstanceRef.current)
-                          .bindPopup(`<div style="font-family:Inter,sans-serif"><img src="${newPhoto.url}" style="width:200px;height:120px;object-fit:cover;border-radius:6px;margin-bottom:6px"/><div style="font-size:11px;font-weight:700">${newPhoto.desc}</div></div>`,{maxWidth:220});
-                        photoMarkersRef.current[newPhoto.id]=m;
-                        mapInstanceRef.current.flyTo([newPhoto.lat,newPhoto.lng],15,{animate:true,duration:1.2});
-                      }
-                    }} style={{width:"100%",padding:"8px",borderRadius:8,border:"2px dashed #1a73e8",background:"#e8f0fe",color:"#1a73e8",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                      📷 Simuler nouvelle photo CleanCam
+                    <button onClick={loadRealData} style={{width:"100%",padding:"8px",borderRadius:8,border:"2px dashed #1a73e8",background:"#e8f0fe",color:"#1a73e8",fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                      🔄 Actualiser les photos CleanCam
                     </button>
                   </div>
                 </div>

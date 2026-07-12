@@ -371,7 +371,7 @@ function DetailPage({ tech, onBack, showAddCert=false, setShowAddCert=()=>{}, ne
 async function loadApprovalsPaiements(techName) {
   try {
     const token = localStorage.getItem('token');
-    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    const base = import.meta.env.VITE_API_URL || 'https://backend-one-kappa-96.vercel.app';
     const res = await fetch(base + '/approvals', { headers: { 'Authorization': 'Bearer ' + token } });
     const rows = await res.json();
     if (!Array.isArray(rows)) return [];

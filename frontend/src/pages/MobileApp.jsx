@@ -1324,14 +1324,24 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
         body:JSON.stringify({text:(mode==='arrivee'?'Arrivée':'Départ')+' sur site '+siteInput+' — '+n.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),photo_url:photoUrl,site:siteInput,gps_lat:gps?.lat?.toString(),gps_lng:gps?.lng?.toString(),type:'photo'})
       }).catch(()=>{});
 
-      // Pointage
-      await fetch(BASE+'/pointages',{method:'POST',headers:{...headers,'Content-Type':'application/json'},
-        body:JSON.stringify({type:mode,site_code:siteInput,photo_url:photoUrl,gps_lat:gps?.lat||null,gps_lng:gps?.lng||null,method:'cleanitcam'})
+      // Pointage — camelCase pour correspondre au backend
+      const pointageResp = await fetch(BASE+'/pointages',{method:'POST',headers:{...headers,'Content-Type':'application/json'},
+        body:JSON.stringify({
+          type: mode,
+          siteCode: siteInput.trim(),
+          siteName: siteInput.trim(),
+          photo_url: photoUrl,
+          gpsLat: gps?.lat||null,
+          gpsLng: gps?.lng||null,
+          method: 'cleanitcam'
+        })
       });
+      const pointageData = await pointageResp.json().catch(()=>({}));
+      console.log('[CleanCam] Pointage résultat:', pointageData);
 
       // Digital Twin
       await fetch(BASE+'/location/update',{method:'POST',headers:{...headers,'Content-Type':'application/json'},
-        body:JSON.stringify({lat:gps?.lat||null,lng:gps?.lng||null,status:mode==='arrivee'?'en_mission':'disponible',siteCode:siteInput})
+        body:JSON.stringify({lat:gps?.lat||null,lng:gps?.lng||null,status:mode==='arrivee'?'en_mission':'disponible',siteCode:siteInput.trim()})
       }).catch(()=>{});
 
       setStatus(mode==='arrivee'?'✓ Arrivée enregistrée':'✓ Départ enregistré');
@@ -1455,10 +1465,12 @@ const ScreenCamera = ({user, gps, now, navigate}) => {
           }
         </button>
 
-        {/* Site code indicator */}
-        <div style={{width:52,textAlign:'center'}}>
-          <div style={{fontSize:9,color:'rgba(255,255,255,.4)',marginBottom:2}}>SITE</div>
-          <div style={{fontSize:11,fontWeight:700,color:'rgba(255,255,255,.8)'}}>{siteInput||'—'}</div>
+        {/* Site code - éditable depuis la caméra */}
+        <div style={{width:80}}>
+          <div style={{fontSize:8,color:'rgba(255,255,255,.4)',marginBottom:2,textAlign:'center',textTransform:'uppercase'}}>Code site</div>
+          <input value={siteInput} onChange={e=>setSiteInput(e.target.value)}
+            placeholder="GAR-001"
+            style={{width:'100%',background:'rgba(255,255,255,.12)',border:'1px solid rgba(255,255,255,.25)',borderRadius:6,color:'white',fontSize:11,fontWeight:700,textAlign:'center',padding:'4px 6px',outline:'none',fontFamily:'inherit',boxSizing:'border-box'}}/>
         </div>
       </div>
 

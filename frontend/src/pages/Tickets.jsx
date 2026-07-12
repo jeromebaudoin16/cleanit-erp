@@ -30,7 +30,7 @@ export default function Tickets() {
   const [realTickets, setRealTickets] = useState([]);
   useEffect(() => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    fetch('https://backend-cleanit-erp.vercel.app/approvals', {headers:{'Authorization':'Bearer '+token}})
+    fetch('https://backend-one-kappa-96.vercel.app/approvals', {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(approvals => {
         if(!Array.isArray(approvals)) return;
         const tickets = approvals.map(a => ({

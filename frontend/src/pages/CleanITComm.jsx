@@ -227,7 +227,7 @@ const DailyCall = ({ room, displayName, audioOnly, onClose }) => {
 
   useEffect(() => {
     const tk = localStorage.getItem('token');
-    fetch('https://backend-cleanit-erp.vercel.app/calls/daily-room', {
+    fetch('https://backend-one-kappa-96.vercel.app/calls/daily-room', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+tk },
       body: JSON.stringify({ roomName: room })
@@ -268,7 +268,7 @@ const SectionChat = ({navigate, onUnreadChange}) => {
   const [dmInput, setDMInput] = useState('');
   const [realUsers, setRealUsers] = useState([]);
   const [conversations, setConversations] = useState([]);
-  const BASE = 'https://backend-cleanit-erp.vercel.app';
+  const BASE = 'https://backend-one-kappa-96.vercel.app';
 
   const startCall = async (type, withUser) => {
     const myId = (getAuthUser()||{}).id;
@@ -339,7 +339,7 @@ const SectionChat = ({navigate, onUnreadChange}) => {
     setDMMessages([]);
     const token = localStorage.getItem('token');
     try {
-      const conv = await fetch('https://backend-cleanit-erp.vercel.app/conversations', {
+      const conv = await fetch('https://backend-one-kappa-96.vercel.app/conversations', {
         method:'POST',
         headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
         body: JSON.stringify({participantId: user.id})
@@ -354,7 +354,7 @@ const SectionChat = ({navigate, onUnreadChange}) => {
   const loadMessages = async (cid) => {
     const token = localStorage.getItem('token');
     try {
-      const msgs = await fetch('https://backend-cleanit-erp.vercel.app/messages/'+cid, {
+      const msgs = await fetch('https://backend-one-kappa-96.vercel.app/messages/'+cid, {
         headers:{'Authorization':'Bearer '+token}
       }).then(r=>r.json());
       if(Array.isArray(msgs)) setDMMessages(msgs);
@@ -369,7 +369,7 @@ const SectionChat = ({navigate, onUnreadChange}) => {
     const text = dmInput;
     setDMInput('');
     try {
-      const msg = await fetch('https://backend-cleanit-erp.vercel.app/messages', {
+      const msg = await fetch('https://backend-one-kappa-96.vercel.app/messages', {
         method:'POST',
         headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
         body: JSON.stringify({conversationId: convId, text})
@@ -403,7 +403,7 @@ const SectionChat = ({navigate, onUnreadChange}) => {
       const text = input.trim();
       setInput('');
       try {
-        const msg = await fetch('https://backend-cleanit-erp.vercel.app/messages', {
+        const msg = await fetch('https://backend-one-kappa-96.vercel.app/messages', {
           method:'POST',
           headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
           body: JSON.stringify({conversationId: convId, text})
@@ -831,7 +831,7 @@ const SectionCallHistory = () => {
 
   useEffect(() => {
     const tk = localStorage.getItem('token');
-    fetch('https://backend-cleanit-erp.vercel.app/calls/history', {headers:{'Authorization':'Bearer '+tk}})
+    fetch('https://backend-one-kappa-96.vercel.app/calls/history', {headers:{'Authorization':'Bearer '+tk}})
       .then(r=>r.json()).then(d=>{ if(Array.isArray(d)) setCalls(d); }).catch(()=>{}).finally(()=>setLoading(false));
   }, []);
 
@@ -1311,7 +1311,7 @@ const SectionContacts = ({navigate}) => {
 
   useEffect(() => {
     const fetchContacts = () => {
-      fetch('https://backend-cleanit-erp.vercel.app/users/online',{headers:{'Authorization':'Bearer '+token}})
+      fetch('https://backend-one-kappa-96.vercel.app/users/online',{headers:{'Authorization':'Bearer '+token}})
         .then(r=>r.json())
         .then(users => {
           if(Array.isArray(users)) {
@@ -1486,22 +1486,22 @@ export default function CleanITComm() {
 
   useEffect(() => {
     // Charger tous les utilisateurs pour DMs
-    fetch('https://backend-cleanit-erp.vercel.app'+'/users/online', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
+    fetch('https://backend-one-kappa-96.vercel.app'+'/users/online', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
       .then(r=>r.json()).then(u=>{ if(Array.isArray(u)) setRealUsers(u); }).catch(()=>{});
     // Charger les messages du feed pour les canaux
-    fetch('https://backend-cleanit-erp.vercel.app'+'/feed', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
+    fetch('https://backend-one-kappa-96.vercel.app'+'/feed', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
       .then(r=>r.json()).then(m=>{ if(Array.isArray(m)) setFeedMessages(m); }).catch(()=>{});
   }, []);
 
   const sendChannelMessage = async () => {
     if(!channelInput.trim()) return;
     try {
-      await fetch('https://backend-cleanit-erp.vercel.app'+'/feed', {method:'POST',
+      await fetch('https://backend-one-kappa-96.vercel.app'+'/feed', {method:'POST',
         headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},
         body: JSON.stringify({content:channelInput, type:'channel', channel:activeChannel})
       });
       setChannelInput('');
-      fetch('https://backend-cleanit-erp.vercel.app'+'/feed',{headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
+      fetch('https://backend-one-kappa-96.vercel.app'+'/feed',{headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
         .then(r=>r.json()).then(m=>{ if(Array.isArray(m)) setFeedMessages(m); });
     } catch(e) {}
   };
@@ -1512,7 +1512,7 @@ export default function CleanITComm() {
     const text = dmInput;
     setDMInput('');
     try {
-      const msg = await fetch('https://backend-cleanit-erp.vercel.app/messages', {
+      const msg = await fetch('https://backend-one-kappa-96.vercel.app/messages', {
         method:'POST',
         headers:{'Authorization':'Bearer '+tkn,'Content-Type':'application/json'},
         body: JSON.stringify({conversationId: convId, text})
@@ -1531,7 +1531,7 @@ export default function CleanITComm() {
 
   const loadWAMessages = () => {
     const token = localStorage.getItem('token');
-    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    const base = import.meta.env.VITE_API_URL || 'https://backend-one-kappa-96.vercel.app';
     fetch(base+'/wa-messages', {headers:{'Authorization':'Bearer '+localStorage.getItem('token')}})
       .then(r=>r.json()).then(msgs => {
         if(Array.isArray(msgs)) {
@@ -1564,7 +1564,7 @@ export default function CleanITComm() {
     if(!waInput.trim() || !selectedContact) return;
     setSending(true);
     const token = localStorage.getItem('token');
-    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    const base = import.meta.env.VITE_API_URL || 'https://backend-one-kappa-96.vercel.app';
     try {
       await fetch(base+'/whatsapp/send', {
         method:'POST',

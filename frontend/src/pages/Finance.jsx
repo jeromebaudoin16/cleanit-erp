@@ -258,8 +258,8 @@ export default function Finance(){
   useEffect(() => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
     Promise.all([
-      fetch('https://backend-cleanit-erp.vercel.app/stats', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>null),
-      fetch('https://backend-cleanit-erp.vercel.app/journal', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[])
+      fetch('https://backend-one-kappa-96.vercel.app/stats', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>null),
+      fetch('https://backend-one-kappa-96.vercel.app/journal', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[])
     ]).then(([stats, journal]) => {
       if(stats || journal.length > 0) setRealFinance({stats, journal: Array.isArray(journal) ? journal : []});
     });

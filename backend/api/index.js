@@ -1251,10 +1251,12 @@ async function checkGeofencingTerrain(userId,lat,lng){
 
 // Ajouter colonne method si elle n'existe pas
 pool.query("ALTER TABLE pointages ADD COLUMN IF NOT EXISTS method VARCHAR(50) DEFAULT 'qr_code'").catch(()=>{});
+// Photo CleanCam associée au pointage (arrivée/départ avec preuve photo géolocalisée)
+pool.query("ALTER TABLE pointages ADD COLUMN IF NOT EXISTS photo_url TEXT").catch(()=>{});
 
 app.post('/pointages', auth, async (req, res) => {
   try {
-    const { siteCode, siteName, gpsLat, gpsLng, method: reqMethod } = req.body;
+    const { siteCode, siteName, gpsLat, gpsLng, photoUrl, method: reqMethod } = req.body;
     const userQ = await pool.query('SELECT "firstName","lastName",role FROM users WHERE id=$1',[req.user.sub]);
     const u = userQ.rows[0];
     const isTerrain = ['technician','terrain'].includes(u.role);
@@ -1277,11 +1279,11 @@ app.post('/pointages', auth, async (req, res) => {
 
     const method = req.body.method || 'qr_code';
     const result = await pool.query(
-      'INSERT INTO pointages (user_id,user_name,site_code,site_name,type,gps_lat,gps_lng,valide,distance_m,hors_zone,zone_nom,method) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *',
+      'INSERT INTO pointages (user_id,user_name,site_code,site_name,type,gps_lat,gps_lng,valide,distance_m,hors_zone,zone_nom,method,photo_url) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *',
       [req.user.sub, u.firstName+' '+u.lastName,
        siteCode||geo.zone||'', siteName||geo.zone||'',
        type, gpsLat||null, gpsLng||null,
-       geo.valide, geo.distance, geo.horsZone, geo.zone, method]
+       geo.valide, geo.distance, geo.horsZone, geo.zone, method, photoUrl||null]
     );
     res.status(201).json({...result.rows[0], geofencing: geo});
   } catch(e) { res.status(500).json({ message: 'Erreur serveur', error: e.message }); }

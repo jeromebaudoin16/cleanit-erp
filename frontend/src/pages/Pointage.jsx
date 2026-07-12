@@ -16,7 +16,7 @@ const fT=d=>{if(!d)return'—';const dt=new Date(d);return dt.toLocaleTimeString
 const fD=d=>d?new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'}):'—';
 
 const getToken=()=>localStorage.getItem('token')||sessionStorage.getItem('token')||'';
-const API='https://backend-cleanit-erp.vercel.app';
+const API='https://backend-one-kappa-96.vercel.app';
 
 const apiFetch=async(path)=>{
   const r=await fetch(API+path,{headers:{'Authorization':'Bearer '+getToken()}});
@@ -359,7 +359,7 @@ function Historique(){
         {pointages.length>0&&(
           <table style={{width:'100%',borderCollapse:'collapse'}}>
             <thead><tr style={{background:C.bg}}>
-              {['Employé','Zone','Type','Méthode','Heure','Distance','Statut'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 14px',fontSize:10,fontWeight:600,color:C.text3,textTransform:'uppercase',letterSpacing:.4,borderBottom:`1px solid ${C.border}`}}>{h}</th>)}
+              {['Employé','Zone','Type','Méthode','Photo','Heure','Distance','Statut'].map(h=><th key={h} style={{textAlign:'left',padding:'8px 14px',fontSize:10,fontWeight:600,color:C.text3,textTransform:'uppercase',letterSpacing:.4,borderBottom:`1px solid ${C.border}`}}>{h}</th>)}
             </tr></thead>
             <tbody>{[...pointages].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map((p,i)=>(
               <tr key={p.id||i} onMouseEnter={e=>e.currentTarget.style.background=C.bg} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
@@ -376,8 +376,13 @@ function Historique(){
                 <td style={{padding:'10px 14px',borderBottom:`1px solid ${C.border2}`}}>
                   <div style={{display:'flex',alignItems:'center',gap:5}}>
                     <Icon d={IC.qr} size={12} color={C.blue}/>
-                    <span style={{fontSize:11,color:C.blue,fontWeight:500}}>QR Code</span>
+                    <span style={{fontSize:11,color:C.blue,fontWeight:500}}>{p.method==='cleanitcam'?'CleanCam':p.method==='qr_code'?'QR Code':(p.method||'—')}</span>
                   </div>
+                </td>
+                <td style={{padding:'10px 14px',borderBottom:`1px solid ${C.border2}`}}>
+                  {p.photo_url
+                    ? <a href={p.photo_url} target="_blank" rel="noreferrer"><img src={p.photo_url} alt="Preuve pointage" style={{width:36,height:36,objectFit:'cover',borderRadius:6,border:`1px solid ${C.border}`}}/></a>
+                    : <span style={{fontSize:11,color:C.text3}}>—</span>}
                 </td>
                 <td style={{padding:'10px 14px',fontSize:12,fontWeight:500,borderBottom:`1px solid ${C.border2}`}}>
                   {fD(p.created_at)} {fT(p.created_at)}

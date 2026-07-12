@@ -904,7 +904,7 @@ export default function BI() {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    const base = import.meta.env.VITE_API_URL || 'https://backend-cleanit-erp.vercel.app';
+    const base = import.meta.env.VITE_API_URL || 'https://backend-one-kappa-96.vercel.app';
     Promise.all([
       fetch(base+'/approvals', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[]),
       fetch(base+'/users', {headers:{'Authorization':'Bearer '+token}}).then(r=>r.json()).catch(()=>[]),

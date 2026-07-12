@@ -26,7 +26,7 @@ export default function Analytics() {
   const [realStats, setRealStats] = useState(null);
   useEffect(() => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    fetch('https://backend-cleanit-erp.vercel.app/stats', {headers:{'Authorization':'Bearer '+token}})
+    fetch('https://backend-one-kappa-96.vercel.app/stats', {headers:{'Authorization':'Bearer '+token}})
       .then(r=>r.json()).then(s=>{ if(s && s.total_users) setRealStats(s); }).catch(()=>{});
   }, []);
 

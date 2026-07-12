@@ -188,7 +188,7 @@ const ImportBCModal = ({onClose, onImport}) => {
   const [extractedSites, setExtractedSites] = useState(null); // sites Type A extraits, en attente de confirmation
   const fileRef = useRef(null);
 
-  const BASE = 'https://backend-cleanit-erp.vercel.app';
+  const BASE = 'https://backend-one-kappa-96.vercel.app';
   const GROQ_API = 'https://api.groq.com/openai/v1/chat/completions';
   const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
@@ -744,7 +744,7 @@ export default function BonsCommande() {
   const [filterStatus, setFilterStatus] = useState('tous');
   const [loading, setLoading] = useState(true);
 
-  const BASE = 'https://backend-cleanit-erp.vercel.app';
+  const BASE = 'https://backend-one-kappa-96.vercel.app';
   const token = localStorage.getItem('token');
 
   useEffect(()=>{
