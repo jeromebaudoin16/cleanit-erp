@@ -272,29 +272,10 @@ const CONTRATS = ["CDI","CDD","Stage","Freelance"];
 const VILLES = ["Douala","Yaoundé","Bafoussam","Garoua","Bamenda","Kribi","Limbé","Buea"];
 
 // Photo placeholder URLs (Unsplash avatars)
-const PHOTOS = {
-  "EI001":"https://i.pravatar.cc/150?img=5",
-  "EI002":"https://i.pravatar.cc/150?img=11",
-  "EI003":"https://i.pravatar.cc/150?img=9",
-  "EI004":"https://i.pravatar.cc/150?img=12",
-  "EI005":"https://i.pravatar.cc/150?img=8",
-  "EI006":"https://i.pravatar.cc/150?img=20",
-  "EE001":"https://i.pravatar.cc/150?img=15",
-  "EE002":"https://i.pravatar.cc/150?img=17",
-  "EE003":"https://i.pravatar.cc/150?img=22",
-  "EE004":"https://i.pravatar.cc/150?img=3",
-  "EE005":"https://i.pravatar.cc/150?img=25",
-};
+// Photos chargées depuis les vrais profils utilisateurs (avatar_url)
+const PHOTOS = {}; // Vide - les vraies photos viennent de employee.photo (avatar_url DB)
 
-const EMPLOYES = [
-  {id:"EI001",first:"Marie",last:"Kamga",email:"marie.kamga@cleanit.cm",phone:"+237 677 001 001",role:"Chef de Projet Senior",department:"Gestion de Projets",hireDate:"2021-03-15",birthDate:"1988-07-22",birthPlace:"Douala",nationality:"Camerounaise",cin:"12345678",salary:650000,contract:"CDI",status:"actif",gender:"F",city:"Douala",address:"Akwa, Rue des Palmiers",bank:"BICEC",rib:"CM21 1001 1234 5678",matricule:"CLN-INT-001",education:"Master/Ingénieur",emergencyName:"Paul Kamga",emergencyPhone:"+237 699 001 001",emergencyLink:"Époux",docs:[{name:"Contrat CDI",type:"Contrat",date:"2021-03-15"},{name:"Pièce identité",type:"CIN",date:"2021-03-15"},{name:"Diplôme Master",type:"Diplôme",date:"2021-03-10"}],history:[{type:"Promotion",date:"01/01/2023",detail:"Chef de Projet → Chef de Projet Senior",by:"DG Jérôme Bell"},{type:"Embauche",date:"15/03/2021",detail:"Recrutement CDI - Chef de Projet",by:"RH Aline Biya"}]},
-  {id:"EI002",first:"Pierre",last:"Etoga",email:"pierre.etoga@cleanit.cm",phone:"+237 677 002 002",role:"Ingénieur Télécom Senior",department:"Technique & Ingénierie",hireDate:"2020-06-01",birthDate:"1985-11-30",birthPlace:"Yaoundé",nationality:"Camerounaise",cin:"87654321",salary:580000,contract:"CDI",status:"actif",gender:"M",city:"Douala",address:"Bonanjo, Avenue de Gaulle",bank:"SGC",rib:"CM21 2001 9876 5432",matricule:"CLN-INT-002",education:"Master/Ingénieur",emergencyName:"Claire Etoga",emergencyPhone:"+237 699 002 002",emergencyLink:"Épouse",docs:[{name:"Contrat CDI",type:"Contrat",date:"2020-06-01"}],history:[{type:"Augmentation",date:"01/06/2022",detail:"Révision salariale +8%",by:"DG"},{type:"Embauche",date:"01/06/2020",detail:"Recrutement CDI",by:"RH"}]},
-  {id:"EI003",first:"Aline",last:"Biya",email:"aline.biya@cleanit.cm",phone:"+237 677 003 003",role:"RH Manager",department:"Ressources Humaines",hireDate:"2022-01-10",birthDate:"1990-04-15",birthPlace:"Bafoussam",nationality:"Camerounaise",cin:"11223344",salary:480000,contract:"CDI",status:"actif",gender:"F",city:"Douala",address:"Bonapriso",bank:"Afriland",rib:"CM21 3001 1111 2222",matricule:"CLN-INT-003",education:"Master/Ingénieur",emergencyName:"Jean Biya",emergencyPhone:"+237 699 003 003",emergencyLink:"Frère",docs:[{name:"Contrat CDI",type:"Contrat",date:"2022-01-10"}],history:[{type:"Embauche",date:"10/01/2022",detail:"Recrutement CDI",by:"DG"}]},
-  {id:"EI004",first:"David",last:"Mballa",email:"david.mballa@cleanit.cm",phone:"+237 677 004 004",role:"Comptable Senior",department:"Finance & Comptabilité",hireDate:"2021-09-01",birthDate:"1987-02-18",birthPlace:"Douala",nationality:"Camerounaise",cin:"44332211",salary:420000,contract:"CDI",status:"actif",gender:"M",city:"Douala",address:"Deido",bank:"BICEC",rib:"CM21 1001 4444 5555",matricule:"CLN-INT-004",education:"Licence",emergencyName:"Rose Mballa",emergencyPhone:"+237 699 004 004",emergencyLink:"Épouse",docs:[{name:"Contrat CDI",type:"Contrat",date:"2021-09-01"}],history:[{type:"Embauche",date:"01/09/2021",detail:"Recrutement CDI",by:"RH"}]},
-  {id:"EI005",first:"Jean",last:"Fouda",email:"jean.fouda@cleanit.cm",phone:"+237 677 005 005",role:"Commercial Senior",department:"Commercial & Business",hireDate:"2023-02-15",birthDate:"1992-09-05",birthPlace:"Yaoundé",nationality:"Camerounaise",cin:"55667788",salary:380000,contract:"CDI",status:"conge",gender:"M",city:"Yaoundé",address:"Bastos",bank:"MTN Mobile Money",rib:"677005005",matricule:"CLN-INT-005",education:"Master/Ingénieur",emergencyName:"Alice Fouda",emergencyPhone:"+237 699 005 005",emergencyLink:"Soeur",docs:[],history:[{type:"Embauche",date:"15/02/2023",detail:"Recrutement CDI",by:"RH"}]},
-  {id:"EI006",first:"Sandra",last:"Nguele",email:"sandra.nguele@cleanit.cm",phone:"+237 677 006 006",role:"Assistante de Direction",department:"Direction Générale",hireDate:"2020-11-01",birthDate:"1994-12-20",birthPlace:"Kribi",nationality:"Camerounaise",cin:"99887766",salary:320000,contract:"CDI",status:"actif",gender:"F",city:"Douala",address:"Akwa Nord",bank:"Orange Money",rib:"698006006",matricule:"CLN-INT-006",education:"BTS/DUT",emergencyName:"Marc Nguele",emergencyPhone:"+237 699 006 006",emergencyLink:"Père",docs:[{name:"Contrat CDI",type:"Contrat",date:"2020-11-01"}],history:[{type:"Embauche",date:"01/11/2020",detail:"Recrutement CDI",by:"RH"}]},
-];
-
+const EMPLOYES = []; // Données chargées depuis la DB (voir useEffect dans le composant)
 const EXTERNES = [
   {id:"EE001",first:"Thomas",last:"Ngono",phone:"+237 677 100 001",role:"Technicien Installation 5G",speciality:"5G NR / 4G LTE",status:"actif",matricule:"CLN-EXT-001",bank:"MTN Mobile Money",rib:"677100001",city:"Douala",cin:"EXT001",birthDate:"1990-05-12",projects:["PROJ-2024-001"],totalEarned:13500000,dailyRate:85000,contract:"Freelance",rating:4.8,projectCount:7},
   {id:"EE002",first:"Jean",last:"Mbarga",phone:"+237 677 100 002",role:"Ingénieur RF Senior",speciality:"Survey & Optimisation RF",status:"actif",matricule:"CLN-EXT-002",bank:"Orange Money",rib:"698100002",city:"Yaoundé",cin:"EXT002",birthDate:"1985-09-22",projects:["PROJ-2024-002"],totalEarned:8500000,dailyRate:120000,contract:"Freelance",rating:4.9,projectCount:12},
@@ -303,16 +284,8 @@ const EXTERNES = [
   {id:"EE005",first:"René",last:"Talla",phone:"+237 677 100 005",role:"Câbleur fibre optique",speciality:"Fibre optique FTTH",status:"actif",matricule:"CLN-EXT-005",bank:"Orange Money",rib:"698100005",city:"Bafoussam",cin:"EXT005",birthDate:"1995-07-08",projects:[],totalEarned:2100000,dailyRate:55000,contract:"Freelance",rating:4.2,projectCount:3},
 ];
 
-const BULLETINS = [
-  {id:"B001",empId:"EI001",month:2,year:2024,base:650000,bonus:75000,benefits:50000,deductions:0,gross:775000,net:775000,status:"paye",paidOn:"2024-02-28",payMethod:"Virement BICEC"},
-  {id:"B002",empId:"EI002",month:2,year:2024,base:580000,bonus:40000,benefits:30000,deductions:0,gross:650000,net:650000,status:"paye",paidOn:"2024-02-28",payMethod:"Virement SGC"},
-  {id:"B003",empId:"EI003",month:2,year:2024,base:480000,bonus:0,benefits:25000,deductions:0,gross:505000,net:505000,status:"paye",paidOn:"2024-02-28",payMethod:"Virement Afriland"},
-  {id:"B004",empId:"EI001",month:3,year:2024,base:650000,bonus:75000,benefits:50000,deductions:0,gross:775000,net:775000,status:"en_attente",paidOn:null,payMethod:"Virement BICEC"},
-  {id:"B005",empId:"EI002",month:3,year:2024,base:580000,bonus:40000,benefits:30000,deductions:0,gross:650000,net:650000,status:"en_attente",paidOn:null,payMethod:"Virement SGC"},
-  {id:"B006",empId:"EI003",month:3,year:2024,base:480000,bonus:0,benefits:25000,deductions:0,gross:505000,net:505000,status:"en_attente",paidOn:null,payMethod:"Virement Afriland"},
-  {id:"B007",empId:"EI004",month:3,year:2024,base:420000,bonus:20000,benefits:20000,deductions:0,gross:460000,net:460000,status:"en_attente",paidOn:null,payMethod:"Virement BICEC"},
-  {id:"B008",empId:"EI006",month:3,year:2024,base:320000,bonus:0,benefits:15000,deductions:0,gross:335000,net:335000,status:"en_attente",paidOn:null,payMethod:"Orange Money"},
-];
+// BULLETINS générés dynamiquement depuis les vrais employés (voir state dans le composant)
+const BULLETINS = []; // Remplacé par vraies données DB dans le composant
 const POINTAGES = [
   {id:"P001",empId:"EI001",arrival:"08:02",departure:"17:45",hours:8.72,status:"present",note:""},
   {id:"P002",empId:"EI002",arrival:"07:55",departure:"18:10",hours:9.25,status:"present",note:""},
@@ -2003,6 +1976,23 @@ export default function RH() {
                    JSON.parse(u.certifications) : []),
         }));
         if(techs.length>0) setExternals(techs);
+        // Générer bulletins depuis les vrais employés internes
+        if(emps.length>0) {
+          const now=new Date();
+          const mois=now.getMonth()+1; const annee=now.getFullYear();
+          const generatedBulletins=emps.filter(e=>e.salary>0).map((e,i)=>({
+            id:'B-'+e.id+'-'+annee+'-'+mois,
+            empId:e.id,
+            month:mois, year:annee,
+            base:Number(e.salary)||0,
+            bonus:0, benefits:0, deductions:0,
+            gross:Number(e.salary)||0,
+            net:Number(e.salary)||0,
+            status:'en_attente', paidOn:null,
+            payMethod:'Virement '+(e.bank||'—'),
+          }));
+          if(generatedBulletins.length>0) setBulletins(generatedBulletins);
+        }
       }).catch(()=>{});
   },[]);
   const [editForm, setEditForm] = useState({});

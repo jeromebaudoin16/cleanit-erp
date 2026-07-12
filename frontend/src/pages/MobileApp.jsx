@@ -1499,7 +1499,7 @@ const ScreenMessages = () => {
   const pollRef = useRef(null);
   const meId = JSON.parse(localStorage.getItem('user')||'{}').id;
   const token = localStorage.getItem('token');
-  const BASE = 'https://backend-cleanit-erp.vercel.app';
+  const BASE = 'https://backend-one-kappa-96.vercel.app';
 
   useEffect(()=>{
     fetch(BASE+'/conversations',{headers:{'Authorization':'Bearer '+token}})
@@ -1513,7 +1513,7 @@ const ScreenMessages = () => {
     const fetchOnline = () => {
       const tk = localStorage.getItem('token');
       const me = JSON.parse(localStorage.getItem('user')||'{}');
-      fetch('https://backend-cleanit-erp.vercel.app/users/online',{headers:{'Authorization':'Bearer '+tk}})
+      fetch('https://backend-one-kappa-96.vercel.app/users/online',{headers:{'Authorization':'Bearer '+tk}})
         .then(r=>r.json()).then(users=>{
           if(!Array.isArray(users)) return;
           setContacts(users.filter(u=>u.id!==me.id).map(u=>({
@@ -1607,7 +1607,7 @@ const ScreenMessages = () => {
             const me = JSON.parse(localStorage.getItem('user')||'{}');
             const room = `CleanIT-dm-${[me.id, openConv.otherId].sort((a,b)=>a-b).join('-')}`;
             try {
-              const r = await fetch('https://backend-cleanit-erp.vercel.app/calls/initiate',{
+              const r = await fetch('https://backend-one-kappa-96.vercel.app/calls/initiate',{
                 method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
                 body:JSON.stringify({calleeId:openConv.otherId, type:'video', room})
               }).then(r=>r.json());
@@ -1625,7 +1625,7 @@ const ScreenMessages = () => {
             const me = JSON.parse(localStorage.getItem('user')||'{}');
             const room = `CleanIT-dm-${[me.id, openConv.otherId].sort((a,b)=>a-b).join('-')}`;
             try {
-              const r = await fetch('https://backend-cleanit-erp.vercel.app/calls/initiate',{
+              const r = await fetch('https://backend-one-kappa-96.vercel.app/calls/initiate',{
                 method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
                 body:JSON.stringify({calleeId:openConv.otherId, type:'audio', room})
               }).then(r=>r.json());
@@ -1689,7 +1689,7 @@ const ScreenMessages = () => {
             </div>
             <button onClick={async ()=>{
                 const tk = localStorage.getItem('token');
-                if(inCall.callId) await fetch(`https://backend-cleanit-erp.vercel.app/calls/${inCall.callId}/end`,{method:'POST',headers:{'Authorization':'Bearer '+tk}}).catch(()=>{});
+                if(inCall.callId) await fetch(`https://backend-one-kappa-96.vercel.app/calls/${inCall.callId}/end`,{method:'POST',headers:{'Authorization':'Bearer '+tk}}).catch(()=>{});
                 setInCall(null);
               }}
               style={{padding:'6px 14px',borderRadius:8,border:'none',background:'#DC2626',
@@ -1726,7 +1726,7 @@ const ScreenMessages = () => {
           if(openConv.type==='whatsapp' && openConv.phone) {
             try {
               const token = localStorage.getItem('token');
-              await fetch('https://backend-cleanit-erp.vercel.app/whatsapp/send', {
+              await fetch('https://backend-one-kappa-96.vercel.app/whatsapp/send', {
                 method:'POST',
                 headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
                 body: JSON.stringify({to: openConv.phone, message: msgText})
@@ -1735,7 +1735,7 @@ const ScreenMessages = () => {
           } else if(convId) {
             try {
               const tkn = localStorage.getItem('token');
-              const saved = await fetch('https://backend-cleanit-erp.vercel.app/messages',{
+              const saved = await fetch('https://backend-one-kappa-96.vercel.app/messages',{
                 method:'POST',
                 headers:{'Content-Type':'application/json','Authorization':'Bearer '+tkn},
                 body: JSON.stringify({conversationId: convId, text: msgText})
@@ -1780,7 +1780,7 @@ const ScreenMessages = () => {
           {contacts.filter(c=>!contactSearch||c.name.toLowerCase().includes(contactSearch.toLowerCase())).map((c,i)=>(
             <div key={i} onClick={async()=>{
               const tk2=localStorage.getItem('token');
-              const r=await fetch('https://backend-cleanit-erp.vercel.app/conversations',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk2},body:JSON.stringify({participantId:c.id})}).then(r=>r.json()).catch(()=>null);
+              const r=await fetch('https://backend-one-kappa-96.vercel.app/conversations',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk2},body:JSON.stringify({participantId:c.id})}).then(r=>r.json()).catch(()=>null);
               if(r?.id) setMsgTab('messages');
             }} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 6px',borderRadius:8,cursor:'pointer',marginBottom:3}}>
               <div style={{width:42,height:42,borderRadius:'50%',background:'#1B4F8A22',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,color:'#1B4F8A',flexShrink:0,position:'relative'}}>
@@ -2052,7 +2052,7 @@ const ScreenMission = ({user,gps,navigate}) => {
 
   useEffect(() => {
     const tk = localStorage.getItem('token');
-    fetch('https://backend-cleanit-erp.vercel.app/users',{headers:{'Authorization':'Bearer '+tk}})
+    fetch('https://backend-one-kappa-96.vercel.app/users',{headers:{'Authorization':'Bearer '+tk}})
       .then(r=>r.json()).then(d=>{
         if(Array.isArray(d)){
           const colors=['#0066CC','#7C3AED','#059669','#EA580C','#DC2626'];
@@ -2302,7 +2302,7 @@ const ScreenEquipe = ({user, navigate}) => {
 
   const assign = async(mId,uId,uName) => {
     const tk = localStorage.getItem('token');
-    const r = await fetch('https://backend-cleanit-erp.vercel.app/missions/'+mId,{method:'PUT',
+    const r = await fetch('https://backend-one-kappa-96.vercel.app/missions/'+mId,{method:'PUT',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
       body:JSON.stringify({techId:uId,status:'in_progress'})}).then(r=>r.json()).catch(()=>null);
     if(r?.id){ toast(uName+' assigné(e)','success'); setMissions(ms=>ms.map(m=>m.id===mId?{...m,tech_id:uId,status:'in_progress'}:m)); }
@@ -2314,7 +2314,7 @@ const ScreenEquipe = ({user, navigate}) => {
     const me = JSON.parse(localStorage.getItem('user')||'{}');
     const room = `CleanIT-dm-${[me.id, otherId].sort((a,b)=>a-b).join('-')}`;
     try {
-      const r = await fetch('https://backend-cleanit-erp.vercel.app/calls/initiate',{
+      const r = await fetch('https://backend-one-kappa-96.vercel.app/calls/initiate',{
         method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
         body:JSON.stringify({calleeId:otherId, type, room})
       }).then(r=>r.json());
@@ -2431,7 +2431,7 @@ const ScreenApprovals = ({user}) => {
   const [submitting, setSubmitting] = useState(false);
   const {toast,toastMsg,toastShow,toastType} = useToast();
 
-  const BASE = 'https://backend-cleanit-erp.vercel.app';
+  const BASE = 'https://backend-one-kappa-96.vercel.app';
   const isApprover = ['admin','project_manager','hr','dg','bureau'].includes(user?.role);
   const isPM = ['project_manager','pm'].includes(user?.role);
 
@@ -2719,7 +2719,7 @@ const ScreenAnalytics = () => {
     const load = () => {
       const tk=localStorage.getItem('token');
       const h={'Authorization':'Bearer '+tk};
-      const b='https://backend-cleanit-erp.vercel.app';
+      const b='https://backend-one-kappa-96.vercel.app';
       Promise.all([fetch(b+'/stats',{headers:h}).then(r=>r.json()).catch(()=>null),
         fetch(b+'/missions',{headers:h}).then(r=>r.json()).catch(()=>[])]).then(([s,ms])=>{
         if(s)setStats(s);if(Array.isArray(ms))setMissions(ms);});
@@ -3107,11 +3107,11 @@ export default function MobileApp() {
     // Ping toutes les 2 minutes pour maintenir last_seen actif
     const pingId = setInterval(()=>{
       const tk = localStorage.getItem('token');
-      if(tk) fetch('https://backend-cleanit-erp.vercel.app/ping',{method:'POST',headers:{'Authorization':'Bearer '+tk}}).catch(()=>{});
+      if(tk) fetch('https://backend-one-kappa-96.vercel.app/ping',{method:'POST',headers:{'Authorization':'Bearer '+tk}}).catch(()=>{});
     }, 120000);
     // Ping immédiat au chargement
     const tk0 = localStorage.getItem('token');
-    if(tk0) fetch('https://backend-cleanit-erp.vercel.app/ping',{method:'POST',headers:{'Authorization':'Bearer '+tk0}}).catch(()=>{});
+    if(tk0) fetch('https://backend-one-kappa-96.vercel.app/ping',{method:'POST',headers:{'Authorization':'Bearer '+tk0}}).catch(()=>{});
     return()=>clearInterval(id);
   },[]);
 
@@ -3126,7 +3126,7 @@ export default function MobileApp() {
       if(!tk) return;
       // Batterie si dispo (API navigator.getBattery, support partiel)
       const sendWithBattery = (batteryLevel) => {
-        fetch('https://backend-cleanit-erp.vercel.app/location/update', {
+        fetch('https://backend-one-kappa-96.vercel.app/location/update', {
           method:'POST',
           headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
           body: JSON.stringify({ lat, lng, accuracy, battery: batteryLevel })
@@ -3206,7 +3206,7 @@ export default function MobileApp() {
     const fetchUnread = () => {
       const tk = localStorage.getItem('token');
       if(!tk) return;
-      fetch('https://backend-cleanit-erp.vercel.app/conversations/list',{headers:{'Authorization':'Bearer '+tk}})
+      fetch('https://backend-one-kappa-96.vercel.app/conversations/list',{headers:{'Authorization':'Bearer '+tk}})
         .then(r=>r.json())
         .then(data=>{ if(Array.isArray(data)) setUnreadCount(data.reduce((s,c)=>s+(parseInt(c.unread_count)||0),0)); })
         .catch(()=>{});
@@ -3224,7 +3224,7 @@ export default function MobileApp() {
       if(!tk) return;
       if(incomingCall && !activeCall){
         // Une popup est déjà affichée : vérifier que l'appel est toujours "ringing" côté serveur
-        fetch(`https://backend-cleanit-erp.vercel.app/calls/incoming`,{headers:{'Authorization':'Bearer '+tk}})
+        fetch(`https://backend-one-kappa-96.vercel.app/calls/incoming`,{headers:{'Authorization':'Bearer '+tk}})
           .then(r=>r.json())
           .then(call=>{
             if(!call || call.id!==incomingCall.id) setIncomingCall(null); // appel annulé/expiré/répondu ailleurs
@@ -3232,7 +3232,7 @@ export default function MobileApp() {
         return;
       }
       if(activeCall) return;
-      fetch('https://backend-cleanit-erp.vercel.app/calls/incoming',{headers:{'Authorization':'Bearer '+tk}})
+      fetch('https://backend-one-kappa-96.vercel.app/calls/incoming',{headers:{'Authorization':'Bearer '+tk}})
         .then(r=>r.json())
         .then(call=>{ if(call) setIncomingCall(call); })
         .catch(()=>{});
@@ -3319,7 +3319,7 @@ export default function MobileApp() {
           <div style={{display:'flex',gap:8}}>
             <button onClick={async ()=>{
                 const tk = localStorage.getItem('token');
-                await fetch(`https://backend-cleanit-erp.vercel.app/calls/${incomingCall.id}/respond`,{method:'POST',
+                await fetch(`https://backend-one-kappa-96.vercel.app/calls/${incomingCall.id}/respond`,{method:'POST',
                   headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
                   body:JSON.stringify({accepted:false})}).catch(()=>{});
                 setIncomingCall(null);
@@ -3330,7 +3330,7 @@ export default function MobileApp() {
             </button>
             <button onClick={async ()=>{
                 const tk = localStorage.getItem('token');
-                await fetch(`https://backend-cleanit-erp.vercel.app/calls/${incomingCall.id}/respond`,{method:'POST',
+                await fetch(`https://backend-one-kappa-96.vercel.app/calls/${incomingCall.id}/respond`,{method:'POST',
                   headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},
                   body:JSON.stringify({accepted:true})}).catch(()=>{});
                 setActiveCall({type:incomingCall.type, room:incomingCall.room, withName:incomingCall.caller_name, callId:incomingCall.id});
@@ -3357,7 +3357,7 @@ export default function MobileApp() {
             </div>
             <button onClick={async ()=>{
                 const tk = localStorage.getItem('token');
-                if(activeCall.callId) await fetch(`https://backend-cleanit-erp.vercel.app/calls/${activeCall.callId}/end`,{method:'POST',headers:{'Authorization':'Bearer '+tk}}).catch(()=>{});
+                if(activeCall.callId) await fetch(`https://backend-one-kappa-96.vercel.app/calls/${activeCall.callId}/end`,{method:'POST',headers:{'Authorization':'Bearer '+tk}}).catch(()=>{});
                 setActiveCall(null);
               }}
               style={{padding:'6px 14px',borderRadius:8,border:'none',background:'#DC2626',

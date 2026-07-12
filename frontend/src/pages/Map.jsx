@@ -957,7 +957,12 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
     setActiveLayer(layerId);
   };
 
-  const flyTo=(lat,lng,zoom=15)=>mapInstanceRef.current?.flyTo([lat,lng],zoom,{animate:true,duration:1.2});
+  const flyTo=(lat,lng,zoom=15)=>{
+    if(!lat||!lng||!mapInstanceRef.current) return;
+    // setView is more reliable than flyTo for preventing zoom cancel
+    try { mapInstanceRef.current.setView([lat,lng],zoom,{animate:true,duration:0.8,noMoveStart:true}); }
+    catch(e) { try { mapInstanceRef.current.setView([lat,lng],zoom,{animate:false}); } catch{} }
+  };
 
   const closePanel=()=>{
     setSelected(null);setSelectedTech(null);
@@ -1140,7 +1145,7 @@ Pour chaque site à risque, donne une prédiction. Réponds en JSON:
                     const techSite=techniciens.find(t=>t.site===site.code);
                     return(
                       <div key={site.code}
-                        onClick={()=>{setSelected(site);setSelectedTech(null);flyTo(site.lat,site.lng,15);clearRoutes(mapInstanceRef.current);setRouteInfo(null);}}
+                        onClick={()=>{setSelected(site);setSelectedTech(null);if(site.lat&&site.lng)flyTo(site.lat,site.lng,15);clearRoutes(mapInstanceRef.current);setRouteInfo(null);}}
                         style={{padding:"10px 12px",borderBottom:"1px solid #f1f3f4",cursor:"pointer",background:selected?.code===site.code?"#e8f0fe":"white",borderLeft:`3px solid ${selected?.code===site.code?cfg.color:"transparent"}`,transition:"all .1s"}}
                         onMouseEnter={e=>e.currentTarget.style.background=selected?.code===site.code?"#e8f0fe":"#f8f9fa"}
                         onMouseLeave={e=>e.currentTarget.style.background=selected?.code===site.code?"#e8f0fe":"white"}>
