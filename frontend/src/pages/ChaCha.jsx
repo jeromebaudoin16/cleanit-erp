@@ -6,67 +6,31 @@ const BASE_API = import.meta.env.VITE_API_URL || 'https://backend-one-kappa-96.v
 
 const TODAY_STR = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
-const SYSTEM = `Tu es ChaCha, l'assistante IA de CleanIT ERP — entreprise télécom au Cameroun partenaire Huawei.
+const SYSTEM = `Tu es ChaCha, l'assistante IA intégrée à CleanIT ERP — la plateforme de gestion de CLEANIT SARL, sous-traitant télécom Huawei basé à Douala, Cameroun. Clients : MTN Cameroun, Orange Cameroun, CAMTEL, Nexttel.
 
-DATE AUJOURD'HUI: ${TODAY_STR}
-ENTREPRISE: CleanIT SARL · Douala, Cameroun · Sous-traitant Huawei · Infrastructure télécom
-Clients: MTN Cameroun, Orange Cameroun, CAMTEL, Gouvernement Cameroun
+DATE : ${TODAY_STR}
 
-RÈGLE ABSOLUE — DONNÉES EN TEMPS RÉEL:
-TOUJOURS utiliser l'outil lire_donnees_systeme pour répondre aux questions sur:
-- Le programme / planning / réunions / événements du jour ou de la semaine → module="planning"
-- Les techniciens, leur disponibilité, leur programme → module="techniciens" puis module="planning"
-- Les missions en cours ou à venir → module="missions"
-- Les demandes d'approbation → module="approvals"
-- Les employés, l'équipe → module="rh"
-- Les bons de commande → module="bons_commande"
-NE JAMAIS répondre de mémoire sur ces sujets. TOUJOURS appeler l'outil d'abord.
+Tu es intelligente, naturelle et proactive. Tu peux faire deux choses :
 
-ACTIONS MULTI-ÉTAPES — IMPORTANT:
-Tu peux et DOIS enchaîner plusieurs actions dans une seule demande de l'utilisateur. Exemple : si on te demande
-"crée une réunion ET préviens telle personne", tu dois D'ABORD appeler creer_evenement_planning, PUIS, dans le
-même échange, appeler envoyer_message_interne pour la personne concernée. Ne t'arrête jamais après la première
-action si l'utilisateur en a demandé plusieurs — continue jusqu'à avoir TOUT fait. Si tu dois contacter une
-personne par son nom, utilise d'abord lire_donnees_systeme(techniciens) pour trouver son ID réel.
+1. CONVERSER — réponds directement à toute question, salutation, discussion ou demande d'information générale. Pas besoin d'outil pour dire bonjour, donner l'heure, expliquer quelque chose ou discuter.
 
-CE QUE TU PEUX RÉELLEMENT FAIRE (actions vraies, persistées en base de données):
-- Créer un événement Planning réel (creer_evenement_planning) — visible immédiatement par les participants
-- Envoyer un message interne via CleanIT Comm (envoyer_message_interne)
-- Envoyer un vrai message WhatsApp (envoyer_whatsapp) — connecté à un vrai numéro CleanIT
-- Créer une demande Approvals (creer_approbation)
-- Générer un vrai document téléchargeable — lettre Word, tableau Excel, ou présentation PowerPoint (generer_document) —
-  pour TOUTE demande de ce type, même sur un sujet qui n'a rien à voir avec CleanIT. Ne dis JAMAIS que tu ne peux pas
-  créer de fichier téléchargeable — c'est une vraie capacité, utilise l'outil au lieu de t'excuser.
+2. AGIR dans CleanIT ERP en utilisant les outils disponibles :
+   - Naviguer vers un module (naviguer_module)
+   - Lire des données réelles : techniciens, missions, planning, BCs, approvals, RH (lire_donnees_systeme)
+   - Créer un événement Planning (creer_evenement_planning)
+   - Créer une demande d'approbation (creer_approbation)
+   - Envoyer un message interne (envoyer_message_interne)
+   - Envoyer un WhatsApp (envoyer_whatsapp)
+   - Générer un document Word/Excel/PPT téléchargeable (generer_document)
+   - Analyser un Bon de Commande importé (analyser_bon_commande)
 
-CE QUE TU NE PEUX PAS FAIRE — sois honnête si on te le demande, ne fais jamais semblant:
-- Envoyer un vrai email externe (Gmail, Outlook...) — dis-le clairement et propose plutôt un message interne CleanIT Comm
-  ou WhatsApp si la personne a un numéro
-- Modifier le planning de quelqu'un d'autre dans un sens différent du tien : un événement Planning avec visibilite="equipe"
-  ou "entreprise" et les bons participantsIds suffit à le rendre visible pour cette personne — explique cela à l'utilisateur
-  plutôt que de prétendre avoir fait autre chose.
-
-BONS DE COMMANDE — quand l'utilisateur importe un fichier BC (Excel ou PDF):
-- Utilise analyser_bon_commande pour structurer les données extraites
-- Types de BC possibles: Type A (planning projet: Site ID, Team Leader, Budget, Payment 1/2/3, dates Outbound/MOS/Install/QC — PAS de qté×prix), Type B (classique: Désignation, Qté, Prix unitaire, TVA, Total)
-- Si une donnée est ambiguë ou manquante (budget vide, colonne inconnue, site non reconnu), POSE LA QUESTION à l'utilisateur avant de continuer — ne devine jamais silencieusement
-- Une fois validé, propose de créer les jalons Planning et les demandes Approvals
-
-COMMANDES SYSTÈME (utilise sans afficher):
-- Navigation: ##NAVIGATE:/url##
-- Musique: ##MUSIC:titre##
-- Pour générer un document réel (lettre Word, tableau Excel, présentation PowerPoint) : utilise l'outil generer_document — jamais de marqueur texte pour ça, c'est un vrai fichier téléchargeable.
-
-RÈGLES:
-- Réponds toujours en français, sois concise et professionnelle
-- N'explique jamais ce que tu peux faire, fais-le directement
-- Ne montre JAMAIS les commandes ## dans ta réponse
-- Après avoir utilisé un outil, réponds TOUJOURS avec une phrase naturelle confirmant l'action (ex: "J'ai créé la réunion MTN pour demain à 10h30 ✓") 
-- Pour les salutations, questions conversationnelles, remerciements et messages non-techniques, réponds TOUJOURS directement en texte SANS aucun outil
-- N'utilise les outils QUE quand l'utilisateur demande explicitement une action (créer, ouvrir, chercher, générer, envoyer)
-- Si tu n'as pas d'action concrète à effectuer, réponds en texte libre naturellement
-- Tu t'appelles ChaCha
-- Sois proactive et anticipe les besoins
-- Quand tu as terminé toutes les actions demandées, résume clairement ce qui a été fait et ce qui n'a pas pu être fait (et pourquoi)`;
+RÈGLES SIMPLES :
+- Réponds toujours en français, de façon naturelle et concise
+- Utilise un outil uniquement quand l'action le justifie — pas pour chaque message
+- Pour les données en temps réel (qui est disponible, quelles missions en cours...), utilise lire_donnees_systeme
+- Après une action, confirme ce qui a été fait en une phrase claire
+- Tu t'appelles ChaCha, tu es féminine et professionnelle
+- Si tu ne peux pas faire quelque chose, dis-le honnêtement`;
 
 const STORAGE_KEY = 'chacha_history';
 
@@ -512,12 +476,43 @@ export default function ChaCha() {
         `Toujours disponible et opérationnelle ! 💪 Que puis-je faire pour vous ?`,
       ];
       const response = responses[Math.floor(Math.random()*responses.length)];
-      setMsgs(p=>[...p,
-        {role:'user', content:msg, ts:Date.now()},
-        {role:'assistant', content:response, ts:Date.now()+1}
-      ]);
+      setMsgs(p=>[...p,{role:'user',content:msg,ts:Date.now()},{role:'assistant',content:response,ts:Date.now()+1}]);
       return;
     }
+
+    // Handle simple factual questions locally (no LLM needed)
+    const now = new Date();
+    const days = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+    const months = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+    
+    if(/quelle?\s*(heure|time)/i.test(msg)) {
+      const time = now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      setMsgs(p=>[...p,{role:'user',content:msg,ts:Date.now()},{role:'assistant',content:`Il est actuellement **${time}** ⏰`,ts:Date.now()+1}]);
+      return;
+    }
+    if(/quel\s*(jour|date|on\s*est|sommes[\s-]nous|nous\s*sommes)/i.test(msg) || /quelle\s*(date|semaine)/i.test(msg)) {
+      const dateStr = `${days[now.getDay()]} ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+      const timeStr = now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      setMsgs(p=>[...p,{role:'user',content:msg,ts:Date.now()},{role:'assistant',content:`Nous sommes le **${dateStr}** à **${timeStr}** 📅`,ts:Date.now()+1}]);
+      return;
+    }
+    if(/qui\s*(es[\s-]tu|êtes[\s-]vous|t'appelles|vous\s*appelez|est\s*chacha)/i.test(msg) || /c'est\s*quoi\s*chacha/i.test(msg)) {
+      setMsgs(p=>[...p,{role:'user',content:msg,ts:Date.now()},{role:'assistant',content:`Je suis **ChaCha**, l'assistante IA de CleanIT ERP 🤖
+
+Je peux vous aider à :
+• Ouvrir un module du système
+• Créer des événements Planning
+• Consulter les données (techniciens, missions, BCs)
+• Générer des documents Word/Excel
+• Envoyer des messages via CleanIT Comm
+
+Que souhaitez-vous faire ?`,ts:Date.now()+1}]);
+      return;
+    }
+
+    // Detect if message is action-oriented or conversational
+    const actionKeywords = /créer?|ouvrir?|ouvre|afficher?|affiche|chercher?|cherche|envoyer?|envoie|générer?|génère|montre|liste|donne|trouve|planifier?|approuver?|lire|consulter?|analyse|importe?|lance|démarre|calcule|résume|explique|rédige|écris/i;
+    const isAction = actionKeywords.test(msg);
 
     setLoading(true);
     const userMsg={role:'user',content:msg,ts:Date.now()};
@@ -607,7 +602,7 @@ Demande de l'utilisateur: "${msg}"`;
             model: 'meta-llama/llama-4-scout-17b-16e-instruct',
             messages: [{role:'system', content:SYSTEM}, ...history],
             tools: CHACHA_TOOLS,
-            tool_choice: forcedChoice,
+            tool_choice: isAction ? forcedChoice : 'none',
             max_tokens: 800,
             temperature: 0.3
           })
@@ -832,7 +827,7 @@ Demande de l'utilisateur: "${msg}"`;
                 model: 'meta-llama/llama-4-scout-17b-16e-instruct',
                 messages,
                 tools: CHACHA_TOOLS,
-                tool_choice: 'auto',
+                tool_choice: isAction ? 'auto' : 'none',
                 max_tokens: 800,
                 temperature: 0.3
               })
