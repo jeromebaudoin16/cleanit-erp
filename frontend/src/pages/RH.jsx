@@ -413,8 +413,57 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast,setEditEmp=()
   const deptClass = DEPT_CLASSES[employee.department]||"dept-default";
 
   const TABS = isExt
-    ? [{id:"info",l:"Informations"},{id:"projects",l:"Projets & Paiements"},{id:"perf",l:"Performance"}]
+    ? [{id:"info",l:"Informations"},{id:"certs",l:"Certifications"},{id:"projects",l:"Projets & Paiements"},{id:"perf",l:"Performance"}]
     : [{id:"info",l:"Informations personnelles"},{id:"job",l:"Emploi & Contrat"},{id:"payroll",l:"Paie & Rémunération"},{id:"docs",l:"Documents RH"},{id:"history",l:"Historique"},{id:"conge",l:"Congés"}];
+
+  // Certifications state (pour techniciens)
+  const [certs, setCerts] = React.useState(Array.isArray(employee.certs)?employee.certs:[]);
+  const [newCert, setNewCert] = React.useState({name:'',issuer:'',date:'',expiry:'',fileUrl:null,fileName:''});
+  const [showAddCert, setShowAddCert] = React.useState(false);
+  const [savingCert, setSavingCert] = React.useState(false);
+  const certFileRef = React.useRef(null);
+  const BASE_RH = 'https://backend-one-kappa-96.vercel.app';
+  const tok_rh = ()=>localStorage.getItem('token')||'';
+
+  const handleCertFile = async (e) => {
+    const file = e.target.files?.[0]; if(!file) return;
+    // Upload to Vercel Blob
+    const fd=new FormData(); fd.append('file',file);
+    try {
+      const r=await fetch(BASE_RH+'/upload/photo',{method:'POST',headers:{'Authorization':'Bearer '+tok_rh()},body:fd});
+      const d=await r.json();
+      setNewCert(p=>({...p,fileUrl:d.url||null,fileName:file.name}));
+    } catch(err){ setNewCert(p=>({...p,fileName:file.name})); }
+    e.target.value='';
+  };
+
+  const saveCerts = async (updatedCerts) => {
+    setSavingCert(true);
+    try {
+      await fetch(BASE_RH+'/users/'+employee.id,{
+        method:'PUT',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok_rh()},
+        body:JSON.stringify({certifications:updatedCerts})
+      });
+    } catch{}
+    setSavingCert(false);
+  };
+
+  const addCert = async () => {
+    if(!newCert.name.trim()) return;
+    const c={id:Date.now(),...newCert};
+    const updated=[...certs,c];
+    setCerts(updated);
+    await saveCerts(updated);
+    setNewCert({name:'',issuer:'',date:'',expiry:'',fileUrl:null,fileName:''});
+    setShowAddCert(false);
+  };
+
+  const deleteCert = async (id) => {
+    const updated=certs.filter(c=>c.id!==id);
+    setCerts(updated);
+    await saveCerts(updated);
+  };
 
   return (
     <div>
@@ -703,6 +752,81 @@ const EmployeeProfile = ({employee,isExt,bulletins,onClose,onToast,setEditEmp=()
           )}
 
           {/* Performance */}
+          {tab==="certs"&&(
+            <div style={{animation:"fadeUp 0.3s ease both"}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+                <div style={{fontSize:14,fontWeight:700,color:'#1B3A52'}}>{certs.length} certification(s)</div>
+                <button onClick={()=>setShowAddCert(!showAddCert)}
+                  style={{padding:'7px 14px',borderRadius:8,border:'none',background:'#0070F2',color:'white',cursor:'pointer',fontSize:13,fontWeight:600,fontFamily:'inherit'}}>
+                  + Ajouter une certification
+                </button>
+              </div>
+
+              {showAddCert&&(
+                <div style={{background:'#F8FAFF',border:'1px solid #D0E4FF',borderRadius:10,padding:'16px',marginBottom:16}}>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+                    {[['name','Nom certif. *','Ex: HCIA-5G'],['issuer','Organisme','Ex: Huawei'],['date','Date obtention',''],['expiry','Date expiration','']].map(([f,l,ph])=>(
+                      <div key={f}>
+                        <div style={{fontSize:11,fontWeight:600,color:'#6A6D70',marginBottom:4,textTransform:'uppercase'}}>{l}</div>
+                        <input type={f.includes('date')||f.includes('expiry')?'date':'text'}
+                          value={newCert[f]||''} placeholder={ph}
+                          onChange={e=>setNewCert(p=>({...p,[f]:e.target.value}))}
+                          style={{width:'100%',padding:'8px 10px',border:'1px solid #D9D9D9',borderRadius:7,fontSize:13,fontFamily:'inherit',outline:'none',boxSizing:'border-box'}}/>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{marginBottom:12}}>
+                    <div style={{fontSize:11,fontWeight:600,color:'#6A6D70',marginBottom:4,textTransform:'uppercase'}}>Justificatif (PDF, image)</div>
+                    <input ref={certFileRef} type="file" accept=".pdf,image/*" onChange={handleCertFile} style={{display:'none'}}/>
+                    <button onClick={()=>certFileRef.current?.click()}
+                      style={{padding:'8px 14px',borderRadius:7,border:'1px dashed #0070F2',background:'#E8F3FF',color:'#0070F2',cursor:'pointer',fontSize:13,fontFamily:'inherit',fontWeight:600}}>
+                      {newCert.fileName ? '✓ '+newCert.fileName : '📎 Joindre un fichier'}
+                    </button>
+                    {newCert.fileUrl&&<a href={newCert.fileUrl} target="_blank" rel="noreferrer" style={{marginLeft:8,fontSize:12,color:'#0070F2'}}>Voir</a>}
+                  </div>
+                  <div style={{display:'flex',gap:8}}>
+                    <button onClick={addCert} disabled={savingCert||!newCert.name.trim()}
+                      style={{padding:'8px 16px',borderRadius:8,border:'none',background:'#0070F2',color:'white',cursor:'pointer',fontFamily:'inherit',fontSize:13,fontWeight:600}}>
+                      {savingCert?'Sauvegarde...':'✓ Ajouter'}
+                    </button>
+                    <button onClick={()=>{setShowAddCert(false);setNewCert({name:'',issuer:'',date:'',expiry:'',fileUrl:null,fileName:''}); }}
+                      style={{padding:'8px 12px',borderRadius:8,border:'1px solid #D9D9D9',background:'none',cursor:'pointer',fontFamily:'inherit',fontSize:13,color:'#89898B'}}>Annuler</button>
+                  </div>
+                </div>
+              )}
+
+              {certs.length===0&&!showAddCert&&(
+                <div style={{padding:'40px',textAlign:'center',background:'#FAFAFA',borderRadius:8,border:'1px dashed #D9D9D9',color:'#89898B'}}>
+                  Aucune certification enregistrée
+                </div>
+              )}
+
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                {certs.map(c=>(
+                  <div key={c.id} style={{display:'flex',alignItems:'center',gap:12,padding:'12px 14px',background:'white',borderRadius:9,border:'1px solid #E8E8E8',boxShadow:'0 1px 3px rgba(0,0,0,.04)'}}>
+                    <div style={{width:38,height:38,borderRadius:9,background:'#E8F3FF',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:18}}>🏆</div>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:14,fontWeight:700,color:'#1B3A52'}}>{c.name}</div>
+                      <div style={{fontSize:12,color:'#6A6D70',marginTop:2}}>
+                        {c.issuer&&<span>{c.issuer} · </span>}
+                        {c.date&&<span>Obtenu: {c.date}</span>}
+                        {c.expiry&&<span> · Expire: {c.expiry}</span>}
+                      </div>
+                    </div>
+                    {c.fileUrl&&(
+                      <a href={c.fileUrl} target="_blank" rel="noreferrer"
+                        style={{padding:'5px 10px',borderRadius:6,border:'1px solid #0070F2',color:'#0070F2',fontSize:12,fontWeight:600,textDecoration:'none'}}>
+                        📄 Voir
+                      </a>
+                    )}
+                    <button onClick={()=>deleteCert(c.id)}
+                      style={{background:'none',border:'none',cursor:'pointer',color:'#CC0000',fontSize:16,padding:'4px'}}>×</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {tab==="perf"&&(
             <div style={{textAlign:"center",padding:"40px 20px",animation:"fadeUp 0.3s ease both"}}>
               <div style={{fontSize:"80px",fontWeight:800,color:"#0070F2",letterSpacing:"-4px",marginBottom:"8px",animation:"kpiCount 0.8s ease both"}}>{employee.rating}</div>
